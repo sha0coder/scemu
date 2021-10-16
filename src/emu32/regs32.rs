@@ -38,6 +38,20 @@ impl Regs32 {
         self.eip = 0;
     }
 
+    pub fn print(&self) {
+        println!("regs:");
+        println!("eax: {}", self.eax);
+        println!("ebx: {}", self.ebx);
+        println!("ecx: {}", self.ecx);
+        println!("edx: {}", self.edx);
+        println!("esi: {}", self.esi);
+        println!("edi: {}", self.edi);
+        println!("ebp: {}", self.ebp);
+        println!("esp: {}", self.esp);
+        println!("eip: {}", self.eip);
+        println!("---");
+    }
+
     pub fn get_ax(&self) -> u32 {
         return self.eax & 0xffff;
     }
