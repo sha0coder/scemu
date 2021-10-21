@@ -1,3 +1,9 @@
+/*
+    TODO:
+        - ante un pop mirar si ha recogido un puntero a un string y printar el string.
+*/
+
+
 extern crate capstone;
 
 mod flags; 
@@ -27,7 +33,7 @@ pub struct Emu32 {
     eflags: Eflags,
     code: Mem32,
     stack: Mem32,
-    teb: Mem32,
+    peb: Mem32,
 }
 
 impl Emu32 {
@@ -38,19 +44,40 @@ impl Emu32 {
             eflags: Eflags::new(),
             code: Mem32::new(),
             stack: Mem32::new(),
-            teb: Mem32::new(),
+            peb: Mem32::new(),
         }
     }
 
     pub fn init(&mut self) {
+        println!("initializing regs");
         self.regs.clear();
         self.regs.esp = 0x00100000;
         self.regs.ebp = 0x00100100;
         self.regs.eip = 0;
 
+        println!("initializing code and stack");
         self.code.set_base(self.regs.eip);
         self.stack.set_base(self.regs.esp - ((self.stack.size() as u32) / 2));
-        self.teb.set_base(0x00200000);
+
+        /* fake PEB
+                mov eax, dword ptr fs:[0x30]        
+                mov eax, dword ptr [eax + 0xc]
+                mov eax, dword ptr [eax + 0x14]
+                mov ecx, dword ptr [eax]
+        */
+
+        
+        //TODO: replicate full PEB structure
+        println!("initializing PEB");
+        self.peb.set_base(0x00200000);   
+
+        // 0x02 must be 0   (is being debugged)
+
+        self.peb.write_dword(0x00200000, 0x00200004);       // PEB addr
+        self.peb.write_dword(0x00200004+0xc, 0x00200008);   // PEB->Ldr
+        self.peb.write_dword(0x00200008+0x14, 0x0020000c);  // PEB->Ldr.InMemOrder
+        self.peb.write_dword(0x0020000c, 0x00210000);
+        self.peb.write_dword(0x00210000, 0x00004e00);
     }
 
     pub fn load_code(&mut self, filename: &String) {
@@ -75,11 +102,31 @@ impl Emu32 {
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
 
         if operand.contains("fs:[") {
-            let inm = self.get_inmediate(spl[0]);
-            println!("FS ACCESS TO 0x{:x}", inm);
+            println!("1=>{}", operand);
+            let mem = operand.split(":").collect::<Vec<&str>>()[1];
+            println!("2=>{}", mem);
+            let value = self.memory_operand_to_address(mem);
+            println!("3=>{}", value);
 
-            if inm == 0x30 { // TEB
-                return self.teb.get_base();
+            /*
+                fs:[0x30]
+                fs:[ecx + 0x30]  ecx:0  <-- TODO: implement this
+
+
+                FS:[0x00] : Current SEH Frame
+                FS:[0x18] : TEB (Thread Environment Block)
+                FS:[0x20] : PID
+                FS:[0x24] : TID
+                FS:[0x30] : PEB (Process Environment Block)
+                FS:[0x34] : Last Error Value
+            */
+
+            //let inm = self.get_inmediate(spl[0]);
+            println!("FS ACCESS TO 0x{:x}", value);
+
+            if value == 0x30 { // PEB
+                println!("ACCESS TO PEB");
+                return self.peb.get_base();
             }
 
             panic!("not implemented: {}", operand);
@@ -170,7 +217,7 @@ impl Emu32 {
         }
 
         // isnt normal, addr outside maps
-        if !self.code.inside(addr) && !self.stack.inside(addr) && !self.teb.inside(addr) {
+        if !self.code.inside(addr) && !self.stack.inside(addr) && !self.peb.inside(addr) {
             panic!("addr 0x{:x} outside maps, operand: {}", addr, operand);
         }
 
@@ -181,7 +228,7 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 value = (self.code.read_byte(addr) as u32) & 0x000000ff;
 
-            } else if operand.contains("word dptr") {
+            } else if operand.contains("word ptr") {
                 value = (self.code.read_word(addr) as u32) & 0x0000ffff;
                 
             } else if operand.contains("dword ptr") {
@@ -199,7 +246,7 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 value = (self.stack.read_byte(addr) as u32) & 0x000000ff;
 
-            } else if operand.contains("word dptr") {
+            } else if operand.contains("word ptr") {
                 value = (self.stack.read_word(addr) as u32) & 0x0000ffff;
                 
             } else if operand.contains("dword ptr") {
@@ -212,16 +259,16 @@ impl Emu32 {
             return value;
         }
 
-        if self.teb.inside(addr) {
+        if self.peb.inside(addr) {
             
             if operand.contains("byte ptr") {
-                value = (self.teb.read_byte(addr) as u32) & 0x000000ff;
+                value = (self.peb.read_byte(addr) as u32) & 0x000000ff;
 
-            } else if operand.contains("word dptr") {
-                value = (self.teb.read_word(addr) as u32) & 0x0000ffff;
+            } else if operand.contains("word ptr") {
+                value = (self.peb.read_word(addr) as u32) & 0x0000ffff;
                 
             } else if operand.contains("dword ptr") {
-                value = self.teb.read_dword(addr);
+                value = self.peb.read_dword(addr);
     
             } else {
                 panic!("weird precision: {}", operand);
@@ -246,8 +293,8 @@ impl Emu32 {
             panic!("esp outside stack");
         }
 
-        if self.teb.inside(addr) {
-            panic!("modifying teb!!");
+        if self.peb.inside(addr) {
+            panic!("modifying peb!!");
         }
 
         // isnt normal, addr outside maps
@@ -262,7 +309,7 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 self.code.write_byte(addr, (value&0x000000ff) as u8);
 
-            } else if operand.contains("word dptr") {
+            } else if operand.contains("word ptr") {
                 self.code.write_word(addr, (value&0x0000ffff) as u16);
                 
             } else if operand.contains("dword ptr") {
@@ -280,7 +327,7 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 self.stack.write_byte(addr, (value&0x000000ff) as u8);
 
-            } else if operand.contains("word dptr") {
+            } else if operand.contains("word ptr") {
                 self.stack.write_word(addr, (value&0x0000ffff) as u16);
                 
             } else if operand.contains("dword ptr") {
@@ -323,6 +370,194 @@ impl Emu32 {
         }
     }
 
+    pub fn get_size(&self, operand:&str) -> u8 {
+        if operand.contains("byte ptr") {
+            return 8;
+
+        } else if operand.contains("word ptr") {
+            return 16;
+            
+        } else if operand.contains("dword ptr") {
+            return 32;
+
+        } /*else if operand.len() == 3 {
+            if operand.get(0).unwrap() == 'e' && operand.get(2).unwrap() == 'x' {
+                return 32;
+            }
+
+        } else if operand.len() == 2 {
+            if operand.get(1).unwrap() == 'x' {
+                return 16;
+            }
+
+            if opreand.get(1).unwrap() == 'h' || operand.get(1).unwrap() == "l" {
+                return 8;
+            }
+        }*/
+
+        panic!("weird precision: {}", operand);
+    }
+
+    pub fn flags_add(&mut self, value1:u32, value2:u32) -> u32 {
+        let signed:i32 = value1 as i32 + value2 as i32;
+        let unsigned:u64 = value1 as u64 + value2 as u64;
+
+        // zero flag
+        if unsigned & 0xffffffff == 0 {
+            self.flags.f_zf = true;
+        } else {
+            self.flags.f_zf = false;
+        }
+
+        // sign flag
+        if signed < 0 {
+            self.flags.f_sf = true;
+        } else {
+            self.flags.f_sf = false;
+        }
+
+        // carry flag
+        if unsigned > 0xffffffff {
+            self.flags.f_cf = true;
+        } else {
+            self.flags.f_cf = false;
+        }
+
+        // overflow flag
+        if ((value1 as i32) > 0 && signed < 0) || ((value1 as i32) < 0 && signed > 0) {
+            self.flags.f_of = true;
+        } else {
+            self.flags.f_of = false;
+        }
+
+        return (unsigned & 0xffffffff) as u32;
+    }
+
+    pub fn flags_sub(&mut self, value1:u32, value2:u32) -> u32 {
+        let signed:i64 = value1 as i64 - value2 as i64;
+        let mut unsigned:u64 = 0;
+        
+        if value1 > value2 {
+            unsigned = value1 as u64 - value2 as u64;
+        }
+
+        // zero flag
+        if unsigned & 0xffffffff == 0 || signed == 0 {
+            self.flags.f_zf = true;
+        } else {
+            self.flags.f_zf = false;
+        }
+
+        // sign flag
+        if signed < 0 {
+            self.flags.f_sf = true;
+        } else {
+            self.flags.f_sf = false;
+        }
+
+        // carry flag
+        if unsigned > 0xffffffff {
+            self.flags.f_cf = true;
+            return (unsigned & 0xffffffff) as u32;
+        }
+        self.flags.f_cf = false;
+
+        // overflow flag
+        if ((value1 as i32) > 0 && signed < 0) || ((value1 as i32) < 0 && signed > 0) {
+            self.flags.f_of = true;
+        } else {
+            self.flags.f_of = false;
+        }
+
+        if value2 > value1 {
+            self.flags.f_of = true;
+            return 0;
+        }
+
+        return value1 - value2;
+    }
+
+    pub fn flags_inc32(&mut self, value:u32) -> u32 { // verified
+        if value == 0xffffffff {
+            self.flags.f_zf = true;
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            return 0;
+        }
+        self.flags.f_zf = false;
+        return value + 1;
+    }
+
+    pub fn flags_inc16(&mut self, value:u32) -> u32 {
+        if value == 0xffff {
+            self.flags.f_zf = true;
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            return 0;
+        }
+        self.flags.f_zf = false;
+        return value + 1;
+    }
+
+    pub fn flags_inc8(&mut self, value:u32) -> u32 {
+        if value == 0xff {
+            self.flags.f_zf = true;
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            return 0;
+        }
+        self.flags.f_zf = false;
+        return value + 1;
+    }
+
+    pub fn flags_dec32(&mut self, value:u32) -> u32 { // verified
+        if value == 0 {
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            self.flags.f_sf = true;
+            return 0xffffffff;
+        }
+        self.flags.f_pf = false;
+        self.flags.f_af = false;
+        self.flags.f_sf = false;
+
+        self.flags.f_zf = (value == 1);
+
+        return value - 1;
+    }
+
+    pub fn flags_dec16(&mut self, value:u32) -> u32 { 
+        if value == 0 {
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            self.flags.f_sf = true;
+            return 0xffff;
+        }
+        self.flags.f_pf = false;
+        self.flags.f_af = false;
+        self.flags.f_sf = false;
+
+        self.flags.f_zf = (value == 1);
+
+        return value - 1;
+    }
+
+    pub fn flags_dec8(&mut self, value:u32) -> u32 { 
+        if value == 0 {
+            self.flags.f_pf = true;
+            self.flags.f_af = true;
+            self.flags.f_sf = true;
+            return 0xff;
+        }
+        self.flags.f_pf = false;
+        self.flags.f_af = false;
+        self.flags.f_sf = false;
+
+        self.flags.f_zf = (value == 1);
+
+        return value - 1;
+    }
+
 
     pub fn run(&mut self) {
         let cs = Capstone::new()
@@ -342,14 +577,13 @@ impl Emu32 {
             
 
             for ins in insns.as_ref() {
-                
                 //TODO: use InsnDetail https://docs.rs/capstone/0.4.0/capstone/struct.InsnDetail.html
                 let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
                 let arch_detail: ArchDetail = detail.arch_detail();
                 let ops = arch_detail.operands();
                 let sz = ins.bytes().len();
 
-                println!("{} bytes:{:?} operands:'{}'", ins, ins.bytes(), ins.op_str().unwrap());
+                println!("{}", ins); //, ins.bytes());
                 
 
 
@@ -508,7 +742,7 @@ impl Emu32 {
                                 // mov reg, mem 
                                 let value = self.memory_read(parts[1]);
                                 self.regs.set_by_name(parts[0], value);
-                                println!("reg '{}' '{}' new value: 0x{:x}", parts[0], parts[1], value);
+                                //println!("reg '{}' '{}' new value: 0x{:x}", parts[0], parts[1], value);
 
                             } else if self.is_reg(parts[1]) {
                                 // mov reg, reg
@@ -523,7 +757,228 @@ impl Emu32 {
                     
                     },
 
+                    Some("xor") => {
+                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // mov mem, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+
+                                self.memory_write(parts[0], value0 ^ value1);
+                                
+                            } else {
+                                // mov mem, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                self.memory_write(parts[0], value0 ^ inm);
+                            }
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // mov reg, mem 
+                                let value1 = self.memory_read(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                self.regs.set_by_name(parts[0], value0 ^ value1);
+
+                            } else if self.is_reg(parts[1]) {
+                                // mov reg, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                self.regs.set_by_name(parts[0], value0 ^ value1);
+                                
+                            } else {
+                                // mov reg, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                self.regs.set_by_name(parts[0], value0 ^ inm);
+                            }
+                        }
+                    },
+
+                    Some("add") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
+                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // mov mem, reg
+                                let value1:u32 = self.regs.get_by_name(parts[1]);
+                                let value0:u32 = self.memory_read(parts[0]);
+                                let res = self.flags_add(value0, value1);
+                                self.memory_write(parts[0], res); 
+                                
+                            } else {
+                                // mov mem, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                let res = self.flags_add(value0, inm);
+                                self.memory_write(parts[0], res);
+                            }
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // mov reg, mem 
+                                let value1 = self.memory_read(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_add(value0, value1);
+                                self.regs.set_by_name(parts[0], res);
+
+
+                            } else if self.is_reg(parts[1]) {
+                                // mov reg, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_add(value0, value1);
+                                self.regs.set_by_name(parts[0], res);
+                                
+                            } else {
+                                // mov reg, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_add(value0, inm);
+                                self.regs.set_by_name(parts[0], res);
+                            }
+                        } 
+                    },
+                    
+                    
+                    Some("sub") => {
+                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // mov mem, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                let res = self.flags_sub(value0, value1);
+                                self.memory_write(parts[0], res);
+                                
+                            } else {
+                                // mov mem, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                let res = self.flags_sub(value0, inm);
+                                self.memory_write(parts[0], res);
+                            }
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // mov reg, mem 
+                                let value1 = self.memory_read(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_sub(value0, value1);
+                                self.regs.set_by_name(parts[0], res);
+
+                            } else if self.is_reg(parts[1]) {
+                                // mov reg, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_sub(value0, value1);
+                                self.regs.set_by_name(parts[0], res);
+                                
+                            } else {
+                                // mov reg, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res = self.flags_sub(value0, inm);
+                                self.regs.set_by_name(parts[0], res);
+                            }
+                        }
+                    },
+
+                    Some("inc") => {
+                        let op = ins.op_str().unwrap();
+                        if self.is_reg(op) {
+                            let value = self.regs.get_by_name(op);
+                            let mut res:u32;
+
+                            match self.get_size(op) {
+                                32 => {
+                                    res = self.flags_inc32(value);
+                                },
+                                16 => {
+                                    res = self.flags_inc16(value);
+                                },
+                                8 => {
+                                    res = self.flags_inc8(value);
+                                }
+                            }
+
+                            self.regs.set_by_name(op, res);
+                            
+                        } else {
+                            let value = self.memory_read(op);
+                            let mut res:u32;
+
+                            match self.get_size(op) {
+                                32 => {
+                                    res = self.flags_inc32(value);
+                                },
+                                16 => {
+                                    res = self.flags_inc16(value);
+                                },
+                                8 => {
+                                    res = self.flags_inc8(value);
+                                }
+                            }
+
+                            self.memory_write(op, res);
+                        }
+                    },
+
+                    Some("dec") => {
+                        let op = ins.op_str().unwrap();
+                        if self.is_reg(op) {
+                            let value = self.regs.get_by_name(op);
+                            let mut res:u32;
+
+                            match self.get_size(op) {
+                                32 => {
+                                    res = self.flags_dec32(value);
+                                },
+                                16 => {
+                                    res = self.flags_dec16(value);
+                                },
+                                8 => {
+                                    res = self.flags_dec8(value);
+                                }
+                            }
+
+                            self.regs.set_by_name(op, res);
+                        } else {
+                            let value = self.memory_read(op);
+                            let mut res:u32;
+
+                            match self.get_size(op) {
+                                32 => {
+                                    res = self.flags_dec32(value);
+                                },
+                                16 => {
+                                    res = self.flags_dec16(value);
+                                },
+                                8 => {
+                                    res = self.flags_dec8(value);
+                                }
+                            }
+
+                            self.memory_write(op, res);
+                        }
+                    },
+
+                    // neg not and or ror rol  shr shl 
+
+                    //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
+                    //          https://c9x.me/x86/html/file_module_x86_id_146.html
+
+                    Some("int3") => {
+                    },
+
+                    Some("nop") => {
+                    },
 
                     Some(&_) =>  { 
                         
