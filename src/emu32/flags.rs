@@ -29,4 +29,17 @@ impl Flags {
         }
     }
 
+
+    fn clear(&mut self) {
+        self.f_cf = false;
+        self.f_pf = false;
+        self.f_af = false;
+        self.f_zf = false;
+        self.f_sf = false;
+        self.f_tf = false;
+        self.f_if = false;
+        self.f_df = false;
+        self.f_of = false;
+        self.f_nt = false;
+    }
 }
