@@ -110,32 +110,32 @@ impl Regs32 {
 
     pub fn set_ax(&mut self, val:u32) {
         self.eax = self.eax & 0xffff0000;
-        self.eax += (val & 0x0000ffff);
+        self.eax += val & 0x0000ffff;
     }
 
     pub fn set_bx(&mut self, val:u32) {
         self.ebx = self.ebx & 0xffff0000;
-        self.ebx += (val & 0x0000ffff);
+        self.ebx += val & 0x0000ffff;
     }
 
     pub fn set_cx(&mut self, val:u32) {
         self.ecx = self.ecx & 0xffff0000;
-        self.ecx += (val & 0x0000ffff);
+        self.ecx += val & 0x0000ffff;
     }
 
     pub fn set_dx(&mut self, val:u32) {
         self.edx = self.edx & 0xffff0000;
-        self.edx += (val & 0x0000ffff);
+        self.edx += val & 0x0000ffff;
     }
 
     pub fn set_si(&mut self, val:u32) {
         self.esi = self.esi & 0xffff0000;
-        self.esi += (val & 0x0000ffff);
+        self.esi += val & 0x0000ffff;
     }
 
     pub fn set_di(&mut self, val:u32) {
         self.edi = self.edi & 0xffff0000;
-        self.edi += (val & 0x0000ffff);
+        self.edi += val & 0x0000ffff;
     }
 
     pub fn set_ah(&mut self, val:u32) {
@@ -160,20 +160,20 @@ impl Regs32 {
 
     pub fn set_al(&mut self, val:u32) {
         self.eax = self.eax & 0xffffff00;
-        self.eax += (val & 0x000000ff);
+        self.eax += val & 0x000000ff;
     }
     
     pub fn set_bl(&mut self, val:u32) {
         self.ebx = self.ebx & 0xffffff00;
-        self.ebx += (val & 0x000000ff);
+        self.ebx += val & 0x000000ff;
     }
     pub fn set_cl(&mut self, val:u32) {
         self.ecx = self.ecx & 0xffffff00;
-        self.ecx += (val & 0x000000ff);
+        self.ecx += val & 0x000000ff;
     }
     pub fn set_dl(&mut self, val:u32) {
         self.edx = self.edx & 0xffffff00;
-        self.edx += (val & 0x000000ff);
+        self.edx += val & 0x000000ff;
     }
 
 

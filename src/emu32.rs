@@ -1,5 +1,6 @@
 /*
     TODO:
+        - code no deberia estar en posicion 0 y si cae en 0 un set_eip finalizar.
         - ante un pop mirar si ha recogido un puntero a un string y printar el string.
         - pop popea una direccion de codigo?
         - modo de ver codigo o de no verlo
@@ -22,15 +23,12 @@ use eflags::Eflags;
 use mem32::Mem32;
 use regs32::Regs32;
 
-use std::mem;
-use std::fs;
+//use std::mem;
+//use std::fs;
 use std::fs::File;
 use std::io::Read;
 use capstone::prelude::*;
-use capstone::arch::x86::X86Operand;
-
-
-
+//use capstone::arch::x86::X86Operand;
 
 pub struct Emu32 {
     regs: Regs32,
@@ -62,7 +60,7 @@ impl Emu32 {
 
         println!("initializing code and stack");
         self.code.set_base(self.regs.eip);
-        let q = ((self.stack.size() as u32) / 4);
+        let q = (self.stack.size() as u32) / 4;
         self.stack.set_base(self.regs.esp - (q*3));
 
         /* fake PEB
@@ -87,7 +85,7 @@ impl Emu32 {
 
     pub fn load_code(&mut self, filename: &String) {
         let mut f = File::open(&filename).expect("no file found");
-        let metadata = fs::metadata(&filename).expect("unable to read metadata");
+        //let metadata = fs::metadata(&filename).expect("unable to read metadata");
         //let mut buffer = vec![0; metadata.len() as usize];
         f.read(&mut self.code.mem).expect("buffer overflow");
     }
@@ -177,7 +175,6 @@ impl Emu32 {
                 panic!("weird sign {}", sign);
             }
 
-            let reg_val = self.regs.get_by_name(reg);
             if sign == "+" {
                 return self.regs.get_by_name(reg) + disp;
             } else {
@@ -233,7 +230,7 @@ impl Emu32 {
             panic!("addr 0x{:x} outside maps, operand: {}", addr, operand);
         }
 
-        let mut value:u32 = 0;
+        let value:u32;
 
         if self.code.inside(addr) {
 
@@ -314,7 +311,7 @@ impl Emu32 {
             panic!("addr {} outside maps, operand: {}", addr, operand);
         }
 
-        let mut value:u32 = 0;
+        let value:u32 = 0;
 
         if self.code.inside(addr) {
             println!("writting on code 0x{:x} ebp: 0x{:x}", addr, self.regs.ebp);
@@ -376,7 +373,6 @@ impl Emu32 {
             "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => return true,
             &_ => return false,
         }
-        return false;
     }
 
     pub fn get_inmediate(&self, operand:&str) -> u32 {
@@ -419,92 +415,106 @@ impl Emu32 {
         panic!("weird precision: {}", operand);
     }
 
-    pub fn flags_add(&mut self, value1:u32, value2:u32) -> u32 {
+
+    /// FLAGS ///
+    /// 
+    /// overflow 0xffffffff + 1     
+    /// carry    0x7fffffff + 1     o  0x80000000 - 1       o    0 - 1
+    
+
+    pub fn flags_add32(&mut self, value1:u32, value2:u32) -> u32 {
         let signed:i32 = value1 as i32 + value2 as i32;
         let unsigned:u64 = value1 as u64 + value2 as u64;
 
-        // zero flag
-        if unsigned & 0xffffffff == 0 || signed == 0 {
-            self.flags.f_zf = true;
-        } else {
-            self.flags.f_zf = false;
-        }
+        self.flags.f_sf = signed < 0;
+        self.flags.f_zf = signed == 0;
+        self.flags.f_pf = (signed & 0xff) % 2 == 0;
+        self.flags.f_of = (value1 as i32) > 0 && signed < 0;
+        self.flags.f_cf = unsigned > 0xffffffff;
 
-        // sign flag
-        if signed < 0 {
-            self.flags.f_sf = true;
-        } else {
-            self.flags.f_sf = false;
-        }
-
-        // carry flag
-        if unsigned > 0xffffffff {
-            self.flags.f_cf = true;
-        } else {
-            self.flags.f_cf = false;
-        }
-
-        // overflow flag
-        if ((value1 as i32) > 0 && signed < 0) || ((value1 as i32) < 0 && signed > 0) {
-            self.flags.f_of = true;
-        } else {
-            self.flags.f_of = false;
-        }
-
-        return (unsigned & 0xffffffff) as u32;
+        return signed as u32;
     }
 
-    pub fn flags_sub(&mut self, value1:u32, value2:u32) -> u32 {
-        let signed:i64 = value1 as i64 - value2 as i64;
-        let mut unsigned:u64 = 0;
-        
-        if value1 > value2 {
-            unsigned = value1 as u64 - value2 as u64;
+    pub fn flags_add16(&mut self, value1:u32, value2:u32) -> u32 {
+        if value1 > 0xffff || value2 > 0xffff {
+            panic!("flags_add16 with a bigger precision");
         }
 
-        // zero flag
-        if unsigned & 0xffffffff == 0 || signed == 0 {
-            self.flags.f_zf = true;
-        } else {
-            self.flags.f_zf = false;
-        }
+        let signed:i16 = value1 as i16 + value2 as i16;
+        let unsigned:u32 = value1 as u32 + value2 as u32;
 
-        // sign flag
-        if signed < 0 {
-            self.flags.f_sf = true;
-        } else {
-            self.flags.f_sf = false;
-        }
+        self.flags.f_sf = signed < 0;
+        self.flags.f_zf = signed == 0;
+        self.flags.f_pf = (signed & 0xff) % 2 == 0;
+        self.flags.f_of = (value1 as i32) > 0 && signed < 0;
+        self.flags.f_cf = unsigned > 0xffff;
 
-        // carry flag
-        if unsigned > 0xffffffff {
-            self.flags.f_cf = true;
-            return (unsigned & 0xffffffff) as u32;
-        }
-        self.flags.f_cf = false;
-
-        // overflow flag
-        if ((value1 as i32) > 0 && signed < 0) || ((value1 as i32) < 0 && signed > 0) {
-            self.flags.f_of = true;
-        } else {
-            self.flags.f_of = false;
-        }
-
-        if value2 > value1 {
-            self.flags.f_of = true;
-            return 0;
-        }
-
-        return value1 - value2;
+        return signed as u32;
     }
 
-    pub fn flags_inc32(&mut self, value:u32) -> u32 { // verified
+    pub fn flags_add8(&mut self, value1:u32, value2:u32) -> u32 {
+        if value1 > 0xff || value2 > 0xff {
+            panic!("flags_add8 with a bigger precision");
+        }
+
+        let signed:i8 = value1 as i8 + value2 as i8;
+        let unsigned:u16 = value1 as u16 + value2 as u16;
+
+        self.flags.f_sf = signed < 0;
+        self.flags.f_zf = signed == 0;
+        self.flags.f_pf = signed % 2 == 0;
+        self.flags.f_of = (value1 as i32) > 0 && signed < 0;
+        self.flags.f_cf = unsigned > 0xff;
+
+        return signed as u32;
+    }
+
+    pub fn flags_sub32(&mut self, value1:u32, value2:u32) -> u32 {
+        let sr:i32 = value1 as i32 - value2 as i32;
+
+        self.flags.f_zf = sr == 0;
+        self.flags.f_sf = sr < 0;
+        self.flags.f_pf = (sr & 0xff) % 2 == 0;
+        self.flags.f_of = (value1 as i32) < 0 && sr >= 0;
+        self.flags.f_cf = (value1 as i32) >= 0 && sr < 0;
+
+        return sr as u32;
+    }
+
+    pub fn flags_sub16(&mut self, value1:u32, value2:u32) -> u32 {
+        let sr:i16 = value1 as i16 - value2 as i16;
+
+        self.flags.f_zf = sr == 0;
+        self.flags.f_sf = sr < 0;
+        self.flags.f_pf = (sr & 0xff) % 2 == 0;
+        self.flags.f_of = (value1 as i16) < 0 && sr >= 0;
+        self.flags.f_cf = (value1 as i16) >= 0 && sr < 0;
+
+        return sr as u32;
+    }
+
+    pub fn flags_sub8(&mut self, value1:u32, value2:u32) -> u32 {
+        let sr:i8 = value1 as i8 - value2 as i8;
+
+        self.flags.f_zf = sr == 0;
+        self.flags.f_sf = sr < 0;
+        self.flags.f_pf = sr % 2 == 0;
+        self.flags.f_of = (value1 as i8) < 0 && sr >= 0;
+        self.flags.f_cf = (value1 as i8) >= 0 && sr < 0;
+
+        return sr as u32;
+    }
+
+    pub fn flags_inc32(&mut self, value:u32) -> u32 { 
         if value == 0xffffffff {
             self.flags.f_zf = true;
             self.flags.f_pf = true;
             self.flags.f_af = true;
             return 0;
         }
+        self.flags.f_of = value == 0x7fffffff;
+        self.flags.f_sf = value > 0x7fffffff;
+        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
         self.flags.f_zf = false;
         return value + 1;
     }
@@ -516,6 +526,9 @@ impl Emu32 {
             self.flags.f_af = true;
             return 0;
         }
+        self.flags.f_of = value == 0x7fff;
+        self.flags.f_sf = value > 0x7fff;
+        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
         self.flags.f_zf = false;
         return value + 1;
     }
@@ -527,22 +540,26 @@ impl Emu32 {
             self.flags.f_af = true;
             return 0;
         }
+        self.flags.f_of = value == 0x7f;
+        self.flags.f_sf = value > 0x7f;
+        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
         self.flags.f_zf = false;
         return value + 1;
     }
 
-    pub fn flags_dec32(&mut self, value:u32) -> u32 { // verified
+    pub fn flags_dec32(&mut self, value:u32) -> u32 { 
         if value == 0 {
             self.flags.f_pf = true;
             self.flags.f_af = true;
             self.flags.f_sf = true;
             return 0xffffffff;
         }
-        self.flags.f_pf = false;
+        self.flags.f_of = value == 0x80000000;
+        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = (value == 1);
+        self.flags.f_zf = value == 0;
 
         return value - 1;
     }
@@ -554,11 +571,12 @@ impl Emu32 {
             self.flags.f_sf = true;
             return 0xffff;
         }
-        self.flags.f_pf = false;
+        self.flags.f_of = value == 0x8000;
+        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = (value == 1);
+        self.flags.f_zf = value == 0;
 
         return value - 1;
     }
@@ -570,15 +588,24 @@ impl Emu32 {
             self.flags.f_sf = true;
             return 0xff;
         }
-        self.flags.f_pf = false;
+        self.flags.f_of = value == 0x80;
+        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = (value == 1);
+        self.flags.f_zf = value == 0;
 
         return value - 1;
     }
 
+    pub fn calc_flags(&mut self, final_value:u32) {
+        self.flags.f_zf = final_value == 0;
+        self.flags.f_sf = (final_value as i32) < 0;
+        self.flags.f_pf = (final_value & 0xff) % 2 == 0;        
+    }
+
+
+    ///  RUN ENGINE ///
 
     pub fn run(&mut self) {
         println!(" ----- emulation -----");
@@ -593,16 +620,16 @@ impl Emu32 {
 
         loop {
 
-            let mut eip = self.regs.eip.clone();
+            let eip = self.regs.eip.clone();
             let block = self.code.read_from(eip);
             let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
             
 
             for ins in insns.as_ref() {
                 //TODO: use InsnDetail https://docs.rs/capstone/0.4.0/capstone/struct.InsnDetail.html
-                let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
-                let arch_detail: ArchDetail = detail.arch_detail();
-                let ops = arch_detail.operands();
+                //let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
+                //let arch_detail: ArchDetail = detail.arch_detail();
+                //let ops = arch_detail.operands();
                 let sz = ins.bytes().len();
 
                 println!("{}", ins);
@@ -732,11 +759,11 @@ impl Emu32 {
 
                         arg = arg / 4;
 
-                        for i in 0..arg {
+                        for _ in 0..arg {
                             self.stack_pop();
                         }
 
-                        let mut ret_addr = self.stack_pop(); // return address
+                        let ret_addr = self.stack_pop(); // return address
                         self.set_eip(ret_addr, false);
                         break;
                     },
@@ -819,21 +846,34 @@ impl Emu32 {
                     },
 
                     Some("add") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+                        let ops = ins.op_str().unwrap();
+                        let parts:Vec<&str> = ops.split(", ").collect();
 
                         if parts[0].contains("[") {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1:u32 = self.regs.get_by_name(parts[1]);
                                 let value0:u32 = self.memory_read(parts[0]);
-                                let res = self.flags_add(value0, value1);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1),
+                                    16 => res = self.flags_add16(value0, value1),
+                                    8  => res = self.flags_add8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.memory_write(parts[0], res); 
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
-                                let res = self.flags_add(value0, inm);
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_add32(value0, inm),
+                                    16 => res = self.flags_add16(value0, inm),
+                                    8  => res = self.flags_add8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
                                 self.memory_write(parts[0], res);
                             }
 
@@ -843,7 +883,13 @@ impl Emu32 {
                                 // mov reg, mem 
                                 let value1 = self.memory_read(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_add(value0, value1);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1),
+                                    16 => res = self.flags_add16(value0, value1),
+                                    8  => res = self.flags_add8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
 
 
@@ -851,14 +897,26 @@ impl Emu32 {
                                 // mov reg, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_add(value0, value1);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1),
+                                    16 => res = self.flags_add16(value0, value1),
+                                    8  => res = self.flags_add8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
                                 
                             } else {
                                 // mov reg, inm
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_add(value0, inm);
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_add32(value0, inm),
+                                    16 => res = self.flags_add16(value0, inm),
+                                    8  => res = self.flags_add8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
                             }
                         } 
@@ -866,21 +924,34 @@ impl Emu32 {
                     
                     
                     Some("sub") => {
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
 
                         if parts[0].contains("[") {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
-                                let res = self.flags_sub(value0, value1);
+                                let res:u32;
+                                match self.get_size(op) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.memory_write(parts[0], res);
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
-                                let res = self.flags_sub(value0, inm);
+                                let res:u32;
+                                match self.get_size(op) {
+                                    32 => res = self.flags_sub32(value0, inm),
+                                    16 => res = self.flags_sub16(value0, inm),
+                                    8  => res = self.flags_sub8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
                                 self.memory_write(parts[0], res);
                             }
 
@@ -890,21 +961,39 @@ impl Emu32 {
                                 // mov reg, mem 
                                 let value1 = self.memory_read(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_sub(value0, value1);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
 
                             } else if self.is_reg(parts[1]) {
                                 // mov reg, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_sub(value0, value1);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
                                 
                             } else {
                                 // mov reg, inm
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let res = self.flags_sub(value0, inm);
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_sub32(value0, inm),
+                                    16 => res = self.flags_sub16(value0, inm),
+                                    8  => res = self.flags_sub8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
                                 self.regs.set_by_name(parts[0], res);
                             }
                         }
@@ -914,18 +1003,12 @@ impl Emu32 {
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let value = self.regs.get_by_name(op);
-                            let mut res:u32;
+                            let res:u32;
 
                             match self.get_size(op) {
-                                32 => {
-                                    res = self.flags_inc32(value);
-                                },
-                                16 => {
-                                    res = self.flags_inc16(value);
-                                },
-                                8 => {
-                                    res = self.flags_inc8(value);
-                                },
+                                32 => res = self.flags_inc32(value),
+                                16 => res = self.flags_inc16(value),
+                                8 =>  res = self.flags_inc8(value),
                                 _ => res = 0,
                             }
 
@@ -933,18 +1016,12 @@ impl Emu32 {
                             
                         } else {
                             let value = self.memory_read(op);
-                            let mut res:u32;
+                            let res:u32;
 
                             match self.get_size(op) {
-                                32 => {
-                                    res = self.flags_inc32(value);
-                                },
-                                16 => {
-                                    res = self.flags_inc16(value);
-                                },
-                                8 => {
-                                    res = self.flags_inc8(value);
-                                },
+                                32 => res = self.flags_inc32(value),
+                                16 => res = self.flags_inc16(value),
+                                8 =>  res = self.flags_inc8(value),
                                 _ => res = 0,
                             }
 
@@ -955,37 +1032,27 @@ impl Emu32 {
                     Some("dec") => {
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
+                            // dec reg
                             let value = self.regs.get_by_name(op);
-                            let mut res:u32;
+                            let res:u32;
 
                             match self.get_size(op) {
-                                32 => {
-                                    res = self.flags_dec32(value);
-                                },
-                                16 => {
-                                    res = self.flags_dec16(value);
-                                },
-                                8 => {
-                                    res = self.flags_dec8(value);
-                                }
+                                32 => res = self.flags_dec32(value),
+                                16 => res = self.flags_dec16(value),
+                                8 =>  res = self.flags_dec8(value),
                                 _ => res = 0,
                             }
 
                             self.regs.set_by_name(op, res);
                         } else {
+                            // dec  mem
                             let value = self.memory_read(op);
-                            let mut res:u32;
+                            let res:u32;
 
                             match self.get_size(op) {
-                                32 => {
-                                    res = self.flags_dec32(value);
-                                },
-                                16 => {
-                                    res = self.flags_dec16(value);
-                                },
-                                8 => {
-                                    res = self.flags_dec8(value);
-                                }
+                                32 => res = self.flags_dec32(value),
+                                16 => res = self.flags_dec16(value),
+                                8 =>  res = self.flags_dec8(value),
                                 _ => res = 0,
                             }
 
@@ -993,48 +1060,60 @@ impl Emu32 {
                         }
                     },
 
-                    // neg not and or ror rol  shr shl 
+                    // neg not and or ror rol  sar sal shr shl 
                     Some("neg") => {
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let mut value = self.regs.get_by_name(op);
                             let mut signed:i32 = value as i32;
+                            match self.get_size(op) {
+                                32 => self.flags.f_of = value == 0x80000000,
+                                16 => self.flags.f_of = value == 0x8000,
+                                8 =>  self.flags.f_of = value == 0x80,
+                                _ => panic!("weird precision")
+                            }
                             signed = signed * -1;
                             value = signed as u32;
-                            self.flags.f_zf = (value == 0);
+                            self.calc_flags(value);
+                            self.flags.f_cf = true;
                             self.regs.set_by_name(op, value);
                             
                         } else {
                             let mut value = self.memory_read(op);
                             let mut signed:i32 = value as i32;
+                            match self.get_size(op) {
+                                32 => self.flags.f_of = value == 0x80000000,
+                                16 => self.flags.f_of = value == 0x8000,
+                                8 =>  self.flags.f_of = value == 0x80,
+                                _ => panic!("weird precision")
+                            }
                             signed = signed * -1;
                             value = signed as u32;
-                            self.flags.f_zf = (value == 0);
+                            self.calc_flags(value);
+                            self.flags.f_cf = true;
+                            
                             self.memory_write(op, value);
                         }
                     },
 
-                    Some("not") => {
+                    Some("not") => { // dont alter flags
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let mut value = self.regs.get_by_name(op);
                             let mut signed:i32 = value as i32;
                             signed = !signed;
                             value = signed as u32;
-                            self.flags.f_zf = (value == 0);
                             self.regs.set_by_name(op, value);
-                            
                         } else {
                             let mut value = self.memory_read(op);
                             let mut signed:i32 = value as i32;
                             signed = !signed;
                             value = signed as u32;
-                            self.flags.f_zf = (value == 0);
                             self.memory_write(op, value);
                         }
                     },
 
-                    Some("and") => {
+                    Some("and") => { // TODO: how to trigger overflow and carry with and
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
                         if parts[0].contains("[") {
@@ -1043,7 +1122,7 @@ impl Emu32 {
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
                                 let res = value0 & value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.memory_write(parts[0], res);
                                 
                             } else {
@@ -1051,7 +1130,7 @@ impl Emu32 {
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
                                 let res = value0 & inm;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.memory_write(parts[0], res);
                             }
 
@@ -1062,7 +1141,7 @@ impl Emu32 {
                                 let value1 = self.memory_read(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 & value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
 
                             } else if self.is_reg(parts[1]) {
@@ -1070,7 +1149,7 @@ impl Emu32 {
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 & value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
                                 
                             } else {
@@ -1078,7 +1157,7 @@ impl Emu32 {
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 & inm;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
                             }
                         }
@@ -1094,7 +1173,7 @@ impl Emu32 {
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
                                 let res = value0 | value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.memory_write(parts[0], res);
                                 
                             } else {
@@ -1102,7 +1181,7 @@ impl Emu32 {
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.memory_read(parts[0]);
                                 let res = value0 | inm;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.memory_write(parts[0], res);
                             }
 
@@ -1113,7 +1192,7 @@ impl Emu32 {
                                 let value1 = self.memory_read(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 | value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
 
                             } else if self.is_reg(parts[1]) {
@@ -1121,7 +1200,7 @@ impl Emu32 {
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 | value1;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
                                 
                             } else {
@@ -1129,36 +1208,209 @@ impl Emu32 {
                                 let inm = self.get_inmediate(parts[1]);
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 | inm;
-                                self.flags.f_zf = (res == 0);
+                                self.calc_flags(res);
                                 self.regs.set_by_name(parts[0], res);
                             }
                         }
                     },
 
-                    Some("sar") => {
+                    Some("sal") => {
                         let op = ins.op_str().unwrap();
-                        let twoparams = op.contains(", ");
+                        //let twoparams = op.contains(", ");
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let twoparams = parts.len() == 1;
+
                         if twoparams {
+                            if self.is_reg(parts[0]) {
+                                // reg
+                                if self.is_reg(parts[1]) {
+                                    // sal reg, reg
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+
+
+                                } else  {
+                                    // sal reg, imm
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+                                }
+
+
+                            } else {
+                                // mem
+                                if self.is_reg(parts[1]) {
+                                    // sal mem, reg
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+
+                                } else {
+                                    // sal mem, imm
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+                                }
+
+                            }
+
 
                         } else { // one param
-                            if self.is_reg(op) {
-                                let mut value:i32 = self.regs.get_by_name(op) as i32;
-                                value *= 2;
-                                self.flags.f_zf = (value == 0);
-                                self.regs.set_by_name(op, value as u32);
+                            if self.is_reg(op) { // reg
+                                let value:i32 = self.regs.get_by_name(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) * 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.regs.set_by_name(op, res);
 
 
                             } else { // mem 
-                                let mut value:i32 = self.memory_read(op) as i32;
-                                value *= 2;
-                                self.flags.f_zf = (value == 0);
-                                self.memory_write(op, value as u32);
+                                let value:i32 = self.memory_read(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
 
+                                unsigned64 = (value as u64) * 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.memory_write(op, res);
                             }
                         }
                     },
 
-                    Some("sal") => {
+                    Some("sar") => {
 
                     },
 
@@ -1191,11 +1443,16 @@ impl Emu32 {
 
                     //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
                     //          https://c9x.me/x86/html/file_module_x86_id_146.html
+                    //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
 
+
+                    //TODO: test syenter / int80
                     Some("int3") => {
+                        
                     },
 
                     Some("nop") => {
+
                     },
 
                     Some(&_) =>  { 
