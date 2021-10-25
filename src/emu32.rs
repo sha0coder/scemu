@@ -604,6 +604,29 @@ impl Emu32 {
         self.flags.f_pf = (final_value & 0xff) % 2 == 0;        
     }
 
+    /*
+    rol = lambda val, r_bits, max_bits: \
+    (val << r_bits%max_bits) & (2**max_bits-1) | \
+    ((val & (2**max_bits-1)) >> (max_bits-(r_bits%max_bits)))
+
+    # Rotate right: 0b1001 --> 0b1100
+    ror = lambda val, r_bits, max_bits: \
+    ((val & (2**max_bits-1)) >> r_bits%max_bits) | \
+    (val << (max_bits-(r_bits%max_bits)) & (2**max_bits-1))
+    */
+
+    pub fn rotate_left(&self, val:u32, rot:u32, bits:u32) -> u32 {
+        return (val << rot%bits) & (2_u32.pow(bits-1)) |
+               ((val & (2_u32.pow(bits-1))) >> (bits-(rot%bits)));
+    }
+
+    pub fn rotate_right(&self, val:u32, rot:u32, bits:u32) -> u32 {
+        return ((val & (2_u32.pow(bits-1))) >> rot%bits) |
+               (val << (bits-(rot%bits)) & (2_u32.pow(bits-1)));
+    }
+
+
+
 
     ///  RUN ENGINE ///
 
@@ -1216,7 +1239,6 @@ impl Emu32 {
 
                     Some("sal") => {
                         let op = ins.op_str().unwrap();
-                        //let twoparams = op.contains(", ");
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
 
@@ -1411,19 +1433,682 @@ impl Emu32 {
                     },
 
                     Some("sar") => {
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let twoparams = parts.len() == 1;
 
+                        if twoparams {
+                            if self.is_reg(parts[0]) {
+                                // reg
+                                if self.is_reg(parts[1]) {
+                                    // shl reg, reg
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+
+
+                                } else  {
+                                    // shl reg, imm
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+                                }
+
+
+                            } else {
+                                // mem
+                                if self.is_reg(parts[1]) {
+                                    // shl mem, reg
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+
+                                } else {
+                                    // shl mem, imm
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+                                }
+
+                            }
+
+                        } else { // one param
+                            if self.is_reg(op) { // reg
+                                let value:i32 = self.regs.get_by_name(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) / 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.regs.set_by_name(op, res);
+
+
+                            } else { // mem 
+                                let value:i32 = self.memory_read(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) / 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.memory_write(op, res);
+                            }
+                        }
                     },
 
                     Some("shr") => {
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let twoparams = parts.len() == 1;
+
+                        if twoparams {
+                            if self.is_reg(parts[0]) {
+                                // reg
+                                if self.is_reg(parts[1]) {
+                                    // shr reg, reg
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+
+
+                                } else  {
+                                    // shr reg, imm
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+                                }
+
+
+                            } else {
+                                // mem
+                                if self.is_reg(parts[1]) {
+                                    // shr mem, reg
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+
+                                } else {
+                                    // shr mem, imm
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 /= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+                                }
+
+                            }
+
+
+                        } else { // one param
+                            if self.is_reg(op) { // reg
+                                let value:i32 = self.regs.get_by_name(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) / 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.regs.set_by_name(op, res);
+
+
+                            } else { // mem 
+                                let value:i32 = self.memory_read(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) / 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.memory_write(op, res);
+                            }
+                        }
 
                     },
 
                     Some("shl") => {
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let twoparams = parts.len() == 1;
 
+                        if twoparams {
+                            if self.is_reg(parts[0]) {
+                                // reg
+                                if self.is_reg(parts[1]) {
+                                    // shl reg, reg
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+
+
+                                } else  {
+                                    // shl reg, imm
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+                                }
+
+
+                            } else {
+                                // mem
+                                if self.is_reg(parts[1]) {
+                                    // shl mem, reg
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+
+                                } else {
+                                    // shl mem, imm
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let mut unsigned64:u64 = value0 as u64;
+                                    let res:u32;
+                                
+                                    for _ in 0..value1 {
+                                        unsigned64 *= 2;
+                                    }
+
+                                    match self.get_size(parts[0]) {
+                                        32 => {
+                                            self.flags.f_cf = unsigned64 > 0xffffffff;
+                                            res = (unsigned64 & 0xffffffff) as u32
+                                        },
+                                        16 => {
+                                            self.flags.f_cf = unsigned64 > 0xffff;
+                                            res = (unsigned64 & 0xffff) as u32
+                                        },
+                                        8  => {
+                                            self.flags.f_cf = unsigned64 > 0xff;
+                                            res = (unsigned64 & 0xff) as u32;
+                                        },
+                                        _  => panic!("weird precision")
+                                    }
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+                                }
+
+                            }
+
+
+                        } else { // one param
+                            if self.is_reg(op) { // reg
+                                let value:i32 = self.regs.get_by_name(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) * 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.regs.set_by_name(op, res);
+
+
+                            } else { // mem 
+                                let value:i32 = self.memory_read(op) as i32;
+                                let unsigned64:u64;
+                                let res:u32;
+
+                                unsigned64 = (value as u64) * 2;
+
+                                match self.get_size(op) {
+                                    32 => {
+                                        self.flags.f_cf = unsigned64 > 0xffffffff;
+                                        res = (unsigned64 & 0xffffffff) as u32
+                                    },
+                                    16 => {
+                                        self.flags.f_cf = unsigned64 > 0xffff;
+                                        res = (unsigned64 & 0xffff) as u32
+                                    },
+                                    8  => {
+                                        self.flags.f_cf = unsigned64 > 0xff;
+                                        res = (unsigned64 & 0xff) as u32;
+                                    },
+                                    _  => panic!("weird precision")
+                                }
+
+                                self.calc_flags(res);
+                                self.memory_write(op, res);
+                            }
+                        }
                     },
 
-                    Some("ror") => {
 
+
+                    Some("ror") => {
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let twoparams = parts.len() == 1;
+
+                        if twoparams {
+                            if self.is_reg(parts[0]) {
+                                // reg
+                                if self.is_reg(parts[1]) {
+                                    // ror reg, reg
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+                                    let res:u32;
+                                    let bits:u8 = self.get_size(op);
+                                
+                                    res = self.rotate_right(value0, value1, bits as u32);
+                            
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+
+
+                                } else  {
+                                    // ror reg, imm
+                                    let value0:u32 = self.regs.get_by_name(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let res:u32;
+                                    let bits:u8 = self.get_size(op);
+                                    
+                                    res = self.rotate_right(value0, value1, bits as u32);
+
+                                    self.calc_flags(res);
+                                    self.regs.set_by_name(parts[0], res);
+                                }
+
+
+                            } else {
+                                // mem
+                                if self.is_reg(parts[1]) {
+                                    // ror mem, reg
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.regs.get_by_name(parts[1]);
+
+                                    let res:u32;
+                                    let bits:u8 = self.get_size(op);
+
+                                    res = self.rotate_right(value0, value1, bits as u32);
+                              
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+
+                                } else {
+                                    // ror mem, imm
+                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value1:u32 = self.get_inmediate(parts[1]);
+                                    let res:u32;
+                                    let bits:u8 = self.get_size(op);
+
+                                    res = self.rotate_right(value0, value1, bits as u32);
+
+                                    self.calc_flags(res);
+                                    self.memory_write(parts[0], res);
+                                }
+                            }
+
+
+                        } else { // one param
+                            if self.is_reg(op) { 
+                                // ror reg
+                                let value:u32 = self.regs.get_by_name(op);
+                                let res:u32;
+                                let bits:u8 = self.get_size(op);
+
+                                res = self.rotate_right(value, 1, bits as u32);
+
+                                self.calc_flags(res);
+                                self.regs.set_by_name(op, res);
+
+
+                            } else { 
+                                // ror mem 
+                                let value:u32 = self.memory_read(op);
+                                let res:u32;
+                                let bits:u8 = self.get_size(op);
+
+                                res = self.rotate_right(value, 1, bits as u32);
+
+                                self.calc_flags(res);
+                                self.memory_write(op, res);
+                            }
+                        }
                     },
 
                     Some("rol") => {
