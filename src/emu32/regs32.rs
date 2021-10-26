@@ -77,7 +77,7 @@ impl Regs32 {
     }
 
     pub fn get_ah(&self) -> u32 {
-        return self.eax & 0xff00;
+        return (self.eax & 0xff00) >> 8;
     }
 
     pub fn get_al(&self) -> u32 {
@@ -85,7 +85,7 @@ impl Regs32 {
     }
 
     pub fn get_bh(&self) -> u32 {
-        return self.ebx & 0xff00;
+        return (self.ebx & 0xff00) >> 8;
     }
 
     pub fn get_bl(&self) -> u32 {
@@ -93,7 +93,7 @@ impl Regs32 {
     }
 
     pub fn get_ch(&self) -> u32 {
-        return self.ecx & 0xff00;
+        return (self.ecx & 0xff00) >> 8;
     }
 
     pub fn get_cl(&self) -> u32 {
@@ -101,7 +101,7 @@ impl Regs32 {
     }
 
     pub fn get_dh(&self) -> u32 {
-        return self.edx & 0xff00;
+        return (self.edx & 0xff00) >> 8;
     }
 
     pub fn get_dl(&self) -> u32 {
