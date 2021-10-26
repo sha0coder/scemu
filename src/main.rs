@@ -10,7 +10,7 @@ fn usage(arg0:&String) {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() != 2 {
+    if args.len() < 2 {
         usage(&args[0]);
         return;
     }
@@ -19,6 +19,9 @@ fn main() {
     let mut emu32 = Emu32::new();
 
     emu32.init();
+    if args.len() > 2 {
+        emu32.explain(&args[2]);
+    }
     emu32.load_code(&args[1]);
     emu32.run();
 

@@ -37,6 +37,7 @@ pub struct Emu32 {
     code: Mem32,
     stack: Mem32,
     peb: Mem32,
+    exp: i32
 }
 
 impl Emu32 {
@@ -48,6 +49,7 @@ impl Emu32 {
             code: Mem32::new(),
             stack: Mem32::new(),
             peb: Mem32::new(),
+            exp: -1
         }
     }
 
@@ -83,6 +85,11 @@ impl Emu32 {
         self.peb.write_dword(0x00210000, 0x00004e00);
     }
 
+    pub fn explain(&mut self, line: &String) {
+        self.exp = i32::from_str_radix(line, 10).expect("bad num conversion");
+        println!("explaining line {}", self.exp);
+    }
+
     pub fn load_code(&mut self, filename: &String) {
         let mut f = File::open(&filename).expect("no file found");
         //let metadata = fs::metadata(&filename).expect("unable to read metadata");
@@ -105,6 +112,9 @@ impl Emu32 {
     }
 
     pub fn memory_operand_to_address(&self, operand:&str) -> u32 {
+
+        //[esi] --> da 0x3 la address BUG!!!
+
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
 
         if operand.contains("fs:[") {
@@ -148,7 +158,7 @@ impl Emu32 {
                 
                 let reg1_val = self.regs.get_by_name(spl[0]);
                 let reg2_val = self.regs.get_by_name(spl2[0]);
-                let num = usize::from_str_radix(spl2[1].trim_start_matches("0x"),16).expect("bad num conversion") as u32;
+                let num = u32::from_str_radix(spl2[1].trim_start_matches("0x"),16).expect("bad num conversion");
 
                 if sign != "+" && sign != "-" {
                     panic!("weird sign2 {}", sign);
@@ -169,7 +179,7 @@ impl Emu32 {
             let reg = spl[0];
             let sign = spl[1];
             //println!("disp --> {}  operand:{}", spl[2], operand);
-            let disp:u32 = usize::from_str_radix(spl[2].trim_start_matches("0x"),16).expect("bad disp") as u32;
+            let disp:u32 = u32::from_str_radix(spl[2].trim_start_matches("0x"),16).expect("bad disp");
             
             if sign != "+" && sign != "-" {
                 panic!("weird sign {}", sign);
@@ -642,6 +652,7 @@ impl Emu32 {
             .build()
             .expect("Failed to create Capstone object");
 
+        let mut pos = 1;
 
         loop {
 
@@ -657,7 +668,25 @@ impl Emu32 {
                 //let ops = arch_detail.operands();
                 let sz = ins.bytes().len();
 
-                println!("{}", ins);
+                if self.exp == pos {
+                    let op = ins.op_str().unwrap();
+                    let parts:Vec<&str> = op.split(", ").collect();
+                    println!("-------");
+                    println!("{} {}", pos, ins);
+                    for i in 0..parts.len() {
+                        if self.is_reg(parts[i]) {
+                            println!("\t{}: 0x{:x}", parts[i], self.regs.get_by_name(parts[i]));
+                        } else if parts[i].contains("[") {
+                            let addr = self.memory_operand_to_address(parts[i]);
+                            let value = self.memory_read(parts[i]);
+                            println!("\t0x{:x}: 0x{:x}", addr, value);
+                        }
+                    }
+                    println!("-------");
+                } else {
+                    println!("{} {}", pos, ins);
+                }
+                pos += 1;
                 //println!("{}  esp:0x{:x} ebp:0x{:x} top:0x{:x} bottom:0x{:x}", ins, self.regs.esp, self.regs.ebp, self.stack.get_base(), self.stack.get_bottom()); //, ins.bytes());
                 
 
@@ -676,6 +705,7 @@ impl Emu32 {
                         if sz == 3 {
                             let addr = self.memory_read(ins.op_str().unwrap());
                             self.stack_push(self.regs.eip + sz as u32); // push return address
+                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
                             self.set_eip(addr, false);
                             break; 
                         }
@@ -683,6 +713,7 @@ impl Emu32 {
                         if sz == 5 {
                             let addr = self.get_inmediate(ins.op_str().unwrap());
                             self.stack_push(self.regs.eip + sz as u32); // push return address
+                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
                             self.set_eip(addr, false);
                             break;
                         }
@@ -755,7 +786,7 @@ impl Emu32 {
                         self.stack_push(self.regs.ebp);
                         self.stack_push(self.regs.esi);
                         self.stack_push(self.regs.edi);
-                        self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
+                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
                     },
 
                     Some("popal") => {
@@ -767,13 +798,14 @@ impl Emu32 {
                         self.regs.edx = self.stack_pop();
                         self.regs.ecx = self.stack_pop();
                         self.regs.eax = self.stack_pop();
-                        self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
+                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
                     },
 
                     Some("ret") => {
                         let ret_addr = self.stack_pop(); // return address
+                        println!("\tret return addres: 0x{:x}", ret_addr);
 
-                        self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
+                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
 
                         // what if there isnt operand in ret?
                         let mut arg = self.get_inmediate(ins.op_str().unwrap());
@@ -2618,6 +2650,38 @@ impl Emu32 {
                     Some("imul") => {
                         //https://c9x.me/x86/html/file_module_x86_id_138.html
                         panic!("not implemented");
+                    },
+
+                    Some("movzx") => {
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let bits1 = self.get_size(parts[0]);
+                        let bits2 = self.get_size(parts[1]);
+                        let value2:u32;
+                        let result:u32;
+                    
+
+                        if self.is_reg(parts[1]) {
+                            // movzx reg, reg
+                            value2 = self.regs.get_by_name(parts[1]);
+                        } else {
+                            // movzx reg, mem
+                            value2 = self.memory_read(parts[1]);
+                        }
+
+                        self.regs.set_by_name(parts[0], value2);
+
+                        /*
+                        if bits1 == 16 && bits2 == 8 {
+                            result = value2
+                        } else if bits1 == 32 && bits2 == 8 {
+
+                        } else if bits1 == 32 && bits2 == 16 {
+
+                        } else {
+                            panic!("weird undocumented movzx"),
+                        }*/
+
                     }
 
                     Some("test") => {
