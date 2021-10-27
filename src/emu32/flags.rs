@@ -30,7 +30,7 @@ impl Flags {
     }
 
 
-    fn clear(&mut self) {
+    pub fn clear(&mut self) {
         self.f_cf = false;
         self.f_pf = false;
         self.f_af = false;
@@ -41,5 +41,20 @@ impl Flags {
         self.f_df = false;
         self.f_of = false;
         self.f_nt = false;
+    }
+
+    pub fn print(&self) {
+        println!("--- flags ---");
+        println!("cf: {}", self.f_cf);
+        println!("pf: {}", self.f_pf);
+        println!("af: {}", self.f_af);
+        println!("zf: {}", self.f_zf);
+        println!("sf: {}", self.f_sf);
+        println!("tf: {}", self.f_tf);
+        println!("if: {}", self.f_if);
+        println!("df: {}", self.f_df);
+        println!("of: {}", self.f_of);
+        println!("nt: {}", self.f_nt);
+        println!("---");
     }
 }

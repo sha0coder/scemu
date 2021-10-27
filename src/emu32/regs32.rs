@@ -40,15 +40,15 @@ impl Regs32 {
 
     pub fn print(&self) {
         println!("regs:");
-        println!("  eax: {}", self.eax);
-        println!("  ebx: {}", self.ebx);
-        println!("  ecx: {}", self.ecx);
-        println!("  edx: {}", self.edx);
-        println!("  esi: {}", self.esi);
-        println!("  edi: {}", self.edi);
-        println!("  ebp: {}", self.ebp);
-        println!("  esp: {}", self.esp);
-        println!("  eip: {}", self.eip);
+        println!("  eax: 0x{:x}", self.eax);
+        println!("  ebx: 0x{:x}", self.ebx);
+        println!("  ecx: 0x{:x}", self.ecx);
+        println!("  edx: 0x{:x}", self.edx);
+        println!("  esi: 0x{:x}", self.esi);
+        println!("  edi: 0x{:x}", self.edi);
+        println!("  ebp: 0x{:x}", self.ebp);
+        println!("  esp: 0x{:x}", self.esp);
+        println!("  eip: 0x{:x}", self.eip);
         println!("---");
     }
 
