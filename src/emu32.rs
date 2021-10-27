@@ -16,12 +16,13 @@ mod flags;
 mod eflags;
 mod mem32;
 mod regs32;
-
+mod console;
 
 use flags::Flags;
 use eflags::Eflags;
 use mem32::Mem32;
 use regs32::Regs32;
+use console::Console;
 
 //use std::mem;
 //use std::fs;
@@ -57,7 +58,7 @@ impl Emu32 {
         println!("initializing regs");
         self.regs.clear();
         self.regs.esp = 0x00100000;
-        self.regs.ebp = 0x00100100;
+        self.regs.ebp = 0x00100f00;
         self.regs.eip = 0;
 
         println!("initializing code and stack");
@@ -66,10 +67,14 @@ impl Emu32 {
         self.stack.set_base(self.regs.esp - (q*3));
 
         /* fake PEB
-                mov eax, dword ptr fs:[0x30]        
-                mov eax, dword ptr [eax + 0xc]
-                mov eax, dword ptr [eax + 0x14]
-                mov ecx, dword ptr [eax]
+
+                8392 0xce4f: mov eax, dword ptr fs:[0x30]    eax -> 0x200004
+                8393 0xce55: mov eax, dword ptr [eax + 0xc]  eax -> 0x200008
+                8394 0xce58: mov eax, dword ptr [eax + 0x14] eax -> 0x20000c
+                8395 0xce5b: mov ecx, dword ptr [eax]        ecx -> 0x210000
+                8396 0xce5d: mov eax, ecx                    eax -> 0x210000
+                8399 0xce7d: mov ebx, dword ptr [eax + 0x28] --> list of library name strings
+
         */
         
         //TODO: replicate full PEB structure
@@ -82,7 +87,18 @@ impl Emu32 {
         self.peb.write_dword(0x00200004+0xc, 0x00200008);   // PEB->Ldr
         self.peb.write_dword(0x00200008+0x14, 0x0020000c);  // PEB->Ldr.InMemOrder
         self.peb.write_dword(0x0020000c, 0x00210000);
-        self.peb.write_dword(0x00210000, 0x00004e00);
+        self.peb.write_dword(0x00210028, 0x00210040); // 4e00    ptr to ntdll.dll
+        self.peb.write_dword(0x00210040, 0x0074006e);
+        self.peb.write_dword(0x00210044, 0x006c0064); // ntdll.dll wide string
+        self.peb.write_dword(0x00210048, 0x002e006c);
+        self.peb.write_dword(0x0021004c, 0x006c0064);
+        self.peb.write_dword(0x00210050, 0x0000006c);
+
+        /*
+              
+        */
+
+        //self.peb.write_dword(0x0021000d+0x28, 0x41414141);
     }
 
     pub fn explain(&mut self, line: &String) {
@@ -251,11 +267,11 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 value = (self.code.read_byte(addr) as u32) & 0x000000ff;
 
-            } else if operand.contains("word ptr") {
-                value = (self.code.read_word(addr) as u32) & 0x0000ffff;
-                
             } else if operand.contains("dword ptr") {
                 value = self.code.read_dword(addr);
+
+            } else if operand.contains("word ptr") {
+                value = (self.code.read_word(addr) as u32) & 0x0000ffff;
     
             } else {
                 panic!("weird precision: {}", operand);
@@ -269,11 +285,11 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 value = (self.stack.read_byte(addr) as u32) & 0x000000ff;
 
-            } else if operand.contains("word ptr") {
-                value = (self.stack.read_word(addr) as u32) & 0x0000ffff;
-                
             } else if operand.contains("dword ptr") {
                 value = self.stack.read_dword(addr);
+
+            } else if operand.contains("word ptr") {
+                value = (self.stack.read_word(addr) as u32) & 0x0000ffff;
     
             } else {
                 panic!("weird precision: {}", operand);
@@ -287,12 +303,13 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 value = (self.peb.read_byte(addr) as u32) & 0x000000ff;
 
+            } else if operand.contains("dword ptr") {
+                value = self.peb.read_dword(addr);
+
             } else if operand.contains("word ptr") {
                 value = (self.peb.read_word(addr) as u32) & 0x0000ffff;
                 
-            } else if operand.contains("dword ptr") {
-                value = self.peb.read_dword(addr);
-    
+            
             } else {
                 panic!("weird precision: {}", operand);
             }
@@ -305,6 +322,7 @@ impl Emu32 {
 
     pub fn memory_write(&mut self, operand:&str, value:u32) {
         let addr:u32 = self.memory_operand_to_address(operand);
+        //println!("writting at 0x{:x}  operand:{}", addr, operand);
 
         // could be normal if executing code from stack
         if !self.code.inside(self.regs.eip) {
@@ -325,7 +343,6 @@ impl Emu32 {
             panic!("addr {} outside maps, operand: {}", addr, operand);
         }
 
-        let value:u32 = 0;
 
         if self.code.inside(addr) {
             println!("writting on code 0x{:x} ebp: 0x{:x}", addr, self.regs.ebp);
@@ -333,11 +350,11 @@ impl Emu32 {
             if operand.contains("byte ptr") {
                 self.code.write_byte(addr, (value&0x000000ff) as u8);
 
-            } else if operand.contains("word ptr") {
-                self.code.write_word(addr, (value&0x0000ffff) as u16);
-                
             } else if operand.contains("dword ptr") {
                 self.code.write_dword(addr, value);
+
+            } else if operand.contains("word ptr") {
+                self.code.write_word(addr, (value&0x0000ffff) as u16);
     
             } else {
                 panic!("weird precision: {}", operand);
@@ -347,17 +364,17 @@ impl Emu32 {
         }
 
         if self.stack.inside(addr) {
-            println!("writting on stack");
+            //println!("writting in stack");
+
             if operand.contains("byte ptr") {
                 self.stack.write_byte(addr, (value&0x000000ff) as u8);
+
+            } else if operand.contains("dword ptr") {
+                self.stack.write_dword(addr, value);
 
             } else if operand.contains("word ptr") {
                 self.stack.write_word(addr, (value&0x0000ffff) as u16);
                 
-            } else if operand.contains("dword ptr") {
-                println!("writing on stack addr 0x{:x} the value 0x{:x}", addr, value);
-                self.stack.write_dword(addr, value);
-    
             } else {
                 panic!("weird precision: {}", operand);
             }
@@ -400,13 +417,12 @@ impl Emu32 {
     pub fn get_size(&self, operand:&str) -> u8 {
         if operand.contains("byte ptr") {
             return 8;
-
-        } else if operand.contains("word ptr") {
-            return 16;
-            
+           
         } else if operand.contains("dword ptr") {
             return 32;
 
+        } else if operand.contains("word ptr") {
+            return 16;
         } 
 
         let c:Vec<char> = operand.chars().collect();
@@ -637,7 +653,42 @@ impl Emu32 {
                (val << (bits-(rot%bits)) & (2_u32.pow(bits-1)));
     }
 
-
+    pub fn spawn_console(&mut self) {
+        let con = Console::new();
+        loop {
+            let cmd = con.cmd();
+            match cmd.as_str() {
+                "q" => std::process::exit(1),
+                "h" => con.help(),
+                "r" => self.regs.print(),
+                "mr" => {
+                    let operand = con.cmd();
+                    let addr:u32 = self.memory_operand_to_address(operand.as_str());
+                    let value = self.memory_read(operand.as_str());
+                    println!("0x{:x}: 0x{:x}", addr, value);
+                },
+                "mw" => {
+                    let operand = con.cmd();
+                    let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
+                    self.memory_write(operand.as_str(), value);
+                },
+                "s" => self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp),
+                "v" => self.stack.print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
+                "c" => return,
+                "f" => self.flags.print(),
+                "cf" => self.flags.clear(),
+                "n" => {
+                    self.exp += 1;
+                    return;
+                },
+                "" => {
+                    self.exp += 1;
+                    return;
+                },
+                _ => println!("command not found, type h"),
+            }
+        }
+    }
 
 
     ///  RUN ENGINE ///
@@ -666,6 +717,7 @@ impl Emu32 {
                 //let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
                 //let arch_detail: ArchDetail = detail.arch_detail();
                 //let ops = arch_detail.operands();
+
                 let sz = ins.bytes().len();
 
                 if self.exp == pos {
@@ -673,6 +725,8 @@ impl Emu32 {
                     let parts:Vec<&str> = op.split(", ").collect();
                     println!("-------");
                     println!("{} {}", pos, ins);
+                    println!("\tesp: 0x{:x}", self.regs.esp);
+                    println!("\tebp: 0x{:x}", self.regs.ebp);
                     for i in 0..parts.len() {
                         if self.is_reg(parts[i]) {
                             println!("\t{}: 0x{:x}", parts[i], self.regs.get_by_name(parts[i]));
@@ -682,16 +736,14 @@ impl Emu32 {
                             println!("\t0x{:x}: 0x{:x}", addr, value);
                         }
                     }
-                    println!("-------");
+  
+                    self.spawn_console();
+
                 } else {
                     println!("{} {}", pos, ins);
                 }
                 pos += 1;
-                //println!("{}  esp:0x{:x} ebp:0x{:x} top:0x{:x} bottom:0x{:x}", ins, self.regs.esp, self.regs.ebp, self.stack.get_base(), self.stack.get_bottom()); //, ins.bytes());
                 
-
-
-                // TODO: popal, popad, pushal, pushad
 
                 match ins.mnemonic() {
                     Some("jmp") => {
@@ -798,28 +850,28 @@ impl Emu32 {
                         self.regs.edx = self.stack_pop();
                         self.regs.ecx = self.stack_pop();
                         self.regs.eax = self.stack_pop();
-                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
                     },
 
                     Some("ret") => {
                         let ret_addr = self.stack_pop(); // return address
+                        let op = ins.op_str().unwrap();
                         println!("\tret return addres: 0x{:x}", ret_addr);
 
-                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
+                        
+                        if op.len() > 0 {
+                            let mut arg = self.get_inmediate(op);
 
-                        // what if there isnt operand in ret?
-                        let mut arg = self.get_inmediate(ins.op_str().unwrap());
+                            // apply stack compensation of ret operand
 
-                        // apply stack compensation of ret operand
+                            if arg % 4 != 0 {
+                                panic!("weird ret argument!");
+                            }
 
-                        if arg % 4 != 0 {
-                            panic!("weird ret argument!");
-                        }
+                            arg = arg / 4;
 
-                        arg = arg / 4;
-
-                        for _ in 0..arg {
-                            self.stack_pop();
+                            for _ in 0..arg-1 {
+                                self.stack_pop();
+                            }
                         }
                         
                         self.set_eip(ret_addr, false);
@@ -2804,6 +2856,7 @@ impl Emu32 {
                         if self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2811,6 +2864,7 @@ impl Emu32 {
                         if !self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2818,6 +2872,7 @@ impl Emu32 {
                         if self.flags.f_sf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2825,6 +2880,7 @@ impl Emu32 {
                         if !self.flags.f_sf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2832,6 +2888,7 @@ impl Emu32 {
                         if self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2839,6 +2896,7 @@ impl Emu32 {
                         if self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2847,6 +2905,7 @@ impl Emu32 {
                         if !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2854,6 +2913,7 @@ impl Emu32 {
                         if !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2861,6 +2921,7 @@ impl Emu32 {
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2868,6 +2929,7 @@ impl Emu32 {
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2882,6 +2944,7 @@ impl Emu32 {
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2896,6 +2959,7 @@ impl Emu32 {
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2917,6 +2981,7 @@ impl Emu32 {
                         if !self.flags.f_cf && !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2924,6 +2989,7 @@ impl Emu32 {
                         if !self.flags.f_cf && !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2931,6 +2997,7 @@ impl Emu32 {
                         if self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2938,6 +3005,7 @@ impl Emu32 {
                         if self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2945,6 +3013,7 @@ impl Emu32 {
                         if self.flags.f_sf == self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2952,6 +3021,7 @@ impl Emu32 {
                         if self.flags.f_sf == self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2959,6 +3029,7 @@ impl Emu32 {
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2966,6 +3037,7 @@ impl Emu32 {
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2980,6 +3052,7 @@ impl Emu32 {
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2987,6 +3060,7 @@ impl Emu32 {
                         if self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3001,6 +3075,7 @@ impl Emu32 {
                         if !self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3008,6 +3083,7 @@ impl Emu32 {
                         if !self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3015,6 +3091,7 @@ impl Emu32 {
                         if self.regs.get_cx() == 0 {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3022,6 +3099,7 @@ impl Emu32 {
                         if self.regs.ecx == 0 {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3037,6 +3115,25 @@ impl Emu32 {
 
                     Some("cpuid") => {
 
+                    },
+
+                    Some("int") => {
+                        let op = ins.op_str().unwrap();
+                        let interrupt = u32::from_str_radix(op.trim_start_matches("0x"),16).expect("conversion error");
+                        match interrupt {
+                            0x80 => {
+                                println!("/!\\ interrupt 0x80 function:{}", self.regs.eax);
+                                match self.regs.eax {
+                                    11 => {
+                                        panic!("execve() detected");
+                                    }
+                                    _ => {}
+                                }
+                            },
+                            _ => {
+                                panic!("unknown interrupt {}", interrupt);
+                            }
+                        }
                     },
 
                     Some(&_) =>  { 
