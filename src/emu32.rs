@@ -3101,7 +3101,7 @@ impl Emu32 {
                     },
 
                     Some(&_) =>  { 
-                        
+                        panic!("unimplemented instruction");
                     },
                     None => println!("unknon instruction"),
                 }
