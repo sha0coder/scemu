@@ -2,18 +2,21 @@
     Little endian generic memory
 */
 
+use std::fs::File;
+use std::io::Read;
+
 const MAX_MEM:usize = 0x000f0000;
 
 pub struct Mem32 {
     base_addr: u32,
-    pub mem:[u8;MAX_MEM],
+    pub mem: Box<[u8]>, //:[u8;MAX_MEM],
 }
 
 impl Mem32 {
     pub fn new() -> Mem32 {
         Mem32 {
             base_addr: 0,
-            mem:[0;MAX_MEM],
+            mem: Box::new([0;MAX_MEM]),
         }
     }
 
@@ -104,6 +107,10 @@ impl Mem32 {
         println!("---");
     }
 
+    pub fn load(&mut self, filename: &String) {
+        let mut f = File::open(&filename).expect("no file found");
+        f.read(&mut self.mem).expect("buffer overflow");
+    }
 
 
 }

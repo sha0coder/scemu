@@ -14,7 +14,7 @@ impl Console {
         let mut line = String::new();
         print!("=> ");
         std::io::stdout().flush().unwrap();
-        let b1 = std::io::stdin().read_line(&mut line).unwrap();
+        std::io::stdin().read_line(&mut line).unwrap();
         line.truncate(line.len() - 1);
         return line;
     }
@@ -30,6 +30,7 @@ impl Console {
         println!("cf ..................... clear all flags");
         println!("c ...................... continue");
         println!("n ...................... next instruction");
+        println!("eip .................... change eip");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("");
