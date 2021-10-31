@@ -1,2 +1,2 @@
 # scemu
-shellcode emulator
+x86 32bits emulator, for emulating shellcodes 
