@@ -7,6 +7,42 @@
         - modo de ver solo los saltos/branches/calls/rets
         - en cada set_eip() dumpear pila a fichero
         - detectar si lleva mucho tiempo loopeado
+        - poner comentarios en las instruciones
+
+
+8857 0xce7d: mov ebx, dword ptr [eax + 0x28]        -> [eax + 0x28] must be 0   (why eax is 0!!)
+
+...
+8864 0xcf01: cmp ebx, dword ptr [ebp + 0x1c2]           ebx must be 0
+-------
+8865 0xcf07: je 0xcf41
+        esp: 0xffc9c
+        ebp: 0xffcfc
+--- console ---
+=> mr 
+=> dword ptr [ebp + 0x1c2]
+0xffebe: 0x0
+=> r
+regs:
+  eax: 0x0
+  ebx: 0x10ad5103
+  ecx: 0x210000
+  edx: 0x3ba6b285
+  esi: 0x21015c
+  edi: 0x0
+  ebp: 0xffcfc
+  esp: 0xffc9c
+  eip: 0xcf07
+---
+=>     
+
+
+
+
+
+
+
+
 */
 
 
@@ -14,20 +50,20 @@ extern crate capstone;
 
 mod flags; 
 mod eflags;
-mod mem32;
+mod maps;
 mod regs32;
 mod console;
 
 use flags::Flags;
 use eflags::Eflags;
-use mem32::Mem32;
+use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 
 //use std::mem;
 //use std::fs;
-use std::fs::File;
-use std::io::Read;
+
+
 use capstone::prelude::*;
 //use capstone::arch::x86::X86Operand;
 
@@ -35,9 +71,7 @@ pub struct Emu32 {
     regs: Regs32,
     flags: Flags,
     eflags: Eflags,
-    code: Mem32,
-    stack: Mem32,
-    peb: Mem32,
+    maps: Maps,
     exp: i32
 }
 
@@ -47,27 +81,21 @@ impl Emu32 {
             regs: Regs32::new(),
             flags: Flags::new(),
             eflags: Eflags::new(),
-            code: Mem32::new(),
-            stack: Mem32::new(),
-            peb: Mem32::new(),
+            maps: Maps::new(),
             exp: -1
         }
     }
 
-    pub fn init(&mut self) {
-        println!("initializing regs");
-        self.regs.clear();
-        self.regs.esp = 0x00100000;
-        self.regs.ebp = 0x00100f00;
-        self.regs.eip = 0;
+    pub fn init_stack(&mut self) {
+        let stack = self.maps.get_mem("stack");
+        let q = (stack.size() as u32) / 4;
+        stack.set_base(self.regs.esp - (q*3));
+    }
 
-        println!("initializing code and stack");
-        self.code.set_base(self.regs.eip);
-        let q = (self.stack.size() as u32) / 4;
-        self.stack.set_base(self.regs.esp - (q*3));
+    pub fn init_peb(&mut self) {
+        let peb = self.maps.get_mem("peb");
 
-        /* fake PEB
-
+         /* fake PEB
                 8392 0xce4f: mov eax, dword ptr fs:[0x30]    eax -> 0x200004
                 8393 0xce55: mov eax, dword ptr [eax + 0xc]  eax -> 0x200008
                 8394 0xce58: mov eax, dword ptr [eax + 0x14] eax -> 0x20000c
@@ -79,26 +107,88 @@ impl Emu32 {
         
         //TODO: replicate full PEB structure
         println!("initializing PEB");
-        self.peb.set_base(0x00200000);   
+        peb.set_base(0x00200000);   
 
         // 0x02 must be 0   (is being debugged)
 
-        self.peb.write_dword(0x00200000, 0x00200004);       // PEB addr
-        self.peb.write_dword(0x00200004+0xc, 0x00200008);   // PEB->Ldr
-        self.peb.write_dword(0x00200008+0x14, 0x0020000c);  // PEB->Ldr.InMemOrder
-        self.peb.write_dword(0x0020000c, 0x00210000);
-        self.peb.write_dword(0x00210028, 0x00210040); // 4e00    ptr to ntdll.dll
-        self.peb.write_dword(0x00210040, 0x0074006e);
-        self.peb.write_dword(0x00210044, 0x006c0064); // ntdll.dll wide string
-        self.peb.write_dword(0x00210048, 0x002e006c);
-        self.peb.write_dword(0x0021004c, 0x006c0064);
-        self.peb.write_dword(0x00210050, 0x0000006c);
+        peb.write_dword(0x00200000, 0x00200004);   // PEB addr                 mov eax, dword ptr [eax + 0xc]
+        peb.write_dword(0x00200010, 0x00200008);   // PEB->Ldr                 mov eax, dword ptr [eax + 0x14]
+        peb.write_dword(0x0020001c, 0x0020000c);   // PEB->Ldr.InMemOrder      mov ecx, dword ptr [eax]
+        peb.write_dword(0x0020000c, 0x00210000);
+        peb.write_dword(0x00210028, 0x00210040); // 4e00    ptr to ntdll.dll
+        peb.write_dword(0x00210040, 0x0074006e);
+        peb.write_dword(0x00210044, 0x006c0064); // "ntdll.dll" wide string
+        peb.write_dword(0x00210048, 0x002e006c);
+        peb.write_dword(0x0021004c, 0x006c0064);
+        peb.write_dword(0x00210050, 0x0000006c);
+        peb.write_dword(0x00210128, 0x00210130);
 
+        peb.write_dword(0x00210000, 0x00210120-0x28);  // ptr
+        peb.write_dword(0x00210120, 0x00210130);
+        peb.write_dword(0x00210130, 0x0065006b);       // "kernel32.dll" wide string
+        peb.write_dword(0x00210134, 0x006c0072);
+        peb.write_dword(0x00210138, 0x006c0075);
+        peb.write_dword(0x0021013c, 0x00320033);
+        peb.write_dword(0x00210140, 0x0064002e);
+        peb.write_dword(0x00210144, 0x006c006c);
+        peb.write_dword(0x00210148, 0x00000000);
+
+        peb.write_dword(0x00210108, 0x00210130-0x28);
+        peb.write_dword(0x00210130, 0x00210134);
+        peb.write_dword(0x00210134, 0x0045004b);       // KERNELBASE.dll
+        peb.write_dword(0x00210138, 0x004e0052);
+        peb.write_dword(0x0021013c, 0x00000000);
+
+        peb.write_dword(0x002100f8, 0x00210140-0x28);
+        peb.write_dword(0x00210140, 0x00210144);
+        peb.write_dword(0x00210144, 0x0073006d);       // msvcrt.dll
+        peb.write_dword(0x00210148, 0x00630076);       
+        peb.write_dword(0x0021014c, 0x00740072);       
+        peb.write_dword(0x00210150, 0x00740072);
+
+        peb.write_dword(0x210118, 0x00210154-0x28);
+        peb.write_dword(0x00210154, 0x00210158);
+        peb.write_dword(0x00210158, 0x006c0064);   // ntdll.dll
+        peb.write_dword(0x0021005c, 0x002e006c);
+        peb.write_dword(0x00210060, 0x006c0064);
+        peb.write_dword(0x00210064, 0x0000006c);
+
+        peb.write_dword(0x0021012c, 0x00210070);
+        peb.write_dword(0x00210070, 0x00000000);   // trigger 
+    }
+
+
+    pub fn init(&mut self) {
+        println!("initializing regs");
+        self.regs.clear();
+        self.regs.esp = 0x00100000;
+        self.regs.ebp = 0x00100f00;
+        self.regs.eip = 0;
+
+        println!("initializing code and stack");
         /*
-              
-        */
+        let mut stack = self.maps.create_map("stack");
+        let mut code = self.maps.create_map("code");
+        let mut peb = self.maps.create_map("peb");
+        let mut ntdll = self.maps.create_map("ntdll");*/
 
-        //self.peb.write_dword(0x0021000d+0x28, 0x41414141);
+        self.maps.create_map("stack");
+        self.maps.create_map("code");
+        self.maps.create_map("peb");
+        self.maps.create_map("ntdll");
+
+        self.init_stack();
+        self.maps.get_mem("code").set_base(self.regs.eip);
+        self.init_peb();
+        
+        let ntdll = self.maps.get_mem("ntdll");
+        ntdll.set_base(0x8f44ca6a);
+
+       
+        
+    
+
+        
     }
 
     pub fn explain(&mut self, line: &String) {
@@ -107,28 +197,24 @@ impl Emu32 {
     }
 
     pub fn load_code(&mut self, filename: &String) {
-        let mut f = File::open(&filename).expect("no file found");
-        //let metadata = fs::metadata(&filename).expect("unable to read metadata");
-        //let mut buffer = vec![0; metadata.len() as usize];
-        f.read(&mut self.code.mem).expect("buffer overflow");
+        self.maps.get_mem("code").load(filename);
     }
 
     pub fn stack_push(&mut self, value:u32) {
         self.regs.esp -= 4;
-        self.stack.write_dword(self.regs.esp, value);
+        self.maps.get_mem("stack").write_dword(self.regs.esp, value);
     }
 
     pub fn stack_pop(&mut self) -> u32 {
-        let value = self.stack.read_dword(self.regs.esp);
-        if self.code.inside(value) {
+        let value = self.maps.get_mem("stack").read_dword(self.regs.esp);
+        if self.maps.get_mem("code").inside(value) {
             println!("/!\\ poping a code address 0x{:x}", value);
         }
         self.regs.esp += 4;
         return value;
     }
 
-    pub fn memory_operand_to_address(&self, operand:&str) -> u32 {
-
+    pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
         //[esi] --> da 0x3 la address BUG!!!
 
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
@@ -155,7 +241,8 @@ impl Emu32 {
 
             if value == 0x30 { // PEB
                 println!("ACCESS TO PEB");
-                return self.peb.get_base();
+                let peb = self.maps.get_mem("peb");
+                return peb.get_base();
             }
 
             panic!("not implemented: {}", operand);
@@ -230,172 +317,58 @@ impl Emu32 {
         //TODO: access to operand .disp instead parsing the string
         //ie [ebp + 0x44]
         let addr:u32 = self.memory_operand_to_address(operand);
-
+        let bits = self.get_size(operand);
         // check integrity of eip, esp and ebp registers
 
-
-        // could be normal if executing code from stack
-        if !self.code.inside(self.regs.eip) {
-            panic!("eip outside code");
-        }
+        let stack = self.maps.get_mem("stack");
 
         // could be normal using part of code as stack
-        if !self.stack.inside(self.regs.esp) {
+        if !stack.inside(self.regs.esp) {
             //hack: redirect stack
-            self.regs.esp = self.stack.get_base() + 0x1ff;
+            self.regs.esp = stack.get_base() + 0x1ff;
 
             //panic!("esp outside stack");
         }
 
-        if !self.stack.inside(self.regs.ebp) {
-            if self.code.inside(self.regs.ebp) {
-                println!("/!\\ ebp point to code map");
-            } else {
-                panic!("ebp outside stack");
-            }
-        }
+        let value = match bits {
+            32 => self.maps.read_dword(addr),
+            16 => (self.maps.read_word(addr) as u32) & 0x0000ffff,
+             8 => (self.maps.read_byte(addr) as u32) & 0x000000ff,
+             _ => panic!("weird precision: {}", operand),
+        };
 
-        // isnt normal, addr outside maps
-        if !self.code.inside(addr) && !self.stack.inside(addr) && !self.peb.inside(addr) {
-            panic!("addr 0x{:x} outside maps, operand: {}", addr, operand);
-        }
-
-        let value:u32;
-
-        if self.code.inside(addr) {
-
-            if operand.contains("byte ptr") {
-                value = (self.code.read_byte(addr) as u32) & 0x000000ff;
-
-            } else if operand.contains("dword ptr") {
-                value = self.code.read_dword(addr);
-
-            } else if operand.contains("word ptr") {
-                value = (self.code.read_word(addr) as u32) & 0x0000ffff;
-    
-            } else {
-                panic!("weird precision: {}", operand);
-            }
-
-            return value;
-        }
-
-        if self.stack.inside(addr) {
-
-            if operand.contains("byte ptr") {
-                value = (self.stack.read_byte(addr) as u32) & 0x000000ff;
-
-            } else if operand.contains("dword ptr") {
-                value = self.stack.read_dword(addr);
-
-            } else if operand.contains("word ptr") {
-                value = (self.stack.read_word(addr) as u32) & 0x0000ffff;
-    
-            } else {
-                panic!("weird precision: {}", operand);
-            }
-
-            return value;
-        }
-
-        if self.peb.inside(addr) {
-            
-            if operand.contains("byte ptr") {
-                value = (self.peb.read_byte(addr) as u32) & 0x000000ff;
-
-            } else if operand.contains("dword ptr") {
-                value = self.peb.read_dword(addr);
-
-            } else if operand.contains("word ptr") {
-                value = (self.peb.read_word(addr) as u32) & 0x0000ffff;
-                
-            
-            } else {
-                panic!("weird precision: {}", operand);
-            }
-
-            return value;
-        }
-
-        panic!("weird case");
+        return value;
     }
 
     pub fn memory_write(&mut self, operand:&str, value:u32) {
         let addr:u32 = self.memory_operand_to_address(operand);
-        //println!("writting at 0x{:x}  operand:{}", addr, operand);
-
-        // could be normal if executing code from stack
-        if !self.code.inside(self.regs.eip) {
-            panic!("eip outside code");
-        }
-
-        // could be normal using part of code as stack
-        if !self.stack.inside(self.regs.esp) {
-            panic!("esp outside stack");
-        }
-
-        if self.peb.inside(addr) {
+        let peb = self.maps.get_mem("peb");
+        
+        if peb.inside(addr) {
             panic!("modifying peb!!");
         }
 
-        // isnt normal, addr outside maps
-        if !self.code.inside(addr) && !self.stack.inside(addr) {
-            panic!("addr {} outside maps, operand: {}", addr, operand);
+        let bits = self.get_size(operand);
+        match bits {
+            32 => self.maps.write_dword(addr, value),
+            16 => self.maps.write_word(addr, (value & 0x0000ffff) as u16),
+             8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
+             _ => panic!("weird precision: {}", operand)
         }
 
-
-        if self.code.inside(addr) {
-            println!("writting on code 0x{:x} ebp: 0x{:x}", addr, self.regs.ebp);
-
-            if operand.contains("byte ptr") {
-                self.code.write_byte(addr, (value&0x000000ff) as u8);
-
-            } else if operand.contains("dword ptr") {
-                self.code.write_dword(addr, value);
-
-            } else if operand.contains("word ptr") {
-                self.code.write_word(addr, (value&0x0000ffff) as u16);
-    
-            } else {
-                panic!("weird precision: {}", operand);
-            }
-
-            return;
-        }
-
-        if self.stack.inside(addr) {
-            //println!("writting in stack");
-
-            if operand.contains("byte ptr") {
-                self.stack.write_byte(addr, (value&0x000000ff) as u8);
-
-            } else if operand.contains("dword ptr") {
-                self.stack.write_dword(addr, value);
-
-            } else if operand.contains("word ptr") {
-                self.stack.write_word(addr, (value&0x0000ffff) as u16);
-                
-            } else {
-                panic!("weird precision: {}", operand);
-            }
-
-            return;
-        }
-
-        panic!("weird case");
     }
 
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
-        if self.code.inside(addr) {
+        if self.maps.get_mem("code").inside(addr) {
            self.regs.eip = addr; 
-        } else if self.stack.inside(addr) {
+        } else if self.maps.get_mem("stack").inside(addr) {
             println!("/!\\ weird, changing eip to stack.");
             self.regs.eip = addr;
         } else {
             panic!("cannot redirect  eip to 0x{:x} is outisde maps", addr);
         }
 
-        //TODO: lanzar memory scan self.code.scan() y self.stack.scan()
+        //TODO: lanzar memory scan code.scan() y stack.scan()
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
     }
 
@@ -661,22 +634,28 @@ impl Emu32 {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => self.regs.print(),
-                "mr" => {
+                "mr"|"rm" => {
                     let operand = con.cmd();
                     let addr:u32 = self.memory_operand_to_address(operand.as_str());
                     let value = self.memory_read(operand.as_str());
                     println!("0x{:x}: 0x{:x}", addr, value);
                 },
-                "mw" => {
+                "mw"|"wm" => {
                     let operand = con.cmd();
                     let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
                     self.memory_write(operand.as_str(), value);
+                    println!("done.");
                 },
-                "s" => self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp),
-                "v" => self.stack.print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
+                "s" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.esp, self.regs.ebp),
+                "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
                 "f" => self.flags.print(),
                 "cf" => self.flags.clear(),
+                "eip" => {
+                    let saddr = con.cmd();
+                    let addr = u32::from_str_radix(saddr.as_str(), 16).expect("bad num conversion");
+                    self.regs.eip = addr;
+                },
                 "n" => {
                     self.exp += 1;
                     return;
@@ -704,11 +683,13 @@ impl Emu32 {
             .expect("Failed to create Capstone object");
 
         let mut pos = 1;
+        
 
         loop {
 
             let eip = self.regs.eip.clone();
-            let block = self.code.read_from(eip);
+            let code = self.maps.get_mem("code");
+            let block = code.read_from(eip);
             let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
             
 
@@ -741,6 +722,7 @@ impl Emu32 {
 
                 } else {
                     println!("{} {}", pos, ins);
+                    //stack.print_dwords_from_to(self.regs.esp, self.regs.esp+4*4);
                 }
                 pos += 1;
                 
@@ -800,7 +782,7 @@ impl Emu32 {
                                 self.stack_push(value);
                             }
                         }
-                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
+                        println!("\tpushing 0x{:x}",self.memory_read("dword ptr [esp]"));
                     },
 
                     Some("pop") => {
@@ -825,7 +807,6 @@ impl Emu32 {
                             },
                         }
 
-                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
                     },
 
                     Some("pushal") => {
@@ -838,7 +819,6 @@ impl Emu32 {
                         self.stack_push(self.regs.ebp);
                         self.stack_push(self.regs.esi);
                         self.stack_push(self.regs.edi);
-                        //self.stack.print_dwords_from_to(self.regs.esp, self.regs.ebp);
                     },
 
                     Some("popal") => {
@@ -855,7 +835,7 @@ impl Emu32 {
                     Some("ret") => {
                         let ret_addr = self.stack_pop(); // return address
                         let op = ins.op_str().unwrap();
-                        println!("\tret return addres: 0x{:x}", ret_addr);
+                        println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
 
                         
                         if op.len() > 0 {
@@ -869,7 +849,7 @@ impl Emu32 {
 
                             arg = arg / 4;
 
-                            for _ in 0..arg-1 {
+                            for _ in 0..arg {
                                 self.stack_pop();
                             }
                         }
@@ -2707,11 +2687,9 @@ impl Emu32 {
                     Some("movzx") => {
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        let bits1 = self.get_size(parts[0]);
-                        let bits2 = self.get_size(parts[1]);
-                        let value2:u32;
-                        let result:u32;
-                    
+                        //let bits1 = self.get_size(parts[0]);
+                        //let bits2 = self.get_size(parts[1]);
+                        let value2:u32;                    
 
                         if self.is_reg(parts[1]) {
                             // movzx reg, reg
@@ -2722,17 +2700,6 @@ impl Emu32 {
                         }
 
                         self.regs.set_by_name(parts[0], value2);
-
-                        /*
-                        if bits1 == 16 && bits2 == 8 {
-                            result = value2
-                        } else if bits1 == 32 && bits2 == 8 {
-
-                        } else if bits1 == 32 && bits2 == 16 {
-
-                        } else {
-                            panic!("weird undocumented movzx"),
-                        }*/
 
                     }
 
@@ -2796,10 +2763,9 @@ impl Emu32 {
                     Some("cmp") => {
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        let bits = self.get_size(parts[0]);
+                        //let bits = self.get_size(parts[0]);
                         let value1:u32;
                         let value2:u32;
-                        let result:u32;
 
                         if self.is_reg(parts[0]) {
                             if self.is_reg(parts[1]) {
@@ -2937,10 +2903,11 @@ impl Emu32 {
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
-                    Some("jb") => {
+                    Some("jnb") => {
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2952,6 +2919,7 @@ impl Emu32 {
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2967,6 +2935,7 @@ impl Emu32 {
                         if self.flags.f_cf || self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -2974,6 +2943,7 @@ impl Emu32 {
                         if self.flags.f_cf || self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3045,6 +3015,7 @@ impl Emu32 {
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3068,6 +3039,7 @@ impl Emu32 {
                         if self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
+                            break;
                         }
                     },
 
@@ -3106,7 +3078,8 @@ impl Emu32 {
 
                     //TODO: test syenter / int80
                     Some("int3") => {
-                        
+                        panic!("int 3 sigtrap!!!!");
+                        return;
                     },
 
                     Some("nop") => {
