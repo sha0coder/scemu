@@ -31,6 +31,7 @@ impl Console {
         println!("c ...................... continue");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
+        println!("m ...................... memory maps");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("");
