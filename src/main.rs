@@ -4,7 +4,7 @@ use std::env;
 use emu32::Emu32;
 
 fn usage(arg0:&String) {
-    println!("{0} [shellcode file]", arg0);
+    println!("{0} [shellcode file] <optional instruction number>", arg0);
 }
 
 fn main() {

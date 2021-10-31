@@ -107,7 +107,7 @@ impl Mem32 {
         println!("---");
     }
 
-    pub fn load(&mut self, filename: &String) {
+    pub fn load(&mut self, filename: &str) {
         let mut f = File::open(&filename).expect("no file found");
         f.read(&mut self.mem).expect("buffer overflow");
     }

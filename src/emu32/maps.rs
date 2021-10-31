@@ -95,4 +95,12 @@ impl Maps {
     pub fn get_mem(&mut self, name:&str) -> &mut Mem32 {
         return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
     }
+
+    pub fn print_maps(&self) {
+        println!("--- maps ---");
+        for k in self.maps.keys() {
+            println!("0x{:x} {}",self.maps.get(k).unwrap().get_base(), k);
+        }
+        println!("---");
+    }
 }

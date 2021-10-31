@@ -8,6 +8,7 @@
         - en cada set_eip() dumpear pila a fichero
         - detectar si lleva mucho tiempo loopeado
         - poner comentarios en las instruciones
+        - implementar instrucciones scas y rep
 
 
 8857 0xce7d: mov ebx, dword ptr [eax + 0x28]        -> [eax + 0x28] must be 0   (why eax is 0!!)
@@ -35,11 +36,6 @@ regs:
   eip: 0xcf07
 ---
 =>     
-
-
-
-
-
 
 
 
@@ -166,28 +162,23 @@ impl Emu32 {
         self.regs.eip = 0;
 
         println!("initializing code and stack");
-        /*
-        let mut stack = self.maps.create_map("stack");
-        let mut code = self.maps.create_map("code");
-        let mut peb = self.maps.create_map("peb");
-        let mut ntdll = self.maps.create_map("ntdll");*/
 
         self.maps.create_map("stack");
         self.maps.create_map("code");
         self.maps.create_map("peb");
         self.maps.create_map("ntdll");
+        self.maps.create_map("kernel32");
 
         self.init_stack();
         self.maps.get_mem("code").set_base(self.regs.eip);
+        let kernel32 = self.maps.get_mem("kernel32");
+        kernel32.set_base(0x26bc7464-0xb6528);
+        kernel32.load("libs/kernel32.dll");
         self.init_peb();
         
         let ntdll = self.maps.get_mem("ntdll");
         ntdll.set_base(0x8f44ca6a);
-
-       
-        
-    
-
+        ntdll.load("libs/ntdll.dll");
         
     }
 
@@ -355,7 +346,6 @@ impl Emu32 {
              8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
              _ => panic!("weird precision: {}", operand)
         }
-
     }
 
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
@@ -660,6 +650,7 @@ impl Emu32 {
                     self.exp += 1;
                     return;
                 },
+                "m" => self.maps.print_maps(),
                 "" => {
                     self.exp += 1;
                     return;
