@@ -99,7 +99,8 @@ impl Maps {
     pub fn print_maps(&self) {
         println!("--- maps ---");
         for k in self.maps.keys() {
-            println!("0x{:x} {}",self.maps.get(k).unwrap().get_base(), k);
+            let map = self.maps.get(k).unwrap();
+            println!("{}\t0x{:x} - 0x{:x}", k, map.get_base(), map.get_bottom());
         }
         println!("---");
     }

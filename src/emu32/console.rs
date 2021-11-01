@@ -10,10 +10,14 @@ impl Console {
         Console{}
     }
 
+    pub fn print(&self, msg:&str) {
+        print!("{}", msg);
+        std::io::stdout().flush().unwrap();
+    }
+
     pub fn cmd(&self) -> String {
         let mut line = String::new();
-        print!("=> ");
-        std::io::stdout().flush().unwrap();
+        self.print("=>");
         std::io::stdin().read_line(&mut line).unwrap();
         line.truncate(line.len() - 1);
         return line;
@@ -32,6 +36,7 @@ impl Console {
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
         println!("m ...................... memory maps");
+        println!("mc ..................... memory create map");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("");
