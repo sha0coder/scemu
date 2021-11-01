@@ -10,37 +10,15 @@
         - poner comentarios en las instruciones
         - implementar instrucciones scas y rep
 
+        punto strategico con guloader:
+            10004 0xc8b6: jne 0xc7c3
+            en la posicion 0x54f tiene que estar la API LoadLibraryA
+                ecx: contador
+                esi: 0x54f valor al que tiene que llegar ecx (LoadLibraryA)
 
-8857 0xce7d: mov ebx, dword ptr [eax + 0x28]        -> [eax + 0x28] must be 0   (why eax is 0!!)
-
-...
-8864 0xcf01: cmp ebx, dword ptr [ebp + 0x1c2]           ebx must be 0
--------
-8865 0xcf07: je 0xcf41
-        esp: 0xffc9c
-        ebp: 0xffcfc
---- console ---
-=> mr 
-=> dword ptr [ebp + 0x1c2]
-0xffebe: 0x0
-=> r
-regs:
-  eax: 0x0
-  ebx: 0x10ad5103
-  ecx: 0x210000
-  edx: 0x3ba6b285
-  esi: 0x21015c
-  edi: 0x0
-  ebp: 0xffcfc
-  esp: 0xffc9c
-  eip: 0xcf07
----
-=>     
-
-
+        xloader lee en 0x3277003c
 
 */
-
 
 extern crate capstone;
 
@@ -56,12 +34,8 @@ use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 
-//use std::mem;
-//use std::fs;
-
-
 use capstone::prelude::*;
-//use capstone::arch::x86::X86Operand;
+
 
 pub struct Emu32 {
     regs: Regs32,
@@ -168,18 +142,23 @@ impl Emu32 {
         self.maps.create_map("peb");
         self.maps.create_map("ntdll");
         self.maps.create_map("kernel32");
+        self.maps.create_map("kernel32_xloader");
 
         self.init_stack();
         self.maps.get_mem("code").set_base(self.regs.eip);
         let kernel32 = self.maps.get_mem("kernel32");
-        kernel32.set_base(0x26bc7464-0xb6528);
+        kernel32.set_base(0x850aa1);
         kernel32.load("libs/kernel32.dll");
+        kernel32.write_dword(0x905a4d+0x18, 0x54f);
         self.init_peb();
         
         let ntdll = self.maps.get_mem("ntdll");
         ntdll.set_base(0x8f44ca6a);
         ntdll.load("libs/ntdll.dll");
-        
+
+        // xloader initial state hack
+        self.memory_write("dword ptr [esp + 4]", 0x22a00);
+        self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
     }
 
     pub fn explain(&mut self, line: &String) {
@@ -625,12 +604,14 @@ impl Emu32 {
                 "h" => con.help(),
                 "r" => self.regs.print(),
                 "mr"|"rm" => {
+                    con.print("=");
                     let operand = con.cmd();
                     let addr:u32 = self.memory_operand_to_address(operand.as_str());
                     let value = self.memory_read(operand.as_str());
                     println!("0x{:x}: 0x{:x}", addr, value);
                 },
                 "mw"|"wm" => {
+                    con.print("=");
                     let operand = con.cmd();
                     let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
                     self.memory_write(operand.as_str(), value);
@@ -641,7 +622,17 @@ impl Emu32 {
                 "c" => return,
                 "f" => self.flags.print(),
                 "cf" => self.flags.clear(),
+                "mc" => {
+                    con.print("name ");
+                    let name = con.cmd();
+                    con.print("base address ");
+                    let saddr = con.cmd();
+                    let addr = u32::from_str_radix(saddr.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    self.maps.create_map(name.as_str());
+                    self.maps.get_mem(name.as_str()).set_base(addr);
+                },
                 "eip" => {
+                    con.print("=");
                     let saddr = con.cmd();
                     let addr = u32::from_str_radix(saddr.as_str(), 16).expect("bad num conversion");
                     self.regs.eip = addr;
@@ -3078,7 +3069,165 @@ impl Emu32 {
                     },
 
                     Some("cpuid") => {
+                        // guloader checks bit31 which is if its hipervisor
+                    },
 
+                    Some("loop") => {
+                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        if addr > 0xffff {
+                            if self.regs.ecx == 0 {
+                                self.regs.ecx = 0xffffffff;
+                            } else {
+                                self.regs.ecx -= 1;
+                            }
+
+                            if self.regs.ecx > 0 {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+
+                        } else {
+                            if self.regs.get_cx() == 0 {
+                                self.regs.set_cx(0xffff);
+                            } else {
+                                self.regs.set_cx(self.regs.get_cx() -1);
+                            }
+                
+                            if self.regs.get_cx() > 0 {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        }
+                    },
+
+                    Some("loope") => {
+                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        if addr > 0xffff {
+                            if self.regs.ecx == 0 {
+                                self.regs.ecx = 0xffffffff;
+                            } else {
+                                self.regs.ecx -= 1;
+                            }
+                            
+                            if self.regs.ecx > 0 && self.flags.f_zf {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        } else {
+                            if self.regs.get_cx() == 0 {
+                                self.regs.set_cx(0xffff);
+                            } else {
+                                self.regs.set_cx(self.regs.get_cx() -1);
+                            }
+                            
+                            if self.regs.get_cx() > 0 && self.flags.f_zf  {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        }
+                    },
+
+                    Some("loopz") => {
+                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        if addr > 0xffff {
+                            if self.regs.ecx == 0 {
+                                self.regs.ecx = 0xffffffff;
+                            } else {
+                                self.regs.ecx -= 1;
+                            }
+                            
+                            if self.regs.ecx > 0 && self.flags.f_zf {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        } else {
+                            if self.regs.get_cx() == 0 {
+                                self.regs.set_cx(0xffff);
+                            } else {
+                                self.regs.set_cx(self.regs.get_cx() -1);
+                            }
+                            
+                            if self.regs.get_cx() > 0 && self.flags.f_zf  {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        }
+                    },
+
+                    Some("loopne") => {
+                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        if addr > 0xffff {
+                            if self.regs.ecx == 0 {
+                                self.regs.ecx = 0xffffffff;
+                            } else {
+                                self.regs.ecx -= 1;
+                            }
+                            
+                            if self.regs.ecx > 0 && !self.flags.f_zf {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        } else {
+                            if self.regs.get_cx() == 0 {
+                                self.regs.set_cx(0xffff);
+                            } else {
+                                self.regs.set_cx(self.regs.get_cx() -1);
+                            }
+                            
+                            if self.regs.get_cx() > 0 && !self.flags.f_zf  {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        }
+                    },
+
+                    Some("loopnz") => {
+                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        if addr > 0xffff {
+                            if self.regs.ecx == 0 {
+                                self.regs.ecx = 0xffffffff;
+                            } else {
+                                self.regs.ecx -= 1;
+                            }
+                            
+                            if self.regs.ecx > 0 && !self.flags.f_zf {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        } else {
+                            if self.regs.get_cx() == 0 {
+                                self.regs.set_cx(0xffff);
+                            } else {
+                                self.regs.set_cx(self.regs.get_cx() -1);
+                            }
+                            
+                            if self.regs.get_cx() > 0 && !self.flags.f_zf  {
+                                self.set_eip(addr, false);
+                                break;
+                            }
+                        }
+                    },
+
+                    Some("lea") => {
+                        let ops = ins.op_str().unwrap();
+                        let parts:Vec<&str> = ops.split(", ").collect();
+                        let spl:Vec<&str> = parts[1].split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
+                        let mut result:u32 = 0;
+                        let value1:u32;
+                        let value2:u32;
+
+                        value1 = self.regs.get_by_name(spl[0]);
+                        value2 = self.get_inmediate(spl[2]);
+
+                        if spl[1] == "+" {
+                            result = value1 + value2;
+                        } else if spl[1] == "-" {
+                            result = value1 - value2;
+                        } else {
+                            panic!("unimplemented operation");
+                        }
+
+                        self.regs.set_by_name(parts[0], result);
                     },
 
                     Some("int") => {
