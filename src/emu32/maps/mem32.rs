@@ -9,6 +9,7 @@ const MAX_MEM:usize = 0x000f0000;
 
 pub struct Mem32 {
     base_addr: u32,
+    bottom_addr: u32,
     pub mem: Box<[u8]>, //:[u8;MAX_MEM],
 }
 
@@ -16,6 +17,7 @@ impl Mem32 {
     pub fn new() -> Mem32 {
         Mem32 {
             base_addr: 0,
+            bottom_addr: MAX_MEM as u32,
             mem: Box::new([0;MAX_MEM]),
         }
     }
@@ -29,11 +31,11 @@ impl Mem32 {
     }
 
     pub fn get_bottom(&self) -> u32 {
-        return self.base_addr + MAX_MEM as u32;
+        return self.bottom_addr;
     }
 
     pub fn inside(&self, addr:u32) -> bool {
-        if addr >= self.get_base() && addr <= self.get_bottom() {
+        if addr >= self.base_addr && addr <= self.bottom_addr {
             return true;
         }
         return false;
@@ -41,6 +43,11 @@ impl Mem32 {
 
     pub fn set_base(&mut self, base_addr:u32) {
         self.base_addr = base_addr;
+        self.bottom_addr = base_addr + MAX_MEM as u32;
+    }
+
+    pub fn set_bottom(&mut self, bottom_addr:u32) {
+        self.bottom_addr = bottom_addr;
     }
 
     pub fn read_from(&self, addr:u32) -> &[u8] {
@@ -109,6 +116,7 @@ impl Mem32 {
 
     pub fn load(&mut self, filename: &str) {
         let mut f = File::open(&filename).expect("no file found");
+        self.bottom_addr = self.base_addr + f.metadata().unwrap().len() as u32;
         f.read(&mut self.mem).expect("buffer overflow");
     }
 
