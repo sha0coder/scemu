@@ -68,73 +68,6 @@ impl Emu32 {
         stack.set_base(self.regs.esp - (q*3));
     }
 
-    // deprecated
-    pub fn init_peb(&mut self) {
-        let peb = self.maps.get_mem("peb");
-
-         /* fake PEB
-                8392 0xce4f: mov eax, dword ptr fs:[0x30]    eax -> 0x200004
-                8393 0xce55: mov eax, dword ptr [eax + 0xc]  eax -> 0x200008
-                8394 0xce58: mov eax, dword ptr [eax + 0x14] eax -> 0x20000c
-                8395 0xce5b: mov ecx, dword ptr [eax]        ecx -> 0x210000
-                8396 0xce5d: mov eax, ecx                    eax -> 0x210000
-                8399 0xce7d: mov ebx, dword ptr [eax + 0x28] --> list of library name strings
-
-        */
-        
-        //TODO: replicate full PEB structure
-        println!("initializing PEB");
-        peb.set_base(0x00200000);   
-
-        // 0x02 must be 0   (is being debugged)
-
-        peb.write_dword(0x00200000, 0x00200004);   // PEB addr                 mov eax, dword ptr [eax + 0xc]
-        peb.write_dword(0x00200010, 0x00200008);   // PEB->Ldr                 mov eax, dword ptr [eax + 0x14]
-        peb.write_dword(0x0020001c, 0x0020000c);   // PEB->Ldr.InMemOrder      mov ecx, dword ptr [eax]
-        peb.write_dword(0x0020000c, 0x00210000);
-        peb.write_dword(0x00210028, 0x00210040); // 4e00    ptr to ntdll.dll
-        peb.write_dword(0x00210040, 0x0074006e);
-        peb.write_dword(0x00210044, 0x006c0064); // "ntdll.dll" wide string
-        peb.write_dword(0x00210048, 0x002e006c);
-        peb.write_dword(0x0021004c, 0x006c0064);
-        peb.write_dword(0x00210050, 0x0000006c);
-        peb.write_dword(0x00210128, 0x00210130);
-
-        peb.write_dword(0x00210000, 0x00210120-0x28);  // ptr
-        peb.write_dword(0x00210120, 0x00210130);
-        peb.write_dword(0x00210130, 0x0065006b);       // "kernel32.dll" wide string
-        peb.write_dword(0x00210134, 0x006c0072);
-        peb.write_dword(0x00210138, 0x006c0075);
-        peb.write_dword(0x0021013c, 0x00320033);
-        peb.write_dword(0x00210140, 0x0064002e);
-        peb.write_dword(0x00210144, 0x006c006c);
-        peb.write_dword(0x00210148, 0x00000000);
-
-        peb.write_dword(0x00210108, 0x00210130-0x28);
-        peb.write_dword(0x00210130, 0x00210134);
-        peb.write_dword(0x00210134, 0x0045004b);       // KERNELBASE.dll
-        peb.write_dword(0x00210138, 0x004e0052);
-        peb.write_dword(0x0021013c, 0x00000000);
-
-        peb.write_dword(0x002100f8, 0x00210140-0x28);
-        peb.write_dword(0x00210140, 0x00210144);
-        peb.write_dword(0x00210144, 0x0073006d);       // msvcrt.dll
-        peb.write_dword(0x00210148, 0x00630076);       
-        peb.write_dword(0x0021014c, 0x00740072);       
-        peb.write_dword(0x00210150, 0x00740072);
-
-        peb.write_dword(0x210118, 0x00210154-0x28);
-        peb.write_dword(0x00210154, 0x00210158);
-        peb.write_dword(0x00210158, 0x006c0064);   // ntdll.dll
-        peb.write_dword(0x0021005c, 0x002e006c);
-        peb.write_dword(0x00210060, 0x006c0064);
-        peb.write_dword(0x00210064, 0x0000006c);
-
-        peb.write_dword(0x0021012c, 0x00210070);
-        peb.write_dword(0x00210070, 0x00000000);   // trigger 
-    }
-
-
     pub fn init(&mut self) {
         println!("initializing regs");
         self.regs.clear();
@@ -152,7 +85,7 @@ impl Emu32 {
         self.maps.create_map("ntdll_data");
         self.maps.create_map("kernel32");
         self.maps.create_map("kernel32_xloader");
-        self.maps.create_map("kernel32_export");
+        //self.maps.create_map("kernel32_export");
         self.maps.create_map("reserved");
 
         self.init_stack();
@@ -162,10 +95,10 @@ impl Emu32 {
         kernel32.load("maps/kernel32.dll");
         kernel32.write_dword(0x905a4d+0x18, 0x54f);
 
-        let k32_exports = self.maps.get_mem("kernel32_export");
+        /*let k32_exports = self.maps.get_mem("kernel32_export");
         k32_exports.set_base(0x30000000);
         k32_exports.load("maps/kernel32_export.bin");
-        self.maps.write_dword(0x854ec, 0x30000000);
+        self.maps.write_dword(0x854ec, 0x30000000);*/
 
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x002c0000);
