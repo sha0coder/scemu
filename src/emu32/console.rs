@@ -29,7 +29,8 @@ impl Console {
         println!("h ...................... help");
         println!("s ...................... stack");
         println!("v ...................... vars");
-        println!("r ...................... show all regs");
+        println!("r ...................... register show all");
+        println!("rc ..................... register change");
         println!("f ...................... show all flags");
         println!("cf ..................... clear all flags");
         println!("c ...................... continue");
@@ -37,6 +38,7 @@ impl Console {
         println!("eip .................... change eip");
         println!("m ...................... memory maps");
         println!("mc ..................... memory create map");
+        println!("ml ..................... memory load file content to map");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("");
