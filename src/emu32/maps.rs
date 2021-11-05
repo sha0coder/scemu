@@ -66,8 +66,11 @@ impl Maps {
     }
 
     pub fn read_dword(&self, addr:u32) -> u32 {
-        for (_,mem) in self.maps.iter() {
+        for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
+                if name == "kernel32" {
+                    println!("\treading kernel32 addr 0x{:x}", addr);
+                }
                 return mem.read_dword(addr);
             }
         }
@@ -75,8 +78,11 @@ impl Maps {
     }
 
     pub fn read_word(&self, addr:u32) -> u16 {
-        for (_,mem) in self.maps.iter() {
+        for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
+                if name == "kernel32" {
+                    println!("\treading kernel32 addr 0x{:x}", addr);
+                }
                 return mem.read_word(addr);
             }
         }
@@ -84,8 +90,11 @@ impl Maps {
     }
 
     pub fn read_byte(&self, addr:u32) -> u8 {
-        for (_,mem) in self.maps.iter() {
+        for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
+                if name == "kernel32" {
+                    println!("\treading kernel32 addr 0x{:x}", addr);
+                }
                 return mem.read_byte(addr);
             }
         }

@@ -1,24 +1,28 @@
 /*
     TODO:
-        - code no deberia estar en posicion 0 y si cae en 0 un set_eip finalizar.
-        - ante un pop mirar si ha recogido un puntero a un string y printar el string.
-        - pop popea una direccion de codigo?
-        - modo de ver codigo o de no verlo
-        - modo de ver solo los saltos/branches/calls/rets
-        - en cada set_eip() dumpear pila a fichero
-        - detectar si lleva mucho tiempo loopeado
-        - poner comentarios en las instruciones
-        - implementar instrucciones scas y rep
-        - back step?
+        - show registers pointing strings, or pops
+        - on every set_eip of a non branch dump stack to log file
+        - implement scas y rep
 
-        punto strategico con guloader:
-            10004 0xc8b6: jne 0xc7c3
-            en la posicion 0x54f tiene que estar la API LoadLibraryA
-                ecx: contador
-                esi: 0x54f valor al que tiene que llegar ecx (LoadLibraryA)
+        guloader:
+
+
+
+
+        9911 0xc794: mov dword ptr [ebp + 4], eax ---> has to point to kernel32 base address
+
+        10004 0xc8b6: jne 0xc7c3
+                ecx: counter
+                esi: 0x54f  max value, ecx has to arrive to this value to point to LoadLibraryA
                 edx: export table
 
-        xloader lee en 0x3277003c
+
+        
+
+
+
+        xloader read on 0x3277003c
+
 
 */
 
@@ -64,6 +68,7 @@ impl Emu32 {
         stack.set_base(self.regs.esp - (q*3));
     }
 
+    // deprecated
     pub fn init_peb(&mut self) {
         let peb = self.maps.get_mem("peb");
 
@@ -135,16 +140,20 @@ impl Emu32 {
         self.regs.clear();
         self.regs.esp = 0x00100000;
         self.regs.ebp = 0x00100f00;
-        self.regs.eip = 0;
+        self.regs.eip = 0x003c0000;
 
         println!("initializing code and stack");
 
         self.maps.create_map("stack");
         self.maps.create_map("code");
         self.maps.create_map("peb");
-        self.maps.create_map("ntdll");
+        self.maps.create_map("teb");
+        self.maps.create_map("ntdll_text");
+        self.maps.create_map("ntdll_data");
         self.maps.create_map("kernel32");
         self.maps.create_map("kernel32_xloader");
+        self.maps.create_map("kernel32_export");
+        self.maps.create_map("reserved");
 
         self.init_stack();
         self.maps.get_mem("code").set_base(self.regs.eip);
@@ -152,11 +161,32 @@ impl Emu32 {
         kernel32.set_base(0x850aa1);
         kernel32.load("maps/kernel32.dll");
         kernel32.write_dword(0x905a4d+0x18, 0x54f);
-        self.init_peb();
-        
-        let ntdll = self.maps.get_mem("ntdll");
-        ntdll.set_base(0x8f44ca6a);
-        ntdll.load("maps/ntdll.dll");
+
+        let k32_exports = self.maps.get_mem("kernel32_export");
+        k32_exports.set_base(0x30000000);
+        k32_exports.load("maps/kernel32_export.bin");
+        self.maps.write_dword(0x854ec, 0x30000000);
+
+        let reserved = self.maps.get_mem("reserved");
+        reserved.set_base(0x002c0000);
+        reserved.load("maps/reserved.bin");
+
+        let peb = self.maps.get_mem("peb");
+        peb.set_base(  0x7ffdf000);
+        peb.load("maps/peb.bin");
+
+        let teb = self.maps.get_mem("teb");
+        teb.set_base(  0x7ffde000);
+        teb.load("maps/teb.bin");
+
+        let ntdll_text = self.maps.get_mem("ntdll_text");
+        ntdll_text.set_base(0x77571000);
+        ntdll_text.load("maps/ntdll_text.bin");
+
+        let ntdll_data = self.maps.get_mem("ntdll_data");
+        ntdll_data.set_base(0x77647000);
+        ntdll_data.load("maps/ntdll_data.bin");
+
 
         // xloader initial state hack
         self.memory_write("dword ptr [esp + 4]", 0x22a00);
@@ -187,11 +217,10 @@ impl Emu32 {
     }
 
     pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
-        //[esi] --> da 0x3 la address BUG!!!
 
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
 
-        if operand.contains("fs:[") {
+        if operand.contains("fs:[") || operand.contains("gs:[") {
             let mem = operand.split(":").collect::<Vec<&str>>()[1];
             let value = self.memory_operand_to_address(mem);
 
@@ -289,6 +318,11 @@ impl Emu32 {
         //TODO: access to operand .disp instead parsing the string
         //ie [ebp + 0x44]
         let addr:u32 = self.memory_operand_to_address(operand);
+
+        if operand.contains("fs:[") || operand.contains("gs:[") {
+            return addr;
+        }
+
         let bits = self.get_size(operand);
         // check integrity of eip, esp and ebp registers
 
