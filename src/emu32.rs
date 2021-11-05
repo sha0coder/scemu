@@ -9,12 +9,14 @@
         - detectar si lleva mucho tiempo loopeado
         - poner comentarios en las instruciones
         - implementar instrucciones scas y rep
+        - back step?
 
         punto strategico con guloader:
             10004 0xc8b6: jne 0xc7c3
             en la posicion 0x54f tiene que estar la API LoadLibraryA
                 ecx: contador
                 esi: 0x54f valor al que tiene que llegar ecx (LoadLibraryA)
+                edx: export table
 
         xloader lee en 0x3277003c
 
@@ -148,13 +150,13 @@ impl Emu32 {
         self.maps.get_mem("code").set_base(self.regs.eip);
         let kernel32 = self.maps.get_mem("kernel32");
         kernel32.set_base(0x850aa1);
-        kernel32.load("libs/kernel32.dll");
+        kernel32.load("maps/kernel32.dll");
         kernel32.write_dword(0x905a4d+0x18, 0x54f);
         self.init_peb();
         
         let ntdll = self.maps.get_mem("ntdll");
         ntdll.set_base(0x8f44ca6a);
-        ntdll.load("libs/ntdll.dll");
+        ntdll.load("maps/ntdll.dll");
 
         // xloader initial state hack
         self.memory_write("dword ptr [esp + 4]", 0x22a00);
@@ -603,15 +605,23 @@ impl Emu32 {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => self.regs.print(),
+                "rc" => {
+                    con.print("register name");
+                    let reg = con.cmd();
+                    con.print("value");
+                    let svalue = con.cmd();
+                    let value = u32::from_str_radix(svalue.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    self.regs.set_by_name(reg.as_str(), value);
+                },
                 "mr"|"rm" => {
-                    con.print("=");
+                    con.print("memory argument");
                     let operand = con.cmd();
                     let addr:u32 = self.memory_operand_to_address(operand.as_str());
                     let value = self.memory_read(operand.as_str());
                     println!("0x{:x}: 0x{:x}", addr, value);
                 },
                 "mw"|"wm" => {
-                    con.print("=");
+                    con.print("memory argument");
                     let operand = con.cmd();
                     let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
                     self.memory_write(operand.as_str(), value);
@@ -630,6 +640,13 @@ impl Emu32 {
                     let addr = u32::from_str_radix(saddr.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     self.maps.create_map(name.as_str());
                     self.maps.get_mem(name.as_str()).set_base(addr);
+                },
+                "ml" => {
+                    con.print("map name");
+                    let name = con.cmd();
+                    con.print("filename");
+                    let filename = con.cmd();
+                    self.maps.get_mem(name.as_str()).load(filename.as_str());
                 },
                 "eip" => {
                     con.print("=");
