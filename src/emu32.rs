@@ -15,7 +15,8 @@
             - dont print instruction
 
 
-
+    guloader:
+        8273 --> exit the loop
 
         9911 0xc794: mov dword ptr [ebp + 4], eax ---> has to point to kernel32 base address
 
@@ -24,10 +25,6 @@
                 esi: 0x54f  max value, ecx has to arrive to this value to point to LoadLibraryA
                 edx: export table
 
-
-    
-
-        xloader read on 0x3277003c
 
 
 */
@@ -73,7 +70,7 @@ impl Emu32 {
             exp: 0,
             break_on_alert: false,
             loop_print: 1,
-            loop_limit: 500,
+            loop_limit: 1000,
             bp: 0
         }
     }
