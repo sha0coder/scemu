@@ -34,6 +34,8 @@ impl Console {
         println!("f ...................... show all flags");
         println!("cf ..................... clear all flags");
         println!("c ...................... continue");
+        println!("ba ..................... breakpoint on address");
+        println!("bi ..................... breakpoint on instruction number");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
         println!("m ...................... memory maps");
