@@ -3,8 +3,9 @@
         - show registers pointing strings, or pops
         - on every set_eip of a non branch dump stack to log file
         - implement scas y rep
-
-        guloader:
+        - configuration file witth:
+            - break_on_alert
+            - show loop, loop limit and loop print
 
 
 
@@ -33,12 +34,14 @@ mod eflags;
 mod maps;
 mod regs32;
 mod console;
+mod colors;
 
 use flags::Flags;
 use eflags::Eflags;
 use maps::Maps;
 use regs32::Regs32;
 use console::Console;
+use colors::Colors;
 
 use capstone::prelude::*;
 
@@ -48,7 +51,10 @@ pub struct Emu32 {
     flags: Flags,
     eflags: Eflags,
     maps: Maps,
-    exp: i32
+    exp: i32,
+    break_on_alert: bool,
+    loop_print: u32,
+    loop_limit: u32,
 }
 
 impl Emu32 {
@@ -58,7 +64,10 @@ impl Emu32 {
             flags: Flags::new(),
             eflags: Eflags::new(),
             maps: Maps::new(),
-            exp: -1
+            exp: -1,
+            break_on_alert: false,
+            loop_print: 1,
+            loop_limit: 500,
         }
     }
 
@@ -140,10 +149,14 @@ impl Emu32 {
         self.maps.get_mem("stack").write_dword(self.regs.esp, value);
     }
 
-    pub fn stack_pop(&mut self) -> u32 {
+    pub fn stack_pop(&mut self, pop_instruction:bool) -> u32 {
         let value = self.maps.get_mem("stack").read_dword(self.regs.esp);
-        if self.maps.get_mem("code").inside(value) {
-            println!("/!\\ poping a code address 0x{:x}", value);
+        if pop_instruction && self.maps.get_mem("code").inside(value) {
+            if self.break_on_alert {
+                panic!("/!\\ poping a code address 0x{:x}", value);
+            } else {
+                println!("/!\\ poping a code address 0x{:x}", value);
+            }
         }
         self.regs.esp += 4;
         return value;
@@ -300,7 +313,11 @@ impl Emu32 {
         if self.maps.get_mem("code").inside(addr) {
            self.regs.eip = addr; 
         } else if self.maps.get_mem("stack").inside(addr) {
-            println!("/!\\ weird, changing eip to stack.");
+            if self.break_on_alert {
+                panic!("/!\\ weird, changing eip to stack.");
+            } else {
+                println!("/!\\ weird, changing eip to stack.");
+            }
             self.regs.eip = addr;
         } else {
             panic!("cannot redirect  eip to 0x{:x} is outisde maps", addr);
@@ -638,8 +655,10 @@ impl Emu32 {
 
     ///  RUN ENGINE ///
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) {        
         println!(" ----- emulation -----");
+        let mut looped:Vec<u64> = Vec::new();
+        let colors = Colors::new();
         let cs = Capstone::new()
             .x86()
             .mode(arch::x86::ArchMode::Mode32)
@@ -666,6 +685,8 @@ impl Emu32 {
                 //let ops = arch_detail.operands();
 
                 let sz = ins.bytes().len();
+                let addr = ins.address();
+
 
                 if self.exp == pos {
                     let op = ins.op_str().unwrap();
@@ -686,22 +707,39 @@ impl Emu32 {
   
                     self.spawn_console();
 
-                } else {
-                    println!("{} {}", pos, ins);
-                    //stack.print_dwords_from_to(self.regs.esp, self.regs.esp+4*4);
                 }
+                    
                 pos += 1;
+
+
+                // loop detector
+                looped.push(addr);
+                let mut count:u32 = 0;
+                for a in looped.iter() {
+                    if addr == *a {
+                        count += 1;
+                    }
+                }
+                if count > self.loop_print {
+                    println!("    loop: {} interations", count);
+                }
+                if count > self.loop_limit {
+                    panic!("/!\\ iteration limit reached");
+                }
+                //TODO: if more than x addresses remove the bottom ones
                 
 
+                // instructions implementation
                 match ins.mnemonic() {
                     Some("jmp") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());       
                         self.set_eip(addr, false);
                         break;
                     },
 
                     Some("call") => {
-
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         if sz == 3 {
                             let addr = self.memory_read(ins.op_str().unwrap());
                             self.stack_push(self.regs.eip + sz as u32); // push return address
@@ -723,6 +761,7 @@ impl Emu32 {
                     },
 
                     Some("push") => {
+                        println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
                         let opcode:u8 = ins.bytes()[0];
 
                         match opcode {
@@ -752,23 +791,23 @@ impl Emu32 {
                     },
 
                     Some("pop") => {
+                        println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
                         let opcode:u8 = ins.bytes()[0];
 
                         match opcode {
                             // pop + regs
-                            0x58 => self.regs.eax = self.stack_pop(),
-                            0x59 => self.regs.ecx = self.stack_pop(),
-                            0x5a => self.regs.edx = self.stack_pop(),
-                            0x5b => self.regs.ebx = self.stack_pop(),
-                            0x5c => self.regs.esp = self.stack_pop(),
-                            0x5d => self.regs.ebp = self.stack_pop(),
-                            0x5e => self.regs.esi = self.stack_pop(),
-                            0x5f => self.regs.edi = self.stack_pop(),
+                            0x58 => self.regs.eax = self.stack_pop(true),
+                            0x59 => self.regs.ecx = self.stack_pop(true),
+                            0x5a => self.regs.edx = self.stack_pop(true),
+                            0x5b => self.regs.ebx = self.stack_pop(true),
+                            0x5c => self.regs.esp = self.stack_pop(true),
+                            0x5d => self.regs.ebp = self.stack_pop(true),
+                            0x5e => self.regs.esi = self.stack_pop(true),
+                            0x5f => self.regs.edi = self.stack_pop(true),
 
                             // pop + mem operation
                             _ => {
-                                //let value = self.memory_read(ins.op_str().unwrap());
-                                let value = self.stack_pop();
+                                let value = self.stack_pop(true);
                                 self.memory_write(ins.op_str().unwrap(), value);
                             },
                         }
@@ -776,6 +815,7 @@ impl Emu32 {
                     },
 
                     Some("pushal") => {
+                        println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
                         let tmp_esp = self.regs.esp;
                         self.stack_push(self.regs.eax);
                         self.stack_push(self.regs.ecx);
@@ -788,18 +828,20 @@ impl Emu32 {
                     },
 
                     Some("popal") => {
-                        self.regs.edi = self.stack_pop();
-                        self.regs.esi = self.stack_pop();
-                        self.regs.ebp = self.stack_pop();
+                        println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        self.regs.edi = self.stack_pop(false);
+                        self.regs.esi = self.stack_pop(false);
+                        self.regs.ebp = self.stack_pop(false);
                         self.regs.esp += 4; // skip esp
-                        self.regs.ebx = self.stack_pop();
-                        self.regs.edx = self.stack_pop();
-                        self.regs.ecx = self.stack_pop();
-                        self.regs.eax = self.stack_pop();
+                        self.regs.ebx = self.stack_pop(false);
+                        self.regs.edx = self.stack_pop(false);
+                        self.regs.ecx = self.stack_pop(false);
+                        self.regs.eax = self.stack_pop(false);
                     },
 
                     Some("ret") => {
-                        let ret_addr = self.stack_pop(); // return address
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
+                        let ret_addr = self.stack_pop(false); // return address
                         let op = ins.op_str().unwrap();
                         println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
 
@@ -816,7 +858,7 @@ impl Emu32 {
                             arg = arg / 4;
 
                             for _ in 0..arg {
-                                self.stack_pop();
+                                self.stack_pop(false);
                             }
                         }
                         
@@ -825,6 +867,7 @@ impl Emu32 {
                     },
 
                     Some("mov") => {
+                        println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
                         
                         if parts[0].contains("[") {
@@ -861,6 +904,7 @@ impl Emu32 {
                     },
 
                     Some("xor") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
                         if parts[0].contains("[") {
@@ -902,6 +946,7 @@ impl Emu32 {
                     },
 
                     Some("add") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let ops = ins.op_str().unwrap();
                         let parts:Vec<&str> = ops.split(", ").collect();
 
@@ -980,6 +1025,7 @@ impl Emu32 {
                     
                     
                     Some("sub") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
 
@@ -1056,6 +1102,7 @@ impl Emu32 {
                     },
 
                     Some("inc") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let value = self.regs.get_by_name(op);
@@ -1086,6 +1133,7 @@ impl Emu32 {
                     },
 
                     Some("dec") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             // dec reg
@@ -1118,6 +1166,7 @@ impl Emu32 {
 
                     // neg not and or ror rol  sar sal shr shl 
                     Some("neg") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let mut value = self.regs.get_by_name(op);
@@ -1155,6 +1204,7 @@ impl Emu32 {
                     },
 
                     Some("not") => { // dont alter flags
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
                             let mut value = self.regs.get_by_name(op);
@@ -1172,6 +1222,7 @@ impl Emu32 {
                     },
 
                     Some("and") => { // TODO: how to trigger overflow and carry with and
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
                         if parts[0].contains("[") {
@@ -1223,6 +1274,7 @@ impl Emu32 {
                     },
 
                     Some("or") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
                         if parts[0].contains("[") {
@@ -1273,6 +1325,7 @@ impl Emu32 {
                     },
 
                     Some("sal") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
@@ -1474,6 +1527,7 @@ impl Emu32 {
                     },
 
                     Some("sar") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
@@ -1673,6 +1727,7 @@ impl Emu32 {
                     },
 
                     Some("shr") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
@@ -1875,6 +1930,7 @@ impl Emu32 {
                     },
 
                     Some("shl") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 2;
@@ -2076,6 +2132,7 @@ impl Emu32 {
 
 
                     Some("ror") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
@@ -2168,6 +2225,7 @@ impl Emu32 {
                     },
 
                     Some("rol") => {
+                        println!("{}{} {}{}", colors.green, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let twoparams = parts.len() == 1;
@@ -2260,6 +2318,7 @@ impl Emu32 {
                     },
 
                     Some("mul") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
                         if self.is_reg(op) {
@@ -2336,6 +2395,7 @@ impl Emu32 {
                     },
 
                     Some("div") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
                         if self.is_reg(op) {
@@ -2349,7 +2409,12 @@ impl Emu32 {
                                     let value2:u64 = self.regs.get_by_name(op) as u64;
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!("/!\\ division by 0 exception");
+                                        } else {
+                                            println!("/!\\ division by 0 exception");
+                                        }
+                                        
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2358,7 +2423,11 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_of = resq > 0xffffffff;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            if self.break_on_alert {
+                                                panic!("/!\\ int overflow exception on division");
+                                            } else {
+                                                println!("/!\\ int overflow exception on division");
+                                            }
                                         }
                                     }
 
@@ -2368,7 +2437,11 @@ impl Emu32 {
                                     let value2:u32 = self.regs.get_by_name(op);
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!("/!\\ division by 0 exception");
+                                        } else {
+                                            println!("/!\\ division by 0 exception");
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2378,7 +2451,11 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xffff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            if self.break_on_alert {
+                                                panic!("/!\\ int overflow exception on division");
+                                            } else {
+                                                println!("/!\\ int overflow exception on division");
+                                            }
                                         }
                                     }
              
@@ -2388,7 +2465,11 @@ impl Emu32 {
                                     let value2:u32 = self.regs.get_by_name(op);
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!("/!\\ division by 0 exception");
+                                        } else {
+                                            println!("/!\\ division by 0 exception");
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2398,7 +2479,11 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            if self.break_on_alert {
+                                                panic!("/!\\ int overflow exception on division");
+                                            } else {
+                                                println!("/!\\ int overflow exception on division");
+                                            }
                                         }
                                     }
                                     
@@ -2417,6 +2502,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2425,7 +2513,10 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_of = resq > 0xffffffff;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         }
                                     }
 
@@ -2436,6 +2527,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2445,7 +2539,10 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xffff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         }
                                     }
              
@@ -2456,6 +2553,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2465,7 +2565,10 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         }
                                     }
                                     
@@ -2476,6 +2579,7 @@ impl Emu32 {
                     },
 
                     Some("idiv") => {
+                        println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
                         if self.is_reg(op) {
@@ -2490,6 +2594,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2498,11 +2605,20 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         if resq > 0xffffffff {
                                             println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i64) > 0 && (resq as i32) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2514,6 +2630,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2522,12 +2641,21 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_tf = false;
                                         if resq > 0xffff {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i32) > 0 && (resq as i16) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2539,6 +2667,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2547,12 +2678,21 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_tf = false;
                                         if  resq > 0xff {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i16) > 0 && (resq as i8) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2572,6 +2712,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2579,12 +2722,21 @@ impl Emu32 {
                                         self.regs.edx = resr as u32;
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         if resq > 0xffffffff {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i64) > 0 && (resq as i32) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2596,6 +2748,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2604,12 +2759,21 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_tf = false;
                                         if resq > 0xffff {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i32) > 0 && (resq as i16) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2621,6 +2785,9 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
+                                        if self.break_on_alert {
+                                            panic!();
+                                        }
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2629,12 +2796,21 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_tf = false;
                                         if resq > 0xff {
-                                            println!("/!\\ int overflow exception on division")
+                                            println!("/!\\ int overflow exception on division");
+                                            if self.break_on_alert {
+                                                panic!();
+                                            }
                                         } else {
                                             if (value1 as i16) > 0 && (resq as i8) < 0 {
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
                                                 println!("/!\\ sign change exception on division");
+                                                if self.break_on_alert {
+                                                    panic!();
+                                                }
                                             }
                                         }
                                     }
@@ -2646,11 +2822,13 @@ impl Emu32 {
                     },
 
                     Some("imul") => {
+                        println!("{} {}", pos, ins);
                         //https://c9x.me/x86/html/file_module_x86_id_138.html
                         panic!("not implemented");
                     },
 
                     Some("movzx") => {
+                        println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         //let bits1 = self.get_size(parts[0]);
@@ -2670,6 +2848,7 @@ impl Emu32 {
                     }
 
                     Some("test") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let bits = self.get_size(parts[0]);
@@ -2727,6 +2906,7 @@ impl Emu32 {
                     },
 
                     Some("cmp") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         //let bits = self.get_size(parts[0]);
@@ -2785,6 +2965,7 @@ impl Emu32 {
                     //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
 
                     Some("jo") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2793,6 +2974,7 @@ impl Emu32 {
                     },
 
                     Some("jno") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2801,6 +2983,7 @@ impl Emu32 {
                     },
 
                     Some("js") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_sf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2809,6 +2992,7 @@ impl Emu32 {
                     },
 
                     Some("jns") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_sf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2817,6 +3001,7 @@ impl Emu32 {
                     },
 
                     Some("je") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2825,6 +3010,7 @@ impl Emu32 {
                     },
 
                     Some("jz") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2834,6 +3020,7 @@ impl Emu32 {
 
 
                     Some("jne") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2842,6 +3029,7 @@ impl Emu32 {
                     },
 
                     Some("jnz") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2850,6 +3038,7 @@ impl Emu32 {
                     },
 
                     Some("jb") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2858,6 +3047,7 @@ impl Emu32 {
                     },
 
                     Some("jnae") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2866,6 +3056,7 @@ impl Emu32 {
                     },
 
                     Some("jc") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2874,6 +3065,7 @@ impl Emu32 {
                     },
 
                     Some("jnb") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2882,6 +3074,7 @@ impl Emu32 {
                     },
 
                     Some("jae") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2890,6 +3083,7 @@ impl Emu32 {
                     },
 
                     Some("jnc") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_cf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2898,6 +3092,7 @@ impl Emu32 {
                     },
 
                     Some("jbe") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_cf || self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2906,6 +3101,7 @@ impl Emu32 {
                     },
 
                     Some("jna") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_cf || self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2914,6 +3110,7 @@ impl Emu32 {
                     },
 
                     Some("ja") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_cf && !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2922,6 +3119,7 @@ impl Emu32 {
                     },
 
                     Some("jnbe") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_cf && !self.flags.f_zf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2930,6 +3128,7 @@ impl Emu32 {
                     },
 
                     Some("jl") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2938,6 +3137,7 @@ impl Emu32 {
                     },
 
                     Some("jnge") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2946,6 +3146,7 @@ impl Emu32 {
                     },
 
                     Some("jge") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_sf == self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2954,6 +3155,7 @@ impl Emu32 {
                     },
 
                     Some("jnl") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_sf == self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2962,6 +3164,7 @@ impl Emu32 {
                     },
 
                     Some("jle") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2970,6 +3173,7 @@ impl Emu32 {
                     },
 
                     Some("jng") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2978,6 +3182,7 @@ impl Emu32 {
                     },
 
                     Some("jg") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2986,6 +3191,7 @@ impl Emu32 {
                     },
 
                     Some("jnle") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -2994,6 +3200,7 @@ impl Emu32 {
                     },
 
                     Some("jp") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3002,6 +3209,7 @@ impl Emu32 {
                     },
 
                     Some("jpe") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3010,6 +3218,7 @@ impl Emu32 {
                     },
 
                     Some("jnp") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3018,6 +3227,7 @@ impl Emu32 {
                     },
 
                     Some("jpo") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if !self.flags.f_pf {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3026,6 +3236,7 @@ impl Emu32 {
                     },
 
                     Some("jcxz") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.regs.get_cx() == 0 {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3034,6 +3245,7 @@ impl Emu32 {
                     },
 
                     Some("jecxz") => {
+                        println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         if self.regs.ecx == 0 {
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
@@ -3044,19 +3256,29 @@ impl Emu32 {
 
                     //TODO: test syenter / int80
                     Some("int3") => {
-                        panic!("int 3 sigtrap!!!!");
+                        println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                        println!("/!\\ int 3 sigtrap!!!!");
+                        if self.break_on_alert {
+                            panic!();
+                        }
                         return;
                     },
 
                     Some("nop") => {
-
+                        println!("{} {}", pos, ins);
                     },
 
                     Some("cpuid") => {
+                        println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         // guloader checks bit31 which is if its hipervisor
                     },
 
+                    Some("rdstc") => {
+                        println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                    },
+
                     Some("loop") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
@@ -3085,6 +3307,7 @@ impl Emu32 {
                     },
 
                     Some("loope") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
@@ -3112,6 +3335,7 @@ impl Emu32 {
                     },
 
                     Some("loopz") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
@@ -3139,6 +3363,7 @@ impl Emu32 {
                     },
 
                     Some("loopne") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
@@ -3166,6 +3391,7 @@ impl Emu32 {
                     },
 
                     Some("loopnz") => {
+                        println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
@@ -3193,6 +3419,7 @@ impl Emu32 {
                     },
 
                     Some("lea") => {
+                        println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
                         let ops = ins.op_str().unwrap();
                         let parts:Vec<&str> = ops.split(", ").collect();
                         let spl:Vec<&str> = parts[1].split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
@@ -3215,11 +3442,15 @@ impl Emu32 {
                     },
 
                     Some("int") => {
+                        println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         let op = ins.op_str().unwrap();
                         let interrupt = u32::from_str_radix(op.trim_start_matches("0x"),16).expect("conversion error");
                         match interrupt {
                             0x80 => {
                                 println!("/!\\ interrupt 0x80 function:{}", self.regs.eax);
+                                if self.break_on_alert {
+                                    panic!();
+                                }
                                 match self.regs.eax {
                                     11 => {
                                         panic!("execve() detected");
