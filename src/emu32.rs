@@ -1,5 +1,6 @@
 /*
     TODO:
+        - implement SEH fs:[0]
         - console breakpoints
         - randomize initial register for avoid targeted anti-amulation
         - show registers pointing strings, or pops
@@ -7,6 +8,9 @@
         - implement scas & rep
         - implement imul
         - check pf flag bug
+        - save state to disk and continue
+        - command to exit the bucle or to see  next instruction
+        - optimize loop counter
         - configuration file with:
             - break_on_alert
             - show loop, loop limit and loop print
@@ -18,15 +22,27 @@
     guloader:
         8273 --> exit the loop
 
-        9911 0xc794: mov dword ptr [ebp + 4], eax ---> has to point to kernel32 base address
+                        9911 0xc794: mov dword ptr [ebp + 4], eax ---> has to point to kernel32 base address
+        9911 0x3ccfa1: movzx ebx, byte ptr [esi]
+
+        8500 0x3ccfc6: ret 4 ---> since here all ok
+
+        0x3cca37: ret 4 ---> iterating api names
+
+
+        747332 0x3cca37: ret 4 --> LoadLibraryA
+
+        747358 0x3cc73d: call dword ptr [ebp + 0xc]
+
+
+
+
+
 
         10004 0xc8b6: jne 0xc7c3
                 ecx: counter
                 esi: 0x54f  max value, ecx has to arrive to this value to point to LoadLibraryA
                 edx: export table
-
-
-
 */
 
 extern crate capstone;
@@ -58,6 +74,7 @@ pub struct Emu32 {
     loop_print: u32,
     loop_limit: u32,
     bp: u32,
+    detailed: bool,
 }
 
 impl Emu32 {
@@ -70,8 +87,9 @@ impl Emu32 {
             exp: 0,
             break_on_alert: false,
             loop_print: 1,
-            loop_limit: 1000,
-            bp: 0
+            loop_limit: 1000000,
+            bp: 0,
+            detailed: false
         }
     }
 
@@ -104,21 +122,33 @@ impl Emu32 {
         self.maps.create_map("ntdll_text");
         self.maps.create_map("ntdll_data");
         self.maps.create_map("kernel32");
-        self.maps.create_map("kernel32_xloader");
-        //self.maps.create_map("kernel32_export");
+        self.maps.create_map("kernel32_text");
+        self.maps.create_map("kernel32_data");
+        self.maps.create_map("kernelbase_text");
+        self.maps.create_map("kernelbase_data");
         self.maps.create_map("reserved");
 
         self.init_stack();
         self.maps.get_mem("code").set_base(self.regs.eip);
         let kernel32 = self.maps.get_mem("kernel32");
-        kernel32.set_base(0x850aa1);
-        kernel32.load("maps/kernel32.dll");
-        kernel32.write_dword(0x905a4d+0x18, 0x54f);
+        kernel32.set_base(0x75e40000);
+        kernel32.load("maps/kernel32.bin");
 
-        /*let k32_exports = self.maps.get_mem("kernel32_export");
-        k32_exports.set_base(0x30000000);
-        k32_exports.load("maps/kernel32_export.bin");
-        self.maps.write_dword(0x854ec, 0x30000000);*/
+        let kernel32_text = self.maps.get_mem("kernel32_text");
+        kernel32_text.set_base(0x75e41000);
+        kernel32_text.load("maps/kernel32_text.bin");
+
+        let kernel32_data = self.maps.get_mem("kernel32_data");
+        kernel32_data.set_base(0x75f06000);
+        kernel32_data.load("maps/kernel32_data.bin");
+
+        let kernelbase_text = self.maps.get_mem("kernelbase_text");
+        kernelbase_text.set_base(0x75941000);
+        kernelbase_text.load("maps/kernelbase_text.bin");
+
+        let kernelbase_data = self.maps.get_mem("kernelbase_data");
+        kernelbase_data.set_base(0x75984000);
+        kernelbase_data.load("maps/kernelbase_data.bin");
 
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x002c0000);
@@ -142,8 +172,8 @@ impl Emu32 {
 
 
         // xloader initial state hack
-        self.memory_write("dword ptr [esp + 4]", 0x22a00);
-        self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
+        //self.memory_write("dword ptr [esp + 4]", 0x22a00);
+        //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
     }
 
     pub fn explain(&mut self, line: &String) {
@@ -283,6 +313,14 @@ impl Emu32 {
         let bits = self.get_size(operand);
         // check integrity of eip, esp and ebp registers
 
+        if self.detailed {
+            match self.maps.get_addr_name(addr) {
+                Some(name) => println!("\treading memory at '{}' addr 0x{:x}", name, addr),
+                None => panic!("reading outside  of maps")
+            }
+        }
+        
+
         let stack = self.maps.get_mem("stack");
 
         // could be normal using part of code as stack
@@ -306,9 +344,12 @@ impl Emu32 {
     pub fn memory_write(&mut self, operand:&str, value:u32) {
         let addr:u32 = self.memory_operand_to_address(operand);
         let peb = self.maps.get_mem("peb");
-        
-        if peb.inside(addr) {
-            panic!("modifying peb!!");
+
+        if self.detailed {
+            match self.maps.get_addr_name(addr) {
+                Some(name) => println!("\twritting memory at '{}' addr 0x{:x} value: 0x{:x}", name, addr, value),
+                None => panic!("writting outside  of maps addr 0x{:x} value: 0x{:x}", addr, value)
+            }
         }
 
         let bits = self.get_size(operand);
@@ -321,6 +362,15 @@ impl Emu32 {
     }
 
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
+
+        match self.maps.get_addr_name(addr) {
+            Some(name) => self.regs.eip = addr,
+            None => panic!("setting eip to non mapped"),
+        }
+
+        
+
+        /*
         if self.maps.get_mem("code").inside(addr) {
            self.regs.eip = addr; 
         } else if self.maps.get_mem("stack").inside(addr) {
@@ -332,7 +382,7 @@ impl Emu32 {
             self.regs.eip = addr;
         } else {
             panic!("cannot redirect  eip to 0x{:x} is outisde maps", addr);
-        }
+        }*/
 
         //TODO: lanzar memory scan code.scan() y stack.scan()
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
@@ -655,11 +705,44 @@ impl Emu32 {
                     let filename = con.cmd();
                     self.maps.get_mem(name.as_str()).load(filename.as_str());
                 },
+                "mn" => {
+                    con.print("address");
+                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    match self.maps.get_addr_name(addr) {
+                        Some(name)  => println!("address at '{}' map", name),
+                        None => println!("address not found on any map"),
+                    }
+                },
+                "md" => {
+                    con.print("address");
+                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    self.maps.dump(addr);
+                },
                 "eip" => {
                     con.print("=");
                     let saddr = con.cmd();
                     let addr = u32::from_str_radix(saddr.as_str(), 16).expect("bad num conversion");
                     self.regs.eip = addr;
+                },
+                "ss" => {
+                    con.print("map name");
+                    let map_name = con.cmd();
+                    con.print("string");
+                    let kw = con.cmd();
+                    self.maps.search_string(kw, map_name);
+                },
+                "sb" => {
+                    con.print("map name");
+                    let map_name = con.cmd();
+                    con.print("spaced bytes");
+                    let sbs = con.cmd();
+                    let bs:Vec<&str> = sbs.split(" ").collect();
+                    let mut bytes:Vec<u8> = Vec::new();
+                    for i in 0..bs.len() {
+                        let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
+                        bytes.push(b);
+                    }
+                    self.maps.search_bytes(bytes, map_name);
                 },
                 "n" => {
                     self.exp += 1;
@@ -696,7 +779,8 @@ impl Emu32 {
         loop {
 
             let eip = self.regs.eip.clone();
-            let code = self.maps.get_mem("code");
+            let map_name = self.maps.get_addr_name(eip).expect("jumped to an address non mapped");
+            let code = self.maps.get_mem(map_name.as_str());
             let block = code.read_from(eip);
             let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
             
@@ -720,40 +804,27 @@ impl Emu32 {
                     let parts:Vec<&str> = op.split(", ").collect();
                     println!("-------");
                     println!("{} {}", pos, ins);
-                    println!("\tesp: 0x{:x}", self.regs.esp);
-                    println!("\tebp: 0x{:x}", self.regs.ebp);
-                    for i in 0..parts.len() {
-                        if self.is_reg(parts[i]) {
-                            println!("\t{}: 0x{:x}", parts[i], self.regs.get_by_name(parts[i]));
-                        } else if parts[i].contains("[") {
-                            let addr = self.memory_operand_to_address(parts[i]);
-                            let value = self.memory_read(parts[i]);
-                            println!("\t0x{:x}: 0x{:x}", addr, value);
-                        }
-                    }
-  
                     self.spawn_console();
 
                 }
                     
-                
-
-
-                // loop detector
-                looped.push(addr);
-                let mut count:u32 = 0;
-                for a in looped.iter() {
-                    if addr == *a {
-                        count += 1;
+                if self.detailed {
+                    // loop detector
+                    looped.push(addr);
+                    let mut count:u32 = 0;
+                    for a in looped.iter() {
+                        if addr == *a {
+                            count += 1;
+                        }
                     }
+                    if count > self.loop_print {
+                        println!("    loop: {} interations", count);
+                    }
+                    if count > self.loop_limit {
+                        panic!("/!\\ iteration limit reached");
+                    }
+                    //TODO: if more than x addresses remove the bottom ones
                 }
-                if count > self.loop_print {
-                    println!("    loop: {} interations", count);
-                }
-                if count > self.loop_limit {
-                    panic!("/!\\ iteration limit reached");
-                }
-                //TODO: if more than x addresses remove the bottom ones
                 
 
                 // instructions implementation
@@ -762,7 +833,15 @@ impl Emu32 {
                         if !step {
                             println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());       
+                        let op = ins.op_str().unwrap();
+                        let addr:u32;
+
+                        if op.contains("[") {
+                            addr = self.memory_read(op);
+                        } else  {
+                            addr = self.get_inmediate(op);
+                        }
+
                         self.set_eip(addr, false);
                         break;
                     },
@@ -771,24 +850,24 @@ impl Emu32 {
                         if !step {
                             println!("{}{} {}{}", colors.yellow, pos, ins, colors.nc);
                         }
-                        if sz == 3 {
-                            let addr = self.memory_read(ins.op_str().unwrap());
-                            self.stack_push(self.regs.eip + sz as u32); // push return address
-                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
-                            self.set_eip(addr, false);
-                            break; 
+
+                        let op = ins.op_str().unwrap();
+                        let addr:u32;
+
+                        if sz == 3 || sz == 6 {
+                            addr = self.memory_read(op);
+                        } else  if sz == 5 {
+                            addr = self.get_inmediate(op);
+                        } else if sz == 2 {
+                            addr = self.regs.get_by_name(op);
+                        } else {
+                            panic!("weird call");
                         }
 
-                        if sz == 5 {
-                            let addr = self.get_inmediate(ins.op_str().unwrap());
-                            self.stack_push(self.regs.eip + sz as u32); // push return address
-                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
-                            self.set_eip(addr, false);
-                            break;
-                        }
-
-                        println!("weird call");
-                        return;
+                        self.stack_push(self.regs.eip + sz as u32); // push return address
+                        println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
+                        self.set_eip(addr, false);
+                        break;
                     },
 
                     Some("push") => {
@@ -809,7 +888,7 @@ impl Emu32 {
                             0x57 => self.stack_push(self.regs.edi),
 
                             // push + inmediate
-                            0x68 => {
+                            0x68|0x6a => {
                                 let addr = self.get_inmediate(ins.op_str().unwrap());
                                 self.stack_push(addr as u32);
                             },
@@ -907,6 +986,44 @@ impl Emu32 {
                         self.set_eip(ret_addr, false);
                         break;
                     },
+
+                    Some("xchg") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
+                        }
+
+                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // xchg mem, reg
+                                let value0 = self.memory_read(parts[0]);
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                self.memory_write(parts[0], value1);
+                                self.regs.set_by_name(parts[1], value0);
+                            } 
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // xchg reg, mem 
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let value1 = self.memory_read(parts[1]);
+                                self.memory_write(parts[1], value0);
+                                self.regs.set_by_name(parts[0], value1);
+
+                            } else {
+                                // xchg reg, reg
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                self.regs.set_by_name(parts[0], value1);
+                                self.regs.set_by_name(parts[1], value0);
+                            }
+                        }
+                        
+
+                    }
+
 
                     Some("mov") => {
                         if !step {
@@ -1071,6 +1188,84 @@ impl Emu32 {
                         } 
                     },
                     
+                    Some("sbb") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
+                        }
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // mov mem, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                let res:u32;
+                                match self.get_size(op) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
+                                self.memory_write(parts[0], res);
+                                
+                            } else {
+                                // mov mem, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.memory_read(parts[0]);
+                                let res:u32;
+                                match self.get_size(op) {
+                                    32 => res = self.flags_sub32(value0, inm),
+                                    16 => res = self.flags_sub16(value0, inm),
+                                    8  => res = self.flags_sub8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
+                                self.memory_write(parts[0], res);
+                            }
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // mov reg, mem 
+                                let value1 = self.memory_read(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+
+                            } else if self.is_reg(parts[1]) {
+                                // mov reg, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_sub32(value0, value1),
+                                    16 => res = self.flags_sub16(value0, value1),
+                                    8  => res = self.flags_sub8(value0, value1),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+                                
+                            } else {
+                                // mov reg, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_sub32(value0, inm),
+                                    16 => res = self.flags_sub16(value0, inm),
+                                    8  => res = self.flags_sub8(value0, inm),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+                            }
+                        }
+                    },
                     
                     Some("sub") => {
                         if !step {
@@ -1218,6 +1413,7 @@ impl Emu32 {
                         }
                     },
 
+               
                     // neg not and or ror rol  sar sal shr shl 
                     Some("neg") => {
                         if !step {
@@ -2909,14 +3105,51 @@ impl Emu32 {
                         panic!("not implemented");
                     },
 
+                    Some("movsx") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
+                        }
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let value2:u32;                    
+
+                        if self.is_reg(parts[1]) {
+                            // movzx reg, reg
+                            value2 = self.regs.get_by_name(parts[1]);
+                        } else {
+                            // movzx reg, mem
+                            value2 = self.memory_read(parts[1]);
+                        }
+
+                        let lbits = self.get_size(parts[0]);
+                        let rbits = self.get_size(parts[1]);
+
+                        match rbits {
+                            32 => panic!("cant be movsx of 32 bits"),
+                            16 => {
+                                if value2 > 0x7fff {
+                                    self.regs.set_by_name(parts[0], 0xffff0000 + value2)
+                                } else {
+                                    self.regs.set_by_name(parts[0], value2);
+                                }
+                            },
+                            8 => {
+                                if value2 > 0x7f {
+                                    self.regs.set_by_name(parts[0], 0xffffff00 + value2)
+                                } else {
+                                    self.regs.set_by_name(parts[0], value2);
+                                }
+                            },
+                            _ => panic!("wrong precision"),
+                        }
+                    },
+
                     Some("movzx") => {
                         if !step {
                             println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        //let bits1 = self.get_size(parts[0]);
-                        //let bits2 = self.get_size(parts[1]);
                         let value2:u32;                    
 
                         if self.is_reg(parts[1]) {
@@ -2928,8 +3161,7 @@ impl Emu32 {
                         }
 
                         self.regs.set_by_name(parts[0], value2);
-
-                    }
+                    },
 
                     Some("test") => {
                         if !step {
@@ -3057,351 +3289,485 @@ impl Emu32 {
                             println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
                         }
                         if self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jno") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
+                        
                         if !self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("js") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_sf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
+                        
                     },
 
                     Some("jns") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_sf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("je") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jz") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
 
                     Some("jne") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnz") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jb") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnae") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jc") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnb") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jae") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnc") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_cf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jbe") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_cf || self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jna") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_cf || self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("ja") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_cf && !self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnbe") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_cf && !self.flags.f_zf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jl") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnge") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jge") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_sf == self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnl") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_sf == self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jle") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jng") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
+    
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jg") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnle") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jp") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_pf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jpe") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.flags.f_pf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jnp") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_pf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jpo") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if !self.flags.f_pf {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jcxz") => {
-                        if !step {                        
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.regs.get_cx() == 0 {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
                     Some("jecxz") => {
-                        if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
-                        }
                         if self.regs.ecx == 0 {
+                            if !step {
+                                println!("{}{} {}{} taken", colors.orange, pos, ins, colors.nc);
+                            }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
+                        } else {
+                            if !step {
+                                println!("{}{} {}{} not taken", colors.orange, pos, ins, colors.nc);
+                            }
                         }
                     },
 
@@ -3613,6 +3979,11 @@ impl Emu32 {
                         self.regs.set_by_name(parts[0], result);
                     },
 
+                    Some("leave") => {
+                        self.regs.esp = self.regs.ebp;
+                        self.regs.ebp = self.stack_pop(true);
+                    },
+
                     Some("int") => {
                         if !step {
                             println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
@@ -3638,10 +4009,13 @@ impl Emu32 {
                         }
                     },
 
+
+
                     Some(&_) =>  { 
+                        println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         panic!("unimplemented instruction");
                     },
-                    None => panic!("unknon instruction"),
+                    None => panic!("none instruction"),
                 }
 
                 self.regs.eip += sz as u32;

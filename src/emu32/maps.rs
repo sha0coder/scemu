@@ -1,7 +1,9 @@
 mod mem32;
 
+
 use mem32::Mem32;
 use std::collections::HashMap;
+
 
 /*
 pub struct Map {
@@ -113,4 +115,95 @@ impl Maps {
         }
         println!("---");
     }
+
+    pub fn get_addr_name(&self, addr:u32) -> Option<String> {
+        for (name,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return Some(name.to_string());
+            }
+        }
+        return None;
+    }
+
+    pub fn dump(&self, addr:u32) {
+        let mut count = 0;
+        for j in 0..8 {
+            let mut bytes:Vec<char> = Vec::new();
+            for i in 0..4 {
+                let dw = self.read_dword(addr + count*4);
+                count += 1;
+                bytes.push(((dw&0xff) as u8) as char);
+                bytes.push((((dw&0xff00)>>8) as u8) as char);
+                bytes.push((((dw&0xff0000)>>16) as u8) as char);
+                bytes.push((((dw&0xff000000)>>24) as u8) as char);
+                print!("{:02x} {:02x} {:02x} {:02x}  ", dw&0xff, (dw&0xff00)>>8, (dw&0xff0000)>>16, (dw&0xff000000)>>24);
+            }
+            //let s:String = String::from_iter(bytes);
+            //let s = str::from_utf8(&bytes).unwrap();
+            let s: String = bytes.into_iter().collect();
+            println!("{}",s);
+        }
+    }
+
+    pub fn search_string(&self, kw:String, map_name:String) {
+        for (name,mem) in self.maps.iter() {
+            if *name == map_name {
+                for addr in mem.get_base()..mem.get_bottom() {
+                    let bkw = kw.as_bytes();
+                    let mut c = 0;
+                    
+                    for i in 0..bkw.len() {
+                        let b = mem.read_byte(addr+(i as u32));
+                        if b == bkw[i] {
+                            c+=1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if c == bkw.len() {
+                        println!("found at 0x{:x}", addr);
+                        return
+                    }
+
+                }
+                println!("string not found.");
+                return;
+            }
+        }
+        println!("map not found");
+    }
+   
+    pub fn search_bytes(&self, bkw:Vec<u8>, map_name:String) {
+        for (name,mem) in self.maps.iter() {
+            if *name == map_name {
+                for addr in mem.get_base()..mem.get_bottom() {
+                    let mut c = 0;
+                    
+                    for i in 0..bkw.len() {
+                        let b = mem.read_byte(addr+(i as u32));
+                        if b == bkw[i] {
+                            c+=1;
+                        } else {
+                            break;
+                        }
+                    }
+
+                    if c == bkw.len() {
+                        println!("found at 0x{:x}", addr);
+                        return
+                    }
+
+                }
+                println!("string not found.");
+                return;
+            }
+        }
+        println!("map not found");
+
+    }
+
 }
+
+
+

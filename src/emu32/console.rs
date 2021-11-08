@@ -40,9 +40,13 @@ impl Console {
         println!("eip .................... change eip");
         println!("m ...................... memory maps");
         println!("mc ..................... memory create map");
+        println!("mn ..................... memory name of an address");
         println!("ml ..................... memory load file content to map");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
+        println!("md ..................... memory dump");
+        println!("ss ..................... search string");
+        println!("sb ..................... search bytes");
         println!("");
         println!("---");
     }
