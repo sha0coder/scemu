@@ -2,6 +2,8 @@
     TODO:
         - implement SEH fs:[0]
         - console breakpoints
+        - set the code base addr
+        - set the entry point
         - randomize initial register for avoid targeted anti-amulation
         - show registers pointing strings, or pops
         - on every set_eip of a non branch dump stack to log file
@@ -32,17 +34,18 @@
 
         747332 0x3cca37: ret 4 --> LoadLibraryA
 
-        747358 0x3cc73d: call dword ptr [ebp + 0xc]
+        747358 0x3cc73d: call dword ptr [ebp + 0xc] --> jump to kernel32
 
 
+        747505 0x775c2c11: push dword ptr fs:[0] ---> SEH
 
 
+        748048 0x775b52e2: call dword ptr [edx]
+        /!\ exception: reading on non mapped zone 0x7ffe0300
+        --- console ---
+        jump the exception pointer (y/n)?=>
 
 
-        10004 0xc8b6: jne 0xc7c3
-                ecx: counter
-                esi: 0x54f  max value, ecx has to arrive to this value to point to LoadLibraryA
-                edx: export table
 */
 
 extern crate capstone;
@@ -75,6 +78,7 @@ pub struct Emu32 {
     loop_limit: u32,
     bp: u32,
     detailed: bool,
+    seh: u32,
 }
 
 impl Emu32 {
@@ -89,7 +93,8 @@ impl Emu32 {
             loop_print: 1,
             loop_limit: 1000000,
             bp: 0,
-            detailed: false
+            detailed: false,
+            seh: 0,
         }
     }
 
@@ -233,6 +238,12 @@ impl Emu32 {
                 return peb.get_base();
             }
 
+            if value == 0x18 {
+                println!("ACCESS TO TEB");
+                let teb = self.maps.get_mem("teb");
+                return teb.get_base();
+            }
+
             panic!("not implemented: {}", operand);
         }
 
@@ -301,24 +312,21 @@ impl Emu32 {
         return 0
     }
     
-    pub fn memory_read(&mut self, operand:&str) -> u32 {
-        //TODO: access to operand .disp instead parsing the string
-        //ie [ebp + 0x44]
+    pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
+        if operand.contains("fs:[0]") {
+            return Some(self.seh);
+        }
+
         let addr:u32 = self.memory_operand_to_address(operand);
 
         if operand.contains("fs:[") || operand.contains("gs:[") {
-            return addr;
+            return Some(addr);
         }
 
         let bits = self.get_size(operand);
         // check integrity of eip, esp and ebp registers
 
-        if self.detailed {
-            match self.maps.get_addr_name(addr) {
-                Some(name) => println!("\treading memory at '{}' addr 0x{:x}", name, addr),
-                None => panic!("reading outside  of maps")
-            }
-        }
+
         
 
         let stack = self.maps.get_mem("stack");
@@ -327,38 +335,55 @@ impl Emu32 {
         if !stack.inside(self.regs.esp) {
             //hack: redirect stack
             self.regs.esp = stack.get_base() + 0x1ff;
-
-            //panic!("esp outside stack");
+            panic!("/!\\ fixing stack.")
         }
 
-        let value = match bits {
-            32 => self.maps.read_dword(addr),
-            16 => (self.maps.read_word(addr) as u32) & 0x0000ffff,
-             8 => (self.maps.read_byte(addr) as u32) & 0x000000ff,
+        match bits {
+            32 => {
+               return self.maps.read_dword(addr);
+            },
+            16 => {
+                match self.maps.read_word(addr) {
+                    Some(value) => return Some((value as u32) & 0xffff),
+                    None => return None,
+                }
+            },
+             8 => {
+                match self.maps.read_byte(addr) {
+                    Some(value) => return Some((value as u32) & 0xff),
+                    None => return None,
+                }
+            },
              _ => panic!("weird precision: {}", operand),
         };
 
-        return value;
     }
 
-    pub fn memory_write(&mut self, operand:&str, value:u32) {
-        let addr:u32 = self.memory_operand_to_address(operand);
-        let peb = self.maps.get_mem("peb");
+    pub fn memory_write(&mut self, operand:&str, value:u32) -> bool {
+        if operand.contains("fs:[0]") {
+            self.seh = value;
+            return true;
+        }
 
+        let addr:u32 = self.memory_operand_to_address(operand);
+
+        /*
         if self.detailed {
             match self.maps.get_addr_name(addr) {
                 Some(name) => println!("\twritting memory at '{}' addr 0x{:x} value: 0x{:x}", name, addr, value),
                 None => panic!("writting outside  of maps addr 0x{:x} value: 0x{:x}", addr, value)
             }
-        }
+        }*/
 
         let bits = self.get_size(operand);
-        match bits {
+        let ret = match bits {
             32 => self.maps.write_dword(addr, value),
             16 => self.maps.write_word(addr, (value & 0x0000ffff) as u16),
              8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
              _ => panic!("weird precision: {}", operand)
-        }
+        };
+
+        return ret;
     }
 
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
@@ -396,8 +421,12 @@ impl Emu32 {
     }
 
     pub fn get_inmediate(&self, operand:&str) -> u32 {
+        
         if operand.contains("0x") {
             return u32::from_str_radix(operand.get(2..).unwrap(), 16).unwrap();
+        } else if operand.contains("-") {
+            let num = u32::from_str_radix(operand.get(1..).unwrap(), 16).unwrap();
+            return 0xffffffff - num + 1;
         } else {
             return u32::from_str_radix(operand, 16).unwrap();
         }
@@ -662,15 +691,25 @@ impl Emu32 {
                     con.print("memory argument");
                     let operand = con.cmd();
                     let addr:u32 = self.memory_operand_to_address(operand.as_str());
-                    let value = self.memory_read(operand.as_str());
+                    let value = match self.memory_read(operand.as_str()) {
+                        Some(v) => v,
+                        None => {
+                            println!("bad address");
+                            continue;
+                        },
+                    };
                     println!("0x{:x}: 0x{:x}", addr, value);
                 },
                 "mw"|"wm" => {
                     con.print("memory argument");
                     let operand = con.cmd();
                     let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
-                    self.memory_write(operand.as_str(), value);
-                    println!("done.");
+                    if self.memory_write(operand.as_str(), value) {
+                        println!("done.");
+                    } else {
+                        println!("cannot write there");
+                    }
+                    
                 },
                 "ba" => {
                     con.print("address");
@@ -758,6 +797,30 @@ impl Emu32 {
         }
     }
 
+    fn exception(&mut self) {
+        if self.seh == 0 {
+            panic!("exception without any SEH handler configured.");
+        }
+
+        let next = match self.maps.read_dword(self.seh) {
+            Some(value) => value,
+            None => panic!("exception wihout correct SEH"),
+        };
+
+        let addr = match self.maps.read_dword(self.seh+4) {
+            Some(value) => value,
+            None => panic!("exception without correct SEH."),
+        };
+
+
+        let con = Console::new();
+        con.print("jump the exception pointer (y/n)?");
+        let cmd = con.cmd();
+        if cmd == "y" { 
+            self.seh = next;
+            self.set_eip(addr, false);    
+        }
+    }
 
     ///  RUN ENGINE ///
 
@@ -837,7 +900,13 @@ impl Emu32 {
                         let addr:u32;
 
                         if op.contains("[") {
-                            addr = self.memory_read(op);
+                            addr = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                         } else  {
                             addr = self.get_inmediate(op);
                         }
@@ -853,13 +922,47 @@ impl Emu32 {
 
                         let op = ins.op_str().unwrap();
                         let addr:u32;
+                        let bytes = ins.bytes();
 
                         if sz == 3 || sz == 6 {
-                            addr = self.memory_read(op);
+                            addr = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                         } else  if sz == 5 {
                             addr = self.get_inmediate(op);
+
                         } else if sz == 2 {
-                            addr = self.regs.get_by_name(op);
+                            if bytes[0] == 0xff {
+                            
+                                addr = match bytes[1] {
+                                    0xd0 => self.regs.eax,
+                                    0xd3 => self.regs.ebx,
+                                    0xd1 => self.regs.ecx,
+                                    0xd2 => self.regs.edx,
+                                    0xd6 => self.regs.esi,
+                                    0xd7 => self.regs.edi,
+                                    0xd4 => self.regs.esp,
+                                    0xd5 => self.regs.ebp,
+
+                                    _ => match self.memory_read(op) {
+                                            Some(v) => v,
+                                            None => {
+                                                self.exception();
+                                                break;
+                                            }
+                                    },
+                                };
+                                
+                                
+
+                            } else {
+                                addr = self.regs.get_by_name(op);
+                            }
+                            
                         } else {
                             panic!("weird call");
                         }
@@ -893,13 +996,29 @@ impl Emu32 {
                                 self.stack_push(addr as u32);
                             },
 
+                            0x64 => {
+                                let bs = ins.bytes();
+                                if bs[1] == 0xff && bs[2] == 0x35 && bs[3] == 0x00 && bs[4] == 0x00 && bs[5] == 0x00 && bs[6] == 0x00 {
+                                    // pushing SEH
+                                    self.stack_push(self.seh);
+
+                                } else {
+                                    panic!("weird push instruction {:?}", bs);
+                                }
+                            },
+
                             // push + mem operation
                             _ => {
-                                let value = self.memory_read(ins.op_str().unwrap());
+                                let value = match self.memory_read(ins.op_str().unwrap()) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 self.stack_push(value);
                             }
                         }
-                        println!("\tpushing 0x{:x}",self.memory_read("dword ptr [esp]"));
                     },
 
                     Some("pop") => {
@@ -923,7 +1042,10 @@ impl Emu32 {
                             // pop + mem operation
                             _ => {
                                 let value = self.stack_pop(true);
-                                self.memory_write(ins.op_str().unwrap(), value);
+                                if !self.memory_write(ins.op_str().unwrap(), value) {
+                                    self.exception();
+                                    break;
+                                }
                             },
                         }
 
@@ -997,9 +1119,18 @@ impl Emu32 {
                         if parts[0].contains("[") {
                             if self.is_reg(parts[1]) {
                                 // xchg mem, reg
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                self.memory_write(parts[0], value1);
+                                if !self.memory_write(parts[0], value1) {
+                                    self.exception();
+                                    break;
+                                }
                                 self.regs.set_by_name(parts[1], value0);
                             } 
 
@@ -1008,8 +1139,17 @@ impl Emu32 {
                             if parts[1].contains("[") {
                                 // xchg reg, mem 
                                 let value0 = self.regs.get_by_name(parts[0]);
-                                let value1 = self.memory_read(parts[1]);
-                                self.memory_write(parts[1], value0);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
+                                if !self.memory_write(parts[1], value0) {
+                                    self.exception();
+                                    break;
+                                }
                                 self.regs.set_by_name(parts[0], value1);
 
                             } else {
@@ -1020,8 +1160,6 @@ impl Emu32 {
                                 self.regs.set_by_name(parts[1], value0);
                             }
                         }
-                        
-
                     }
 
 
@@ -1029,25 +1167,45 @@ impl Emu32 {
                         if !step {
                             println!("{}{} {}{}", colors.light_cyan, pos, ins, colors.nc);
                         }
+
+                        let bs = ins.bytes();
+
+                        if bs[0] == 0x69 && bs[1] == 0x89 && bs[2] == 0x25 && bs[3] == 0x00 && bs[4] == 0x00 && bs[5] == 0x00 && bs[6] == 0x00 {
+                            self.seh = self.regs.esp;
+                            println!("\n/!\\ programming exception handler SEH");
+                        }
+
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
                         
                         if parts[0].contains("[") {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value = self.regs.get_by_name(parts[1]);
-                                self.memory_write(parts[0], value);
+                                if !self.memory_write(parts[0], value) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                self.memory_write(parts[0], inm);
+                                if !self.memory_write(parts[0], inm) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
-                        } else {
+                        } else { 
 
                             if parts[1].contains("[") {
                                 // mov reg, mem 
-                                let value = self.memory_read(parts[1]);
+                                let value = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 self.regs.set_by_name(parts[0], value);
                                 //println!("reg '{}' '{}' new value: 0x{:x}", parts[0], parts[1], value);
 
@@ -1074,22 +1232,46 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
 
-                                self.memory_write(parts[0], value0 ^ value1);
+                                if !self.memory_write(parts[0], value0 ^ value1) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
-                                self.memory_write(parts[0], value0 ^ inm);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
+                                if !self.memory_write(parts[0], value0 ^ inm) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // mov reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 self.regs.set_by_name(parts[0], value0 ^ value1);
 
@@ -1119,7 +1301,13 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1:u32 = self.regs.get_by_name(parts[1]);
-                                let value0:u32 = self.memory_read(parts[0]);
+                                let value0:u32 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(parts[1]) {
                                     32 => res = self.flags_add32(value0, value1),
@@ -1127,12 +1315,21 @@ impl Emu32 {
                                     8  => res = self.flags_add8(value0, value1),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res); 
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(parts[0]) {
                                     32 => res = self.flags_add32(value0, inm),
@@ -1140,14 +1337,23 @@ impl Emu32 {
                                     8  => res = self.flags_add8(value0, inm),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // mov reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res:u32;
                                 match self.get_size(parts[1]) {
@@ -1199,7 +1405,13 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(op) {
                                     32 => res = self.flags_sub32(value0, value1),
@@ -1207,12 +1419,21 @@ impl Emu32 {
                                     8  => res = self.flags_sub8(value0, value1),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(op) {
                                     32 => res = self.flags_sub32(value0, inm),
@@ -1220,14 +1441,23 @@ impl Emu32 {
                                     8  => res = self.flags_sub8(value0, inm),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // mov reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res:u32;
                                 match self.get_size(parts[1]) {
@@ -1278,7 +1508,13 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // mov mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(op) {
                                     32 => res = self.flags_sub32(value0, value1),
@@ -1286,12 +1522,21 @@ impl Emu32 {
                                     8  => res = self.flags_sub8(value0, value1),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // mov mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 match self.get_size(op) {
                                     32 => res = self.flags_sub32(value0, inm),
@@ -1299,14 +1544,23 @@ impl Emu32 {
                                     8  => res = self.flags_sub8(value0, inm),
                                     _  => panic!("weird precision")
                                 }
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // mov reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res:u32;
                                 match self.get_size(parts[1]) {
@@ -1365,7 +1619,13 @@ impl Emu32 {
                             self.regs.set_by_name(op, res);
                             
                         } else {
-                            let value = self.memory_read(op);
+                            let value = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                             let res:u32;
 
                             match self.get_size(op) {
@@ -1375,7 +1635,10 @@ impl Emu32 {
                                 _ => res = 0,
                             }
 
-                            self.memory_write(op, res);
+                            if !self.memory_write(op, res) {
+                                self.exception();
+                                break;
+                            }
                         }
                     },
 
@@ -1399,7 +1662,13 @@ impl Emu32 {
                             self.regs.set_by_name(op, res);
                         } else {
                             // dec  mem
-                            let value = self.memory_read(op);
+                            let value = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                             let res:u32;
 
                             match self.get_size(op) {
@@ -1409,7 +1678,10 @@ impl Emu32 {
                                 _ => res = 0,
                             }
 
-                            self.memory_write(op, res);
+                            if !self.memory_write(op, res) {
+                                self.exception();
+                                break;
+                            }
                         }
                     },
 
@@ -1437,7 +1709,13 @@ impl Emu32 {
                             self.regs.set_by_name(op, value);
                             
                         } else {
-                            let mut value = self.memory_read(op);
+                            let mut value = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                             let mut signed:i32 = value as i32;
                             let bits = self.get_size(op);
                             match  bits {
@@ -1451,7 +1729,10 @@ impl Emu32 {
                             self.calc_flags(value, bits);
                             self.flags.f_cf = true;
                             
-                            self.memory_write(op, value);
+                            if !self.memory_write(op, value) {
+                                self.exception();
+                                break;
+                            }
                         }
                     },
 
@@ -1467,11 +1748,20 @@ impl Emu32 {
                             value = signed as u32;
                             self.regs.set_by_name(op, value);
                         } else {
-                            let mut value = self.memory_read(op);
+                            let mut value = match self.memory_read(op) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                             let mut signed:i32 = value as i32;
                             signed = !signed;
                             value = signed as u32;
-                            self.memory_write(op, value);
+                            if !self.memory_write(op, value) {
+                                self.exception();
+                                break;
+                            }
                         }
                     },
 
@@ -1485,25 +1775,49 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // and mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res = value0 & value1;
                                 self.calc_flags(res, self.get_size(parts[1]));
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // and mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res = value0 & inm;
                                 self.calc_flags(res, self.get_size(parts[0]));
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // and reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 & value1;
                                 self.calc_flags(res, self.get_size(parts[1]));
@@ -1539,25 +1853,49 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // or mem, reg
                                 let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res = value0 | value1;
                                 self.calc_flags(res, self.get_size(parts[1]));
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                                 
                             } else {
                                 // or mem, inm
                                 let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.memory_read(parts[0]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res = value0 | inm;
                                 self.calc_flags(res, self.get_size(parts[0]));
-                                self.memory_write(parts[0], res);
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
 
                         } else {
 
                             if parts[1].contains("[") {
                                 // or reg, mem 
-                                let value1 = self.memory_read(parts[1]);
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let res = value0 | value1;
                                 self.calc_flags(res, self.get_size(parts[0]));
@@ -1662,7 +2000,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // sal mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
 
                                     let mut unsigned64:u64 = value0 as u64;
@@ -1690,11 +2034,20 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
 
                                 } else {
                                     // sal mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -1721,7 +2074,10 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
 
                             }
@@ -1757,7 +2113,13 @@ impl Emu32 {
 
 
                             } else { // mem 
-                                let value:i32 = self.memory_read(op) as i32;
+                                let value:i32 = match self.memory_read(op) {
+                                    Some(v) => v as i32,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let unsigned64:u64;
                                 let res:u32;
                                 let bits = self.get_size(op);
@@ -1781,7 +2143,10 @@ impl Emu32 {
                                 }
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
                     },
@@ -1865,7 +2230,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // shl mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
 
                                     let mut unsigned64:u64 = value0 as u64;
@@ -1893,11 +2264,21 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;  
+                                    }
+
 
                                 } else {
                                     // shl mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -1924,7 +2305,10 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
 
                             }
@@ -1959,7 +2343,13 @@ impl Emu32 {
 
 
                             } else { // mem 
-                                let value:i32 = self.memory_read(op) as i32;
+                                let value:i32 = match self.memory_read(op) {
+                                    Some(v) => v as i32,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let unsigned64:u64;
                                 let res:u32;
                                 let bits = self.get_size(op);
@@ -1983,7 +2373,10 @@ impl Emu32 {
                                 }
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
                     },
@@ -1994,7 +2387,7 @@ impl Emu32 {
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 1;
+                        let twoparams = parts.len() == 2;
 
                         if twoparams {
                             if self.is_reg(parts[0]) {
@@ -2068,7 +2461,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // shr mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -2096,11 +2495,20 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
 
                                 } else {
                                     // shr mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -2127,7 +2535,10 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
 
                             }
@@ -2163,7 +2574,13 @@ impl Emu32 {
 
 
                             } else { // mem 
-                                let value:i32 = self.memory_read(op) as i32;
+                                let value:i32 = match self.memory_read(op) {
+                                    Some(v) => v as i32,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let unsigned64:u64;
                                 let res:u32;
                                 let bits = self.get_size(op);
@@ -2187,7 +2604,10 @@ impl Emu32 {
                                 }
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
 
@@ -2272,7 +2692,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // shl mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -2299,11 +2725,20 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
 
                                 } else {
                                     // shl mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let mut unsigned64:u64 = value0 as u64;
                                     let res:u32;
@@ -2330,7 +2765,10 @@ impl Emu32 {
                                     }
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
 
                             }
@@ -2366,7 +2804,13 @@ impl Emu32 {
 
 
                             } else { // mem 
-                                let value:i32 = self.memory_read(op) as i32;
+                                let value:i32 = match self.memory_read(op) {
+                                    Some(v) => v as i32,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let unsigned64:u64;
                                 let res:u32;
                                 let bits = self.get_size(op);
@@ -2390,7 +2834,10 @@ impl Emu32 {
                                 }
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
                     },
@@ -2439,7 +2886,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // ror mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
 
                                     let res:u32;
@@ -2448,11 +2901,20 @@ impl Emu32 {
                                     res = self.rotate_right(value0, value1, bits as u32);
                               
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
 
                                 } else {
                                     // ror mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let res:u32;
                                     let bits:u8 = self.get_size(op);
@@ -2460,7 +2922,10 @@ impl Emu32 {
                                     res = self.rotate_right(value0, value1, bits as u32);
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
                             }
 
@@ -2480,14 +2945,23 @@ impl Emu32 {
 
                             } else { 
                                 // ror mem 
-                                let value:u32 = self.memory_read(op);
+                                let value:u32 = match self.memory_read(op) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 let bits:u8 = self.get_size(op);
 
                                 res = self.rotate_right(value, 1, bits as u32);
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
                     },
@@ -2534,7 +3008,13 @@ impl Emu32 {
                                 // mem
                                 if self.is_reg(parts[1]) {
                                     // rol mem, reg
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
 
                                     let res:u32;
@@ -2543,11 +3023,20 @@ impl Emu32 {
                                     res = self.rotate_left(value0, value1, bits as u32);
                               
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;  
+                                    }
 
                                 } else {
                                     // rol mem, imm
-                                    let value0:u32 = self.memory_read(parts[0]);
+                                    let value0:u32 = match self.memory_read(parts[0]) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let res:u32;
                                     let bits:u8 = self.get_size(op);
@@ -2555,7 +3044,10 @@ impl Emu32 {
                                     res = self.rotate_left(value0, value1, bits as u32);
 
                                     self.calc_flags(res, bits);
-                                    self.memory_write(parts[0], res);
+                                    if !self.memory_write(parts[0], res) {
+                                        self.exception();
+                                        break;
+                                    }
                                 }
                             }
 
@@ -2575,14 +3067,23 @@ impl Emu32 {
 
                             } else { 
                                 // rol mem 
-                                let value:u32 = self.memory_read(op);
+                                let value:u32 = match self.memory_read(op) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 let res:u32;
                                 let bits:u8 = self.get_size(op);
 
                                 res = self.rotate_left(value, 1, bits as u32);
 
                                 self.calc_flags(res, bits);
-                                self.memory_write(op, res);
+                                if !self.memory_write(op, res) {
+                                    self.exception();
+                                    break;
+                                }
                             }
                         }
                     },
@@ -2634,7 +3135,13 @@ impl Emu32 {
                             match bits {
                                 32 => {
                                     let value1:u32 = self.regs.eax;
-                                    let value2:u32 = self.memory_read(op);
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let res:u64 = value1 as u64 * value2 as u64;
                                     self.regs.edx = ((res & 0xffffffff00000000) >> 32) as u32;
                                     self.regs.eax = (res & 0x00000000ffffffff) as u32;
@@ -2644,7 +3151,13 @@ impl Emu32 {
                                 },
                                 16 => {
                                     let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.memory_read(op) & 0xffff;
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v & 0xffff,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let res:u32 = value1 * value2;
                                     self.regs.set_dx((res & 0xffff0000) >> 16);
                                     self.regs.set_ax(res & 0xffff);
@@ -2654,7 +3167,13 @@ impl Emu32 {
                                 },
                                 8 => {
                                     let value1:u32 = self.regs.get_al();
-                                    let value2:u32 = self.memory_read(op) & 0xff;
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v & 0xff,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     let res:u32 = value1 * value2;
                                     self.regs.set_ax(res & 0xffff);
                                     self.flags.f_pf = (res & 0xff) % 2 == 0;
@@ -2683,11 +3202,10 @@ impl Emu32 {
                                     let value2:u64 = self.regs.get_by_name(op) as u64;
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        if self.break_on_alert {
-                                            panic!("/!\\ division by 0 exception");
-                                        } else {
-                                            println!("/!\\ division by 0 exception");
-                                        }
+                                        println!("/!\\ division by 0 exception");
+                                        self.exception();
+                                        break;
+                                        
                                         
                                     } else {
                                         let resq:u64 = value1 / value2;
@@ -2697,11 +3215,7 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_of = resq > 0xffffffff;
                                         if self.flags.f_of {
-                                            if self.break_on_alert {
-                                                panic!("/!\\ int overflow exception on division");
-                                            } else {
-                                                println!("/!\\ int overflow exception on division");
-                                            }
+                                            println!("/!\\ int overflow on division");
                                         }
                                     }
 
@@ -2711,11 +3225,9 @@ impl Emu32 {
                                     let value2:u32 = self.regs.get_by_name(op);
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        if self.break_on_alert {
-                                            panic!("/!\\ division by 0 exception");
-                                        } else {
-                                            println!("/!\\ division by 0 exception");
-                                        }
+                                        println!("/!\\ division by 0 exception");
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2725,11 +3237,7 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xffff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            if self.break_on_alert {
-                                                panic!("/!\\ int overflow exception on division");
-                                            } else {
-                                                println!("/!\\ int overflow exception on division");
-                                            }
+                                            println!("/!\\ int overflow on division");
                                         }
                                     }
              
@@ -2739,11 +3247,9 @@ impl Emu32 {
                                     let value2:u32 = self.regs.get_by_name(op);
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
-                                        if self.break_on_alert {
-                                            panic!("/!\\ division by 0 exception");
-                                        } else {
-                                            println!("/!\\ division by 0 exception");
-                                        }
+                                        println!("/!\\ division by 0 exception");
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2753,11 +3259,7 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            if self.break_on_alert {
-                                                panic!("/!\\ int overflow exception on division");
-                                            } else {
-                                                println!("/!\\ int overflow exception on division");
-                                            }
+                                            println!("/!\\ int overflow");
                                         }
                                     }
                                     
@@ -2772,13 +3274,18 @@ impl Emu32 {
                                     let mut value1:u64 = self.regs.edx as u64;
                                         value1 = value1 << 32;
                                         value1 += self.regs.eax as u64;
-                                    let value2:u64 = self.memory_read(op) as u64;
+                                    let value2:u64 = match self.memory_read(op) {
+                                        Some(v) => v as u64,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2787,23 +3294,25 @@ impl Emu32 {
                                         self.flags.f_pf = (resq & 0xff) % 2 == 0;
                                         self.flags.f_of = resq > 0xffffffff;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
+                                            println!("/!\\ int overflow in division");
                                         }
                                     }
 
                                 },
                                 16 => {
                                     let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = self.memory_read(op);
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2813,23 +3322,25 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xffff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
+                                            println!("/!\\ int overflow on division");
                                         }
                                     }
              
                                 },
                                 8 => {
                                     let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.memory_read(op);
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2839,10 +3350,7 @@ impl Emu32 {
                                         self.flags.f_of = resq > 0xff;
                                         self.flags.f_tf = false;
                                         if self.flags.f_of {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
+                                            println!("/!\\ int overflow on division");
                                         }
                                     }
                                     
@@ -2870,9 +3378,8 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -2906,9 +3413,8 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2943,9 +3449,8 @@ impl Emu32 {
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -2984,13 +3489,18 @@ impl Emu32 {
                                     let mut value1:u64 = self.regs.edx as u64;
                                         value1 = value1 << 32;
                                         value1 += self.regs.eax as u64;
-                                    let value2:u64 = self.memory_read(op) as u64;
+                                    let value2:u64 = match self.memory_read(op) {
+                                        Some(v) => v as u64,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u64 = value1 / value2;
                                         let resr:u64 = value1 % value2;
@@ -3020,13 +3530,18 @@ impl Emu32 {
                                 },
                                 16 => {
                                     let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = self.memory_read(op);
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -3057,13 +3572,18 @@ impl Emu32 {
                                 },
                                 8 => {
                                     let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.memory_read(op);
+                                    let value2:u32 = match self.memory_read(op) {
+                                        Some(v) => v,
+                                        None => {
+                                            self.exception();
+                                            break;
+                                        }
+                                    };
                                     if value2 == 0 {
                                         self.flags.f_tf = true;
                                         println!("/!\\ division by 0 exception");
-                                        if self.break_on_alert {
-                                            panic!();
-                                        }
+                                        self.exception();
+                                        break;
                                     } else {
                                         let resq:u32 = value1 / value2;
                                         let resr:u32 = value1 % value2;
@@ -3118,7 +3638,13 @@ impl Emu32 {
                             value2 = self.regs.get_by_name(parts[1]);
                         } else {
                             // movzx reg, mem
-                            value2 = self.memory_read(parts[1]);
+                            value2 = match self.memory_read(parts[1]) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                         }
 
                         let lbits = self.get_size(parts[0]);
@@ -3157,7 +3683,13 @@ impl Emu32 {
                             value2 = self.regs.get_by_name(parts[1]);
                         } else {
                             // movzx reg, mem
-                            value2 = self.memory_read(parts[1]);
+                            value2 = match self.memory_read(parts[1]) {
+                                Some(v) => v,
+                                None => {
+                                    self.exception();
+                                    break;
+                                }
+                            };
                         }
 
                         self.regs.set_by_name(parts[0], value2);
@@ -3183,7 +3715,13 @@ impl Emu32 {
                             } else if parts[1].contains("[") {
                                 // cmp reg, mem
                                 value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.memory_read(parts[1]);
+                                value2 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
 
 
                             } else {
@@ -3196,12 +3734,24 @@ impl Emu32 {
                         } else {
                             if self.is_reg(parts[1]) {
                                 // cmp mem, reg
-                                value1 = self.memory_read(parts[0]);
+                                value1 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 value2 = self.regs.get_by_name(parts[1]);
 
                             } else {
                                 // cmp mem, inm
-                                value1 = self.memory_read(parts[0]);
+                                value1 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 value2 = self.get_inmediate(parts[1]);
 
                             }
@@ -3242,7 +3792,13 @@ impl Emu32 {
                             } else if parts[1].contains("[") {
                                 // cmp reg, mem
                                 value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.memory_read(parts[1]);
+                                value2 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
 
 
                             } else {
@@ -3255,12 +3811,24 @@ impl Emu32 {
                         } else {
                             if self.is_reg(parts[1]) {
                                 // cmp mem, reg
-                                value1 = self.memory_read(parts[0]);
+                                value1 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 value2 = self.regs.get_by_name(parts[1]);
 
                             } else {
                                 // cmp mem, inm
-                                value1 = self.memory_read(parts[0]);
+                                value1 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
                                 value2 = self.get_inmediate(parts[1]);
 
                             }
@@ -3962,18 +4530,33 @@ impl Emu32 {
                         let parts:Vec<&str> = ops.split(", ").collect();
                         let spl:Vec<&str> = parts[1].split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
                         let mut result:u32 = 0;
-                        let value1:u32;
-                        let value2:u32;
+                        let mut sum = false;
+                        let mut sub = false;
 
-                        value1 = self.regs.get_by_name(spl[0]);
-                        value2 = self.get_inmediate(spl[2]);
-
-                        if spl[1] == "+" {
-                            result = value1 + value2;
-                        } else if spl[1] == "-" {
-                            result = value1 - value2;
-                        } else {
-                            panic!("unimplemented operation");
+                        for i in 0..spl.len() {
+                            if spl[i] == "+" {
+                                sub = false;
+                                sum = true;
+                            } else if  spl[i] == "-" {
+                                sum = false;
+                                sub = true;
+                            } else if self.is_reg(spl[i]) {
+                                if sum {
+                                    result = result + self.regs.get_by_name(spl[i]);
+                                } else if sub {
+                                    result = result - self.regs.get_by_name(spl[i]);
+                                } else {
+                                    result = self.regs.get_by_name(spl[i]);
+                                }
+                            } else {
+                                if sum {
+                                    result = result + self.get_inmediate(spl[i]);
+                                } else if sub {
+                                    result = result - self.get_inmediate(spl[i]);
+                                } else {
+                                    result = self.get_inmediate(spl[i]);
+                                }
+                            }
                         }
 
                         self.regs.set_by_name(parts[0], result);
@@ -4009,7 +4592,101 @@ impl Emu32 {
                         }
                     },
 
+                    Some("lock btr") => {
+                        // 747712 0x775b77b2: lock btr dword ptr [eax], 0
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let bit_off = self.get_inmediate(parts[1]);
+                        let bit_base = match self.memory_read(parts[0]) {
+                            Some(v) => v,
+                            None => {
+                                self.exception();
+                                break;
+                            }
+                        };
+                        let mut bit:u32 = 0;
 
+                        if bit_off == 0 {
+                            bit = bit_base & 0b0000_0001;
+                        } else if bit_off == 1 {
+                            bit = bit_base & 0b0000_0010;
+                        } else if bit_off == 2 {
+                            bit = bit_base & 0b0000_0100;
+                        } else if bit_off == 3 {
+                            bit = bit_base & 0b0000_1000;
+                        } else if bit_off == 4 {
+                            bit = bit_base & 0b0001_0000;
+                        } else if bit_off == 5 {
+                            bit = bit_base & 0b0010_0000;
+                        } else if bit_off == 6 {
+                            bit = bit_base & 0b0100_0000;
+                        } else if bit_off == 7 {
+                            bit = bit_base & 0b1000_0000;
+                        } else if bit_off == 8 {
+                            bit = bit_base & 0b0001_0000_0000;
+                        } else if bit_off == 9 {
+                            bit = bit_base & 0b0010_0000_0000;
+                        } else if bit_off == 10 {
+                            bit = bit_base & 0b0100_0000_0000;
+                        } else if bit_off == 11 {
+                            bit = bit_base & 0b1000_0000_0000;
+                        } else if bit_off == 12 {
+                            bit = bit_base & 0b0001_0000_0000_0000;
+                        } else if bit_off == 13 {
+                            bit = bit_base & 0b0010_0000_0000_0000;
+                        } else if bit_off == 14 {
+                            bit = bit_base & 0b0100_0000_0000_0000;
+                        } else if bit_off == 15 {
+                            bit = bit_base & 0b1000_0000_0000_0000;
+                        }
+
+                        self.flags.f_cf = bit == 1;
+                        
+                    },
+
+                    Some("lock cmpxchg") => {
+                        // 747743 0x775a229a: lock cmpxchg dword ptr [ebx], edx
+                        // compare memory [ebx] with eax if they are same, move edx to [ebx]
+                        let op = ins.op_str().unwrap();
+                        let parts:Vec<&str> = op.split(", ").collect();
+                        let bits = self.get_size(parts[0]);
+                        let memval = match self.memory_read(parts[0]) {
+                            Some(v) => v,
+                            None=> {
+                                self.exception();
+                                break;
+                            }
+                        };
+
+                        match bits {
+                            32 => {
+                                if memval == self.regs.eax {
+                                    if !self.memory_write(parts[0], memval) {
+                                        self.exception();
+                                        break;
+                                    }
+                                }
+                            },
+                            16 => {
+                                if memval == self.regs.get_ax() {
+                                    if !self.memory_write(parts[0], memval) {
+                                        self.exception();
+                                        break;
+                                    }
+                                }
+                            },
+                             8 => {
+                                if memval == self.regs.get_al() {
+                                    if !self.memory_write(parts[0], memval) {
+                                        self.exception();
+                                        break;
+                                    }
+                                }
+                            },
+                             _ => panic!("weird precision"),
+                        }
+
+                    },
 
                     Some(&_) =>  { 
                         println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
