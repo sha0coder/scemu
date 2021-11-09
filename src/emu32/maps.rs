@@ -37,70 +37,76 @@ impl Maps {
         self.maps.insert(name.to_string(), mem);
     }
 
-    pub fn write_dword(&mut self, addr:u32, value:u32) {
+    pub fn write_dword(&mut self, addr:u32, value:u32) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_dword(addr, value);
-                return;
+                return true;
             }
         }
-        panic!("writing on non mapped zone 0x{:x}", addr);
+        println!("writing on non mapped zone 0x{:x}", addr);
+        return false;
     }
 
-    pub fn write_word(&mut self, addr:u32, value:u16) {
+    pub fn write_word(&mut self, addr:u32, value:u16) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_word(addr, value);
-                return;
+                return true;
             }
         }
-        panic!("writing on non mapped zone 0x{:x}", addr);
+        println!("writing on non mapped zone 0x{:x}", addr);
+        return false;
     }
 
-    pub fn write_byte(&mut self, addr:u32, value:u8) {
+    pub fn write_byte(&mut self, addr:u32, value:u8) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_byte(addr, value);
-                return;
+                return true;
             }
         }
-        panic!("writing on non mapped zone 0x{:x}", addr);
+        println!("writing on non mapped zone 0x{:x}", addr);
+        return false;
     }
 
-    pub fn read_dword(&self, addr:u32) -> u32 {
+    pub fn read_dword(&self, addr:u32) -> Option<u32> {
         for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
                 }
-                return mem.read_dword(addr);
+                return Some(mem.read_dword(addr));
             }
         }
-        panic!("reading on non mapped zone 0x{:x}", addr);
+        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
+        return None;
     }
 
-    pub fn read_word(&self, addr:u32) -> u16 {
+    pub fn read_word(&self, addr:u32) -> Option<u16> {
         for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
                 }
-                return mem.read_word(addr);
+                return Some(mem.read_word(addr));
             }
         }
-        panic!("reading on non mapped zone 0x{:x}", addr);
+        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
+        return None;
     }
 
-    pub fn read_byte(&self, addr:u32) -> u8 {
+    pub fn read_byte(&self, addr:u32) -> Option<u8> {
         for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
                 }
-                return mem.read_byte(addr);
+                return Some(mem.read_byte(addr));
             }
         }
-        panic!("reading on non mapped zone 0x{:x}", addr);
+        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
+        return None;
     }
 
     pub fn get_mem(&mut self, name:&str) -> &mut Mem32 {
@@ -130,7 +136,13 @@ impl Maps {
         for j in 0..8 {
             let mut bytes:Vec<char> = Vec::new();
             for i in 0..4 {
-                let dw = self.read_dword(addr + count*4);
+                let dw = match self.read_dword(addr + count*4) {
+                    Some(v) => v,
+                    None => {
+                        println!("bad address");
+                        return;
+                    }
+                };
                 count += 1;
                 bytes.push(((dw&0xff) as u8) as char);
                 bytes.push((((dw&0xff00)>>8) as u8) as char);
