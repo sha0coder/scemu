@@ -1,7 +1,14 @@
 /*
     TODO:
         - intead of panic spawn console
+        - trace register
         - set the code base addr
+        - commandline mode:
+            - silent: no print instructions for faster execution
+            - regs: trace registers
+            - loop: loop iteration count (slows down)
+            - nocolor: print wihout colors for logging purposes.
+
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
         - show registers pointing strings, or pops
@@ -521,6 +528,7 @@ impl Emu32 {
         return (unsigned & 0xff) as u32;
     }
 
+    //TODO: this substraction can cause overflow panic on rust runtime, use let sr:i32 = (value1 as i64 - value2 as i64) as i32;
     pub fn flags_sub32(&mut self, value1:u32, value2:u32) -> u32 {
         let sr:i32 = value1 as i32 - value2 as i32;
 
@@ -885,8 +893,7 @@ impl Emu32 {
         }
 
         //TODO: modify this, its allowing just one allocation
-        self.maps.create_map("alloc");
-        let alloc = self.maps.get_mem("alloc");
+        let alloc = self.maps.create_map("alloc");
         let alloc_addr = 0x003e0000;
         alloc.set_base(alloc_addr);
         alloc.set_bottom(alloc_addr + size);
@@ -1009,6 +1016,9 @@ impl Emu32 {
                     }
                     //TODO: if more than x addresses remove the bottom ones
                 }
+
+                // trace register
+                println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
                 
 
                 // instructions implementation
@@ -3910,20 +3920,20 @@ impl Emu32 {
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         //let bits = self.get_size(parts[0]);
-                        let value1:u32;
-                        let value2:u32;
+                        let value1:i32;
+                        let value2:i32;
 
                         if self.is_reg(parts[0]) {
                             if self.is_reg(parts[1]) {
                                 // cmp reg, reg
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.regs.get_by_name(parts[1]);
+                                value1 = self.regs.get_by_name(parts[0]) as i32;
+                                value2 = self.regs.get_by_name(parts[1]) as i32;
 
                             } else if parts[1].contains("[") {
                                 // cmp reg, mem
-                                value1 = self.regs.get_by_name(parts[0]);
+                                value1 = self.regs.get_by_name(parts[0]) as i32;
                                 value2 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
+                                    Some(v) => v as i32,
                                     None => {
                                         self.exception();
                                         break;
@@ -3933,8 +3943,8 @@ impl Emu32 {
 
                             } else {
                                 // cmp reg, inm
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.get_inmediate(parts[1]);
+                                value1 = self.regs.get_by_name(parts[0]) as i32;
+                                value2 = self.get_inmediate(parts[1]) as i32;
 
                             }
 
@@ -3942,38 +3952,57 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // cmp mem, reg
                                 value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
+                                    Some(v) => v as i32,
                                     None => {
                                         self.exception();
                                         break;
                                     }
                                 };
-                                value2 = self.regs.get_by_name(parts[1]);
+                                value2 = self.regs.get_by_name(parts[1]) as i32;
 
                             } else {
                                 // cmp mem, inm
                                 value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
+                                    Some(v) => v as i32,
                                     None => {
                                         self.exception();
                                         break;
                                     }
                                 };
-                                value2 = self.get_inmediate(parts[1]);
+                                value2 = self.get_inmediate(parts[1]) as i32;
 
                             }
                         }
 
+                        let res:i32 = (value1 as i64 - value2 as i64) as i32;
+
+                        self.flags.f_zf = res == 0;
+                        self.flags.f_sf = res < 0;
+
+                        /*
+                        if value1 < 0 && value2 < 0 && res > 0 {
+                            self.flags.f_of = true; 
+                        } else if value1 > 0 && value2 > 0 && (value1-value2) < 0 {
+                            self.flags.f_of = true; 
+                        } else {
+                            self.flags.f_of = false; 
+                        }*/
+
                         if value1 < value2 {
                             self.flags.f_zf = false;
                             self.flags.f_cf = true;
+
                         } else if value1 > value2 {
                             self.flags.f_zf = false;
                             self.flags.f_cf = false;
+
                         } else if value1 == value2 {
                             self.flags.f_zf = true;
                             self.flags.f_cf = false;
+                            self.flags.f_of = false;
                         }
+                        
+
 
                     },  
 
@@ -4554,6 +4583,12 @@ impl Emu32 {
                                 self.regs.eax = 0x960;
                                 self.regs.ebx = 0x1388;
                                 self.regs.ecx = 0x64;
+                                self.regs.edx = 0;
+                            },
+                            0x80000000 => {
+                                self.regs.eax = 0x80000008;
+                                self.regs.ebx = 0;
+                                self.regs.ecx = 0;
                                 self.regs.edx = 0;
                             },
                             _ => panic!("unimplemented cpuid call 0x{:x}", self.regs.eax),
