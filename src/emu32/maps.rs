@@ -32,9 +32,10 @@ impl Maps {
         }
     }
 
-    pub fn create_map(&mut self, name:&str) {
+    pub fn create_map(&mut self, name:&str) -> &mut Mem32 {
         let mem = Mem32::new();
         self.maps.insert(name.to_string(), mem);
+        return self.maps.get_mut(name).expect("incorrect memory map name");
     }
 
     pub fn write_dword(&mut self, addr:u32, value:u32) -> bool {
