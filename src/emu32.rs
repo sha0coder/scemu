@@ -1,7 +1,6 @@
 /*
     TODO:
-        - implement SEH fs:[0]
-        - console breakpoints
+        - intead of panic spawn console
         - set the code base addr
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
@@ -48,6 +47,8 @@
 
 */
 
+#![allow(non_snake_case)]
+
 extern crate capstone;
 
 mod flags; 
@@ -56,6 +57,7 @@ mod maps;
 mod regs32;
 mod console;
 mod colors;
+mod constants;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -124,6 +126,7 @@ impl Emu32 {
         self.maps.create_map("code");
         self.maps.create_map("peb");
         self.maps.create_map("teb");
+        self.maps.create_map("ntdll");
         self.maps.create_map("ntdll_text");
         self.maps.create_map("ntdll_data");
         self.maps.create_map("kernel32");
@@ -132,6 +135,7 @@ impl Emu32 {
         self.maps.create_map("kernelbase_text");
         self.maps.create_map("kernelbase_data");
         self.maps.create_map("reserved");
+        self.maps.create_map("kuser_shared_data");
 
         self.init_stack();
         self.maps.get_mem("code").set_base(self.regs.eip);
@@ -167,6 +171,10 @@ impl Emu32 {
         teb.set_base(  0x7ffde000);
         teb.load("maps/teb.bin");
 
+        let ntdll = self.maps.get_mem("ntdll");
+        ntdll.set_base(0x77570000);
+        ntdll.load("maps/ntdll.bin");
+
         let ntdll_text = self.maps.get_mem("ntdll_text");
         ntdll_text.set_base(0x77571000);
         ntdll_text.load("maps/ntdll_text.bin");
@@ -174,6 +182,10 @@ impl Emu32 {
         let ntdll_data = self.maps.get_mem("ntdll_data");
         ntdll_data.set_base(0x77647000);
         ntdll_data.load("maps/ntdll_data.bin");
+
+        let kuser_shared_data = self.maps.get_mem("kuser_shared_data");
+        kuser_shared_data.set_base(0x7ffe0000);
+        kuser_shared_data.load("maps/kuser_shared_data.bin");
 
 
         // xloader initial state hack
@@ -281,14 +293,21 @@ impl Emu32 {
             let reg = spl[0];
             let sign = spl[1];
             //println!("disp --> {}  operand:{}", spl[2], operand);
-            let disp:u32 = u32::from_str_radix(spl[2].trim_start_matches("0x"),16).expect("bad disp");
+            let disp:u32;
+            if self.is_reg(spl[2]) {
+                disp = self.regs.get_by_name(spl[2]);
+            } else {
+                disp = u32::from_str_radix(spl[2].trim_start_matches("0x"),16).expect("bad disp");
+            }
+            
             
             if sign != "+" && sign != "-" {
                 panic!("weird sign {}", sign);
             }
 
             if sign == "+" {
-                return self.regs.get_by_name(reg) + disp;
+                let r:u64 = self.regs.get_by_name(reg) as u64 + disp as u64;
+                return (r & 0xffffffff) as u32;
             } else {
                 return self.regs.get_by_name(reg) - disp;
             }
@@ -389,25 +408,9 @@ impl Emu32 {
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
         match self.maps.get_addr_name(addr) {
-            Some(name) => self.regs.eip = addr,
+            Some(_) => self.regs.eip = addr,
             None => panic!("setting eip to non mapped"),
         }
-
-        
-
-        /*
-        if self.maps.get_mem("code").inside(addr) {
-           self.regs.eip = addr; 
-        } else if self.maps.get_mem("stack").inside(addr) {
-            if self.break_on_alert {
-                panic!("/!\\ weird, changing eip to stack.");
-            } else {
-                println!("/!\\ weird, changing eip to stack.");
-            }
-            self.regs.eip = addr;
-        } else {
-            panic!("cannot redirect  eip to 0x{:x} is outisde maps", addr);
-        }*/
 
         //TODO: lanzar memory scan code.scan() y stack.scan()
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
@@ -822,6 +825,127 @@ impl Emu32 {
         }
     }
 
+    fn ntdll_api(&mut self, addr:u32) {
+        match addr {
+            0x775b52d8 => self.ntdll_NtAllocateVirtualMemory(),
+
+            _ => panic!("calling unknown ntdll API 0x{:x}", addr),
+        }
+    }
+
+    fn kernel32_api(&mut self, addr:u32) {
+        match addr {
+            0x75e9395c => self.kernel32_LoadLibraryA(),
+            0x75e847fa => self.kernel32_LoadLibraryExA(),
+            0x75e84775 => self.kernel32_LoadLibraryExW(),
+            0x75e93c01 => self.kernel32_LoadLibraryW(),
+            _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
+        }
+    }
+
+    fn ntdll_NtAllocateVirtualMemory(&mut self) {
+        let colors = Colors::new();
+        /*
+            __kernel_entry NTSYSCALLAPI NTSTATUS NtAllocateVirtualMemory(
+                [in]      HANDLE    ProcessHandle,
+                [in, out] PVOID     *BaseAddress,
+                [in]      ULONG_PTR ZeroBits,
+                [in, out] PSIZE_T   RegionSize,
+                [in]      ULONG     AllocationType,
+                [in]      ULONG     Protect
+                );
+        */
+        let addr_ptr = match self.maps.read_dword(self.regs.esp+4) {
+            Some(v) => v,
+            None => panic!("bad NtAllocateVirtualMemory address pointer parameter"),
+        };
+
+        let size_ptr = match self.maps.read_dword(self.regs.esp+12) {
+            Some(v) => v,
+            None => panic!("bad NtAllocateVirtualMemory size pointer parameter"),
+        };
+
+        let addr = match self.maps.read_dword(addr_ptr) {
+            Some(v) => v,
+            None => panic!("bad NtAllocateVirtualMemory address parameter"),
+        };
+
+        let size = match self.maps.read_dword(size_ptr) {
+            Some(v) => v,
+            None => panic!("bad NtAllocateVirtualMemory size parameter"),
+        };
+
+        match self.maps.get_addr_name(addr) {
+            Some(name) => panic!("address already mapped: {}", name),
+            None => println!("creating map on 0x{:x}", addr),
+        }
+
+        if size <= 0 {
+            panic!("NtAllocateVirtualMemory mapping zero bytes.")
+        }
+
+        //TODO: modify this, its allowing just one allocation
+        self.maps.create_map("alloc");
+        let alloc = self.maps.get_mem("alloc");
+        let alloc_addr = 0x003e0000;
+        alloc.set_base(alloc_addr);
+        alloc.set_bottom(alloc_addr + size);
+
+        if !self.maps.write_dword(addr_ptr, alloc_addr) {
+            panic!("NtAllocateVirtualMemory: cannot write on address pointer");
+        }
+
+        self.regs.eax = constants::STATUS_SUCCESS;
+
+        for _ in 0..6 {
+            self.stack_pop(false);
+        }
+    }
+
+    fn kernel32_LoadLibraryA(&mut self) {
+        let colors = Colors::new();
+        let dllptr = match self.maps.read_dword(self.regs.esp) {
+            Some(v) => v,
+            None => panic!("bad LoadLibraryA parameter"),
+        };
+        let dll = self.maps.read_string(dllptr);
+        println!("{} LoadLibraryA  '{}'  {}",colors.light_red, dll, colors.nc);
+
+
+        if dll == "ntdll" {
+            self.regs.eax = self.maps.get_mem("ntdll").get_base();
+        }
+
+        self.stack_pop(false);
+    }
+
+    fn kernel32_LoadLibraryExA(&mut self) {
+        let colors = Colors::new();
+        println!("{} LoadLibraryExA {}",colors.light_red, colors.nc);
+    }
+
+    fn kernel32_LoadLibraryExW(&mut self) {
+        let colors = Colors::new();
+        println!("{} LoadLibraryExW {}",colors.light_red, colors.nc);
+    }
+
+    fn kernel32_LoadLibraryW(&mut self) {
+        let colors = Colors::new();
+        let dllptr = match self.maps.read_dword(self.regs.esp) {
+            Some(v) => v,
+            None => panic!("bad LoadLibraryW parameter"),
+        };
+        let dll = self.maps.read_wide_string(dllptr);
+        println!("{} LoadLibraryW  '{}'  {}",colors.red, dll, colors.nc);
+
+        if dll == "ntdll.dll" {
+            self.regs.eax = self.maps.get_mem("ntdll").get_base();
+        }
+
+        self.stack_pop(false);
+    }
+
+
     ///  RUN ENGINE ///
 
     pub fn run(&mut self) {        
@@ -863,12 +987,9 @@ impl Emu32 {
 
                 if self.exp == pos || self.bp == addr as u32 {
                     step = true;
-                    let op = ins.op_str().unwrap();
-                    let parts:Vec<&str> = op.split(", ").collect();
                     println!("-------");
                     println!("{} {}", pos, ins);
                     self.spawn_console();
-
                 }
                     
                 if self.detailed {
@@ -898,8 +1019,10 @@ impl Emu32 {
                         }
                         let op = ins.op_str().unwrap();
                         let addr:u32;
+                        if self.is_reg(op) {
+                            addr = self.regs.get_by_name(op);
 
-                        if op.contains("[") {
+                        } else if op.contains("[") {
                             addr = match self.memory_read(op) {
                                 Some(v) => v,
                                 None => {
@@ -967,10 +1090,18 @@ impl Emu32 {
                             panic!("weird call");
                         }
 
-                        self.stack_push(self.regs.eip + sz as u32); // push return address
-                        println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
-                        self.set_eip(addr, false);
-                        break;
+                        if self.maps.get_mem("kernel32_text").inside(addr) {
+                            self.kernel32_api(addr);
+
+                        } else if self.maps.get_mem("ntdll_text").inside(addr) {
+                            self.ntdll_api(addr);
+
+                        } else {
+                            self.stack_push(self.regs.eip + sz as u32); // push return address
+                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
+                            self.set_eip(addr, false);
+                            break;
+                        }
                     },
 
                     Some("push") => {
@@ -3647,7 +3778,6 @@ impl Emu32 {
                             };
                         }
 
-                        let lbits = self.get_size(parts[0]);
                         let rbits = self.get_size(parts[1]);
 
                         match rbits {
@@ -4358,11 +4488,84 @@ impl Emu32 {
                         }
                     },
 
+                    Some("mfence")|Some("lfence")|Some("sfence") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                        }
+                    }
+
                     Some("cpuid") => {
                         if !step {
-                            panic!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         }
-                        // guloader checks bit31 which is if its hipervisor
+                        // guloader checks bit31 which is if its hipervisor with command
+                        // https://c9x.me/x86/html/file_module_x86_id_45.html
+
+                        match self.regs.eax {
+                            0x00 => {
+                                self.regs.eax = 16;
+                                self.regs.ebx = 0x756e6547;
+                                self.regs.ecx = 0x6c65746e;
+                                self.regs.edx = 0x49656e69;
+                            },
+                            0x01 => {
+                                self.regs.eax = 0x906ed;
+                                self.regs.ebx = 0x5100800;
+                                self.regs.ecx = 0x7ffafbbf;
+                                self.regs.edx = 0xbfebfbff;
+                            },
+                            0x02 => {
+                                self.regs.eax = 0x76036301;
+                                self.regs.ebx = 0xf0b5ff;
+                                self.regs.ecx = 0;
+                                self.regs.edx = 0xc30000;
+                            },
+                            0x03 => {
+                                self.regs.eax = 0;
+                                self.regs.ebx = 0;
+                                self.regs.ecx = 0;
+                                self.regs.edx = 0;
+                            },
+                            0x04 => {
+                                self.regs.eax = 0;
+                                self.regs.ebx = 0x1c0003f;
+                                self.regs.ecx = 0x3f;
+                                self.regs.edx = 0;
+                            },
+                            0x05 => {
+                                self.regs.eax = 0x40;
+                                self.regs.ebx = 0x40;
+                                self.regs.ecx = 3;
+                                self.regs.edx = 0x11142120;
+                            },
+                            0x06 => {
+                                self.regs.eax = 0x27f7;
+                                self.regs.ebx = 2;
+                                self.regs.ecx = 9;
+                                self.regs.edx = 0;
+                            },
+                            0x07..=0x6d => {
+                                self.regs.eax = 0;
+                                self.regs.ebx = 0;
+                                self.regs.ecx = 0;
+                                self.regs.edx = 0;
+                            },
+                            0x6e => {
+                                self.regs.eax = 0x960;
+                                self.regs.ebx = 0x1388;
+                                self.regs.ecx = 0x64;
+                                self.regs.edx = 0;
+                            },
+                            _ => panic!("unimplemented cpuid call 0x{:x}", self.regs.eax),
+                        }
+
+                    },
+
+                    Some("clc") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.light_gray, pos, ins, colors.nc);
+                        }
+                        self.flags.f_cf = false;
                     },
 
                     Some("rdstc") => {
@@ -4604,41 +4807,7 @@ impl Emu32 {
                                 break;
                             }
                         };
-                        let mut bit:u32 = 0;
-
-                        if bit_off == 0 {
-                            bit = bit_base & 0b0000_0001;
-                        } else if bit_off == 1 {
-                            bit = bit_base & 0b0000_0010;
-                        } else if bit_off == 2 {
-                            bit = bit_base & 0b0000_0100;
-                        } else if bit_off == 3 {
-                            bit = bit_base & 0b0000_1000;
-                        } else if bit_off == 4 {
-                            bit = bit_base & 0b0001_0000;
-                        } else if bit_off == 5 {
-                            bit = bit_base & 0b0010_0000;
-                        } else if bit_off == 6 {
-                            bit = bit_base & 0b0100_0000;
-                        } else if bit_off == 7 {
-                            bit = bit_base & 0b1000_0000;
-                        } else if bit_off == 8 {
-                            bit = bit_base & 0b0001_0000_0000;
-                        } else if bit_off == 9 {
-                            bit = bit_base & 0b0010_0000_0000;
-                        } else if bit_off == 10 {
-                            bit = bit_base & 0b0100_0000_0000;
-                        } else if bit_off == 11 {
-                            bit = bit_base & 0b1000_0000_0000;
-                        } else if bit_off == 12 {
-                            bit = bit_base & 0b0001_0000_0000_0000;
-                        } else if bit_off == 13 {
-                            bit = bit_base & 0b0010_0000_0000_0000;
-                        } else if bit_off == 14 {
-                            bit = bit_base & 0b0100_0000_0000_0000;
-                        } else if bit_off == 15 {
-                            bit = bit_base & 0b1000_0000_0000_0000;
-                        }
+                        let bit:u32 = bit_base & (1 << (bit_off-1)); // thanks Robert
 
                         self.flags.f_cf = bit == 1;
                         
@@ -4687,6 +4856,11 @@ impl Emu32 {
                         }
 
                     },
+
+                    Some("sysenter") => {
+                        println!("{}{} {}{} function: 0x{:x}", colors.red, pos, ins, colors.nc, self.regs.eax);
+                        return;
+                    }
 
                     Some(&_) =>  { 
                         println!("{}{} {}{}", colors.red, pos, ins, colors.nc);

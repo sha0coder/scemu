@@ -133,9 +133,9 @@ impl Maps {
 
     pub fn dump(&self, addr:u32) {
         let mut count = 0;
-        for j in 0..8 {
+        for _ in 0..8 {
             let mut bytes:Vec<char> = Vec::new();
-            for i in 0..4 {
+            for _ in 0..4 {
                 let dw = match self.read_dword(addr + count*4) {
                     Some(v) => v,
                     None => {
@@ -155,6 +155,52 @@ impl Maps {
             let s: String = bytes.into_iter().collect();
             println!("{}",s);
         }
+    }
+
+    pub fn read_string(&self, addr:u32) -> String {
+        let mut bytes:Vec<char> = Vec::new();
+        let mut b:u8;
+        let mut i:u32 = 0;
+
+        loop {
+            b = match self.read_byte(addr+i) {
+                Some(v) => v,
+                None => break,
+            };
+            
+            if b == 0x00 {
+                break;
+            }
+
+            i += 1;
+            bytes.push(b as char);
+        }
+
+        let s: String = bytes.into_iter().collect();
+        return s;
+    }
+
+    pub fn read_wide_string(&self, addr:u32) -> String {
+        let mut bytes:Vec<char> = Vec::new();
+        let mut b:u8;
+        let mut i:u32 = 0;
+
+        loop {
+            b = match self.read_byte(addr+i) {
+                Some(v) => v,
+                None => break,
+            };
+            
+            if b == 0x00 {
+                break;
+            }
+
+            i += 2;
+            bytes.push(b as char);
+        }
+
+        let s: String = bytes.into_iter().collect();
+        return s;
     }
 
     pub fn search_string(&self, kw:String, map_name:String) {
