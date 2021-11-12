@@ -57,4 +57,15 @@ impl Flags {
         println!("nt: {}", self.f_nt);
         println!("---");
     }
+
+    pub fn get_dword(&self) -> u16 {
+        let mut f:u16 = 0;
+
+        if self.f_pf {
+            f |= 1 << 10;
+        }
+
+
+        return f;
+    }
 }

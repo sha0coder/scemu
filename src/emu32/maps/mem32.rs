@@ -50,6 +50,10 @@ impl Mem32 {
         self.bottom_addr = bottom_addr;
     }
 
+    pub fn set_size(&mut self, size:u32) {
+        self.bottom_addr = self.base_addr + size;
+    }
+
     pub fn read_from(&self, addr:u32) -> &[u8] {
         let idx = (addr - self.base_addr) as usize;
         self.mem.get(idx..MAX_MEM).unwrap()
