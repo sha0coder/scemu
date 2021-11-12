@@ -88,6 +88,7 @@ pub struct Emu32 {
     bp: u32,
     detailed: bool,
     seh: u32,
+    vseh: u32,
 }
 
 impl Emu32 {
@@ -104,6 +105,7 @@ impl Emu32 {
             bp: 0,
             detailed: false,
             seh: 0,
+            vseh: 0,
         }
     }
 
@@ -129,6 +131,8 @@ impl Emu32 {
 
         println!("initializing code and stack");
 
+        self.maps.create_map("10000");
+        self.maps.create_map("20000");
         self.maps.create_map("stack");
         self.maps.create_map("code");
         self.maps.create_map("peb");
@@ -145,6 +149,14 @@ impl Emu32 {
         self.maps.create_map("kuser_shared_data");
 
         self.init_stack();
+
+        let m10000 = self.maps.get_mem("10000");
+        m10000.set_base(0x10000);
+        m10000.set_size(0x10000);
+        let m20000 = self.maps.get_mem("20000");
+        m20000.set_base(0x20000);
+        m20000.set_size(0x10000);
+
         self.maps.get_mem("code").set_base(self.regs.eip);
         let kernel32 = self.maps.get_mem("kernel32");
         kernel32.set_base(0x75e40000);
@@ -528,42 +540,164 @@ impl Emu32 {
         return (unsigned & 0xff) as u32;
     }
 
-    //TODO: this substraction can cause overflow panic on rust runtime, use let sr:i32 = (value1 as i64 - value2 as i64) as i32;
+    // new proper calculations of overflow and carry:
     pub fn flags_sub32(&mut self, value1:u32, value2:u32) -> u32 {
-        let sr:i32 = value1 as i32 - value2 as i32;
+        let a:i32 = value1 as i32;
+        let b:i32 = value2 as i32;
 
-        self.flags.f_zf = sr == 0;
-        self.flags.f_sf = sr < 0;
-        self.flags.f_pf = (sr & 0xff) % 2 == 0;
-        self.flags.f_of = (value1 as i32) < 0 && sr >= 0;
-        self.flags.f_cf = (value1 as i32) >= 0 && sr < 0;
+        self.flags.f_of = false;
+        self.flags.f_cf = false;
 
-        return sr as u32;
+
+        // overflow case on substraction
+        if a >=0 && b < 0 {
+
+            // case of overflow + carry
+            if (b as u32) == 0x80000000 {
+                let r:u64 = 0x80000000 as u64 + a as u64;
+
+                self.flags.f_of = true;
+                self.flags.f_cf = true;
+                self.flags.f_sf = true;
+                return (r & 0xffffffff) as u32;
+
+            } else {
+
+                let sum:u32 = a as u32 + b.abs() as u32;
+                if sum > 0x7fffffff {
+                    self.flags.f_of = true;
+                    self.flags.f_sf = true;
+                    self.flags.f_zf = false;
+                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
+                    return sum;
+                }
+            }   
+        }
+
+        // carry case on substraction
+        let r:i64 = a as i64 - b as i64;
+        if (r as u64) > 0xffffffff {
+            self.flags.f_cf = true;
+            self.flags.f_sf = true;
+            self.flags.f_zf = ((r & 0xffffffff) as u32) == 0;
+            self.flags.f_pf = (r & 0xff) % 2 == 0;
+            return (r & 0xffffffff) as u32;
+        }
+        
+
+        let res:i32 = a - b;
+
+        self.flags.f_zf = res == 0;
+        self.flags.f_sf = res < 0;
+        self.flags.f_pf = (res & 0xff) % 2 == 0;
+        return res as u32;
     }
 
     pub fn flags_sub16(&mut self, value1:u32, value2:u32) -> u32 {
-        let sr:i16 = value1 as i16 - value2 as i16;
+        let a:i16 = value1 as i16;
+        let b:i16 = value2 as i16;
 
-        self.flags.f_zf = sr == 0;
-        self.flags.f_sf = sr < 0;
-        self.flags.f_pf = (sr & 0xff) % 2 == 0;
-        self.flags.f_of = (value1 as i16) < 0 && sr >= 0;
-        self.flags.f_cf = (value1 as i16) >= 0 && sr < 0;
+        self.flags.f_of = false;
+        self.flags.f_cf = false;
+        self.flags.f_zf = value1 == value2;
 
-        return sr as u32;
+        // overflow case on substraction
+        if a >= 0 && b < 0 {
+
+            // case of overflow + carry
+            if (b as u16) == 0x8000 {
+                let r:u32 = 0x8000 as u32 + a as u32;
+
+                self.flags.f_of = true;
+                self.flags.f_cf = true;
+                self.flags.f_sf = true;
+                return (r & 0xffff) as u32;
+
+            } else {
+
+                let sum:u16 = a as u16 + b.abs() as u16;
+                if sum > 0x7fff {
+                    self.flags.f_of = true;
+                    self.flags.f_sf = true;
+                    self.flags.f_zf = false;
+                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
+                    return sum as u32;
+                }
+            }
+        }
+
+        // carry case on substraction
+        let r:i32 = a as i32 - b as i32;
+        if (r as u32) > 0xffff {
+            self.flags.f_cf = true;
+            self.flags.f_sf = true;
+            self.flags.f_pf = (r & 0xff) % 2 == 0;
+            self.flags.f_zf = ((r & 0xffff) as u32) == 0;
+            return (r & 0xffff) as u32;
+        }
+        
+
+        let res:i16 = a - b;
+
+        self.flags.f_zf = res == 0;
+        self.flags.f_sf = res < 0;
+        self.flags.f_pf = (res & 0xff) % 2 == 0;
+        return (res as u16) as u32;
     }
 
     pub fn flags_sub8(&mut self, value1:u32, value2:u32) -> u32 {
-        let sr:i8 = value1 as i8 - value2 as i8;
+        let a:i8 = value1 as i8;
+        let b:i8 = value2 as i8;
 
-        self.flags.f_zf = sr == 0;
-        self.flags.f_sf = sr < 0;
-        self.flags.f_pf = sr % 2 == 0;
-        self.flags.f_of = (value1 as i8) < 0 && sr >= 0;
-        self.flags.f_cf = (value1 as i8) >= 0 && sr < 0;
+        self.flags.f_of = false;
+        self.flags.f_cf = false;
 
-        return sr as u32;
+        // overflow case on substraction
+        if a >= 0 && b < 0 {
+
+            // case of overflow + carry
+            if (b as u8) == 0x80 {
+                let r:u16 = 0x80 as u16 + a as u16;
+
+                self.flags.f_of = true;
+                self.flags.f_cf = true;
+                self.flags.f_sf = true;
+                return (r & 0xff) as u32;
+
+            } else {
+                let sum:u8 = a as u8 + b.abs() as u8;
+                if sum > 0x7f {
+                    self.flags.f_of = true;
+                    self.flags.f_sf = true;
+                    self.flags.f_zf = false;
+                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
+                    return sum as u32;
+                }
+            }
+        }
+
+        // carry case on substraction
+        let r:i16 = a as i16 - b as i16;
+        if (r as u16) > 0xff {
+            self.flags.f_cf = true;
+            self.flags.f_sf = true;
+            self.flags.f_zf = ((r & 0xff) as u32) == 0;
+            self.flags.f_pf = (r & 0xff) % 2 == 0;
+            return (r & 0xff) as u32;
+        }
+    
+
+        let res:i8 = a - b;
+
+        self.flags.f_zf = res == 0;
+        self.flags.f_sf = res < 0;
+        self.flags.f_pf = res % 2 == 0;
+        return (res as u8) as u32;
     }
+
+
+
+
 
     pub fn flags_inc32(&mut self, value:u32) -> u32 { 
         if value == 0xffffffff {
@@ -809,19 +943,30 @@ impl Emu32 {
     }
 
     fn exception(&mut self) {
-        if self.seh == 0 {
-            panic!("exception without any SEH handler configured.");
+        let addr:u32;
+        let next:u32;
+
+        if self.vseh > 0 {
+            addr = self.vseh;
+            next = self.seh;
+
+        } else {
+
+            if self.seh == 0 {
+                panic!("exception without any SEH handler nor vector configured.");
+            }
+
+            next = match self.maps.read_dword(self.seh) {
+                Some(value) => value,
+                None => panic!("exception wihout correct SEH"),
+            };
+
+            addr = match self.maps.read_dword(self.seh+4) {
+                Some(value) => value,
+                None => panic!("exception without correct SEH."),
+            };
+
         }
-
-        let next = match self.maps.read_dword(self.seh) {
-            Some(value) => value,
-            None => panic!("exception wihout correct SEH"),
-        };
-
-        let addr = match self.maps.read_dword(self.seh+4) {
-            Some(value) => value,
-            None => panic!("exception without correct SEH."),
-        };
 
 
         let con = Console::new();
@@ -836,7 +981,8 @@ impl Emu32 {
     fn ntdll_api(&mut self, addr:u32) {
         match addr {
             0x775b52d8 => self.ntdll_NtAllocateVirtualMemory(),
-
+            0x775b5a18 => self.ntdll_NtGetContextThread(),
+            0x7757f774 => self.ntdll_RtlVectoredExceptionHandler(),
             _ => panic!("calling unknown ntdll API 0x{:x}", addr),
         }
     }
@@ -849,6 +995,116 @@ impl Emu32 {
             0x75e93c01 => self.kernel32_LoadLibraryW(),
             _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
         }
+    }
+    
+    fn ntdll_RtlVectoredExceptionHandler(&mut self) {
+        let p1 = match self.maps.read_dword(self.regs.esp) {
+            Some(v) => v,
+            None => panic!("ntdll_RtlVectoredExceptionHandler: error reading p1"),
+        };
+
+        let fptr = match self.maps.read_dword(self.regs.esp+4) {
+            Some(v) => v,
+            None => panic!("ntdll_RtlVectoredExceptionHandler: error reading fptr"),
+        };
+
+        self.vseh = fptr;
+
+        self.regs.eax = 0x2c2878;
+        self.stack_pop(false);
+        self.stack_pop(false);
+    }
+
+    fn ntdll_NtGetContextThread(&mut self) {
+        let handle = match self.maps.read_dword(self.regs.esp) {
+            Some(v) => v,
+            None => panic!("ntdll_NtGetContextThread: error reading stack"),
+        };
+
+        let ctx_ptr = match self.maps.read_dword(self.regs.esp+4) {
+            Some(v) => v,
+            None => panic!("ntdll_NtGetContextThread: error reading context pointer"),
+        };
+
+        let ctx = match self.maps.read_dword(ctx_ptr) {
+            Some(v) => v,
+            None => panic!("ntdll_NtGetContextThread: error reading context ptr"),
+        };
+
+        let context_flags = match self.maps.read_dword(ctx) {
+            Some(v) => v,
+            None => panic!("ntdll_NtGetContextThread: error reading context flags"),
+        };
+
+        let colors = Colors::new();
+        println!("{}** ntdll_NtGetContextThread   ctx flags:0x{:x} {}",colors.light_red, context_flags, colors.nc);
+
+        if !self.maps.write_dword(ctx+4, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
+        }
+        if !self.maps.write_dword(ctx+8, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr1 in context");
+        }
+        if !self.maps.write_dword(ctx+12, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr2 in context");
+        }
+        if !self.maps.write_dword(ctx+16, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr3 in context");
+        }
+        if !self.maps.write_dword(ctx+16, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr6 in context");
+        }
+        if !self.maps.write_dword(ctx+16, 0) {
+            panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
+        }
+
+        self.regs.eax = 0;
+        self.stack_pop(false);
+        self.stack_pop(false);
+        
+        /*
+
+        DR0-DR3 – breakpoint registers
+        DR4 & DR5 – reserved
+        DR6 – debug status
+        DR7 – debug control
+
+
+        typedef struct _CONTEXT
+        {
+            ULONG ContextFlags;
+            ULONG Dr0;
+            ULONG Dr1;
+            ULONG Dr2;
+            ULONG Dr3;
+            ULONG Dr6;
+            ULONG Dr7;
+            FLOATING_SAVE_AREA FloatSave;
+            ULONG SegGs;
+            ULONG SegFs;
+            ULONG SegEs;
+            ULONG SegDs;
+            ULONG Edi;
+            ULONG Esi;
+            ULONG Ebx;
+            ULONG Edx;
+            ULONG Ecx;
+            ULONG Eax;
+            ULONG Ebp;
+            ULONG Eip;
+            ULONG SegCs;
+            ULONG EFlags;
+            ULONG Esp;
+            ULONG SegSs;
+            UCHAR ExtendedRegisters[512];
+        } CONTEXT, *PCONTEXT;
+        */
+
+
+
+
+
+
     }
 
     fn ntdll_NtAllocateVirtualMemory(&mut self) {
@@ -892,6 +1148,8 @@ impl Emu32 {
             panic!("NtAllocateVirtualMemory mapping zero bytes.")
         }
 
+        println!("{}** NtAllocateVirtualMemory {}",colors.light_red, colors.nc);
+
         //TODO: modify this, its allowing just one allocation
         let alloc = self.maps.create_map("alloc");
         let alloc_addr = 0x003e0000;
@@ -916,7 +1174,7 @@ impl Emu32 {
             None => panic!("bad LoadLibraryA parameter"),
         };
         let dll = self.maps.read_string(dllptr);
-        println!("{} LoadLibraryA  '{}'  {}",colors.light_red, dll, colors.nc);
+        println!("{}** LoadLibraryA  '{}'  {}",colors.light_red, dll, colors.nc);
 
 
         if dll == "ntdll" {
@@ -928,12 +1186,12 @@ impl Emu32 {
 
     fn kernel32_LoadLibraryExA(&mut self) {
         let colors = Colors::new();
-        println!("{} LoadLibraryExA {}",colors.light_red, colors.nc);
+        println!("{}** LoadLibraryExA {}",colors.light_red, colors.nc);
     }
 
     fn kernel32_LoadLibraryExW(&mut self) {
         let colors = Colors::new();
-        println!("{} LoadLibraryExW {}",colors.light_red, colors.nc);
+        println!("{}** LoadLibraryExW {}",colors.light_red, colors.nc);
     }
 
     fn kernel32_LoadLibraryW(&mut self) {
@@ -943,7 +1201,7 @@ impl Emu32 {
             None => panic!("bad LoadLibraryW parameter"),
         };
         let dll = self.maps.read_wide_string(dllptr);
-        println!("{} LoadLibraryW  '{}'  {}",colors.red, dll, colors.nc);
+        println!("{}** LoadLibraryW  '{}'  {}",colors.red, dll, colors.nc);
 
         if dll == "ntdll.dll" {
             self.regs.eax = self.maps.get_mem("ntdll").get_base();
@@ -1018,7 +1276,7 @@ impl Emu32 {
                 }
 
                 // trace register
-                println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
+                //println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
                 
 
                 // instructions implementation
@@ -3915,25 +4173,26 @@ impl Emu32 {
 
                     Some("cmp") => {
                         if !step {
-                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.orange, pos, ins, colors.nc);                            
+                            println!("\tcmp-> eax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        //let bits = self.get_size(parts[0]);
-                        let value1:i32;
-                        let value2:i32;
+                        let bits = self.get_size(parts[0]);
+                        let value1:u32;
+                        let value2:u32;
 
                         if self.is_reg(parts[0]) {
                             if self.is_reg(parts[1]) {
                                 // cmp reg, reg
-                                value1 = self.regs.get_by_name(parts[0]) as i32;
-                                value2 = self.regs.get_by_name(parts[1]) as i32;
+                                value1 = self.regs.get_by_name(parts[0]);
+                                value2 = self.regs.get_by_name(parts[1]);
 
                             } else if parts[1].contains("[") {
                                 // cmp reg, mem
-                                value1 = self.regs.get_by_name(parts[0]) as i32;
+                                value1 = self.regs.get_by_name(parts[0]);
                                 value2 = match self.memory_read(parts[1]) {
-                                    Some(v) => v as i32,
+                                    Some(v) => v,
                                     None => {
                                         self.exception();
                                         break;
@@ -3943,8 +4202,8 @@ impl Emu32 {
 
                             } else {
                                 // cmp reg, inm
-                                value1 = self.regs.get_by_name(parts[0]) as i32;
-                                value2 = self.get_inmediate(parts[1]) as i32;
+                                value1 = self.regs.get_by_name(parts[0]);
+                                value2 = self.get_inmediate(parts[1]);
 
                             }
 
@@ -3952,41 +4211,42 @@ impl Emu32 {
                             if self.is_reg(parts[1]) {
                                 // cmp mem, reg
                                 value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v as i32,
+                                    Some(v) => v,
                                     None => {
                                         self.exception();
                                         break;
                                     }
                                 };
-                                value2 = self.regs.get_by_name(parts[1]) as i32;
+                                value2 = self.regs.get_by_name(parts[1]);
 
                             } else {
                                 // cmp mem, inm
                                 value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v as i32,
+                                    Some(v) => v,
                                     None => {
                                         self.exception();
                                         break;
                                     }
                                 };
-                                value2 = self.get_inmediate(parts[1]) as i32;
+                                value2 = self.get_inmediate(parts[1]);
 
                             }
                         }
 
+                        match bits {
+                            32 => { self.flags_sub32(value1, value2); },
+                            16 => { self.flags_sub16(value1, value2); },
+                             8 => { self.flags_sub8(value1, value2); },
+                             _ => panic!("incorrect bits size"),
+                        }
+
+                        /*
                         let res:i32 = (value1 as i64 - value2 as i64) as i32;
 
                         self.flags.f_zf = res == 0;
                         self.flags.f_sf = res < 0;
 
-                        /*
-                        if value1 < 0 && value2 < 0 && res > 0 {
-                            self.flags.f_of = true; 
-                        } else if value1 > 0 && value2 > 0 && (value1-value2) < 0 {
-                            self.flags.f_of = true; 
-                        } else {
-                            self.flags.f_of = false; 
-                        }*/
+    
 
                         if value1 < value2 {
                             self.flags.f_zf = false;
@@ -4000,7 +4260,7 @@ impl Emu32 {
                             self.flags.f_zf = true;
                             self.flags.f_cf = false;
                             self.flags.f_of = false;
-                        }
+                        }*/
                         
 
 
@@ -4505,10 +4765,8 @@ impl Emu32 {
                             println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         }
                         println!("/!\\ int 3 sigtrap!!!!");
-                        if self.break_on_alert {
-                            panic!();
-                        }
-                        return;
+                        self.exception();
+                        break;
                     },
 
                     Some("nop") => {
