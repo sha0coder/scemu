@@ -352,6 +352,7 @@ impl Emu32 {
     
     pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
         if operand.contains("fs:[0]") {
+            println!("Reading SEH fs:[0] 0x{:x}", self.seh);
             return Some(self.seh);
         }
 
@@ -399,6 +400,7 @@ impl Emu32 {
 
     pub fn memory_write(&mut self, operand:&str, value:u32) -> bool {
         if operand.contains("fs:[0]") {
+            println!("Setting SEH fs:[0]  0x{:x}", value);
             self.seh = value;
             return true;
         }
