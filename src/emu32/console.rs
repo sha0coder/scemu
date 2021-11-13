@@ -45,6 +45,8 @@ impl Console {
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("md ..................... memory dump");
+        println!("ms ..................... memory string");
+        println!("mw ..................... memory wide string");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");
         println!("");

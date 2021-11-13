@@ -9,9 +9,11 @@ x86 32bits emulator, for securely emulating shellcodes
 - 73 instructions implemented
 
 
+scemu emulates a simple shellcode detecting the execve() interrupt
+![exploring basic shellcode](pics/basic_shellcode1.png)
+We select the line to stop and inspect the memory
+![inspecting basic shellcode](pics/basic_shellcode2.png)
 
-
-[![IMAGE ALT TEXT](http://img.youtube.com/vi/RV8Q9MBWovQ/0.jpg)](https://www.youtube.com/embed/RV8Q9MBWovQ "mapping in emulation time")
-
-[![IMAGE ALT TEXT](http://img.youtube.com/vi/u12UBNB_5wU/0.jpg)](https://www.youtube.com/embed/u12UBNB_5wU "execution flow")
-
+After emulatin near 2 million instructions of GuLoader win32 in linux, faking cpuid's and other tricks in the way, arrives to a sigtrap to confuse debuggers. 
+Guloader win32 after
+![exception handlers](pics/guloader1.png)
