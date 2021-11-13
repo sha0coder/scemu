@@ -3,26 +3,46 @@ mod emu32;
 use std::env;
 use emu32::Emu32;
 
-fn usage(arg0:&String) {
-    println!("{0} [shellcode file] <optional instruction number>", arg0);
+fn usage() {
+    println!("scemu [filename] [mode] <line to inspect optional>");
+    println!("   modes:");
+    println!("        n            normal mode");
+    println!("        q            quick, dont print assembly instructions to be quicker.");
+    println!("        l            loop, show  loop iterations, very slow.");
+    println!("        r            regs, view the register values in every step.");
+    println!();
+    std::process::exit(1);
 }
 
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    if args.len() < 2 {
-        usage(&args[0]);
-        return;
+    if args.len() < 3 {
+        usage();
     }
 
-    
+    let filename = &args[1];
+
     let mut emu32 = Emu32::new();
-
     emu32.init();
-    if args.len() > 2 {
-        emu32.explain(&args[2]);
+
+
+    let mode = &args[2];
+
+    if mode == "quick" {
+        emu32.mode_quick();
+    } else if mode == "loop" {
+        emu32.mode_loop();
+    } else  if mode == "regs" {
+        emu32.mode_regs();
+    } 
+    
+
+    if args.len() == 4 {
+        emu32.explain(&args[3]);
     }
-    emu32.load_code(&args[1]);
+    
+    emu32.load_code(&filename);
     emu32.run();
 
 
