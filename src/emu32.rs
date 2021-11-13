@@ -888,7 +888,7 @@ impl Emu32 {
                     self.exp = num;
                     return;
                 },
-                "s" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.esp, self.regs.ebp),
+                "s" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.esp, self.regs.esp+48),
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
                 "f" => self.flags.print(),
@@ -1014,6 +1014,7 @@ impl Emu32 {
             0x775b52d8 => self.ntdll_NtAllocateVirtualMemory(),
             0x775b5a18 => self.ntdll_NtGetContextThread(),
             0x7757f774 => self.ntdll_RtlVectoredExceptionHandler(),
+            0x775d22b8 => self.ntdll_LdrLoadDll(),
             _ => panic!("calling unknown ntdll API 0x{:x}", addr),
         }
     }
@@ -1027,6 +1028,24 @@ impl Emu32 {
             _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
         }
     }
+
+    fn ntdll_LdrLoadDll(&mut self) {
+        let libptr = match self.maps.read_dword(self.regs.esp+20) {
+            Some(v) => v,
+            None => panic!("LdrLoadDll: error reading lib param")
+        };
+
+        let lib = self.maps.read_wide_string(libptr);
+
+        let colors = Colors::new();
+        println!("{}** ntdll_LdrLoadDll   lib:{} {}",colors.light_red, lib, colors.nc);
+        
+
+        for _ in 0..4 {
+            self.stack_pop(false);
+        }
+        self.regs.eax = constants::STATUS_SUCCESS;
+    }
     
     fn ntdll_RtlVectoredExceptionHandler(&mut self) {
         let p1 = match self.maps.read_dword(self.regs.esp) {
@@ -1038,6 +1057,9 @@ impl Emu32 {
             Some(v) => v,
             None => panic!("ntdll_RtlVectoredExceptionHandler: error reading fptr"),
         };
+
+        let colors = Colors::new();
+        println!("{}** ntdll_RtlVectoredExceptionHandler   callback:0x{:x} {}",colors.light_red, fptr, colors.nc);
 
         self.vseh = fptr;
 
@@ -5094,6 +5116,9 @@ impl Emu32 {
                     },
 
                     Some("leave") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                        }
                         self.regs.esp = self.regs.ebp;
                         self.regs.ebp = self.stack_pop(true);
                     },
@@ -5125,6 +5150,9 @@ impl Emu32 {
 
                     Some("lock btr") => {
                         // 747712 0x775b77b2: lock btr dword ptr [eax], 0
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
                         let bit_off = self.get_inmediate(parts[1]);
@@ -5142,6 +5170,9 @@ impl Emu32 {
                     },
 
                     Some("lock cmpxchg") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
                         // 747743 0x775a229a: lock cmpxchg dword ptr [ebx], edx
                         // compare memory [ebx] with eax if they are same, move edx to [ebx]
                         let op = ins.op_str().unwrap();
@@ -5184,6 +5215,110 @@ impl Emu32 {
                         }
 
                     },
+
+                    Some("std") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+                        self.flags.f_df = true;
+                    },
+
+                    Some("cld") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+                        self.flags.f_df = false;
+                    }
+
+                    Some("lodsd") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+                        let val = match self.memory_read("dword ptr [esi]") { 
+                            Some(v) => v,
+                            None => panic!("lodsw: memory read error")
+                        };
+                        self.regs.eax = val;
+                        if self.flags.f_df {
+                            self.regs.esi -= 4;
+                        } else {
+                            self.regs.esi += 4;
+                        }
+                    },
+
+                    Some("lodsw") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+                        let val = match self.memory_read("word ptr [esi]") {
+                            Some(v) => v,
+                            None => panic!("lodsw: memory read error")
+                        };
+                        self.regs.set_ax(val);
+                        if self.flags.f_df {
+                            self.regs.esi -= 2;
+                        } else {
+                            self.regs.esi += 2;
+                        }
+                    },
+
+                    Some("lodsb") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+                        let val = match self.memory_read("byte ptr [esi]") {
+                            Some(v) => v,
+                            None => panic!("lodsw: memory read error")
+                        };
+                        self.regs.set_al(val);
+                        if self.flags.f_df {
+                            self.regs.esi -= 1;
+                        } else {
+                            self.regs.esi += 1;
+                        }
+                    },
+
+                    Some("lods") => {
+                        if !step {
+                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                        }
+
+                        let op = ins.op_str().unwrap();
+                        let bits = self.get_size(op);
+                        let val = match self.memory_read(op) {
+                            Some(v) => v,
+                            None => panic!("lodsw: memory read error")
+                        };
+
+                        match bits {
+                            32 => {
+                                self.regs.eax = val;
+                                if self.flags.f_df {
+                                    self.regs.esi -= 4;
+                                } else {
+                                    self.regs.esi += 4;
+                                }
+                            },
+                            16 => {
+                                self.regs.set_ax(val);
+                                if self.flags.f_df {
+                                    self.regs.esi -= 2;
+                                } else {
+                                    self.regs.esi += 2;
+                                }
+                            },
+                            8 => {
+                                self.regs.set_al(val);
+                                if self.flags.f_df {
+                                    self.regs.esi -= 1;
+                                } else {
+                                    self.regs.esi += 1;
+                                }
+                            },
+                            _ => panic!("bad precision"),
+                        }
+                    },
+
 
                     Some("sysenter") => {
                         println!("{}{} {}{} function: 0x{:x}", colors.red, pos, ins, colors.nc, self.regs.eax);

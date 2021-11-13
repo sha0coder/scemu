@@ -29,11 +29,11 @@ fn main() {
 
     let mode = &args[2];
 
-    if mode == "quick" {
+    if mode == "q" {
         emu32.mode_quick();
-    } else if mode == "loop" {
+    } else if mode == "l" {
         emu32.mode_loop();
-    } else  if mode == "regs" {
+    } else  if mode == "r" {
         emu32.mode_regs();
     } 
     
