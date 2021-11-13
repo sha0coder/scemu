@@ -922,6 +922,17 @@ impl Emu32 {
                     let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     self.maps.dump(addr);
                 },
+                "ms" => {
+                    con.print("address");
+                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    println!("{}", self.maps.read_string(addr));
+
+                },
+                "mw" => {
+                    con.print("address");
+                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    println!("{}", self.maps.read_wide_string(addr));
+                },
                 "eip" => {
                     con.print("=");
                     let saddr = con.cmd();
