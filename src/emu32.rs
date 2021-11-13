@@ -55,6 +55,8 @@
 */
 
 #![allow(non_snake_case)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
 
 extern crate capstone;
 
@@ -1052,7 +1054,7 @@ impl Emu32 {
 
         
         let colors = Colors::new();
-        let libname = self.maps.read_string(libname_ptr);
+        let libname = self.maps.read_wide_string(libname_ptr);
         println!("{}** ntdll_LdrLoadDll   lib:{} {}",colors.light_red, libname, colors.nc);
 
         
@@ -1077,10 +1079,10 @@ impl Emu32 {
     }
     
     fn ntdll_RtlVectoredExceptionHandler(&mut self) {
-        let p1 = match self.maps.read_dword(self.regs.esp) {
+        /*let p1 = match self.maps.read_dword(self.regs.esp) {
             Some(v) => v,
             None => panic!("ntdll_RtlVectoredExceptionHandler: error reading p1"),
-        };
+        };*/
 
         let fptr = match self.maps.read_dword(self.regs.esp+4) {
             Some(v) => v,
@@ -5261,7 +5263,7 @@ impl Emu32 {
 
                     Some("lodsd") => {
                         if !step {
-                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         }
                         let val = match self.memory_read("dword ptr [esi]") { 
                             Some(v) => v,
@@ -5277,7 +5279,7 @@ impl Emu32 {
 
                     Some("lodsw") => {
                         if !step {
-                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         }
                         let val = match self.memory_read("word ptr [esi]") {
                             Some(v) => v,
@@ -5293,7 +5295,7 @@ impl Emu32 {
 
                     Some("lodsb") => {
                         if !step {
-                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         }
                         let val = match self.memory_read("byte ptr [esi]") {
                             Some(v) => v,
@@ -5309,7 +5311,7 @@ impl Emu32 {
 
                     Some("lods") => {
                         if !step {
-                            println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.cyan, pos, ins, colors.nc);
                         }
 
                         let op = ins.op_str().unwrap();
