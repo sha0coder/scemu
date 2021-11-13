@@ -15,6 +15,6 @@ scemu emulates a simple shellcode detecting the execve() interrupt
 We select the line to stop and inspect the memory
 ![inspecting basic shellcode](pics/basic_shellcode2.png)
 
-After emulatin near 2 million instructions of GuLoader win32 in linux, faking cpuid's and other tricks in the way, arrives to a sigtrap to confuse debuggers. 
+After emulating near 2 million instructions of GuLoader win32 in linux, faking cpuid's and other tricks in the way, arrives to a sigtrap to confuse debuggers. 
 Guloader win32 after
 ![exception handlers](pics/guloader1.png)
