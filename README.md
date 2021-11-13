@@ -11,6 +11,7 @@ x86 32bits emulator, for securely emulating shellcodes
 
 scemu emulates a simple shellcode detecting the execve() interrupt
 ![exploring basic shellcode](pics/basic_shellcode1.png)
+
 We select the line to stop and inspect the memory
 ![inspecting basic shellcode](pics/basic_shellcode2.png)
 
