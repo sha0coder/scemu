@@ -922,13 +922,13 @@ impl Emu32 {
                     let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     self.maps.dump(addr);
                 },
-                "ms" => {
+                "mds" => {
                     con.print("address");
                     let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     println!("{}", self.maps.read_string(addr));
 
                 },
-                "mw" => {
+                "mdw" => {
                     con.print("address");
                     let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     println!("{}", self.maps.read_wide_string(addr));
@@ -938,6 +938,16 @@ impl Emu32 {
                     let saddr = con.cmd();
                     let addr = u32::from_str_radix(saddr.as_str(), 16).expect("bad num conversion");
                     self.regs.eip = addr;
+                },
+                "push" => {
+                    con.print("value");
+                    let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
+                    self.stack_push(value);
+                    println!("pushed.");
+                },
+                "pop" => {
+                    let value = self.stack_pop(false);
+                    println!("poped value 0x{:x}", value);
                 },
                 "ss" => {
                     con.print("map name");
@@ -1030,16 +1040,35 @@ impl Emu32 {
     }
 
     fn ntdll_LdrLoadDll(&mut self) {
-        let libptr = match self.maps.read_dword(self.regs.esp+20) {
+        let libaddr_ptr = match self.maps.read_dword(self.regs.esp + 16) {
+            Some(v) => v,
+            None => panic!("LdrLoadDll: error reading lib ptr")
+        };
+
+        let libname_ptr = match self.maps.read_dword(self.regs.esp+20) {
             Some(v) => v,
             None => panic!("LdrLoadDll: error reading lib param")
         };
 
-        let lib = self.maps.read_wide_string(libptr);
-
-        let colors = Colors::new();
-        println!("{}** ntdll_LdrLoadDll   lib:{} {}",colors.light_red, lib, colors.nc);
         
+        let colors = Colors::new();
+        let libname = self.maps.read_string(libname_ptr);
+        println!("{}** ntdll_LdrLoadDll   lib:{} {}",colors.light_red, libname, colors.nc);
+
+        
+        if libname == "user32.dll" {
+            let user32 = self.maps.create_map("user32");
+            user32.set_base(0x773b0000);
+            user32.load("maps/user32.bin");
+            let user32_text = self.maps.create_map("user32_text");
+            user32_text.set_base(0x773b1000);
+            user32_text.load("maps/user32_text.bin");
+
+            if !self.maps.write_dword(libaddr_ptr, 0x773b0000) {
+                panic!("ntdll_LdrLoadDll: cannot write in addr param");
+            }
+        }
+
 
         for _ in 0..4 {
             self.stack_pop(false);

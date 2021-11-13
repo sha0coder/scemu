@@ -11,6 +11,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - vectored exception handler
 - int3
 - non debugged cpuid
+- zero unsafe{} blocks
 
 
 
