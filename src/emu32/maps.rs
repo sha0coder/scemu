@@ -5,24 +5,8 @@ use mem32::Mem32;
 use std::collections::HashMap;
 
 
-/*
-pub struct Map {
-    pub name: String,
-    pub mem: Mem32,
-}
-
-impl Map {
-    pub fn new(name:&str) -> Map {
-        Map {
-            name: name.to_string(),
-            mem: Mem32::new(),
-        }
-    }
-}*/
-
-
 pub struct Maps {
-    pub maps: HashMap<String,Mem32>
+    pub maps: HashMap<String,Mem32>,
 }
 
 impl Maps {
@@ -259,6 +243,10 @@ impl Maps {
             }
         }
         println!("map not found");
+
+    }
+
+    fn fake_alloc(&mut self, addr:u32, size:u32) {
 
     }
 

@@ -38,6 +38,8 @@ impl Console {
         println!("bi ..................... breakpoint on instruction number");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
+        println!("push ................... push dword to the stack");
+        println!("pop .................... pop dword from stack");
         println!("m ...................... memory maps");
         println!("mc ..................... memory create map");
         println!("mn ..................... memory name of an address");
@@ -45,8 +47,8 @@ impl Console {
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("md ..................... memory dump");
-        println!("ms ..................... memory string");
-        println!("mw ..................... memory wide string");
+        println!("mds .................... memory dump string");
+        println!("mdw .................... memory dump wide string");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");
         println!("");
