@@ -30,6 +30,7 @@ Example of memory dump on the api loader.
 ![exception handlers](pics/memdump.png)
 
 There are several maps by default, and can be created more with apis like LoadLibraryA or manually from the console.
+
 ![exception handlers](pics/maps.png)
 
 
