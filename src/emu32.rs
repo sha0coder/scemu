@@ -89,6 +89,9 @@ pub struct Emu32 {
     detailed: bool,
     seh: u32,
     vseh: u32,
+    showregs: bool,
+    iter: bool,
+    quick: bool,
 }
 
 impl Emu32 {
@@ -100,12 +103,15 @@ impl Emu32 {
             maps: Maps::new(),
             exp: 0,
             break_on_alert: false,
-            loop_print: 1,
+            loop_print: 2,
             loop_limit: 1000000,
             bp: 0,
             detailed: false,
             seh: 0,
             vseh: 0,
+            showregs: false,
+            iter: false,
+            quick: false,
         }
     }
 
@@ -212,9 +218,21 @@ impl Emu32 {
         //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
     }
 
-    pub fn explain(&mut self, line: &String) {
+    pub fn explain(&mut self, line: &str) {
         self.exp = u32::from_str_radix(line, 10).expect("bad num conversion");
         println!("explaining line {}", self.exp);
+    }
+
+    pub fn mode_quick(&mut self) {
+        self.quick = true;
+    }
+
+    pub fn mode_loop(&mut self) {
+        self.iter = true;
+    }
+
+    pub fn mode_regs(&mut self) {
+        self.showregs = true;
     }
 
     pub fn load_code(&mut self, filename: &String) {
@@ -1238,7 +1256,6 @@ impl Emu32 {
             let block = code.read_from(eip);
             let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
             
-
             for ins in insns.as_ref() {
                 //TODO: use InsnDetail https://docs.rs/capstone/0.4.0/capstone/struct.InsnDetail.html
                 //let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
@@ -1259,7 +1276,7 @@ impl Emu32 {
                     self.spawn_console();
                 }
                     
-                if self.detailed {
+                if self.iter {
                     // loop detector
                     looped.push(addr);
                     let mut count:u32 = 0;
@@ -1278,8 +1295,13 @@ impl Emu32 {
                 }
 
                 // trace register
-                //println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
+                if self.showregs {
+                    println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
+                }
                 
+                if self.quick {
+                    step = true;
+                }
 
                 // instructions implementation
                 match ins.mnemonic() {
@@ -1368,7 +1390,7 @@ impl Emu32 {
 
                         } else {
                             self.stack_push(self.regs.eip + sz as u32); // push return address
-                            println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
+                            //println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
                             self.set_eip(addr, false);
                             break;
                         }
@@ -1487,7 +1509,7 @@ impl Emu32 {
                         }
                         let ret_addr = self.stack_pop(false); // return address
                         let op = ins.op_str().unwrap();
-                        println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
+                        //println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
 
                         
                         if op.len() > 0 {

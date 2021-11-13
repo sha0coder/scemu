@@ -8,4 +8,3 @@ edition = "2018"
 
 [dependencies]
 capstone = "0.10.0"
-
