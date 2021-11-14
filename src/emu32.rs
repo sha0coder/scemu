@@ -1021,6 +1021,13 @@ impl Emu32 {
         }
     }
 
+    fn user32_api(&mut self, addr:u32) {
+        match addr {
+            0x7740ea11 => self.user32_MessageBoxA(),
+            _ => panic!("calling unknown user32 API 0x{:x}", addr)
+        }
+    }
+
     fn ntdll_api(&mut self, addr:u32) {
         match addr {
             0x775b52d8 => self.ntdll_NtAllocateVirtualMemory(),
@@ -1041,8 +1048,29 @@ impl Emu32 {
         }
     }
 
+    fn user32_MessageBoxA(&mut self) {
+        let titleptr = match self.maps.read_dword(self.regs.esp+8) {
+            Some(v) => v,
+            None => panic!("user32_MessageBoxA: error reading title")
+        };
+        let msgptr = match self.maps.read_dword(self.regs.esp+4) {
+            Some(v) => v,
+            None => panic!("user32_MessageBoxA: error reading message")
+        };
+
+        let msg = self.maps.read_string(msgptr);
+        let title = self.maps.read_string(titleptr);
+
+        let colors = Colors::new();
+        println!("{}** user32_MessageBoxA {} {} {}", colors.light_red, title, msg, colors.nc);
+        self.regs.eax = 0;
+        for _ in 0..4 {
+            self.stack_pop(false);
+        }
+    }
+
     fn ntdll_LdrLoadDll(&mut self) {
-        let libaddr_ptr = match self.maps.read_dword(self.regs.esp + 16) {
+        let libaddr_ptr = match self.maps.read_dword(self.regs.esp+12) {
             Some(v) => v,
             None => panic!("LdrLoadDll: error reading lib ptr")
         };
@@ -1446,12 +1474,17 @@ impl Emu32 {
                             panic!("weird call");
                         }
 
-                        if self.maps.get_mem("kernel32_text").inside(addr) {
+                        let name = match self.maps.get_addr_name(addr) {
+                            Some(n) => n,
+                            None => panic!("calling non  mapped addr 0x{:x}", addr)
+                        };
+
+                        if name == "kernel32_text" {
                             self.kernel32_api(addr);
-
-                        } else if self.maps.get_mem("ntdll_text").inside(addr) {
+                        } else if name == "ntdll_text" {
                             self.ntdll_api(addr);
-
+                        } else if name == "user32_text" {
+                            self.user32_api(addr);
                         } else {
                             self.stack_push(self.regs.eip + sz as u32); // push return address
                             //println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
