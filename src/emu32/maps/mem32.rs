@@ -56,7 +56,8 @@ impl Mem32 {
 
     pub fn read_from(&self, addr:u32) -> &[u8] {
         let idx = (addr - self.base_addr) as usize;
-        self.mem.get(idx..MAX_MEM).unwrap()
+        let sz = (self.bottom_addr - self.base_addr) as usize;
+        self.mem.get(idx..sz).unwrap()
     }
 
     pub fn read_byte(&self, addr:u32) -> u8 {
