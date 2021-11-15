@@ -34,5 +34,8 @@ There are several maps by default, and can be created more with apis like LoadLi
 
 ![exception handlers](pics/maps.png)
 
+Emulating basic windows shellcode based on LdrLoadDLl() that prints a message:
+![exception handlers](pics/msgbox.png)
+
 
 

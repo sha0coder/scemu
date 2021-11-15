@@ -107,6 +107,15 @@ impl Maps {
         println!("---");
     }
 
+    pub fn is_mapped(&self, addr:u32) -> bool {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn get_addr_name(&self, addr:u32) -> Option<String> {
         for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
@@ -215,6 +224,27 @@ impl Maps {
             }
         }
         println!("map not found");
+    }
+
+    pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
+        let bs:Vec<&str> = sbs.split(" ").collect();
+        for i in 0..bs.len() {
+            let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
+            if !self.write_byte(addr, b) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    pub fn search_spaced_bytes(&self, sbs:String, map_name:String) {
+        let bs:Vec<&str> = sbs.split(" ").collect();
+        let mut bytes:Vec<u8> = Vec::new();
+        for i in 0..bs.len() {
+            let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
+            bytes.push(b);
+        }
+        self.search_bytes(bytes, map_name);
     }
    
     pub fn search_bytes(&self, bkw:Vec<u8>, map_name:String) {
