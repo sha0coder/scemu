@@ -957,7 +957,11 @@ impl Emu32 {
         };
 
         if !self.maps.is_mapped(addr) {
-            panic!("ntdll_NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
+            println!("/!\\ ntdll_NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
+            for _ in 0..6 {
+                self.stack_pop(false);
+            }
+            self.regs.eax = constants::STATUS_INVALID_PARAMETER;
         }
     
         /*
@@ -1194,7 +1198,7 @@ impl Emu32 {
             panic!("NtAllocateVirtualMemory mapping zero bytes.")
         }
 
-        println!("{}** NtAllocateVirtualMemory {}",colors.light_red, colors.nc);
+        println!("{}** NtAllocateVirtualMemory  0x003e0000 {}",colors.light_red, colors.nc);
 
         //TODO: modify this, its allowing just one allocation
         let alloc = self.maps.create_map("alloc");
@@ -1294,13 +1298,14 @@ impl Emu32 {
 
                 pos += 1;
 
+                /*
                 if self.regs.eip == 0x3c8e18 {
                     println!("trace -> {}", self.maps.read_string(self.regs.edx));
                 }
 
                 if self.regs.eip == 0x3c8e29 {
                     println!("trace -> eax:{:x} == edx:{:x} ??  645AAB39", self.regs.eax, self.regs.edx)
-                }
+                }*/
 
                 if self.exp == pos || self.bp == addr as u32 {
                     step = true;

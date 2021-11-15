@@ -2,7 +2,7 @@
 x86 32bits emulator, for securely emulating shellcodes 
 
 - rust safety, good for malware.
-- rust speed, 18,750 instructions per second
+- rust speed, ~10,000 instructions per second
 - iteration detector
 - colorized
 - stop at specific moment and explore the state or modify it.
