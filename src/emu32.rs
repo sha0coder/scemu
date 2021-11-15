@@ -1,14 +1,8 @@
 /*
     TODO:
         - intead of panic spawn console
-        - trace register
         - set the code base addr
-        - commandline mode:
-            - silent: no print instructions for faster execution
-            - regs: trace registers
-            - loop: loop iteration count (slows down)
-            - nocolor: print wihout colors for logging purposes.
-
+        - refactor and improve winapi
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
         - show registers pointing strings, or pops
@@ -25,6 +19,7 @@
             - disable colors
             - log to file
             - dont print instruction
+        - search in all the maps 
 
 
     guloader:
@@ -65,6 +60,7 @@
 
 extern crate capstone;
 
+mod winapi;
 mod flags; 
 mod eflags;
 mod maps;
@@ -95,7 +91,7 @@ pub struct Emu32 {
     bp: u32,
     detailed: bool,
     seh: u32,
-    vseh: u32,
+    veh: u32,
     showregs: bool,
     iter: bool,
     quick: bool,
@@ -115,7 +111,7 @@ impl Emu32 {
             bp: 0,
             detailed: false,
             seh: 0,
-            vseh: 0,
+            veh: 0,
             showregs: false,
             iter: false,
             quick: false,
@@ -880,8 +876,8 @@ impl Emu32 {
         let addr:u32;
         let next:u32;
 
-        if self.vseh > 0 {
-            addr = self.vseh;
+        if self.veh > 0 {
+            addr = self.veh;
             next = self.seh;
 
         } else {
@@ -925,6 +921,7 @@ impl Emu32 {
             0x775b5a18 => self.ntdll_NtGetContextThread(),
             0x7757f774 => self.ntdll_RtlVectoredExceptionHandler(),
             0x775d22b8 => self.ntdll_LdrLoadDll(),
+            0x775b6258 => self.ntdll_NtQueryVirtualMemory(),
             _ => panic!("calling unknown ntdll API 0x{:x}", addr),
         }
     }
@@ -937,6 +934,52 @@ impl Emu32 {
             0x75e93c01 => self.kernel32_LoadLibraryW(),
             _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
         }
+    }
+
+    fn ntdll_NtQueryVirtualMemory(&mut self) {
+        let handle = match self.maps.read_dword(self.regs.esp) {
+            Some(v) => v,
+            None => panic!("ntdll_NtQueryVirtualMemory: error reading handle"),
+        };
+
+        let addr = match self.maps.read_dword(self.regs.esp+4) {
+            Some(v) => v,
+            None => panic!("ntdll_NtQueryVirtualMemory: error reading address"),
+        };
+
+        if handle != 0xffffffff {
+            panic!("ntdll_NtQueryVirtualMemory: using handle of remote process {:x}", handle);
+        }
+
+        let out_meminfo_ptr = match self.maps.read_dword(self.regs.esp+12) {
+            Some(v) => v,
+            None => panic!("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo"),
+        };
+
+        if !self.maps.is_mapped(addr) {
+            panic!("ntdll_NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
+        }
+    
+        /*
+        __kernel_entry NTSYSCALLAPI NTSTATUS NtQueryVirtualMemory(
+            [in]            HANDLE                   ProcessHandle,
+            [in, optional]  PVOID                    BaseAddress,
+            [in]            MEMORY_INFORMATION_CLASS MemoryInformationClass,
+            [out]           PVOID                    MemoryInformation,
+            [in]            SIZE_T                   MemoryInformationLength,
+            [out, optional] PSIZE_T                  ReturnLength
+        );
+        */
+
+        if !self.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
+            panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
+        }
+
+        for _ in 0..6 {
+            self.stack_pop(false);
+        }
+
+        self.regs.eax = constants::STATUS_SUCCESS;
     }
 
     fn user32_MessageBoxA(&mut self) {
@@ -1011,7 +1054,7 @@ impl Emu32 {
         let colors = Colors::new();
         println!("{}** ntdll_RtlVectoredExceptionHandler   callback:0x{:x} {}",colors.light_red, fptr, colors.nc);
 
-        self.vseh = fptr;
+        self.veh = fptr;
 
         self.regs.eax = 0x2c2878;
         self.stack_pop(false);
