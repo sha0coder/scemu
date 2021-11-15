@@ -43,13 +43,18 @@
         747358 0x3cc73d: call dword ptr [ebp + 0xc] --> jump to kernel32
 
 
-        747505 0x775c2c11: push dword ptr fs:[0] ---> SEH
+        747505 0x775c2c11: push dword ptr fs:[0] ---> SEH  (debugger stop by here?)
 
 
-        748048 0x775b52e2: call dword ptr [edx]
-        /!\ exception: reading on non mapped zone 0x7ffe0300
-        --- console ---
+        ** ntdll_NtGetContextThread   ctx flags:0x0 
+        ** ntdll_RtlVectoredExceptionHandler   callback:0x3cff59 
+
+        int3
         jump the exception pointer (y/n)?=>
+        1937615 0x3cff59: mov eax, dword ptr [esp + 4]                (debuger has this ptrs?)
+        1937616 0x3cff5d: mov eax, dword ptr [eax + 4]
+        1937617 0x3cff60: mov edx, dword ptr [eax + 0xb8]
+
 
 
 */
@@ -562,160 +567,46 @@ impl Emu32 {
         return (unsigned & 0xff) as u32;
     }
 
-    // new proper calculations of overflow and carry:
     pub fn flags_sub32(&mut self, value1:u32, value2:u32) -> u32 {
-        let a:i32 = value1 as i32;
-        let b:i32 = value2 as i32;
-
-        self.flags.f_of = false;
-        self.flags.f_cf = false;
+        let r:i32;
 
 
-        // overflow case on substraction
-        if a >=0 && b < 0 {
+        self.flags.check_carry_sub_dword(value1, value2);
+        r = self.flags.check_overflow_sub_dword(value1, value2);
+        self.flags.f_zf = value1 == value2;
 
-            // case of overflow + carry
-            if (b as u32) == 0x80000000 {
-                let r:u64 = 0x80000000 as u64 + a as u64;
+        self.flags.f_sf = r < 0;
+        self.flags.f_pf = ((r as u32) & 0xff) % 2 == 0;
 
-                self.flags.f_of = true;
-                self.flags.f_cf = true;
-                self.flags.f_sf = true;
-                return (r & 0xffffffff) as u32;
-
-            } else {
-
-                let sum:u32 = a as u32 + b.abs() as u32;
-                if sum > 0x7fffffff {
-                    self.flags.f_of = true;
-                    self.flags.f_sf = true;
-                    self.flags.f_zf = false;
-                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
-                    return sum;
-                }
-            }   
-        }
-
-        // carry case on substraction
-        let r:i64 = a as i64 - b as i64;
-        if (r as u64) > 0xffffffff {
-            self.flags.f_cf = true;
-            self.flags.f_sf = true;
-            self.flags.f_zf = ((r & 0xffffffff) as u32) == 0;
-            self.flags.f_pf = (r & 0xff) % 2 == 0;
-            return (r & 0xffffffff) as u32;
-        }
-        
-
-        let res:i32 = a - b;
-
-        self.flags.f_zf = res == 0;
-        self.flags.f_sf = res < 0;
-        self.flags.f_pf = (res & 0xff) % 2 == 0;
-        return res as u32;
+        return r as u32;
     }
 
     pub fn flags_sub16(&mut self, value1:u32, value2:u32) -> u32 {
-        let a:i16 = value1 as i16;
-        let b:i16 = value2 as i16;
+        let r:i16;
 
-        self.flags.f_of = false;
-        self.flags.f_cf = false;
+
+        self.flags.check_carry_sub_word(value1, value2);
+        r = self.flags.check_overflow_sub_word(value1, value2);
         self.flags.f_zf = value1 == value2;
 
-        // overflow case on substraction
-        if a >= 0 && b < 0 {
+        self.flags.f_sf = r < 0;
+        self.flags.f_pf = ((r as u16) & 0xff) % 2 == 0;
 
-            // case of overflow + carry
-            if (b as u16) == 0x8000 {
-                let r:u32 = 0x8000 as u32 + a as u32;
-
-                self.flags.f_of = true;
-                self.flags.f_cf = true;
-                self.flags.f_sf = true;
-                return (r & 0xffff) as u32;
-
-            } else {
-
-                let sum:u16 = a as u16 + b.abs() as u16;
-                if sum > 0x7fff {
-                    self.flags.f_of = true;
-                    self.flags.f_sf = true;
-                    self.flags.f_zf = false;
-                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
-                    return sum as u32;
-                }
-            }
-        }
-
-        // carry case on substraction
-        let r:i32 = a as i32 - b as i32;
-        if (r as u32) > 0xffff {
-            self.flags.f_cf = true;
-            self.flags.f_sf = true;
-            self.flags.f_pf = (r & 0xff) % 2 == 0;
-            self.flags.f_zf = ((r & 0xffff) as u32) == 0;
-            return (r & 0xffff) as u32;
-        }
-        
-
-        let res:i16 = a - b;
-
-        self.flags.f_zf = res == 0;
-        self.flags.f_sf = res < 0;
-        self.flags.f_pf = (res & 0xff) % 2 == 0;
-        return (res as u16) as u32;
+        return (r as u16) as u32;
     }
 
     pub fn flags_sub8(&mut self, value1:u32, value2:u32) -> u32 {
-        let a:i8 = value1 as i8;
-        let b:i8 = value2 as i8;
+        let r:i8;
 
-        self.flags.f_of = false;
-        self.flags.f_cf = false;
+        self.flags.check_carry_sub_byte(value1, value2);
+        r = self.flags.check_overflow_sub_byte(value1, value2);
+        self.flags.f_zf = value1 == value2;
 
-        // overflow case on substraction
-        if a >= 0 && b < 0 {
-
-            // case of overflow + carry
-            if (b as u8) == 0x80 {
-                let r:u16 = 0x80 as u16 + a as u16;
-
-                self.flags.f_of = true;
-                self.flags.f_cf = true;
-                self.flags.f_sf = true;
-                return (r & 0xff) as u32;
-
-            } else {
-                let sum:u8 = a as u8 + b.abs() as u8;
-                if sum > 0x7f {
-                    self.flags.f_of = true;
-                    self.flags.f_sf = true;
-                    self.flags.f_zf = false;
-                    self.flags.f_pf = (sum & 0xff) % 2 == 0;
-                    return sum as u32;
-                }
-            }
-        }
-
-        // carry case on substraction
-        let r:i16 = a as i16 - b as i16;
-        if (r as u16) > 0xff {
-            self.flags.f_cf = true;
-            self.flags.f_sf = true;
-            self.flags.f_zf = ((r & 0xff) as u32) == 0;
-            self.flags.f_pf = (r & 0xff) % 2 == 0;
-            return (r & 0xff) as u32;
-        }
-    
-
-        let res:i8 = a - b;
-
-        self.flags.f_zf = res == 0;
-        self.flags.f_sf = res < 0;
-        self.flags.f_pf = res % 2 == 0;
-        return (res as u8) as u32;
+        self.flags.f_sf = r < 0;
+        self.flags.f_pf = ((r as u8) & 0xff) % 2 == 0;
+        return (r as u8) as u32;
     }
+
 
 
 
@@ -1360,6 +1251,13 @@ impl Emu32 {
 
                 pos += 1;
 
+                if self.regs.eip == 0x3c8e18 {
+                    println!("trace -> {}", self.maps.read_string(self.regs.edx));
+                }
+
+                if self.regs.eip == 0x3c8e29 {
+                    println!("trace -> eax:{:x} == edx:{:x} ??  645AAB39", self.regs.eax, self.regs.edx)
+                }
 
                 if self.exp == pos || self.bp == addr as u32 {
                     step = true;
@@ -1485,11 +1383,13 @@ impl Emu32 {
                             self.ntdll_api(addr);
                         } else if name == "user32_text" {
                             self.user32_api(addr);
-                        } else {
+                        } else if name == "code" {
                             self.stack_push(self.regs.eip + sz as u32); // push return address
                             //println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
                             self.set_eip(addr, false);
                             break;
+                        } else {
+                            panic!("calling to {} at 0x{:x}", name, addr);
                         }
                     },
 
@@ -1509,6 +1409,14 @@ impl Emu32 {
                             0x55 => self.stack_push(self.regs.ebp),
                             0x56 => self.stack_push(self.regs.esi),
                             0x57 => self.stack_push(self.regs.edi),
+                            0x16 => self.stack_push(self.regs.esp),
+
+                            0x66 => {
+                                match ins.bytes()[1] {
+                                    0x56 => self.stack_push(self.regs.esi), // push si
+                                    _ => panic!("unimplemented push")
+                                }
+                            },
 
                             // push + inmediate
                             0x68|0x6a => {
@@ -1558,6 +1466,14 @@ impl Emu32 {
                             0x5d => self.regs.ebp = self.stack_pop(true),
                             0x5e => self.regs.esi = self.stack_pop(true),
                             0x5f => self.regs.edi = self.stack_pop(true),
+                            0x17 => self.regs.esp = self.stack_pop(true),
+
+                            0x66 => {
+                                match ins.bytes()[1] {
+                                    0x5e => self.regs.esi = self.stack_pop(true), // pop si
+                                    _ => panic!("unimplemented pop")
+                                }
+                            },
 
                             // pop + mem operation
                             _ => {
@@ -1598,6 +1514,13 @@ impl Emu32 {
                         self.regs.edx = self.stack_pop(false);
                         self.regs.ecx = self.stack_pop(false);
                         self.regs.eax = self.stack_pop(false);
+                    },
+
+                    Some("cdq") => {
+                        let num:i64 = self.regs.eax as i64;
+                        let unum:u64 = num as u64;
+                        self.regs.edx = ((unum & 0xffffffff00000000) >> 32) as u32;
+                        self.regs.eax = (unum & 0xffffffff) as u32;
                     },
 
                     Some("ret") => {
@@ -1674,10 +1597,12 @@ impl Emu32 {
 
                             } else {
                                 // xchg reg, reg
+                                println!("reg reg");
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 self.regs.set_by_name(parts[0], value1);
                                 self.regs.set_by_name(parts[1], value0);
+                                println!("end.");
                             }
                         }
                     }
@@ -4982,10 +4907,13 @@ impl Emu32 {
                         self.flags.f_cf = false;
                     },
 
-                    Some("rdstc") => {
+                    Some("rdtsc") => {
                         if !step {
-                            panic!("{}{} {}{}", colors.red, pos, ins, colors.nc);
+                            println!("{}{} {}{}", colors.red, pos, ins, colors.nc);
                         }
+                        self.regs.edx = 0;
+                        self.regs.eax = 0;
+
                     },
 
                     Some("loop") => {
