@@ -1,3 +1,17 @@
+pub const MIN_I8:i8 = -128;
+pub const MAX_I8:i8 = 0x7f;
+pub const MIN_U8:u8 = 0;
+pub const MAX_U8:u8 = 0xff;
+
+pub const MIN_I16:i16 = -32768;
+pub const MAX_I16:i16 = 0x7fff;
+pub const MIN_U16:u16 = 0;
+pub const MAX_U16:u16 = 0xffff;
+
+pub const MIN_I32:i32 = -2147483648;
+pub const MAX_I32:i32 = 0x7fffffff;
+pub const MIN_U32:u32 = 0;
+pub const MAX_U32:u32 = 0xffffffff;
 
 
 pub struct Flags {
@@ -58,14 +72,58 @@ impl Flags {
         println!("---");
     }
 
-    pub fn get_dword(&self) -> u16 {
-        let mut f:u16 = 0;
-
-        if self.f_pf {
-            f |= 1 << 10;
-        }
-
-
-        return f;
+    pub fn check_carry_sub_byte(&mut self, a:u32, b:u32) {
+        self.f_cf = (b as u8) > (a as u8);
     }
+
+    pub fn check_overflow_sub_byte(&mut self, a:u32, b:u32) -> i8 {
+        let cf = false;
+        let rs:i16;
+    
+        if cf {
+            rs = (a as i8) as i16 - (b as i8) as i16 - 1;
+        } else {
+            rs = (a as i8) as i16 - (b as i8) as i16;
+        }
+    
+        self.f_of = rs < MIN_I8 as i16 || rs > MAX_I8 as i16;
+        return (((rs as u16) & 0xff) as u8) as  i8
+    }
+
+    pub fn check_carry_sub_word(&mut self, a:u32, b:u32) {
+        self.f_cf = (b as u16) > (a as u16);
+    }
+
+    pub fn check_overflow_sub_word(&mut self, a:u32, b:u32) -> i16 {
+        let cf = false;
+        let rs:i32;
+    
+        if cf {
+            rs = (a as i16) as i32 - (b as i16) as i32 - 1;
+        } else {
+            rs = (a as i16) as i32 - (b as i16) as i32;
+        }
+    
+        self.f_of = rs < MIN_I16 as i32 || rs > MAX_I16 as i32;
+        return (((rs as u32) & 0xffff) as u16) as i16;
+    }
+
+    pub fn check_carry_sub_dword(&mut self, a:u32, b:u32) {
+        self.f_cf = (b as u32) > (a as u32);
+    }
+
+    pub fn check_overflow_sub_dword(&mut self, a:u32, b:u32) -> i32 {
+        let cf = false;
+        let rs:i64;
+    
+        if cf {
+            rs = (a as i32) as i64 - (b as i32) as i64 - 1;
+        } else {
+            rs = (a as i32) as i64 - (b as i32) as i64;
+        }
+    
+        self.f_of = rs < MIN_I32 as i64 || rs > MAX_I32 as i64;
+        return (((rs as u64) & 0xffffffff) as u32) as i32;
+    }
+  
 }
