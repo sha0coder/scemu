@@ -1,5 +1,7 @@
 /*
     TODO:
+        - scripting
+        - console dissasembler option
         - intead of panic spawn console
         - set the code base addr
         - refactor and improve winapi
@@ -20,6 +22,11 @@
             - log to file
             - dont print instruction
         - search in all the maps 
+
+    metasploit:
+
+    13 0x3c000b: mov edx, dword ptr fs:[edx + 0x30]   <-- poor detection of  fs:[0x30] or fs:[0]
+
 
 
     guloader:
@@ -95,6 +102,7 @@ pub struct Emu32 {
     showregs: bool,
     iter: bool,
     quick: bool,
+    tracemem: bool,
 }
 
 impl Emu32 {
@@ -115,6 +123,7 @@ impl Emu32 {
             showregs: false,
             iter: false,
             quick: false,
+            tracemem: false,
         }
     }
 
@@ -152,16 +161,25 @@ impl Emu32 {
         self.maps.create_map("kernel32");
         self.maps.create_map("kernel32_text");
         self.maps.create_map("kernel32_data");
+        self.maps.create_map("kernelbase");
         self.maps.create_map("kernelbase_text");
         self.maps.create_map("kernelbase_data");
+        self.maps.create_map("msvcrt");
+        self.maps.create_map("msvcrt_text");
         self.maps.create_map("reserved");
         self.maps.create_map("kuser_shared_data");
+        self.maps.create_map("binary").set_base(0x400000);
+        self.maps.create_map("reserved2").set_base(0x2c3000);
+
+
+        self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
 
         self.init_stack();
 
         let m10000 = self.maps.get_mem("10000");
         m10000.set_base(0x10000);
         m10000.set_size(0x10000);
+        
         let m20000 = self.maps.get_mem("20000");
         m20000.set_base(0x20000);
         m20000.set_size(0x10000);
@@ -179,6 +197,10 @@ impl Emu32 {
         kernel32_data.set_base(0x75f06000);
         kernel32_data.load("maps/kernel32_data.bin");
 
+        let kernelbase = self.maps.get_mem("kernelbase");
+        kernelbase.set_base(0x75940000);
+        kernelbase.load("maps/kernelbase.bin");
+
         let kernelbase_text = self.maps.get_mem("kernelbase_text");
         kernelbase_text.set_base(0x75941000);
         kernelbase_text.load("maps/kernelbase_text.bin");
@@ -186,6 +208,15 @@ impl Emu32 {
         let kernelbase_data = self.maps.get_mem("kernelbase_data");
         kernelbase_data.set_base(0x75984000);
         kernelbase_data.load("maps/kernelbase_data.bin");
+
+        let msvcrt = self.maps.get_mem("msvcrt");
+        msvcrt.set_base(0x761e0000);
+        msvcrt.load("maps/msvcrt.bin");
+
+        let msvcrt_text = self.maps.get_mem("msvcrt_text");
+        msvcrt_text.set_base(0x761e1000);
+        msvcrt_text.load("maps/msvcrt_text.bin");
+
 
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x002c0000);
@@ -216,6 +247,7 @@ impl Emu32 {
         kuser_shared_data.load("maps/kuser_shared_data.bin");
 
 
+
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
         //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
@@ -236,6 +268,10 @@ impl Emu32 {
 
     pub fn mode_regs(&mut self) {
         self.showregs = true;
+    }
+
+    pub fn mode_tracemem(&mut self) {
+        self.tracemem = true;
     }
 
     pub fn load_code(&mut self, filename: &String) {
@@ -387,8 +423,6 @@ impl Emu32 {
         // check integrity of eip, esp and ebp registers
 
 
-        
-
         let stack = self.maps.get_mem("stack");
 
         // could be normal using part of code as stack
@@ -400,17 +434,47 @@ impl Emu32 {
 
         match bits {
             32 => {
-               return self.maps.read_dword(addr);
-            },
+                match self.maps.read_dword(addr) {
+                    Some(v) => {
+                        if self.tracemem {
+                            let name = match self.maps.get_addr_name(addr) {
+                                Some(n) => n,
+                                None => "error".to_string(),
+                            };
+                            println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
+                        }
+                        return Some(v);
+                    },
+                    None => return None,
+                }
+            }
             16 => {
                 match self.maps.read_word(addr) {
-                    Some(value) => return Some((value as u32) & 0xffff),
+                    Some(v) => {
+                        if self.tracemem {
+                            let name = match self.maps.get_addr_name(addr) {
+                                Some(n) => n,
+                                None => "error".to_string(),
+                            };
+                            println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
+                        }
+                        return Some((v as u32) & 0xffff);
+                    },
                     None => return None,
                 }
             },
-             8 => {
+            8 => {
                 match self.maps.read_byte(addr) {
-                    Some(value) => return Some((value as u32) & 0xff),
+                    Some(v) => {
+                        if self.tracemem {
+                            let name = match self.maps.get_addr_name(addr) {
+                                Some(n) => n,
+                                None => "error".to_string(),
+                            };
+                            println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
+                        }
+                        return Some((v as u32) & 0xff);
+                    },
                     None => return None,
                 }
             },
@@ -428,13 +492,17 @@ impl Emu32 {
 
         let addr:u32 = self.memory_operand_to_address(operand);
 
-        /*
-        if self.detailed {
-            match self.maps.get_addr_name(addr) {
-                Some(name) => println!("\twritting memory at '{}' addr 0x{:x} value: 0x{:x}", name, addr, value),
-                None => panic!("writting outside  of maps addr 0x{:x} value: 0x{:x}", addr, value)
-            }
+        /*if !self.maps.is_mapped(addr) {
+            panic!("writting in non mapped memory");
         }*/
+
+        if self.tracemem {
+            let name = match self.maps.get_addr_name(addr) {
+                Some(n) => n,
+                None => "error".to_string(),
+            };
+            println!("mem trace write -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, value, name);
+        }
 
         let bits = self.get_size(operand);
         let ret = match bits {
@@ -733,6 +801,15 @@ impl Emu32 {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => self.regs.print(),
+                "r eax" => println!("eax: 0x{:x}", self.regs.eax),
+                "r ebx" => println!("ebx: 0x{:x}", self.regs.ebx),
+                "r ecx" => println!("ecx: 0x{:x}", self.regs.ecx),
+                "r edx" => println!("edx: 0x{:x}", self.regs.edx),
+                "r esi" => println!("esi: 0x{:x}", self.regs.esi),
+                "r edi" => println!("edi: 0x{:x}", self.regs.edi),
+                "r esp" => println!("esp: 0x{:x}", self.regs.esp),
+                "r ebp" => println!("ebp: 0x{:x}", self.regs.ebp),
+                "r eip" => println!("eip: 0x{:x}", self.regs.eip),
                 "rc" => {
                     con.print("register name");
                     let reg = con.cmd();
@@ -757,7 +834,8 @@ impl Emu32 {
                 "mw"|"wm" => {
                     con.print("memory argument");
                     let operand = con.cmd();
-                    let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
+                    con.print("value");
+                    let value = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     if self.memory_write(operand.as_str(), value) {
                         println!("done.");
                     } else {
@@ -825,12 +903,12 @@ impl Emu32 {
                 "eip" => {
                     con.print("=");
                     let saddr = con.cmd();
-                    let addr = u32::from_str_radix(saddr.as_str(), 16).expect("bad num conversion");
+                    let addr = u32::from_str_radix(saddr.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     self.regs.eip = addr;
                 },
                 "push" => {
                     con.print("value");
-                    let value = u32::from_str_radix(con.cmd().as_str(), 16).expect("bad num conversion");
+                    let value = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
                     self.stack_push(value);
                     println!("pushed.");
                 },
@@ -863,6 +941,11 @@ impl Emu32 {
                     return;
                 },
                 "m" => self.maps.print_maps(),
+                "d" => {
+                    con.print("address");
+                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad address");
+                    self.disasemble(addr);
+                },
                 "" => {
                     self.exp += 1;
                     return;
@@ -879,6 +962,11 @@ impl Emu32 {
         if self.veh > 0 {
             addr = self.veh;
             next = self.seh;
+
+            self.stack_push(0x10f00);
+            self.maps.write_dword(0x10f04, 0x10f00); // guloader trick
+            self.maps.write_dword(0x10fb8, self.regs.eip); // guloader trick
+            self.stack_push(self.regs.eip);
 
         } else {
 
@@ -1045,10 +1133,10 @@ impl Emu32 {
     }
     
     fn ntdll_RtlVectoredExceptionHandler(&mut self) {
-        /*let p1 = match self.maps.read_dword(self.regs.esp) {
+        let p1 = match self.maps.read_dword(self.regs.esp) {
             Some(v) => v,
             None => panic!("ntdll_RtlVectoredExceptionHandler: error reading p1"),
-        };*/
+        };
 
         let fptr = match self.maps.read_dword(self.regs.esp+4) {
             Some(v) => v,
@@ -1056,7 +1144,7 @@ impl Emu32 {
         };
 
         let colors = Colors::new();
-        println!("{}** ntdll_RtlVectoredExceptionHandler   callback:0x{:x} {}",colors.light_red, fptr, colors.nc);
+        println!("{}** ntdll_RtlVectoredExceptionHandler  {} callback:0x{:x} {}",colors.light_red, p1, fptr, colors.nc);
 
         self.veh = fptr;
 
@@ -1258,6 +1346,24 @@ impl Emu32 {
         }
 
         self.stack_pop(false);
+    }
+
+    pub fn disasemble(&mut self, addr:u32) {
+        let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
+        let code = self.maps.get_mem(map_name.as_str());
+        let block = code.read_from(addr);
+        let cs = Capstone::new()
+            .x86()
+            .mode(arch::x86::ArchMode::Mode32)
+            .syntax(arch::x86::ArchSyntax::Intel)
+            .detail(true)
+            .build()
+            .expect("Failed to create Capstone object");
+        
+            let insns = cs.disasm_all(block, addr as u64).expect("Failed to disassemble");
+            for ins in insns.as_ref() {
+                println!("{}", ins);
+            }
     }
 
 
@@ -3343,9 +3449,10 @@ impl Emu32 {
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 1;
+                        let twoparams = parts.len() == 2;
 
                         if twoparams {
+                            
                             if self.is_reg(parts[0]) {
                                 // reg
                                 if self.is_reg(parts[1]) {
@@ -3353,7 +3460,7 @@ impl Emu32 {
                                     let value0:u32 = self.regs.get_by_name(parts[0]);
                                     let value1:u32 = self.regs.get_by_name(parts[1]);
                                     let res:u32;
-                                    let bits:u8 = self.get_size(op);
+                                    let bits:u8 = self.get_size(parts[0]);
                                 
                                     res = self.rotate_right(value0, value1, bits as u32);
                             
@@ -3366,7 +3473,7 @@ impl Emu32 {
                                     let value0:u32 = self.regs.get_by_name(parts[0]);
                                     let value1:u32 = self.get_inmediate(parts[1]);
                                     let res:u32;
-                                    let bits:u8 = self.get_size(op);
+                                    let bits:u8 = self.get_size(parts[0]);
                                     
                                     res = self.rotate_right(value0, value1, bits as u32);
 
@@ -5268,7 +5375,7 @@ impl Emu32 {
                             println!("{}{} {}{}", colors.blue, pos, ins, colors.nc);
                         }
                         self.flags.f_df = false;
-                    }
+                    },
 
                     Some("lodsd") => {
                         if !step {

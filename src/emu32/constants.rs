@@ -7,3 +7,8 @@ pub const STATUS_INVALID_HANDLE:u32 = 0xC0000008;
 pub const STATUS_NO_MEMORY:u32 = 0xC0000017;
 pub const STATUS_ACCESS_VIOLATION:u32 = 0xC0000005;
 pub const STATUS_INVALID_PARAMETER:u32 = 0xC000000D;
+
+//vectored exception handler
+pub const CALL_FIRST:u32 = 1;
+pub const CALL_LAST:u32 = 0;
+
