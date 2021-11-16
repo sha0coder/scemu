@@ -30,6 +30,7 @@ impl Console {
         println!("s ...................... stack");
         println!("v ...................... vars");
         println!("r ...................... register show all");
+        println!("r reg .................. show reg");
         println!("rc ..................... register change");
         println!("f ...................... show all flags");
         println!("cf ..................... clear all flags");
@@ -51,6 +52,7 @@ impl Console {
         println!("mdw .................... memory dump wide string");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");
+        println!("d ...................... dissasemble");
         println!("");
         println!("---");
     }

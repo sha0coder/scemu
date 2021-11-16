@@ -10,6 +10,7 @@ fn usage() {
     println!("        q            quick, dont print assembly instructions to be quicker.");
     println!("        l            loop, show  loop iterations, very slow.");
     println!("        r            regs, view the register values in every step.");
+    println!("        m            memory, trace memory reads and writes.");
     println!();
     std::process::exit(1);
 }
@@ -35,7 +36,9 @@ fn main() {
         emu32.mode_loop();
     } else  if mode == "r" {
         emu32.mode_regs();
-    } 
+    } else if mode == "m" {
+        emu32.mode_tracemem();
+    }
     
 
     if args.len() == 4 {
