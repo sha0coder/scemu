@@ -759,7 +759,7 @@ impl Emu32 {
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = value == 0;
+        self.flags.f_zf = value == 1;
 
         return value - 1;
     }
@@ -776,7 +776,7 @@ impl Emu32 {
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = value == 0;
+        self.flags.f_zf = value == 1;
 
         return value - 1;
     }
@@ -793,7 +793,7 @@ impl Emu32 {
         self.flags.f_af = false;
         self.flags.f_sf = false;
 
-        self.flags.f_zf = value == 0;
+        self.flags.f_zf = value == 1;
 
         return value - 1;
     }
