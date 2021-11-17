@@ -27,6 +27,19 @@
 
     13 0x3c000b: mov edx, dword ptr fs:[edx + 0x30]   <-- poor detection of  fs:[0x30] or fs:[0]
 
+        poner bp en 0x3c006b
+
+        7915429 0x3c0020: lodsb al, byte ptr [esi]
+        --- console ---
+        =>r esi
+        esi: 0x3b3000
+        =>mn
+        address=>0x3b3000
+        address at 'reserved2' map
+        =>md
+        address=>0x3b3000
+        thread 'main' panicked at 'index out of bounds: the len is 983040 but the index is 983040', src/emu32/maps/mem32.rs:76:11
+
 
 
     guloader:
@@ -129,15 +142,26 @@ impl Emu32 {
 
     pub fn init_stack(&mut self) {
         let stack = self.maps.get_mem("stack");
-        let q = (stack.size() as u32) / 4;
-        stack.set_base(self.regs.esp - (q*3));
+        stack.set_base(0x22d000);
+        stack.set_size(0x3000);
+        self.regs.esp = 0x22e000;
+        self.regs.ebp = 0x22f000;
+
+        assert!(self.regs.esp < self.regs.ebp);
+        assert!(self.regs.esp > stack.get_base());
+        assert!(self.regs.esp < stack.get_bottom());
+        assert!(self.regs.ebp > stack.get_base());
+        assert!(self.regs.ebp < stack.get_bottom());
+        assert!(stack.inside(self.regs.esp));
+        assert!(stack.inside(self.regs.ebp));
+        //let q = (stack.size() as u32) / 4;
     }
 
     pub fn init(&mut self) {
         println!("initializing regs");
         self.regs.clear();
-        self.regs.esp = 0x00100000;
-        self.regs.ebp = 0x00100f00;
+        //self.regs.esp = 0x22f000;
+        //self.regs.ebp = 0x00100f00;
         self.regs.eip = 0x003c0000;
         //TODO: randomize initial register for avoid targeted anti-amulation
         self.regs.eax = 0;
@@ -168,11 +192,11 @@ impl Emu32 {
         self.maps.create_map("msvcrt_text");
         self.maps.create_map("reserved");
         self.maps.create_map("kuser_shared_data");
-        self.maps.create_map("binary").set_base(0x400000);
-        self.maps.create_map("reserved2").set_base(0x2c3000);
+        self.maps.create_map("binary");
+        self.maps.create_map("reserved2");
 
 
-        self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
+        //self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
 
         self.init_stack();
 
@@ -217,7 +241,6 @@ impl Emu32 {
         msvcrt_text.set_base(0x761e1000);
         msvcrt_text.load("maps/msvcrt_text.bin");
 
-
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x002c0000);
         reserved.load("maps/reserved.bin");
@@ -246,7 +269,13 @@ impl Emu32 {
         kuser_shared_data.set_base(0x7ffe0000);
         kuser_shared_data.load("maps/kuser_shared_data.bin");
 
+        let binary = self.maps.get_mem("binary");
+        binary.set_base(0x400000);
+        binary.set_size(0x1000);
 
+        let reserved2 = self.maps.get_mem("reserved2");
+        reserved2.set_base(0x2c3000);
+        reserved2.set_size(0xfd000);
 
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
@@ -1325,6 +1354,7 @@ impl Emu32 {
     fn kernel32_LoadLibraryExA(&mut self) {
         let colors = Colors::new();
         println!("{}** LoadLibraryExA {}",colors.light_red, colors.nc);
+        panic!();
     }
 
     fn kernel32_LoadLibraryExW(&mut self) {

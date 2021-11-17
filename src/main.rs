@@ -6,7 +6,7 @@ use emu32::Emu32;
 fn usage() {
     println!("scemu [filename] [mode] <line to inspect optional>");
     println!("   modes:");
-    println!("        n            normal mode");
+    println!("        n            normal mode.");
     println!("        q            quick, dont print assembly instructions to be quicker.");
     println!("        l            loop, show  loop iterations, very slow.");
     println!("        r            regs, view the register values in every step.");
@@ -39,7 +39,6 @@ fn main() {
     } else if mode == "m" {
         emu32.mode_tracemem();
     }
-    
 
     if args.len() == 4 {
         emu32.explain(&args[3]);
