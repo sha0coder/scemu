@@ -5,25 +5,33 @@
 use std::fs::File;
 use std::io::Read;
 
-const MAX_MEM:usize = 0x000f0000;
+//const MAX_MEM:usize = 0x000f0000;
 
 pub struct Mem32 {
     base_addr: u32,
     bottom_addr: u32,
-    pub mem: Box<[u8]>, //:[u8;MAX_MEM],
+    pub mem: Box<Vec<u8>>,   //:[u8;MAX_MEM],
 }
 
 impl Mem32 {
     pub fn new() -> Mem32 {
         Mem32 {
             base_addr: 0,
-            bottom_addr: MAX_MEM as u32,
-            mem: Box::new([0;MAX_MEM]),
+            bottom_addr: 0,
+            mem: Box::new(Vec::new()),
+        }
+    }
+
+    pub fn alloc(&mut self, amount:usize) {
+        // Box<Vec<u8>> allow to allocate a variable amount of heap without unsafe blocks
+        self.mem.clear();
+        for _ in 0..amount {
+            self.mem.push(0);
         }
     }
 
     pub fn size(&self) -> usize {
-        return MAX_MEM;
+        return self.mem.len();
     }
 
     pub fn get_base(&self) -> u32 {
@@ -35,7 +43,7 @@ impl Mem32 {
     }
 
     pub fn inside(&self, addr:u32) -> bool {
-        if addr >= self.base_addr && addr <= self.bottom_addr {
+        if addr >= self.base_addr && addr < self.bottom_addr {
             return true;
         }
         return false;
@@ -43,15 +51,18 @@ impl Mem32 {
 
     pub fn set_base(&mut self, base_addr:u32) {
         self.base_addr = base_addr;
-        self.bottom_addr = base_addr + MAX_MEM as u32;
+        self.bottom_addr = base_addr;
     }
 
     pub fn set_bottom(&mut self, bottom_addr:u32) {
         self.bottom_addr = bottom_addr;
+        let size = self.bottom_addr - self.base_addr;
+        self.alloc(size as usize);
     }
 
     pub fn set_size(&mut self, size:u32) {
         self.bottom_addr = self.base_addr + size;
+        self.alloc(size as usize);
     }
 
     pub fn read_from(&self, addr:u32) -> &[u8] {
@@ -62,7 +73,11 @@ impl Mem32 {
 
     pub fn read_byte(&self, addr:u32) -> u8 {
         let idx = (addr - self.base_addr) as usize;
-        self.mem[idx]
+        if idx < self.mem.len() {
+            self.mem[idx]
+        } else {
+            panic!("reading at 0x{:x}", addr);
+        }
     }
 
     pub fn read_word(&self, addr:u32) -> u16 {
@@ -121,7 +136,9 @@ impl Mem32 {
 
     pub fn load(&mut self, filename: &str) {
         let mut f = File::open(&filename).expect("no file found");
-        self.bottom_addr = self.base_addr + f.metadata().unwrap().len() as u32;
+        let len = f.metadata().unwrap().len() as u32;
+        self.bottom_addr = self.base_addr + len;
+        self.alloc(len as usize);
         f.read(&mut self.mem).expect("buffer overflow");
     }
 
