@@ -1,16 +1,14 @@
 /*
-    Little endian generic memory
+    Little endian generic 32bits memory
 */
 
 use std::fs::File;
 use std::io::Read;
 
-//const MAX_MEM:usize = 0x000f0000;
-
 pub struct Mem32 {
     base_addr: u32,
     bottom_addr: u32,
-    pub mem: Box<Vec<u8>>,   //:[u8;MAX_MEM],
+    pub mem: Vec<u8>, 
 }
 
 impl Mem32 {
@@ -18,16 +16,12 @@ impl Mem32 {
         Mem32 {
             base_addr: 0,
             bottom_addr: 0,
-            mem: Box::new(Vec::new()),
+            mem: Vec::new(),
         }
     }
 
     pub fn alloc(&mut self, amount:usize) {
-        // Box<Vec<u8>> allow to allocate a variable amount of heap without unsafe blocks
-        self.mem.clear();
-        for _ in 0..amount {
-            self.mem.push(0);
-        }
+        self.mem = vec![0; amount];
     }
 
     pub fn size(&self) -> usize {
