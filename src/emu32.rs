@@ -23,6 +23,15 @@
             - dont print instruction
         - search in all the maps 
 
+
+    there is an er-ror, error in the ror implementation:
+        mov eax, 0x54
+        ror eax, 0xd
+
+        eax should be 0x02a00000
+
+
+
     metasploit:
 
     13 0x3c000b: mov edx, dword ptr fs:[edx + 0x30]   <-- poor detection of  fs:[0x30] or fs:[0]
@@ -546,10 +555,28 @@ impl Emu32 {
 
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
-        match self.maps.get_addr_name(addr) {
-            Some(_) => self.regs.eip = addr,
-            None => panic!("setting eip to non mapped"),
+        let name = self.maps.get_addr_name(addr).expect("setting eip to non mapped addr");
+
+        if name == "code" || addr < 0x70000000 {
+            self.regs.eip = addr;
+        } else {
+            println!("/!\\ changing EIP to {} ", name);
+
+            let retaddr = self.stack_pop(false);
+
+            //TODO: centralize this, is repeated on call
+            if name == "kernel32_text" {
+                self.kernel32_api(addr);
+            } else if name == "ntdll_text" {
+                self.ntdll_api(addr);
+            } else if name == "user32_text" {
+                self.user32_api(addr);
+            }
+
+            self.regs.eip += 2; 
+            //self.regs.eip = retaddr;
         }
+
 
         //TODO: lanzar memory scan code.scan() y stack.scan()
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
@@ -813,13 +840,12 @@ impl Emu32 {
     }
 
     pub fn rotate_left(&self, val:u32, rot:u32, bits:u32) -> u32 {
-        return (val << rot%bits) & (2_u32.pow(bits-1)) |
-               ((val & (2_u32.pow(bits-1))) >> (bits-(rot%bits)));
+        return (val << rot) | (val >> bits-rot);
     }
 
     pub fn rotate_right(&self, val:u32, rot:u32, bits:u32) -> u32 {
-        return ((val & (2_u32.pow(bits-1))) >> rot%bits) |
-               (val << (bits-(rot%bits)) & (2_u32.pow(bits-1)));
+        //TODO: care with overflow
+        return (val >> rot) | (val << bits-rot);
     }
 
     pub fn spawn_console(&mut self) {
@@ -1039,6 +1065,7 @@ impl Emu32 {
             0x7757f774 => self.ntdll_RtlVectoredExceptionHandler(),
             0x775d22b8 => self.ntdll_LdrLoadDll(),
             0x775b6258 => self.ntdll_NtQueryVirtualMemory(),
+            0x775d531f => self.ntdll_stricmp(),
             _ => panic!("calling unknown ntdll API 0x{:x}", addr),
         }
     }
@@ -1047,9 +1074,29 @@ impl Emu32 {
         match addr {
             0x75e9395c => self.kernel32_LoadLibraryA(),
             0x75e847fa => self.kernel32_LoadLibraryExA(),
+            0x75e93951 => self.kernel32_LoadLibraryExA(), // from jump table
             0x75e84775 => self.kernel32_LoadLibraryExW(),
             0x75e93c01 => self.kernel32_LoadLibraryW(),
             _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
+        }
+    }
+
+    fn ntdll_stricmp(&mut self) {
+        let str1ptr = self.maps.read_dword(self.regs.esp).expect("ntdll_stricmp: error reading string1");
+        let str2ptr = self.maps.read_dword(self.regs.esp+4).expect("ntdll_stricmp: error reading string2");
+        let str1 = self.maps.read_string(str1ptr);
+        let str2 = self.maps.read_string(str2ptr);
+        let colors = Colors::new();
+        println!("{}** ntdll_stricmp  '{}'=='{}'? {}", colors.light_red, str1, str2, colors.nc);
+
+        if str1 == str2 {
+            self.regs.eax = 0;
+        } else {
+            self.regs.eax = 1;
+        }
+
+        for _ in 0..2 {
+            self.stack_pop(false);
         }
     }
 
@@ -1091,6 +1138,9 @@ impl Emu32 {
             [out, optional] PSIZE_T                  ReturnLength
         );
         */
+
+        let colors = Colors::new();
+        println!("{}** ntdll_NtQueryVirtualMemory {}", colors.light_red, colors.nc);
 
         if !self.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
             panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
@@ -1344,16 +1394,33 @@ impl Emu32 {
         println!("{}** LoadLibraryA  '{}'  {}",colors.light_red, dll, colors.nc);
 
 
-        if dll == "ntdll" {
+        if dll == "ntdll" || dll == "ntdll.dll" {
             self.regs.eax = self.maps.get_mem("ntdll").get_base();
+        } else if dll == "ws2_32" || dll == "ws2_32.dll" {
+            let ws2_32 = self.maps.create_map("ws2_32");
+            ws2_32.set_base(0x77480000);
+            ws2_32.load("maps/ws2_32.bin");
+            let ws2_32_text = self.maps.create_map("ws2_32_text");
+            ws2_32_text.set_base(0x77481000);
+            ws2_32_text.load("maps/ws2_32_text.bin");
         }
 
         self.stack_pop(false);
     }
 
     fn kernel32_LoadLibraryExA(&mut self) {
+        /*
+        HMODULE LoadLibraryExA(
+            [in] LPCSTR lpLibFileName,
+                 HANDLE hFile,
+            [in] DWORD  dwFlags
+          );
+        */
+        let libname_ptr = self.maps.read_dword(self.regs.esp).expect("kernel32_LoadLibraryExA: error reading libname ptr param");
+        let libname = self.maps.read_string(libname_ptr);
+
         let colors = Colors::new();
-        println!("{}** LoadLibraryExA {}",colors.light_red, colors.nc);
+        println!("{}** LoadLibraryExA '{}' {}",colors.light_red, libname, colors.nc);
         panic!();
     }
 
