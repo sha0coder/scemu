@@ -79,6 +79,8 @@
         1937616 0x3cff5d: mov eax, dword ptr [eax + 4]
         1937617 0x3cff60: mov edx, dword ptr [eax + 0xb8]
 
+        http://index-of.es/Reverse-Engineering/bh-usa-07-yason.pdf <-- the context object
+
 
 
 */
@@ -89,14 +91,14 @@
 
 extern crate capstone;
 
-mod winapi;
 mod flags; 
 mod eflags;
-mod maps;
-mod regs32;
+pub mod maps;
+pub mod regs32;
 mod console;
-mod colors;
-mod constants;
+pub mod colors;
+pub mod constants;
+mod winapi;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -104,9 +106,11 @@ use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 use colors::Colors;
+use winapi::WinAPI;
 
 use capstone::prelude::*;
 
+// if you have module crate::a::b, that goes at src/a/b.rs
 
 pub struct Emu32 {
     regs: Regs32,
@@ -164,6 +168,10 @@ impl Emu32 {
         assert!(stack.inside(self.regs.esp));
         assert!(stack.inside(self.regs.ebp));
         //let q = (stack.size() as u32) / 4;
+    }
+
+    pub fn callback(&mut self, cb:fn(m:&Maps)) {
+        cb(&self.maps);
     }
 
     pub fn init(&mut self) {
@@ -553,9 +561,10 @@ impl Emu32 {
         return ret;
     }
 
+
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
-        let name = self.maps.get_addr_name(addr).expect("setting eip to non mapped addr");
+        let name = self.maps.get_addr_name(addr).expect("/!\\ setting eip to non mapped addr");
 
         if name == "code" || addr < 0x70000000 {
             self.regs.eip = addr;
@@ -564,17 +573,11 @@ impl Emu32 {
 
             let retaddr = self.stack_pop(false);
 
-            //TODO: centralize this, is repeated on call
-            if name == "kernel32_text" {
-                self.kernel32_api(addr);
-            } else if name == "ntdll_text" {
-                self.ntdll_api(addr);
-            } else if name == "user32_text" {
-                self.user32_api(addr);
-            }
+            let winapi = WinAPI::new();
+            winapi.gateway(addr, name, self);
 
-            self.regs.eip += 2; 
-            //self.regs.eip = retaddr;
+            //self.regs.eip += 2; 
+            self.regs.eip = retaddr;
         }
 
 
@@ -1051,400 +1054,6 @@ impl Emu32 {
         }
     }
 
-    fn user32_api(&mut self, addr:u32) {
-        match addr {
-            0x7740ea11 => self.user32_MessageBoxA(),
-            _ => panic!("calling unknown user32 API 0x{:x}", addr)
-        }
-    }
-
-    fn ntdll_api(&mut self, addr:u32) {
-        match addr {
-            0x775b52d8 => self.ntdll_NtAllocateVirtualMemory(),
-            0x775b5a18 => self.ntdll_NtGetContextThread(),
-            0x7757f774 => self.ntdll_RtlVectoredExceptionHandler(),
-            0x775d22b8 => self.ntdll_LdrLoadDll(),
-            0x775b6258 => self.ntdll_NtQueryVirtualMemory(),
-            0x775d531f => self.ntdll_stricmp(),
-            _ => panic!("calling unknown ntdll API 0x{:x}", addr),
-        }
-    }
-
-    fn kernel32_api(&mut self, addr:u32) {
-        match addr {
-            0x75e9395c => self.kernel32_LoadLibraryA(),
-            0x75e847fa => self.kernel32_LoadLibraryExA(),
-            0x75e93951 => self.kernel32_LoadLibraryExA(), // from jump table
-            0x75e84775 => self.kernel32_LoadLibraryExW(),
-            0x75e93c01 => self.kernel32_LoadLibraryW(),
-            _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
-        }
-    }
-
-    fn ntdll_stricmp(&mut self) {
-        let str1ptr = self.maps.read_dword(self.regs.esp).expect("ntdll_stricmp: error reading string1");
-        let str2ptr = self.maps.read_dword(self.regs.esp+4).expect("ntdll_stricmp: error reading string2");
-        let str1 = self.maps.read_string(str1ptr);
-        let str2 = self.maps.read_string(str2ptr);
-        let colors = Colors::new();
-        println!("{}** ntdll_stricmp  '{}'=='{}'? {}", colors.light_red, str1, str2, colors.nc);
-
-        if str1 == str2 {
-            self.regs.eax = 0;
-        } else {
-            self.regs.eax = 1;
-        }
-
-        for _ in 0..2 {
-            self.stack_pop(false);
-        }
-    }
-
-    fn ntdll_NtQueryVirtualMemory(&mut self) {
-        let handle = match self.maps.read_dword(self.regs.esp) {
-            Some(v) => v,
-            None => panic!("ntdll_NtQueryVirtualMemory: error reading handle"),
-        };
-
-        let addr = match self.maps.read_dword(self.regs.esp+4) {
-            Some(v) => v,
-            None => panic!("ntdll_NtQueryVirtualMemory: error reading address"),
-        };
-
-        if handle != 0xffffffff {
-            panic!("ntdll_NtQueryVirtualMemory: using handle of remote process {:x}", handle);
-        }
-
-        let out_meminfo_ptr = match self.maps.read_dword(self.regs.esp+12) {
-            Some(v) => v,
-            None => panic!("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo"),
-        };
-
-        if !self.maps.is_mapped(addr) {
-            println!("/!\\ ntdll_NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
-            for _ in 0..6 {
-                self.stack_pop(false);
-            }
-            self.regs.eax = constants::STATUS_INVALID_PARAMETER;
-        }
-    
-        /*
-        __kernel_entry NTSYSCALLAPI NTSTATUS NtQueryVirtualMemory(
-            [in]            HANDLE                   ProcessHandle,
-            [in, optional]  PVOID                    BaseAddress,
-            [in]            MEMORY_INFORMATION_CLASS MemoryInformationClass,
-            [out]           PVOID                    MemoryInformation,
-            [in]            SIZE_T                   MemoryInformationLength,
-            [out, optional] PSIZE_T                  ReturnLength
-        );
-        */
-
-        let colors = Colors::new();
-        println!("{}** ntdll_NtQueryVirtualMemory {}", colors.light_red, colors.nc);
-
-        if !self.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
-            panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
-        }
-
-        for _ in 0..6 {
-            self.stack_pop(false);
-        }
-
-        self.regs.eax = constants::STATUS_SUCCESS;
-    }
-
-    fn user32_MessageBoxA(&mut self) {
-        let titleptr = match self.maps.read_dword(self.regs.esp+8) {
-            Some(v) => v,
-            None => panic!("user32_MessageBoxA: error reading title")
-        };
-        let msgptr = match self.maps.read_dword(self.regs.esp+4) {
-            Some(v) => v,
-            None => panic!("user32_MessageBoxA: error reading message")
-        };
-
-        let msg = self.maps.read_string(msgptr);
-        let title = self.maps.read_string(titleptr);
-
-        let colors = Colors::new();
-        println!("{}** user32_MessageBoxA {} {} {}", colors.light_red, title, msg, colors.nc);
-        self.regs.eax = 0;
-        for _ in 0..4 {
-            self.stack_pop(false);
-        }
-    }
-
-    fn ntdll_LdrLoadDll(&mut self) {
-        let libaddr_ptr = match self.maps.read_dword(self.regs.esp+12) {
-            Some(v) => v,
-            None => panic!("LdrLoadDll: error reading lib ptr")
-        };
-
-        let libname_ptr = match self.maps.read_dword(self.regs.esp+20) {
-            Some(v) => v,
-            None => panic!("LdrLoadDll: error reading lib param")
-        };
-
-        
-        let colors = Colors::new();
-        let libname = self.maps.read_wide_string(libname_ptr);
-        println!("{}** ntdll_LdrLoadDll   lib:{} {}",colors.light_red, libname, colors.nc);
-
-        
-        if libname == "user32.dll" {
-            let user32 = self.maps.create_map("user32");
-            user32.set_base(0x773b0000);
-            user32.load("maps/user32.bin");
-            let user32_text = self.maps.create_map("user32_text");
-            user32_text.set_base(0x773b1000);
-            user32_text.load("maps/user32_text.bin");
-
-            if !self.maps.write_dword(libaddr_ptr, 0x773b0000) {
-                panic!("ntdll_LdrLoadDll: cannot write in addr param");
-            }
-        }
-
-
-        for _ in 0..4 {
-            self.stack_pop(false);
-        }
-        self.regs.eax = constants::STATUS_SUCCESS;
-    }
-    
-    fn ntdll_RtlVectoredExceptionHandler(&mut self) {
-        let p1 = match self.maps.read_dword(self.regs.esp) {
-            Some(v) => v,
-            None => panic!("ntdll_RtlVectoredExceptionHandler: error reading p1"),
-        };
-
-        let fptr = match self.maps.read_dword(self.regs.esp+4) {
-            Some(v) => v,
-            None => panic!("ntdll_RtlVectoredExceptionHandler: error reading fptr"),
-        };
-
-        let colors = Colors::new();
-        println!("{}** ntdll_RtlVectoredExceptionHandler  {} callback:0x{:x} {}",colors.light_red, p1, fptr, colors.nc);
-
-        self.veh = fptr;
-
-        self.regs.eax = 0x2c2878;
-        self.stack_pop(false);
-        self.stack_pop(false);
-    }
-
-    fn ntdll_NtGetContextThread(&mut self) {
-        let handle = match self.maps.read_dword(self.regs.esp) {
-            Some(v) => v,
-            None => panic!("ntdll_NtGetContextThread: error reading stack"),
-        };
-
-        let ctx_ptr = match self.maps.read_dword(self.regs.esp+4) {
-            Some(v) => v,
-            None => panic!("ntdll_NtGetContextThread: error reading context pointer"),
-        };
-
-        let ctx = match self.maps.read_dword(ctx_ptr) {
-            Some(v) => v,
-            None => panic!("ntdll_NtGetContextThread: error reading context ptr"),
-        };
-
-        let context_flags = match self.maps.read_dword(ctx) {
-            Some(v) => v,
-            None => panic!("ntdll_NtGetContextThread: error reading context flags"),
-        };
-
-        let colors = Colors::new();
-        println!("{}** ntdll_NtGetContextThread   ctx flags:0x{:x} {}",colors.light_red, context_flags, colors.nc);
-
-        if !self.maps.write_dword(ctx+4, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
-        }
-        if !self.maps.write_dword(ctx+8, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr1 in context");
-        }
-        if !self.maps.write_dword(ctx+12, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr2 in context");
-        }
-        if !self.maps.write_dword(ctx+16, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr3 in context");
-        }
-        if !self.maps.write_dword(ctx+16, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr6 in context");
-        }
-        if !self.maps.write_dword(ctx+16, 0) {
-            panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
-        }
-
-        self.regs.eax = 0;
-        self.stack_pop(false);
-        self.stack_pop(false);
-        
-        /*
-
-        DR0-DR3 – breakpoint registers
-        DR4 & DR5 – reserved
-        DR6 – debug status
-        DR7 – debug control
-
-
-        typedef struct _CONTEXT
-        {
-            ULONG ContextFlags;
-            ULONG Dr0;
-            ULONG Dr1;
-            ULONG Dr2;
-            ULONG Dr3;
-            ULONG Dr6;
-            ULONG Dr7;
-            FLOATING_SAVE_AREA FloatSave;
-            ULONG SegGs;
-            ULONG SegFs;
-            ULONG SegEs;
-            ULONG SegDs;
-            ULONG Edi;
-            ULONG Esi;
-            ULONG Ebx;
-            ULONG Edx;
-            ULONG Ecx;
-            ULONG Eax;
-            ULONG Ebp;
-            ULONG Eip;
-            ULONG SegCs;
-            ULONG EFlags;
-            ULONG Esp;
-            ULONG SegSs;
-            UCHAR ExtendedRegisters[512];
-        } CONTEXT, *PCONTEXT;
-        */
-
-
-
-
-
-
-    }
-
-    fn ntdll_NtAllocateVirtualMemory(&mut self) {
-        let colors = Colors::new();
-        /*
-            __kernel_entry NTSYSCALLAPI NTSTATUS NtAllocateVirtualMemory(
-                [in]      HANDLE    ProcessHandle,
-                [in, out] PVOID     *BaseAddress,
-                [in]      ULONG_PTR ZeroBits,
-                [in, out] PSIZE_T   RegionSize,
-                [in]      ULONG     AllocationType,
-                [in]      ULONG     Protect
-                );
-        */
-        let addr_ptr = match self.maps.read_dword(self.regs.esp+4) {
-            Some(v) => v,
-            None => panic!("bad NtAllocateVirtualMemory address pointer parameter"),
-        };
-
-        let size_ptr = match self.maps.read_dword(self.regs.esp+12) {
-            Some(v) => v,
-            None => panic!("bad NtAllocateVirtualMemory size pointer parameter"),
-        };
-
-        let addr = match self.maps.read_dword(addr_ptr) {
-            Some(v) => v,
-            None => panic!("bad NtAllocateVirtualMemory address parameter"),
-        };
-
-        let size = match self.maps.read_dword(size_ptr) {
-            Some(v) => v,
-            None => panic!("bad NtAllocateVirtualMemory size parameter"),
-        };
-
-        match self.maps.get_addr_name(addr) {
-            Some(name) => panic!("address already mapped: {}", name),
-            None => println!("creating map on 0x{:x}", addr),
-        }
-
-        if size <= 0 {
-            panic!("NtAllocateVirtualMemory mapping zero bytes.")
-        }
-
-        println!("{}** NtAllocateVirtualMemory  0x003e0000 {}",colors.light_red, colors.nc);
-
-        //TODO: modify this, its allowing just one allocation
-        let alloc = self.maps.create_map("alloc");
-        let alloc_addr = 0x003e0000;
-        alloc.set_base(alloc_addr);
-        alloc.set_bottom(alloc_addr + size);
-
-        if !self.maps.write_dword(addr_ptr, alloc_addr) {
-            panic!("NtAllocateVirtualMemory: cannot write on address pointer");
-        }
-
-        self.regs.eax = constants::STATUS_SUCCESS;
-
-        for _ in 0..6 {
-            self.stack_pop(false);
-        }
-    }
-
-    fn kernel32_LoadLibraryA(&mut self) {
-        let colors = Colors::new();
-        let dllptr = match self.maps.read_dword(self.regs.esp) {
-            Some(v) => v,
-            None => panic!("bad LoadLibraryA parameter"),
-        };
-        let dll = self.maps.read_string(dllptr);
-        println!("{}** LoadLibraryA  '{}'  {}",colors.light_red, dll, colors.nc);
-
-
-        if dll == "ntdll" || dll == "ntdll.dll" {
-            self.regs.eax = self.maps.get_mem("ntdll").get_base();
-        } else if dll == "ws2_32" || dll == "ws2_32.dll" {
-            let ws2_32 = self.maps.create_map("ws2_32");
-            ws2_32.set_base(0x77480000);
-            ws2_32.load("maps/ws2_32.bin");
-            let ws2_32_text = self.maps.create_map("ws2_32_text");
-            ws2_32_text.set_base(0x77481000);
-            ws2_32_text.load("maps/ws2_32_text.bin");
-        }
-
-        self.stack_pop(false);
-    }
-
-    fn kernel32_LoadLibraryExA(&mut self) {
-        /*
-        HMODULE LoadLibraryExA(
-            [in] LPCSTR lpLibFileName,
-                 HANDLE hFile,
-            [in] DWORD  dwFlags
-          );
-        */
-        let libname_ptr = self.maps.read_dword(self.regs.esp).expect("kernel32_LoadLibraryExA: error reading libname ptr param");
-        let libname = self.maps.read_string(libname_ptr);
-
-        let colors = Colors::new();
-        println!("{}** LoadLibraryExA '{}' {}",colors.light_red, libname, colors.nc);
-        panic!();
-    }
-
-    fn kernel32_LoadLibraryExW(&mut self) {
-        let colors = Colors::new();
-        println!("{}** LoadLibraryExW {}",colors.light_red, colors.nc);
-    }
-
-    fn kernel32_LoadLibraryW(&mut self) {
-        let colors = Colors::new();
-        let dllptr = match self.maps.read_dword(self.regs.esp) {
-            Some(v) => v,
-            None => panic!("bad LoadLibraryW parameter"),
-        };
-        let dll = self.maps.read_wide_string(dllptr);
-        println!("{}** LoadLibraryW  '{}'  {}",colors.red, dll, colors.nc);
-
-        if dll == "ntdll.dll" {
-            self.regs.eax = self.maps.get_mem("ntdll").get_base();
-        }
-
-        self.stack_pop(false);
-    }
-
     pub fn disasemble(&mut self, addr:u32) {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
@@ -1628,20 +1237,9 @@ impl Emu32 {
                             None => panic!("calling non  mapped addr 0x{:x}", addr)
                         };
 
-                        if name == "kernel32_text" {
-                            self.kernel32_api(addr);
-                        } else if name == "ntdll_text" {
-                            self.ntdll_api(addr);
-                        } else if name == "user32_text" {
-                            self.user32_api(addr);
-                        } else if name == "code" {
-                            self.stack_push(self.regs.eip + sz as u32); // push return address
-                            //println!("\tcall return addres: 0x{:x}", self.regs.eip + sz as u32);
-                            self.set_eip(addr, false);
-                            break;
-                        } else {
-                            panic!("calling to {} at 0x{:x}", name, addr);
-                        }
+                        self.stack_push(self.regs.eip + sz as u32);
+                        self.set_eip(addr, false);
+                        break;
                     },
 
                     Some("push") => {

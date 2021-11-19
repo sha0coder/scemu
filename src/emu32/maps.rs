@@ -1,6 +1,5 @@
 mod mem32;
 
-
 use mem32::Mem32;
 use std::collections::HashMap;
 
@@ -273,10 +272,6 @@ impl Maps {
             }
         }
         println!("map not found");
-
-    }
-
-    fn fake_alloc(&mut self, addr:u32, size:u32) {
 
     }
 

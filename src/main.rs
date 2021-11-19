@@ -1,5 +1,6 @@
 mod emu32;
 
+
 use std::env;
 use emu32::Emu32;
 
@@ -43,9 +44,7 @@ fn main() {
     if args.len() == 4 {
         emu32.explain(&args[3]);
     }
-    
+
     emu32.load_code(&filename);
     emu32.run();
-
-
 }
