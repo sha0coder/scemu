@@ -103,7 +103,17 @@ impl Maps {
             let map = self.maps.get(k).unwrap();
             println!("{}\t0x{:x} - 0x{:x}", k, map.get_base(), map.get_bottom());
         }
+        println!("memory usage: {} bytes", self.size());
         println!("---");
+    }
+
+    pub fn get_mem_by_addr(&self, addr:u32) -> Option<&Mem32> {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return Some(&mem);
+            }
+        }
+        return None;
     }
 
     pub fn is_mapped(&self, addr:u32) -> bool {
@@ -149,6 +159,27 @@ impl Maps {
             println!("{}",s);
         }
     }
+
+    pub fn read_bytes(&self, addr:u32, sz:usize) -> &[u8] {
+        let mem = match self.get_mem_by_addr(addr) {
+            Some(v) => v,
+            None => return &[0;0],
+        };
+        let bytes = mem.read_bytes(addr, sz);
+        return bytes;
+    }
+
+    pub fn read_string_of_bytes(&self, addr:u32, sz:usize) -> String {
+        let mut svec:Vec<String> = Vec::new();
+        let bytes = self.read_bytes(addr, sz);
+        for i in 0..bytes.len() {   
+            svec.push(format!("{:x} ", bytes[i]));
+        }
+        let s:String = svec.into_iter().collect();
+        return s;
+    }
+
+
 
     pub fn read_string(&self, addr:u32) -> String {
         let mut bytes:Vec<char> = Vec::new();
@@ -275,7 +306,14 @@ impl Maps {
 
     }
 
-}
+    pub fn size(&self) -> usize {
+        let mut sz:usize = 0;
+        for (_,mem) in self.maps.iter() {
+            sz += mem.size();
+        }
+        return sz;
+    }
 
+}
 
 

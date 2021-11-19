@@ -42,4 +42,24 @@ impl Colors {
             nc:"\x1b[0m".to_string(), // no_color
         }
     }
+
+    pub fn disable(&mut self) {
+        self.black = "".to_string();
+        self.red = "".to_string();
+        self.green = "".to_string();
+        self.orange = "".to_string();
+        self.blue = "".to_string();
+        self.purple = "".to_string();
+        self.cyan = "".to_string();
+        self.light_gray = "".to_string();
+        self.dark_gray = "".to_string();
+        self.light_red = "".to_string();
+        self.light_green = "".to_string();
+        self.yellow = "".to_string();
+        self.light_blue = "".to_string();
+        self.light_purple = "".to_string();
+        self.light_cyan = "".to_string();
+        self.white = "".to_string();
+        self.nc = "".to_string();
+    }
 }
