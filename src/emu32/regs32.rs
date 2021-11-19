@@ -1,3 +1,4 @@
+use crate::emu32::maps::Maps;
 
 pub struct Regs32 {
     pub eax: u32,
@@ -232,6 +233,108 @@ impl Regs32 {
             "dh" => self.set_dh(value),
             "dl" => self.set_dl(value),
             &_ => panic!("weird register name parsed {}", reg_name),
+        }
+    }
+
+    pub fn show_eax(&self, maps:&Maps) {
+        if maps.is_mapped(self.eax) {
+            let s = maps.read_string(self.eax);
+            let w = maps.read_wide_string(self.eax);
+            
+            if s.len() > 1 {
+                println!("eax: 0x{:x} '{}'", self.eax, s);
+            } else if w.len() > 1 {
+                println!("eax: 0x{:x} '{}'", self.eax, w);
+            } else {
+                println!("eax: 0x{:x}", self.eax);
+            }
+        } else {
+            println!("eax: 0x{:x}", self.eax);
+        }
+    }
+
+    pub fn show_ebx(&self, maps:&Maps) {
+        if maps.is_mapped(self.ebx) {
+            let s = maps.read_string(self.ebx);
+            let w = maps.read_wide_string(self.ebx);
+                
+            if s.len() > 1 {
+                println!("ebx: 0x{:x} '{}'", self.ebx, s);
+            } else if w.len() > 1 {
+                println!("ebx: 0x{:x} '{}'", self.ebx, w);
+            } else {
+                println!("ebx: 0x{:x}", self.ebx);
+            }
+        } else {
+            println!("ebx: 0x{:x}", self.ebx);
+        }
+    }
+
+    pub fn show_ecx(&self, maps:&Maps) {
+        if maps.is_mapped(self.ecx) {
+            let s = maps.read_string(self.ecx);
+            let w = maps.read_wide_string(self.ecx);
+   
+            if s.len() > 1 {
+                println!("ecx: 0x{:x} '{}'", self.ecx, s);
+            } else if w.len() > 1 {
+                println!("ecx: 0x{:x} '{}'", self.ecx, w);
+            } else {
+                println!("ecx: 0x{:x}", self.ecx);
+            }
+        } else {
+            println!("ecx: 0x{:x}", self.ecx);
+        }
+    }
+
+    pub fn show_edx(&self, maps:&Maps) {
+        if maps.is_mapped(self.edx) {
+            let s = maps.read_string(self.edx);
+            let w = maps.read_wide_string(self.edx);
+
+            if s.len() > 1 {
+                println!("edx: 0x{:x} '{}'", self.edx, s);
+            } else if w.len() > 1 {
+                println!("edx: 0x{:x} '{}'", self.edx, w);
+            } else {
+                println!("edx: 0x{:x}", self.edx);
+            }
+        } else {
+            println!("edx: 0x{:x}", self.eax);
+        }
+    }
+
+    pub fn show_esi(&self, maps:&Maps) {
+        if maps.is_mapped(self.esi) {
+            let s = maps.read_string(self.esi);
+            let w = maps.read_wide_string(self.esi);
+
+            if s.len() > 1 {
+                println!("esi: 0x{:x} '{}'", self.esi, s);
+            } else if w.len() > 1 {
+                println!("esi: 0x{:x} '{}'", self.esi, w);
+            } else {
+                println!("esi: 0x{:x}", self.esi);
+            }
+        } else {
+            println!("esi: 0x{:x}", self.esi);
+        }
+    }
+
+    pub fn show_edi(&self, maps:&Maps) {
+        if maps.is_mapped(self.edi) {
+            let s = maps.read_string(self.edi);
+            let w = maps.read_wide_string(self.edi);
+ 
+            if s.len() > 1 {
+                println!("edi: 0x{:x} '{}'", self.edi, s);
+            } else if w.len() > 1 {
+                println!("edi: 0x{:x} '{}'", self.edi, w);
+            } else {
+                println!("edi: 0x{:x}", self.edi);
+            }
+        } else {
+            println!("edi: 0x{:x}", self.edi);
         }
     }
 }
