@@ -173,7 +173,7 @@ impl Maps {
         let mut svec:Vec<String> = Vec::new();
         let bytes = self.read_bytes(addr, sz);
         for i in 0..bytes.len() {   
-            svec.push(format!("{:x} ", bytes[i]));
+            svec.push(format!("{:02x} ", bytes[i]));
         }
         let s:String = svec.into_iter().collect();
         return s;

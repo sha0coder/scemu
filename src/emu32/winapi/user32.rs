@@ -13,8 +13,7 @@ fn MessageBoxA(emu:&mut emu32::Emu32) {
     let msg = emu.maps.read_string(msgptr);
     let title = emu.maps.read_string(titleptr);
 
-    let colors = emu32::colors::Colors::new();
-    println!("{}** user32_MessageBoxA {} {} {}", colors.light_red, title, msg, colors.nc);
+    println!("{}** user32_MessageBoxA {} {} {}", emu.colors.light_red, title, msg, emu.colors.nc);
 
     emu.regs.eax = 0;
     for _ in 0..4 {

@@ -11,14 +11,9 @@ pub struct Config {
     pub nocolors: bool,
     pub trace_string: bool,
     pub string_addr: u32,
-    pub trace_dword: bool,
-    pub dword_addr:u32,
-    pub trace_word: bool,
-    pub word_addr: u32,
-    pub trace_bytes: bool,
-    pub bytes_addr: u32,
+    pub inspect: bool,
+    pub inspect_seq: String,
 }
-
 
 impl Config {
     pub fn new() -> Config {
@@ -34,12 +29,8 @@ impl Config {
             nocolors:  false,
             trace_string: false,
             string_addr: 0,
-            trace_dword: false,
-            dword_addr: 0,
-            trace_word: false,
-            word_addr: 0,
-            trace_bytes: false,
-            bytes_addr: 0,
+            inspect: false,
+            inspect_seq: "".to_string(),
         }
     }
 }

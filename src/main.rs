@@ -62,23 +62,11 @@ fn main() {
                         .help("monitor string on a specific address")
                         .value_name("ADDRESS")
                         .takes_value(true))
-                    .arg(Arg::with_name("bytes")
-                        .short("b")
-                        .long("bytes")
-                        .help("monitor bytes on a specific address")
-                        .value_name("ADDRESS")
-                        .takes_value(true))
-                    .arg(Arg::with_name("dword")
-                        .short("d")
-                        .long("dword")
-                        .help("monitor dword on a specific address")
-                        .value_name("ADDRESS")
-                        .takes_value(true))
-                    .arg(Arg::with_name("word")
-                        .short("w")
-                        .long("word")
-                        .help("monitor word on a specific address")
-                        .value_name("ADDRESS")
+                    .arg(Arg::with_name("inspect")
+                        .short("i")
+                        .long("inspect")
+                        .help("monitor memory like: -i 'dword ptr [ebp + 0x24]")
+                        .value_name("DIRECTION")
                         .takes_value(true))
                     .get_matches();
 
@@ -105,19 +93,12 @@ fn main() {
         cfg.trace_string = true;
         cfg.string_addr = u32::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
     }
-    if matches.is_present("dword") {
-        cfg.trace_dword = true;
-        cfg.dword_addr = u32::from_str_radix(matches.value_of("dword").expect("select the address of the dword").trim_start_matches("0x"), 16).expect("invalid address");
+    if matches.is_present("inspect") {
+        cfg.inspect = true;
+        cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
     }
-    if matches.is_present("word") {
-        cfg.trace_word = true;
-        cfg.word_addr = u32::from_str_radix(matches.value_of("word").expect("select the address of the word").trim_start_matches("0x"), 16).expect("invalid address");
-    }
-    if matches.is_present("bytes") {
-        cfg.trace_bytes = true;
-        cfg.bytes_addr = u32::from_str_radix(matches.value_of("bytes").expect("select the address of the bytes to show").trim_start_matches("0x"), 16).expect("invalid address");
-    }
-    
+
+    //match matches.occurrences_of("register")
 
 
     let mut emu32 = Emu32::new();
