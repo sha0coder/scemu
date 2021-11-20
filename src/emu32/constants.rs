@@ -9,6 +9,7 @@ pub const STATUS_ACCESS_VIOLATION:u32 = 0xC0000005;
 pub const STATUS_INVALID_PARAMETER:u32 = 0xC000000D;
 
 pub const NUM_BYTES_TRACE:usize = 16;
+pub const VERSION:u32 = 0x1db10106;
 
 //vectored exception handler
 pub const CALL_FIRST:u32 = 1;

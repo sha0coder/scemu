@@ -307,11 +307,7 @@ impl Emu32 {
     pub fn stack_pop(&mut self, pop_instruction:bool) -> u32 {
         let value = self.maps.get_mem("stack").read_dword(self.regs.esp);
         if pop_instruction && self.maps.get_mem("code").inside(value) {
-            if self.break_on_alert {
-                panic!("/!\\ poping a code address 0x{:x}", value);
-            } else {
-                println!("/!\\ poping a code address 0x{:x}", value);
-            }
+            println!("/!\\ poping a code address 0x{:x}", value);
         }
         self.regs.esp += 4;
         return value;
@@ -363,8 +359,7 @@ impl Emu32 {
                 let spl2:Vec<&str> = spl[2].split("*").collect();
                 if spl2.len() != 2 {
                     panic!("case ie [esi + eax*4] bad parsed the *  operand:{}", operand);
-                }
-                
+                } 
                 
                 let reg1_val = self.regs.get_by_name(spl[0]);
                 let reg2_val = self.regs.get_by_name(spl2[0]);
@@ -833,12 +828,12 @@ impl Emu32 {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => self.featured_regs(),
-                "r eax" => println!("eax: 0x{:x}", self.regs.eax),
-                "r ebx" => println!("ebx: 0x{:x}", self.regs.ebx),
-                "r ecx" => println!("ecx: 0x{:x}", self.regs.ecx),
-                "r edx" => println!("edx: 0x{:x}", self.regs.edx),
-                "r esi" => println!("esi: 0x{:x}", self.regs.esi),
-                "r edi" => println!("edi: 0x{:x}", self.regs.edi),
+                "r eax" => self.regs.show_eax(&self.maps),
+                "r ebx" => self.regs.show_ebx(&self.maps),
+                "r ecx" => self.regs.show_ecx(&self.maps),
+                "r edx" => self.regs.show_edx(&self.maps),
+                "r esi" => self.regs.show_esi(&self.maps),
+                "r edi" => self.regs.show_edi(&self.maps),
                 "r esp" => println!("esp: 0x{:x}", self.regs.esp),
                 "r ebp" => println!("ebp: 0x{:x}", self.regs.ebp),
                 "r eip" => println!("eip: 0x{:x}", self.regs.eip),
@@ -1015,7 +1010,9 @@ impl Emu32 {
         } else {
 
             if self.seh == 0 {
-                panic!("exception without any SEH handler nor vector configured.");
+                println!("exception without any SEH handler nor vector configured.");
+                self.spawn_console();
+                return;
             }
 
             next = match self.maps.read_dword(self.seh) {
@@ -1159,6 +1156,18 @@ impl Emu32 {
                     }
                 }
 
+                if self.cfg.inspect {
+                    let addr:u32 = self.memory_operand_to_address(self.cfg.inspect_seq.clone().as_str());
+                    let bits = self.get_size(self.cfg.inspect_seq.clone().as_str());
+                    let value = match self.memory_read(self.cfg.inspect_seq.clone().as_str()) {
+                        Some(v) => v,
+                        None => 0,
+                    };
+
+                    println!("\t{} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.cfg.inspect_seq, addr, value, value, self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
+                }
+
+                /*
                 if self.cfg.trace_dword {
                     let dw:u32 = match self.maps.read_dword(self.cfg.dword_addr) {
                         Some(v) => v,
@@ -1178,7 +1187,7 @@ impl Emu32 {
                 if self.cfg.trace_bytes {
                     let s = self.maps.read_string_of_bytes(self.cfg.bytes_addr, constants::NUM_BYTES_TRACE);
                     println!("\ttrace bytes -> 0x{:x}: {{{}}}", self.cfg.bytes_addr, s);
-                }
+                }*/
                 
 
            
@@ -4100,7 +4109,7 @@ impl Emu32 {
                     Some("cmp") => {
                         if !step {
                             println!("{}{} {}{}", self.colors.orange, pos, ins, self.colors.nc);                            
-                            println!("\tcmp-> eax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
+                            //println!("\tcmp-> eax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -4158,6 +4167,17 @@ impl Emu32 {
 
                             }
                         }
+
+                        if !step {
+                            if value1 > value2 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value1, value2);
+                            } else if value1 < value2 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value1, value2);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value1, value2);
+                            }
+                        }
+
 
                         match bits {
                             32 => { self.flags_sub32(value1, value2); },

@@ -41,3 +41,6 @@ Emulating basic windows shellcode based on LdrLoadDLl() that prints a message:
 The console allow to view an edit the current state of the cpu:
 ![exception handlers](pics/console_help.png)
 
+The cobalt strike api loader is the same that metasploit, emulating it:
+![exception handlers](pics/metasploit_api_loader.png)
+
