@@ -1133,9 +1133,9 @@ impl Emu32 {
                         "edx" => self.regs.show_edx(&self.maps),
                         "esi" => self.regs.show_esi(&self.maps),
                         "edi" => self.regs.show_edi(&self.maps),
-                        "esp" => println!("esp: 0x{:}", self.regs.esp),
-                        "ebp" => println!("ebp: 0x{:}", self.regs.ebp),
-                        "eip" => println!("eip: 0x{:}", self.regs.eip),
+                        "esp" => println!("\tesp: 0x{:}", self.regs.esp),
+                        "ebp" => println!("\tebp: 0x{:}", self.regs.ebp),
+                        "eip" => println!("\teip: 0x{:}", self.regs.eip),
                         _ => panic!("invalid register."),
                     }
                 }

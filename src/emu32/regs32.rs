@@ -242,14 +242,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.eax);
             
             if s.len() > 1 {
-                println!("eax: 0x{:x} '{}'", self.eax, s);
+                println!("\teax: 0x{:x} '{}'", self.eax, s);
             } else if w.len() > 1 {
-                println!("eax: 0x{:x} '{}'", self.eax, w);
+                println!("\teax: 0x{:x} '{}'", self.eax, w);
             } else {
-                println!("eax: 0x{:x}", self.eax);
+                println!("\teax: 0x{:x}", self.eax);
             }
         } else {
-            println!("eax: 0x{:x}", self.eax);
+            println!("\teax: 0x{:x}", self.eax);
         }
     }
 
@@ -259,14 +259,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.ebx);
                 
             if s.len() > 1 {
-                println!("ebx: 0x{:x} '{}'", self.ebx, s);
+                println!("\tebx: 0x{:x} '{}'", self.ebx, s);
             } else if w.len() > 1 {
-                println!("ebx: 0x{:x} '{}'", self.ebx, w);
+                println!("\tebx: 0x{:x} '{}'", self.ebx, w);
             } else {
-                println!("ebx: 0x{:x}", self.ebx);
+                println!("\tebx: 0x{:x}", self.ebx);
             }
         } else {
-            println!("ebx: 0x{:x}", self.ebx);
+            println!("\tebx: 0x{:x}", self.ebx);
         }
     }
 
@@ -276,14 +276,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.ecx);
    
             if s.len() > 1 {
-                println!("ecx: 0x{:x} '{}'", self.ecx, s);
+                println!("\tecx: 0x{:x} '{}'", self.ecx, s);
             } else if w.len() > 1 {
-                println!("ecx: 0x{:x} '{}'", self.ecx, w);
+                println!("\tecx: 0x{:x} '{}'", self.ecx, w);
             } else {
-                println!("ecx: 0x{:x}", self.ecx);
+                println!("\tecx: 0x{:x}", self.ecx);
             }
         } else {
-            println!("ecx: 0x{:x}", self.ecx);
+            println!("\tecx: 0x{:x}", self.ecx);
         }
     }
 
@@ -293,14 +293,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.edx);
 
             if s.len() > 1 {
-                println!("edx: 0x{:x} '{}'", self.edx, s);
+                println!("\tedx: 0x{:x} '{}'", self.edx, s);
             } else if w.len() > 1 {
-                println!("edx: 0x{:x} '{}'", self.edx, w);
+                println!("\tedx: 0x{:x} '{}'", self.edx, w);
             } else {
-                println!("edx: 0x{:x}", self.edx);
+                println!("\tedx: 0x{:x}", self.edx);
             }
         } else {
-            println!("edx: 0x{:x}", self.eax);
+            println!("\tedx: 0x{:x}", self.eax);
         }
     }
 
@@ -310,14 +310,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.esi);
 
             if s.len() > 1 {
-                println!("esi: 0x{:x} '{}'", self.esi, s);
+                println!("\tesi: 0x{:x} '{}'", self.esi, s);
             } else if w.len() > 1 {
-                println!("esi: 0x{:x} '{}'", self.esi, w);
+                println!("\tesi: 0x{:x} '{}'", self.esi, w);
             } else {
-                println!("esi: 0x{:x}", self.esi);
+                println!("\tesi: 0x{:x}", self.esi);
             }
         } else {
-            println!("esi: 0x{:x}", self.esi);
+            println!("\tesi: 0x{:x}", self.esi);
         }
     }
 
@@ -327,14 +327,14 @@ impl Regs32 {
             let w = maps.read_wide_string(self.edi);
  
             if s.len() > 1 {
-                println!("edi: 0x{:x} '{}'", self.edi, s);
+                println!("\tedi: 0x{:x} '{}'", self.edi, s);
             } else if w.len() > 1 {
-                println!("edi: 0x{:x} '{}'", self.edi, w);
+                println!("\tedi: 0x{:x} '{}'", self.edi, w);
             } else {
-                println!("edi: 0x{:x}", self.edi);
+                println!("\tedi: 0x{:x}", self.edi);
             }
         } else {
-            println!("edi: 0x{:x}", self.edi);
+            println!("\tedi: 0x{:x}", self.edi);
         }
     }
 }

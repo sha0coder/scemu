@@ -13,7 +13,8 @@ x86 32bits emulator, for securely emulating shellcodes
 - non debugged cpuid
 - zero unsafe{} blocks
 
-
+Usage:
+![usage](pics/usage.png)
 
 
 Some use cases:
