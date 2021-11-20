@@ -1176,8 +1176,8 @@ impl Emu32 {
                 }
 
                 if self.cfg.trace_bytes {
-                    let s = self.maps.read_string_of_bytes(self.cfg.bytes_addr, 10);
-                    println!("\ttrace bytes -> 0x{:x} {}", self.cfg.bytes_addr, s);
+                    let s = self.maps.read_string_of_bytes(self.cfg.bytes_addr, constants::NUM_BYTES_TRACE);
+                    println!("\ttrace bytes -> 0x{:x}: {{{}}}", self.cfg.bytes_addr, s);
                 }
                 
 
