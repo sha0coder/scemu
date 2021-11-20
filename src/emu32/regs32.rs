@@ -240,13 +240,17 @@ impl Regs32 {
         if maps.is_mapped(self.eax) {
             let s = maps.read_string(self.eax);
             let w = maps.read_wide_string(self.eax);
+            let name = match maps.get_addr_name(self.eax) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
             
             if s.len() > 1 {
-                println!("\teax: 0x{:x} '{}'", self.eax, s);
+                println!("\teax: 0x{:x} '{}' {}", self.eax, s, name);
             } else if w.len() > 1 {
-                println!("\teax: 0x{:x} '{}'", self.eax, w);
+                println!("\teax: 0x{:x} '{}' {}", self.eax, w, name);
             } else {
-                println!("\teax: 0x{:x}", self.eax);
+                println!("\teax: 0x{:x} {}", self.eax, name);
             }
         } else {
             println!("\teax: 0x{:x}", self.eax);
@@ -257,13 +261,17 @@ impl Regs32 {
         if maps.is_mapped(self.ebx) {
             let s = maps.read_string(self.ebx);
             let w = maps.read_wide_string(self.ebx);
+            let name = match maps.get_addr_name(self.ebx) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
                 
             if s.len() > 1 {
-                println!("\tebx: 0x{:x} '{}'", self.ebx, s);
+                println!("\tebx: 0x{:x} '{}' {}", self.ebx, s, name);
             } else if w.len() > 1 {
-                println!("\tebx: 0x{:x} '{}'", self.ebx, w);
+                println!("\tebx: 0x{:x} '{}' {}", self.ebx, w, name);
             } else {
-                println!("\tebx: 0x{:x}", self.ebx);
+                println!("\tebx: 0x{:x} {}", self.ebx, name);
             }
         } else {
             println!("\tebx: 0x{:x}", self.ebx);
@@ -274,13 +282,17 @@ impl Regs32 {
         if maps.is_mapped(self.ecx) {
             let s = maps.read_string(self.ecx);
             let w = maps.read_wide_string(self.ecx);
-   
+            let name = match maps.get_addr_name(self.ecx) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
+
             if s.len() > 1 {
-                println!("\tecx: 0x{:x} '{}'", self.ecx, s);
+                println!("\tecx: 0x{:x} '{}' {}", self.ecx, s, name);
             } else if w.len() > 1 {
-                println!("\tecx: 0x{:x} '{}'", self.ecx, w);
+                println!("\tecx: 0x{:x} '{}' {}", self.ecx, w, name);
             } else {
-                println!("\tecx: 0x{:x}", self.ecx);
+                println!("\tecx: 0x{:x} {}", self.ecx, name);
             }
         } else {
             println!("\tecx: 0x{:x}", self.ecx);
@@ -291,13 +303,17 @@ impl Regs32 {
         if maps.is_mapped(self.edx) {
             let s = maps.read_string(self.edx);
             let w = maps.read_wide_string(self.edx);
+            let name = match maps.get_addr_name(self.edx) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
 
             if s.len() > 1 {
-                println!("\tedx: 0x{:x} '{}'", self.edx, s);
+                println!("\tedx: 0x{:x} '{}' {}", self.edx, s, name);
             } else if w.len() > 1 {
-                println!("\tedx: 0x{:x} '{}'", self.edx, w);
+                println!("\tedx: 0x{:x} '{}' {}", self.edx, w, name);
             } else {
-                println!("\tedx: 0x{:x}", self.edx);
+                println!("\tedx: 0x{:x} {}", self.edx, name);
             }
         } else {
             println!("\tedx: 0x{:x}", self.eax);
@@ -308,13 +324,17 @@ impl Regs32 {
         if maps.is_mapped(self.esi) {
             let s = maps.read_string(self.esi);
             let w = maps.read_wide_string(self.esi);
+            let name = match maps.get_addr_name(self.esi) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
 
             if s.len() > 1 {
-                println!("\tesi: 0x{:x} '{}'", self.esi, s);
+                println!("\tesi: 0x{:x} '{}' {}", self.esi, s, name);
             } else if w.len() > 1 {
-                println!("\tesi: 0x{:x} '{}'", self.esi, w);
+                println!("\tesi: 0x{:x} '{}' {}", self.esi, w, name);
             } else {
-                println!("\tesi: 0x{:x}", self.esi);
+                println!("\tesi: 0x{:x} {}", self.esi, name);
             }
         } else {
             println!("\tesi: 0x{:x}", self.esi);
@@ -325,13 +345,17 @@ impl Regs32 {
         if maps.is_mapped(self.edi) {
             let s = maps.read_string(self.edi);
             let w = maps.read_wide_string(self.edi);
+            let name = match maps.get_addr_name(self.edi) {
+                Some(v) => format!("({})", v),
+                None => "".to_string(),
+            };
  
             if s.len() > 1 {
-                println!("\tedi: 0x{:x} '{}'", self.edi, s);
+                println!("\tedi: 0x{:x} '{}' {}", self.edi, s, name);
             } else if w.len() > 1 {
-                println!("\tedi: 0x{:x} '{}'", self.edi, w);
+                println!("\tedi: 0x{:x} '{}' {}", self.edi, w, name);
             } else {
-                println!("\tedi: 0x{:x}", self.edi);
+                println!("\tedi: 0x{:x} {}", self.edi, name);
             }
         } else {
             println!("\tedi: 0x{:x}", self.edi);

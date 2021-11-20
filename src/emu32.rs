@@ -1,13 +1,10 @@
 /*
     TODO:
         - scripting
-        - console dissasembler option
         - intead of panic spawn console
         - set the code base addr
-        - refactor and improve winapi
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
-        - show registers pointing strings, or pops
         - on every set_eip of a non branch dump stack to log file
         - implement scas & rep
         - implement imul
@@ -15,13 +12,7 @@
         - save state to disk and continue
         - command to exit the bucle or to see  next instruction
         - optimize loop counter
-        - configuration file with:
-            - break_on_alert
-            - show loop, loop limit and loop print
-            - disable colors
-            - log to file
-            - dont print instruction
-        - search in all the maps 
+        - on execve syscall show the parameter
 
 
     there is an er-ror, error in the ror implementation:
@@ -48,6 +39,11 @@
         =>md
         address=>0x3b3000
         thread 'main' panicked at 'index out of bounds: the len is 983040 but the index is 983040', src/emu32/maps/mem32.rs:76:11
+
+
+
+
+
 
 
 
@@ -197,6 +193,12 @@ impl Emu32 {
         self.maps.create_map("kuser_shared_data");
         self.maps.create_map("binary");
         self.maps.create_map("reserved2");
+        self.maps.create_map("ws2_32");
+        self.maps.create_map("ws2_32_text");
+        self.maps.create_map("wininet");
+        self.maps.create_map("wininet_text");
+        self.maps.create_map("shlwapi");
+        self.maps.create_map("shlwapi_text");
 
 
         //self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
@@ -279,6 +281,30 @@ impl Emu32 {
         let reserved2 = self.maps.get_mem("reserved2");
         reserved2.set_base(0x2c3000);
         reserved2.set_size(0xfd000);
+
+        let ws2_32 = self.maps.get_mem("ws2_32");
+        ws2_32.set_base(0x77480000);
+        ws2_32.load("maps/ws2_32.bin");
+
+        let ws2_32_text = self.maps.get_mem("ws2_32_text");
+        ws2_32_text.set_base(0x77481000);
+        ws2_32_text.load("maps/ws2_32_text.bin");
+
+        let wininet = self.maps.get_mem("wininet");
+        wininet.set_base(0x76310000);
+        wininet.load("maps/wininet.bin");
+
+        let wininet_text = self.maps.get_mem("wininet_text");
+        wininet_text.set_base(0x76311000);
+        wininet_text.load("maps/wininet_text.bin");
+
+        let shlwapi = self.maps.get_mem("shlwapi");
+        shlwapi.set_base(0x76700000);
+        shlwapi.load("maps/shlwapi.bin");
+
+        let shlwapi_text = self.maps.get_mem("shlwapi_text");
+        shlwapi_text.set_base(0x76701000);
+        shlwapi_text.load("maps/shlwapi_text.bin");
 
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
