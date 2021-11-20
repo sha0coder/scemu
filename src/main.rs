@@ -69,13 +69,13 @@ fn main() {
                         .value_name("ADDRESS")
                         .takes_value(true))
                     .arg(Arg::with_name("dword")
-                        .short("D")
+                        .short("d")
                         .long("dword")
                         .help("monitor dword on a specific address")
                         .value_name("ADDRESS")
                         .takes_value(true))
                     .arg(Arg::with_name("word")
-                        .short("W")
+                        .short("w")
                         .long("word")
                         .help("monitor word on a specific address")
                         .value_name("ADDRESS")
@@ -83,12 +83,6 @@ fn main() {
                     .get_matches();
 
 
-    // -n     no colors mode to log
-    // -s     trace string on mem
-    // D W B  trace  dword/word/byte on mem
-    // -b   bytes on mem
-
-    
     if !matches.is_present("filename") {
         println!("the filename is mandatory, try -f <FILENAME> or --help");
     }
