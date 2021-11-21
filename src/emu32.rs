@@ -225,7 +225,7 @@ impl Emu32 {
         self.regs.esi = 0x0022f388;
         self.regs.edi = 0;
 
-        println!("initializing code and stack");
+        println!("initializing memory maps");
 
         self.maps.create_map("10000");
         self.maps.create_map("20000");
@@ -334,6 +334,8 @@ impl Emu32 {
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x002c0000);
         reserved.load("maps/reserved.bin");
+        assert!(reserved.read_byte(0x2c31a0) != 0);
+
 
         let peb = self.maps.get_mem("peb");
         peb.set_base(  0x7ffdf000);
@@ -1094,7 +1096,7 @@ impl Emu32 {
                     con.print("memory argument");
                     let operand = con.cmd();
                     con.print("value");
-                    let value = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let value = con.cmd_hex();
                     if self.memory_write(operand.as_str(), value) {
                         println!("done.");
                     } else {
@@ -1104,7 +1106,7 @@ impl Emu32 {
                 },
                 "ba" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     self.bp = addr;
                     return;
                 },
@@ -1137,7 +1139,7 @@ impl Emu32 {
                 },
                 "mn" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     match self.maps.get_addr_name(addr) {
                         Some(name)  => println!("address at '{}' map", name),
                         None => println!("address not found on any map"),
@@ -1145,29 +1147,28 @@ impl Emu32 {
                 },
                 "md" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     self.maps.dump(addr);
                 },
                 "mds" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     println!("{}", self.maps.read_string(addr));
 
                 },
                 "mdw" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     println!("{}", self.maps.read_wide_string(addr));
                 },
                 "eip" => {
                     con.print("=");
-                    let saddr = con.cmd();
-                    let addr = u32::from_str_radix(saddr.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = con.cmd_hex();
                     self.regs.eip = addr;
                 },
                 "push" => {
                     con.print("value");
-                    let value = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let value = con.cmd_hex();
                     self.stack_push(value);
                     println!("pushed.");
                 },
@@ -1195,6 +1196,20 @@ impl Emu32 {
                     }
                     self.maps.search_bytes(bytes, map_name);
                 },
+                "ll" => {
+                    con.print("ptr");
+                    let mut ptr:u32 = con.cmd_hex();
+                    loop {
+                        println!("- 0x{:x}", ptr);
+                        ptr = match self.maps.read_dword(ptr) {
+                            Some(v) => v,
+                            None => break,
+                        };
+                        if ptr == 0 {
+                            break;
+                        }
+                    }
+                },
                 "n" => {
                     self.exp += 1;
                     return;
@@ -1202,7 +1217,7 @@ impl Emu32 {
                 "m" => self.maps.print_maps(),
                 "d" => {
                     con.print("address");
-                    let addr = u32::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad address");
+                    let addr = con.cmd_hex();
                     self.disasemble(addr);
                 },
                 "" => {
@@ -1717,12 +1732,10 @@ impl Emu32 {
 
                             } else {
                                 // xchg reg, reg
-                                println!("reg reg");
                                 let value0 = self.regs.get_by_name(parts[0]);
                                 let value1 = self.regs.get_by_name(parts[1]);
                                 self.regs.set_by_name(parts[0], value1);
                                 self.regs.set_by_name(parts[1], value0);
-                                println!("end.");
                             }
                         }
                     }

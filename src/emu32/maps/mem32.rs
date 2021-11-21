@@ -142,7 +142,6 @@ impl Mem32 {
         let len = f.metadata().unwrap().len() as usize;
         self.bottom_addr = self.base_addr + (len as u32);
         self.alloc(len);
-        println!("loading {} {} bytes.", filename, len);
         f.read(&mut self.mem).expect("buffer overflow");
     }
 
