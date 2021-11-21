@@ -139,9 +139,10 @@ impl Mem32 {
 
     pub fn load(&mut self, filename: &str) {
         let mut f = File::open(&filename).expect("no file found");
-        let len = f.metadata().unwrap().len() as u32;
-        self.bottom_addr = self.base_addr + len;
-        self.alloc(len as usize);
+        let len = f.metadata().unwrap().len() as usize;
+        self.bottom_addr = self.base_addr + (len as u32);
+        self.alloc(len);
+        println!("loading {} {} bytes.", filename, len);
         f.read(&mut self.mem).expect("buffer overflow");
     }
 
