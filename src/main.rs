@@ -1,3 +1,10 @@
+/*
+    TODO:
+        - flag for maps folder
+        - entry point offset
+*/
+
+
 extern crate clap;
 
 mod emu32;

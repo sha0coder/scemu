@@ -41,6 +41,61 @@
         thread 'main' panicked at 'index out of bounds: the len is 983040 but the index is 983040', src/emu32/maps/mem32.rs:76:11
 
 
+        InMemoryOrder:
+
+=>md 
+address=>0x2c18c0
+50 19 2c 00  94 78 64 77  00 00 00 00  00 00 00 00  P,xdw
+00 00 40 00  e0 14 40 00  00 d0 01 00  3e 00 40 00  @à@Ð>@
+16 17 2c 00  10 00 12 00  44 17 2c 00  00 40 00 00  ,D,@
+ff ff ff ff  6c 1d 2c 00  40 a6 64 77  f2 cd 71 61  ÿÿÿÿl,@¦dwòÍqa
+00 00 00 00  00 00 00 00  08 19 2c 00  08 19 2c 00 ,
+10 19 2c 00  10 19 2c 00  50 28 2c 00  c8 26 2c 00  ,,P(,È&,
+38 05 5e 77  00 00 40 00  00 00 00 00  00 00 00 00  8^w@
+ab ab ab ab  ab ab ab ab  00 00 00 00  00 00 00 00  ««««««««
+
+    in 0x28 is the ptr  to the name of the lib in wide:
+=>mr
+memory argument=>dword ptr [0x2c1978]
+0x2c1978: 0x775d8328
+
+=>mdw
+address=>0x775d8328
+ntdll.dll
+
+    in 0 is the pointer to the next item:
+
+=>mr
+memory argument=>dword ptr [0x2c18c0]
+0x2c18c0: 0x2c1950 (ptr to next)
+
+Next module name:
+>>> hex(0x2c1950 + 0x28)
+'0x2c1978'
+
+=>mr
+memory argument=>dword ptr [0x2c1978]
+0x2c1978: 0x775d8328
+=>mdw
+address=>0x775d8328
+ntdll.dll
+=>
+
+ponter to next
+=>mr
+memory argument=>dword ptr [0x2c1950]
+0x2c1950: 0x2c1d38 (ptr to next)
+
+module name
+=>mr
+memory argument=>dword ptr [0x2c2778]
+0x2c2778: 0x2c2718
+=>mdw
+address=>0x2c2718
+msvcrt.dll
+
+
+
 
 
 
@@ -199,6 +254,36 @@ impl Emu32 {
         self.maps.create_map("wininet_text");
         self.maps.create_map("shlwapi");
         self.maps.create_map("shlwapi_text");
+        self.maps.create_map("gdi32");
+        self.maps.create_map("gdi32_text");
+        self.maps.create_map("user32");
+        self.maps.create_map("user32_text");
+        self.maps.create_map("lpk");
+        self.maps.create_map("lpk_text");
+        self.maps.create_map("usp10");
+        self.maps.create_map("usp10_text");
+        self.maps.create_map("advapi32");
+        self.maps.create_map("advapi32_text");
+        self.maps.create_map("sechost");
+        self.maps.create_map("sechost_text");
+        self.maps.create_map("rpcrt4");
+        self.maps.create_map("rpcrt4_text");
+        self.maps.create_map("urlmon");
+        self.maps.create_map("urlmon_text");
+        self.maps.create_map("ole32");
+        self.maps.create_map("ole32_text");
+        self.maps.create_map("oleaut32");
+        self.maps.create_map("oleaut32_text");
+        self.maps.create_map("crypt32");
+        self.maps.create_map("crypt32_text");
+        self.maps.create_map("msasn1");
+        self.maps.create_map("msasn1_text");
+        self.maps.create_map("iertutils");
+        self.maps.create_map("iertutils_text");
+        self.maps.create_map("imm32");
+        self.maps.create_map("imm32_text");
+        self.maps.create_map("msctf");
+        self.maps.create_map("msctf_text");
 
 
         //self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
@@ -305,6 +390,127 @@ impl Emu32 {
         let shlwapi_text = self.maps.get_mem("shlwapi_text");
         shlwapi_text.set_base(0x76701000);
         shlwapi_text.load("maps/shlwapi_text.bin");
+
+        let gdi32 = self.maps.get_mem("gdi32");
+        gdi32.set_base(0x759c0000);
+        gdi32.load("maps/gdi32.bin");
+
+        let gdi32_text = self.maps.get_mem("gdi32_text");
+        gdi32_text.set_base(0x759c1000);
+        gdi32_text.load("maps/gdi32_text.bin");
+
+        let user32 = self.maps.get_mem("user32");
+        user32.set_base(0x773b0000);
+        user32.load("maps/user32.bin");
+        
+        let user32_text = self.maps.get_mem("user32_text");
+        user32_text.set_base(0x773b1000);
+        user32_text.load("maps/user32_text.bin");
+
+        let lpk = self.maps.get_mem("lpk");
+        lpk.set_base(0x75b00000);
+        lpk.load("maps/lpk.bin");
+
+        let lpk_text = self.maps.get_mem("lpk_text");
+        lpk_text.set_base(0x75b01000);
+        lpk_text.load("maps/lpk_text.bin");
+
+        let usp10 = self.maps.get_mem("usp10");
+        usp10.set_base(0x76660000);
+        usp10.load("maps/usp10.bin");
+
+        let usp10_text = self.maps.get_mem("usp10_text");
+        usp10_text.set_base(0x76661000);
+        usp10_text.load("maps/usp10_text.bin");
+
+        let advapi32 = self.maps.get_mem("advapi32");
+        advapi32.set_base(0x776f0000);
+        advapi32.load("maps/advapi32.bin");
+        
+        let advapi32_text = self.maps.get_mem("advapi32_text");
+        advapi32_text.set_base(0x776f1000);
+        advapi32_text.load("maps/advapi32_text.bin");
+
+        let sechost = self.maps.get_mem("sechost");
+        sechost.set_base(0x75a10000);
+        sechost.load("maps/sechost.bin");
+
+        let sechost_text = self.maps.get_mem("sechost_text");
+        sechost_text.set_base(0x75a11000);
+        sechost_text.load("maps/sechost_text.bin");
+
+        let rpcrt4 = self.maps.get_mem("rpcrt4");
+        rpcrt4.set_base(0x774c0000);
+        rpcrt4.load("maps/rpcrt4.bin");
+
+        let rpcrt4_text = self.maps.get_mem("rpcrt4_text");
+        rpcrt4_text.set_base(0x774c1000);
+        rpcrt4_text.load("maps/rpcrt4_text.bin");
+
+        let urlmon = self.maps.get_mem("urlmon");
+        urlmon.set_base(0x75b60000);
+        urlmon.load("maps/urlmon.bin");
+
+        let urlmon_text = self.maps.get_mem("urlmon_text");
+        urlmon_text.set_base(0x75b61000);
+        urlmon_text.load("maps/urlmon_text.bin");
+
+        let ole32 = self.maps.get_mem("ole32");
+        ole32.set_base(0x76500000);
+        ole32.load("maps/ole32.bin");
+
+        let ole32_text = self.maps.get_mem("ole32_text");
+        ole32_text.set_base(0x76501000);
+        ole32_text.load("maps/ole32_text.bin");
+
+        let oleaut32 = self.maps.get_mem("oleaut32");
+        oleaut32.set_base(0x76470000);
+        oleaut32.load("maps/oleaut32.bin");
+
+        let oleaut32_text = self.maps.get_mem("oleaut32_text");
+        oleaut32_text.set_base(0x76471000);
+        oleaut32_text.load("maps/oleaut32_text.bin");
+
+        let crypt32 = self.maps.get_mem("crypt32");
+        crypt32.set_base(0x757d0000);
+        crypt32.load("maps/crypt32.bin");
+
+        let crypt32_text = self.maps.get_mem("crypt32_text");
+        crypt32_text.set_base(0x757d1000);
+        crypt32_text.load("maps/crypt32_text.bin");
+
+        let msasn1 = self.maps.get_mem("msasn1");
+        msasn1.set_base(0x75730000);
+        msasn1.load("maps/msasn1.bin");
+
+        let msasn1_text = self.maps.get_mem("msasn1_text");
+        msasn1_text.set_base(0x75731000);
+        msasn1_text.load("maps/msasn1_text.bin");
+
+        let iertutils = self.maps.get_mem("iertutils");
+        iertutils.set_base(0x75fb0000);
+        iertutils.load("maps/iertutils.bin");
+
+        let iertutils_text = self.maps.get_mem("iertutils_text");
+        iertutils_text.set_base(0x75fb1000);
+        iertutils_text.load("maps/iertutils_text.bin");
+
+        let imm32 = self.maps.get_mem("imm32");
+        imm32.set_base(0x776d0000);
+        imm32.load("maps/imm32.bin");
+
+        let imm32_text = self.maps.get_mem("imm32_text");
+        imm32_text.set_base(0x776d1000);
+        imm32_text.load("maps/imm32_text.bin");
+
+        let msctf = self.maps.get_mem("msctf");
+        msctf.set_base(0x75a30000);
+        msctf.load("maps/msctf.bin");
+
+        let msctf_text = self.maps.get_mem("msctf_text");
+        msctf_text.set_base(0x75a31000);
+        msctf_text.load("maps/msctf_text.bin");
+
 
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
