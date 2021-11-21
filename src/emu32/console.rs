@@ -23,6 +23,10 @@ impl Console {
         return line;
     }
 
+    pub fn cmd_hex(&self) -> u32 {
+        return u32::from_str_radix(self.cmd().as_str().trim_start_matches("0x"), 16).expect("bad hex value");
+    }
+
     pub fn help(&self) {
         println!("--- help ---");
         println!("q ...................... quit");
@@ -52,6 +56,7 @@ impl Console {
         println!("mdw .................... memory dump wide string");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");
+        println!("ll ..................... linked list walk");
         println!("d ...................... dissasemble");
         println!("");
         println!("---");

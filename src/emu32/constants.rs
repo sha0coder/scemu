@@ -11,6 +11,9 @@ pub const STATUS_INVALID_PARAMETER:u32 = 0xC000000D;
 pub const NUM_BYTES_TRACE:usize = 16;
 pub const VERSION:u32 = 0x1db10106;
 
+pub const WAIT_TIMEOUT:u32 = 0x00000102;
+pub const WAIT_FAILED:u32 = 0xFFFFFFFF;
+
 //vectored exception handler
 pub const CALL_FIRST:u32 = 1;
 pub const CALL_LAST:u32 = 0;
