@@ -7,6 +7,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - colorized
 - stop at specific moment and explore the state or modify it.
 - 90 instructions implemented
+- 39 winapi implemented of 5 dlls
 - SEH chains
 - vectored exception handler
 - int3
