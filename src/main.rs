@@ -26,10 +26,11 @@ fn main() {
                         .value_name("FILE")
                         .help("set the shellcode binary file.")
                         .takes_value(true))
-                    .arg(Arg::with_name("quick")
-                        .short("q")
-                        .long("quick")
-                        .help("quick mode only print relevant data.")
+                    .arg(Arg::with_name("verbose")
+                        .short("v")
+                        .long("verbose")
+                        .multiple(true)
+                        .help("-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster")
                         .takes_value(false))
                     .arg(Arg::with_name("memory")
                         .short("m")
@@ -83,7 +84,7 @@ fn main() {
     }
 
     let filename = matches.value_of("filename").expect("please enter the filename.");
-    cfg.quick_mode = matches.is_present("quick");
+    cfg.verbose = matches.occurrences_of("verbose") as u32;
     cfg.trace_mem = matches.is_present("memory");
     cfg.trace_regs = matches.is_present("registers");
     if matches.is_present("register") {

@@ -143,6 +143,7 @@ impl Mem32 {
         self.bottom_addr = self.base_addr + (len as u32);
         self.alloc(len);
         f.read(&mut self.mem).expect("buffer overflow");
+        f.sync_all().unwrap();
     }
 
 

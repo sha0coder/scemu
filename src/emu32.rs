@@ -98,10 +98,6 @@ msvcrt.dll
 
 
 
-
-
-
-
     guloader:
         8273 --> exit the loop
 
@@ -175,6 +171,7 @@ pub struct Emu32 {
     veh: u32,
     cfg: Config,
     colors: Colors,
+    pos: u64,
 }
 
 impl Emu32 {
@@ -191,6 +188,7 @@ impl Emu32 {
             veh: 0,
             cfg: Config::new(),
             colors: Colors::new(),
+            pos: 0,
         }
     }
 
@@ -225,7 +223,7 @@ impl Emu32 {
         self.regs.esi = 0x0022f388;
         self.regs.edi = 0;
 
-        println!("initializing memory maps");
+        println!("loading memory maps");
 
         self.maps.create_map("10000");
         self.maps.create_map("20000");
@@ -540,7 +538,7 @@ impl Emu32 {
 
     pub fn stack_pop(&mut self, pop_instruction:bool) -> u32 {
         let value = self.maps.get_mem("stack").read_dword(self.regs.esp);
-        if pop_instruction && self.maps.get_mem("code").inside(value) {
+        if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value) {
             println!("/!\\ poping a code address 0x{:x}", value);
         }
         self.regs.esp += 4;
@@ -568,16 +566,22 @@ impl Emu32 {
             */
 
             //let inm = self.get_inmediate(spl[0]);
-            println!("FS ACCESS TO 0x{:x}", value);
+            if self.cfg.verbose >= 1 {
+                println!("FS ACCESS TO 0x{:x}", value);
+            }
 
             if value == 0x30 { // PEB
-                println!("ACCESS TO PEB");
+                if self.cfg.verbose >= 1 {
+                    println!("ACCESS TO PEB");
+                }
                 let peb = self.maps.get_mem("peb");
                 return peb.get_base();
             }
 
             if value == 0x18 {
-                println!("ACCESS TO TEB");
+                if self.cfg.verbose >= 1 {
+                    println!("ACCESS TO TEB");
+                }
                 let teb = self.maps.get_mem("teb");
                 return teb.get_base();
             }
@@ -658,7 +662,9 @@ impl Emu32 {
     
     pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
         if operand.contains("fs:[0]") {
-            println!("Reading SEH fs:[0] 0x{:x}", self.seh);
+            if self.cfg.verbose >= 1 {
+                println!("Reading SEH fs:[0] 0x{:x}", self.seh);
+            }
             return Some(self.seh);
         }
 
@@ -772,7 +778,9 @@ impl Emu32 {
         if name == "code" || addr < 0x70000000 {
             self.regs.eip = addr;
         } else {
-            println!("/!\\ changing EIP to {} ", name);
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ changing EIP to {} ", name);
+            }
 
             let retaddr = self.stack_pop(false);
 
@@ -1068,9 +1076,9 @@ impl Emu32 {
                 "r edx" => self.regs.show_edx(&self.maps),
                 "r esi" => self.regs.show_esi(&self.maps),
                 "r edi" => self.regs.show_edi(&self.maps),
-                "r esp" => println!("esp: 0x{:x}", self.regs.esp),
-                "r ebp" => println!("ebp: 0x{:x}", self.regs.ebp),
-                "r eip" => println!("eip: 0x{:x}", self.regs.eip),
+                "r esp" => println!("\tesp: 0x{:x}", self.regs.esp),
+                "r ebp" => println!("\tebp: 0x{:x}", self.regs.ebp),
+                "r eip" => println!("\teip: 0x{:x}", self.regs.eip),
                 "rc" => {
                     con.print("register name");
                     let reg = con.cmd();
@@ -1198,14 +1206,15 @@ impl Emu32 {
                 },
                 "ll" => {
                     con.print("ptr");
-                    let mut ptr:u32 = con.cmd_hex();
+                    let ptr1:u32 = con.cmd_hex();
+                    let mut ptr = ptr1;
                     loop {
                         println!("- 0x{:x}", ptr);
                         ptr = match self.maps.read_dword(ptr) {
                             Some(v) => v,
                             None => break,
                         };
-                        if ptr == 0 {
+                        if ptr == 0 || ptr == ptr1 {
                             break;
                         }
                     }
@@ -1236,9 +1245,9 @@ impl Emu32 {
         self.regs.show_edx(&self.maps);
         self.regs.show_esi(&self.maps);
         self.regs.show_edi(&self.maps);
-        println!("esp: 0x{:x}", self.regs.esp);
-        println!("ebp: 0x{:x}", self.regs.ebp);
-        println!("eip: 0x{:x}", self.regs.eip);
+        println!("\tesp: 0x{:x}", self.regs.esp);
+        println!("\tebp: 0x{:x}", self.regs.ebp);
+        println!("\teip: 0x{:x}", self.regs.eip);
     }
 
     fn exception(&mut self) {
@@ -1316,7 +1325,7 @@ impl Emu32 {
             .build()
             .expect("Failed to create Capstone object");
 
-        let mut pos:u64 = 0;
+        self.pos = 0;
         
 
         loop {
@@ -1337,12 +1346,12 @@ impl Emu32 {
                 let addr = ins.address();
                 let mut step = false;
 
-                pos += 1;
+                self.pos += 1;
 
-                if self.exp == pos || self.bp == addr as u32 {
+                if self.exp == self.pos || self.bp == addr as u32 {
                     step = true;
                     println!("-------");
-                    println!("{} {}", pos, ins);
+                    println!("{} {}", self.pos, ins);
                     self.spawn_console();
                 }
                     
@@ -1384,7 +1393,7 @@ impl Emu32 {
                     }
                 }
                 
-                if self.cfg.quick_mode {
+                if self.cfg.verbose < 2 {
                     step = true;
                 }
 
@@ -1443,7 +1452,7 @@ impl Emu32 {
                 match ins.mnemonic() {
                     Some("jmp") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let addr:u32;
@@ -1468,7 +1477,7 @@ impl Emu32 {
 
                     Some("call") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
 
                         let op = ins.op_str().unwrap();
@@ -1530,7 +1539,7 @@ impl Emu32 {
 
                     Some("push") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         let opcode:u8 = ins.bytes()[0];
 
@@ -1586,7 +1595,7 @@ impl Emu32 {
 
                     Some("pop") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         let opcode:u8 = ins.bytes()[0];
                         
@@ -1624,7 +1633,7 @@ impl Emu32 {
 
                     Some("pushal") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         let tmp_esp = self.regs.esp;
                         self.stack_push(self.regs.eax);
@@ -1639,7 +1648,7 @@ impl Emu32 {
 
                     Some("popal") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         self.regs.edi = self.stack_pop(false);
                         self.regs.esi = self.stack_pop(false);
@@ -1660,7 +1669,7 @@ impl Emu32 {
 
                     Some("ret") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let ret_addr = self.stack_pop(false); // return address
                         let op = ins.op_str().unwrap();
@@ -1689,7 +1698,7 @@ impl Emu32 {
 
                     Some("xchg") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
                         }
 
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
@@ -1743,7 +1752,7 @@ impl Emu32 {
 
                     Some("mov") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
                         }
 
                         let bs = ins.bytes();
@@ -1802,7 +1811,7 @@ impl Emu32 {
 
                     Some("xor") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
@@ -1870,7 +1879,7 @@ impl Emu32 {
 
                     Some("add") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let ops = ins.op_str().unwrap();
                         let parts:Vec<&str> = ops.split(", ").collect();
@@ -1974,7 +1983,7 @@ impl Emu32 {
                     
                     Some("sbb") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -2077,7 +2086,7 @@ impl Emu32 {
                     
                     Some("sub") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -2180,7 +2189,7 @@ impl Emu32 {
 
                     Some("inc") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
@@ -2222,7 +2231,7 @@ impl Emu32 {
 
                     Some("dec") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
@@ -2267,7 +2276,7 @@ impl Emu32 {
                     // neg not and or ror rol  sar sal shr shl 
                     Some("neg") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
@@ -2316,7 +2325,7 @@ impl Emu32 {
 
                     Some("not") => { // dont alter flags
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         if self.is_reg(op) {
@@ -2345,7 +2354,7 @@ impl Emu32 {
 
                     Some("and") => { // TODO: how to trigger overflow and carry with and
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
@@ -2423,7 +2432,7 @@ impl Emu32 {
 
                     Some("or") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
@@ -2500,7 +2509,7 @@ impl Emu32 {
 
                     Some("sal") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -2731,7 +2740,7 @@ impl Emu32 {
 
                     Some("sar") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -2961,7 +2970,7 @@ impl Emu32 {
 
                     Some("shr") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -3193,7 +3202,7 @@ impl Emu32 {
 
                     Some("shl") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -3424,7 +3433,7 @@ impl Emu32 {
 
                     Some("ror") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -3547,7 +3556,7 @@ impl Emu32 {
 
                     Some("rol") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -3669,7 +3678,7 @@ impl Emu32 {
 
                     Some("mul") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
@@ -3766,7 +3775,7 @@ impl Emu32 {
 
                     Some("div") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
@@ -3941,7 +3950,7 @@ impl Emu32 {
 
                     Some("idiv") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let bits = self.get_size(op);
@@ -4198,7 +4207,7 @@ impl Emu32 {
 
                     Some("imul") => {
                         if !step {
-                            println!("{} {}", pos, ins);
+                            println!("{} {}", self.pos, ins);
                         }
                         //https://c9x.me/x86/html/file_module_x86_id_138.html
                         panic!("not implemented");
@@ -4206,7 +4215,7 @@ impl Emu32 {
 
                     Some("movsx") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -4250,7 +4259,7 @@ impl Emu32 {
 
                     Some("movzx") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -4275,7 +4284,7 @@ impl Emu32 {
 
                     Some("test") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.orange, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -4353,7 +4362,7 @@ impl Emu32 {
 
                     Some("cmp") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.orange, pos, ins, self.colors.nc);                            
+                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);                            
                             //println!("\tcmp-> eax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
                         }
                         let op = ins.op_str().unwrap();
@@ -4464,18 +4473,18 @@ impl Emu32 {
 
                     Some("jo") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.orange, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);
                         }
                         if self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4484,14 +4493,14 @@ impl Emu32 {
                         
                         if !self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4499,14 +4508,14 @@ impl Emu32 {
                     Some("js") => {
                         if self.flags.f_sf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                         
@@ -4515,14 +4524,14 @@ impl Emu32 {
                     Some("jns") => {
                         if !self.flags.f_sf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4530,14 +4539,14 @@ impl Emu32 {
                     Some("je") => {
                         if self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4545,14 +4554,14 @@ impl Emu32 {
                     Some("jz") => {
                         if self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4561,14 +4570,14 @@ impl Emu32 {
                     Some("jne") => {
                         if !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4576,14 +4585,14 @@ impl Emu32 {
                     Some("jnz") => {
                         if !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4591,14 +4600,14 @@ impl Emu32 {
                     Some("jb") => {
                         if self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4606,14 +4615,14 @@ impl Emu32 {
                     Some("jnae") => {
                         if self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4621,14 +4630,14 @@ impl Emu32 {
                     Some("jc") => {
                         if self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4636,14 +4645,14 @@ impl Emu32 {
                     Some("jnb") => {
                         if !self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4651,14 +4660,14 @@ impl Emu32 {
                     Some("jae") => {
                         if !self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4666,14 +4675,14 @@ impl Emu32 {
                     Some("jnc") => {
                         if !self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4681,14 +4690,14 @@ impl Emu32 {
                     Some("jbe") => {
                         if self.flags.f_cf || self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4696,14 +4705,14 @@ impl Emu32 {
                     Some("jna") => {
                         if self.flags.f_cf || self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4711,14 +4720,14 @@ impl Emu32 {
                     Some("ja") => {
                         if !self.flags.f_cf && !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4726,14 +4735,14 @@ impl Emu32 {
                     Some("jnbe") => {
                         if !self.flags.f_cf && !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4741,14 +4750,14 @@ impl Emu32 {
                     Some("jl") => {
                         if self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4756,14 +4765,14 @@ impl Emu32 {
                     Some("jnge") => {
                         if self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4771,14 +4780,14 @@ impl Emu32 {
                     Some("jge") => {
                         if self.flags.f_sf == self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4786,14 +4795,14 @@ impl Emu32 {
                     Some("jnl") => {
                         if self.flags.f_sf == self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4801,14 +4810,14 @@ impl Emu32 {
                     Some("jle") => {
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4816,7 +4825,7 @@ impl Emu32 {
                     Some("jng") => {
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
     
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
@@ -4824,7 +4833,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4832,14 +4841,14 @@ impl Emu32 {
                     Some("jg") => {
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4847,14 +4856,14 @@ impl Emu32 {
                     Some("jnle") => {
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4862,14 +4871,14 @@ impl Emu32 {
                     Some("jp") => {
                         if self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4877,14 +4886,14 @@ impl Emu32 {
                     Some("jpe") => {
                         if self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4892,14 +4901,14 @@ impl Emu32 {
                     Some("jnp") => {
                         if !self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4907,14 +4916,14 @@ impl Emu32 {
                     Some("jpo") => {
                         if !self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4922,14 +4931,14 @@ impl Emu32 {
                     Some("jcxz") => {
                         if self.regs.get_cx() == 0 {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4937,14 +4946,14 @@ impl Emu32 {
                     Some("jecxz") => {
                         if self.regs.ecx == 0 {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                             let addr = self.get_inmediate(ins.op_str().unwrap());       
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, pos, ins, self.colors.nc);
+                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
                     },
@@ -4953,7 +4962,7 @@ impl Emu32 {
                     //TODO: test syenter / int80
                     Some("int3") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                         println!("/!\\ int 3 sigtrap!!!!");
                         self.exception();
@@ -4962,22 +4971,23 @@ impl Emu32 {
 
                     Some("nop") => {
                         if !step {
-                            println!("{} {}", pos, ins);
+                            println!("{} {}", self.pos, ins);
                         }
                     },
 
                     Some("mfence")|Some("lfence")|Some("sfence") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                     }
 
                     Some("cpuid") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                         // guloader checks bit31 which is if its hipervisor with command
                         // https://c9x.me/x86/html/file_module_x86_id_45.html
+                        // TODO: implement 0x40000000 -> get the virtualization vendor
 
                         match self.regs.eax {
                             0x00 => {
@@ -5047,14 +5057,14 @@ impl Emu32 {
 
                     Some("clc") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_gray, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_gray, self.pos, ins, self.colors.nc);
                         }
                         self.flags.f_cf = false;
                     },
 
                     Some("rdtsc") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                         self.regs.edx = 0;
                         self.regs.eax = 0;
@@ -5063,7 +5073,7 @@ impl Emu32 {
 
                     Some("loop") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
@@ -5094,7 +5104,7 @@ impl Emu32 {
 
                     Some("loope") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
@@ -5124,7 +5134,7 @@ impl Emu32 {
 
                     Some("loopz") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
@@ -5154,7 +5164,7 @@ impl Emu32 {
 
                     Some("loopne") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
@@ -5184,7 +5194,7 @@ impl Emu32 {
 
                     Some("loopnz") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
                         let addr = self.get_inmediate(ins.op_str().unwrap());
                         if addr > 0xffff {
@@ -5214,7 +5224,7 @@ impl Emu32 {
 
                     Some("lea") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
                         }
                         let ops = ins.op_str().unwrap();
                         let parts:Vec<&str> = ops.split(", ").collect();
@@ -5254,7 +5264,7 @@ impl Emu32 {
 
                     Some("leave") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                         self.regs.esp = self.regs.ebp;
                         self.regs.ebp = self.stack_pop(true);
@@ -5262,7 +5272,7 @@ impl Emu32 {
 
                     Some("int") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let interrupt = u32::from_str_radix(op.trim_start_matches("0x"),16).expect("conversion error");
@@ -5288,7 +5298,7 @@ impl Emu32 {
                     Some("lock btr") => {
                         // 747712 0x775b77b2: lock btr dword ptr [eax], 0
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         let op = ins.op_str().unwrap();
                         let parts:Vec<&str> = op.split(", ").collect();
@@ -5308,7 +5318,7 @@ impl Emu32 {
 
                     Some("lock cmpxchg") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         // 747743 0x775a229a: lock cmpxchg dword ptr [ebx], edx
                         // compare memory [ebx] with eax if they are same, move edx to [ebx]
@@ -5355,21 +5365,21 @@ impl Emu32 {
 
                     Some("std") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         self.flags.f_df = true;
                     },
 
                     Some("cld") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
                         }
                         self.flags.f_df = false;
                     },
 
                     Some("lodsd") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let val = match self.memory_read("dword ptr [esi]") { 
                             Some(v) => v,
@@ -5385,7 +5395,7 @@ impl Emu32 {
 
                     Some("lodsw") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let val = match self.memory_read("word ptr [esi]") {
                             Some(v) => v,
@@ -5401,7 +5411,7 @@ impl Emu32 {
 
                     Some("lodsb") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
                         let val = match self.memory_read("byte ptr [esi]") {
                             Some(v) => v,
@@ -5417,7 +5427,7 @@ impl Emu32 {
 
                     Some("lods") => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, pos, ins, self.colors.nc);
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
                         }
 
                         let op = ins.op_str().unwrap();
@@ -5458,12 +5468,12 @@ impl Emu32 {
 
 
                     Some("sysenter") => {
-                        println!("{}{} {}{} function: 0x{:x}", self.colors.red, pos, ins, self.colors.nc, self.regs.eax);
+                        println!("{}{} {}{} function: 0x{:x}", self.colors.red, self.pos, ins, self.colors.nc, self.regs.eax);
                         return;
                     }
 
                     Some(&_) =>  { 
-                        println!("{}{} {}{}", self.colors.red, pos, ins, self.colors.nc);
+                        println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         panic!("unimplemented instruction");
                     },
                     None => panic!("none instruction"),

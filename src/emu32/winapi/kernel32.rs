@@ -11,6 +11,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e8154e => GetVersion(emu),
         0x75e42082 => CreateProcessA(emu),
         0x75e8ba90 => WaitForSingleObject(emu),
+        0x75e92fb6 => VirtualAlloc(emu),
         _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
     }
 }
@@ -27,7 +28,7 @@ fn LoadLibraryA(emu:&mut emu32::Emu32) {
         _ => panic!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll),
     }
 
-    println!("{}** kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, dll, emu.regs.eax, emu.colors.nc);
+    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, emu.regs.eax, emu.colors.nc);
 
     emu.stack_pop(false);
 }
@@ -43,12 +44,12 @@ fn LoadLibraryExA(emu:&mut emu32::Emu32) {
     let libname_ptr = emu.maps.read_dword(emu.regs.esp).expect("kernel32_LoadLibraryExA: error reading libname ptr param");
     let libname = emu.maps.read_string(libname_ptr);
 
-    println!("{}** LoadLibraryExA '{}' {}", emu.colors.light_red, libname, emu.colors.nc);
+    println!("{}** {} LoadLibraryExA '{}' {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
     panic!();
 }
 
 fn LoadLibraryExW(emu:&mut emu32::Emu32) {
-    println!("{}** LoadLibraryExW {}", emu.colors.light_red, emu.colors.nc);
+    println!("{}** {} LoadLibraryExW {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 }
 
 fn LoadLibraryW(emu:&mut emu32::Emu32) {
@@ -57,7 +58,7 @@ fn LoadLibraryW(emu:&mut emu32::Emu32) {
         None => panic!("bad LoadLibraryW parameter"),
     };
     let dll = emu.maps.read_wide_string(dllptr);
-    println!("{}** LoadLibraryW  '{}'  {}", emu.colors.light_red, dll, emu.colors.nc);
+    println!("{}** {} LoadLibraryW  '{}'  {}", emu.colors.light_red, emu.pos, dll, emu.colors.nc);
 
     if dll == "ntdll.dll" {
         emu.regs.eax = emu.maps.get_mem("ntdll").get_base();
@@ -72,7 +73,7 @@ fn WinExec(emu:&mut emu32::Emu32) {
 
     //emu.spawn_console();
 
-    println!("{}** WinExec  '{}'  {}", emu.colors.light_red, cmdline, emu.colors.nc);
+    println!("{}** {} WinExec  '{}'  {}", emu.colors.light_red, emu.pos, cmdline, emu.colors.nc);
 
     emu.regs.eax = 0;
     emu.stack_pop(false);
@@ -80,7 +81,7 @@ fn WinExec(emu:&mut emu32::Emu32) {
 
 fn GetVersion(emu:&mut emu32::Emu32) {
     emu.regs.eax = emu32::constants::VERSION;
-    println!("{}** kernel32!GetVersion   =0x{:x}  {}", emu.colors.light_red, emu.regs.eax, emu.colors.nc);
+    println!("{}** {} kernel32!GetVersion   =0x{:x}  {}", emu.colors.light_red, emu.pos, emu.regs.eax, emu.colors.nc);
 }
 
 fn CreateProcessA(emu:&mut emu32::Emu32) {
@@ -94,7 +95,7 @@ fn CreateProcessA(emu:&mut emu32::Emu32) {
     let appname = emu.maps.read_string(appname_ptr);
     let cmdline = emu.maps.read_string(cmdline_ptr);
 
-    println!("{}** kernel32!CreateProcessA  {} {} {}", emu.colors.light_red, appname, cmdline, emu.colors.nc);
+    println!("{}** {} kernel32!CreateProcessA  {} {} {}", emu.colors.light_red, emu.pos, appname, cmdline, emu.colors.nc);
 
     for _ in 0..10 {
         emu.stack_pop(false);
@@ -107,13 +108,32 @@ fn WaitForSingleObject(emu:&mut emu32::Emu32) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("kernel32!WaitForSingleObject error reading handle");
     let millis = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!WaitForSingleObject error reading millis");
 
-    println!("{}** kernel32!WaitForSingleObject  hndl:{} millis:{} {}", emu.colors.light_red, handle, millis, emu.colors.nc);
+    println!("{}** {} kernel32!WaitForSingleObject  hndl:{} millis:{} {}", emu.colors.light_red, emu.pos, handle, millis, emu.colors.nc);
 
     emu.stack_pop(false);
     emu.stack_pop(false);
     emu.regs.eax = emu32::constants::WAIT_TIMEOUT;
 }
 
+fn VirtualAlloc(emu:&mut emu32::Emu32) {
+    let addr = emu.maps.read_dword(emu.regs.esp).expect("kernel32!VirtualAlloc error reading addr");
+    let size = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!VirtualAlloc error reading size ptr");
+    let atype = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!VirtualAlloc error reading type"); 
+    let protect = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!VirtualAlloc error reading protect");
+
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
+    let alloc = emu.maps.create_map("allocated");
+    alloc.set_base(base);
+    alloc.set_size(size);
+
+    println!("{}** {} kernel32!VirtualAlloc sz:{} addr:0x{:x} {}", emu.colors.light_red, emu.pos, size, base, emu.colors.nc);
+
+    emu.regs.eax = base;
+
+    for _ in 0..4 {
+        emu.stack_pop(false);
+    }
+}
 
 
 

@@ -55,41 +55,39 @@ impl Maps {
     }
 
     pub fn read_dword(&self, addr:u32) -> Option<u32> {
-        for (name,mem) in self.maps.iter() {
+        for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                if name == "kernel32" {
+                /*if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
-                }
+                }*/
                 return Some(mem.read_dword(addr));
             }
         }
-        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
         return None;
     }
 
     pub fn read_word(&self, addr:u32) -> Option<u16> {
-        for (name,mem) in self.maps.iter() {
+        for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                if name == "kernel32" {
+                /*if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
-                }
+                }*/
                 return Some(mem.read_word(addr));
             }
         }
-        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
         return None;
     }
 
     pub fn read_byte(&self, addr:u32) -> Option<u8> {
-        for (name,mem) in self.maps.iter() {
+        for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
+                /*
                 if name == "kernel32" {
                     println!("\treading kernel32 addr 0x{:x}", addr);
-                }
+                }*/
                 return Some(mem.read_byte(addr));
             }
         }
-        println!("/!\\ exception: reading on non mapped zone 0x{:x}", addr);
         return None;
     }
 
@@ -312,6 +310,37 @@ impl Maps {
             sz += mem.size();
         }
         return sz;
+    }
+
+    pub fn alloc(&self, sz:u32) -> Option<u32> {
+        // super simple memory allocator
+
+        let mut addr:u32 = 0;
+
+        //println!("ALLOCATOR sz:{}", sz);
+        loop {
+            addr += sz;
+            //println!("trying 0x{:x}", addr);
+            
+            if addr >= 0x70000000 {
+                return None;
+            }
+
+            //println!("step1");
+
+            for (_,mem) in self.maps.iter() {
+                if addr >= mem.get_base() && addr <= mem.get_bottom() {
+                    continue;
+                }
+            }
+
+            //println!("step2");
+
+            if !self.is_mapped(addr) {
+                return Some(addr);
+            }
+
+        }
     }
 
 }
