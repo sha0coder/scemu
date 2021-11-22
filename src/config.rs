@@ -4,7 +4,7 @@ pub struct Config {
     pub trace_regs: bool,   // show all the regs in every step
     pub trace_reg: bool,    // show value and content of a reg in every step
     pub reg_name: String,   // which reg to trace
-    pub quick_mode: bool,  // dont print the asm, only relevant things
+    pub verbose: u32,       // 0 only view the api, 1 api + messages, 2 asm code
     pub console: bool,      // enable the console on specific moment?
     pub console_num: u64,   // in which moment enable the console
     pub loops: bool,
@@ -22,7 +22,7 @@ impl Config {
             trace_regs: false,
             trace_reg: false,
             reg_name: "".to_string(),
-            quick_mode: false,
+            verbose: 0,
             console: false,
             console_num: 0,
             loops: false,

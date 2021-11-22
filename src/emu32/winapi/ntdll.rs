@@ -39,7 +39,7 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
-    println!("{}** NtAllocateVirtualMemory  0x003e0000 {}", emu.colors.light_red, emu.colors.nc);
+    println!("{}** {} ntdll!NtAllocateVirtualMemory  0x003e0000 {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
     //TODO: modify this, its allowing just one allocation
     let alloc = emu.maps.create_map("alloc");
@@ -61,12 +61,12 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
 
 
 fn stricmp(emu:&mut emu32::Emu32) {
-    let str1ptr = emu.maps.read_dword(emu.regs.esp).expect("ntdll_stricmp: error reading string1");
-    let str2ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_stricmp: error reading string2");
+    let str1ptr = emu.maps.read_dword(emu.regs.esp).expect("ntdll!stricmp: error reading string1");
+    let str2ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!stricmp: error reading string2");
     let str1 = emu.maps.read_string(str1ptr);
     let str2 = emu.maps.read_string(str2ptr);
 
-    println!("{}** ntdll_stricmp  '{}'=='{}'? {}", emu.colors.light_red, str1, str2, emu.colors.nc);
+    println!("{}** {} ntdll!stricmp  '{}'=='{}'? {}", emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc);
 
     if str1 == str2 {
         emu.regs.eax = 0;
@@ -80,17 +80,17 @@ fn stricmp(emu:&mut emu32::Emu32) {
 }
 
 fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
-    let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll_NtQueryVirtualMemory: error reading handle");
-    let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_NtQueryVirtualMemory: error reading address");
+    let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll!NtQueryVirtualMemory: error reading handle");
+    let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!NtQueryVirtualMemory: error reading address");
 
     if handle != 0xffffffff {
-        panic!("ntdll_NtQueryVirtualMemory: using handle of remote process {:x}", handle);
+        panic!("ntdll!NtQueryVirtualMemory: using handle of remote process {:x}", handle);
     }
 
     let out_meminfo_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo");
 
     if !emu.maps.is_mapped(addr) {
-        println!("/!\\ ntdll_NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
+        println!("/!\\ ntdll!NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
         for _ in 0..6 {
             emu.stack_pop(false);
         }
@@ -109,7 +109,7 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
     */
 
     
-    println!("{}** ntdll_NtQueryVirtualMemory {}", emu.colors.light_red, emu.colors.nc);
+    println!("{}** {} ntdll_NtQueryVirtualMemory {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
     if !emu.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
         panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
@@ -128,7 +128,7 @@ fn LdrLoadDll(emu:&mut emu32::Emu32) {
     let libname_ptr = emu.maps.read_dword(emu.regs.esp+20).expect("LdrLoadDll: error reading lib param");
 
     let libname = emu.maps.read_wide_string(libname_ptr);
-    println!("{}** ntdll_LdrLoadDll   lib:{} {}", emu.colors.light_red, libname, emu.colors.nc);
+    println!("{}** {} ntdll!LdrLoadDll   lib:{} {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
 
     
     if libname == "user32.dll" {
@@ -155,7 +155,7 @@ fn RtlVectoredExceptionHandler(emu:&mut emu32::Emu32) {
     let p1 = emu.maps.read_dword(emu.regs.esp).expect("ntdll_RtlVectoredExceptionHandler: error reading p1");
     let fptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr");
 
-    println!("{}** ntdll_RtlVectoredExceptionHandler  {} callback:0x{:x} {}", emu.colors.light_red, p1, fptr, emu.colors.nc);
+    println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback:0x{:x} {}", emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc);
 
     emu.veh = fptr;
 
@@ -170,7 +170,7 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
     let ctx = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
     let context_flags = emu.maps.read_dword(ctx).expect("ntdll_NtGetContextThread: error reading context flags");
 
-    println!("{}** ntdll_NtGetContextThread   ctx flags:0x{:x} {}", emu.colors.light_red, context_flags, emu.colors.nc);
+    println!("{}** {} ntdll_NtGetContextThread   ctx flags:0x{:x} {}", emu.colors.light_red, emu.pos, context_flags, emu.colors.nc);
 
     if !emu.maps.write_dword(ctx+4, 0) {
         panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
@@ -236,6 +236,6 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
 }
 
 fn RtlExitUserThread(emu:&mut emu32::Emu32) {
-    println!("{}** ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.colors.nc);   
+    println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
     std::process::exit(1);
 }

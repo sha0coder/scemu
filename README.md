@@ -36,11 +36,16 @@ There are several maps by default, and can be created more with apis like LoadLi
 ![exception handlers](pics/maps.png)
 
 Emulating basic windows shellcode based on LdrLoadDLl() that prints a message:
-![exception handlers](pics/msgbox.png)
+![msgbox](pics/msgbox.png)
 
 The console allow to view an edit the current state of the cpu:
-![exception handlers](pics/console_help.png)
+![console](pics/console_help.png)
 
 The cobalt strike api loader is the same that metasploit, emulating it:
-![exception handlers](pics/metasploit_api_loader.png)
+![api loader](pics/metasploit_api_loader.png)
 
+Cobalt Strike API called:
+![cobalt strike](pics/cobalt_strike.png)
+
+Metasploit rshell API called:
+![msf rshell](pics/metasploit_rshell.png)
