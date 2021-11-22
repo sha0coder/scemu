@@ -47,5 +47,6 @@ The cobalt strike api loader is the same that metasploit, emulating it:
 Cobalt Strike API called:
 ![cobalt strike](pics/cobalt_strike.png)
 
+
 Metasploit rshell API called:
 ![msf rshell](pics/metasploit_rshell.png)
