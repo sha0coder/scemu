@@ -146,9 +146,11 @@ mod console;
 pub mod colors;
 pub mod constants;
 mod winapi;
+mod fpu;
 
 use flags::Flags;
 use eflags::Eflags;
+use fpu::FPU;
 use maps::Maps;
 use regs32::Regs32;
 use console::Console;
@@ -163,6 +165,7 @@ pub struct Emu32 {
     regs: Regs32,
     flags: Flags,
     eflags: Eflags,
+    fpu: FPU,
     maps: Maps,
     exp: u64,
     break_on_alert: bool,
@@ -180,6 +183,7 @@ impl Emu32 {
             regs: Regs32::new(),
             flags: Flags::new(),
             eflags: Eflags::new(),
+            fpu: FPU::new(),
             maps: Maps::new(),
             exp: 0,
             break_on_alert: false,
@@ -5464,6 +5468,45 @@ impl Emu32 {
                             },
                             _ => panic!("bad precision"),
                         }
+                    },
+
+                    ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
+
+                    Some("ffree") => {
+                        if !step {
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                        }
+
+                        let op = ins.op_str().unwrap();
+                        match op {
+                            "st(0)" => self.fpu.clear(0),
+                            "st(1)" => self.fpu.clear(1),
+                            "st(2)" => self.fpu.clear(2),
+                            "st(3)" => self.fpu.clear(3),
+                            "st(4)" => self.fpu.clear(4),
+                            "st(5)" => self.fpu.clear(5),
+                            "st(6)" => self.fpu.clear(6),
+                            "st(7)" => self.fpu.clear(7),
+                            _ => panic!("fpu ffre operand no implemented"),
+                        }  
+                        self.fpu.set_eip(self.regs.eip);
+                    },
+
+                    Some("fnstenv") => {
+                        if !step {
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                        }
+
+                        let mut dir = "dword ptr ".to_string();
+                        dir.push_str(ins.op_str().unwrap());
+
+                        let addr:u32 = self.memory_operand_to_address(dir.as_str());
+                        let env = self.fpu.get_env();
+                        for i in 0..4 {
+                            self.maps.write_dword(addr+(i*4), env[i as usize]);
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
                     },
 
 
