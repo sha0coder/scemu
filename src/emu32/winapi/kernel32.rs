@@ -12,6 +12,9 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e42082 => CreateProcessA(emu),
         0x75e8ba90 => WaitForSingleObject(emu),
         0x75e92fb6 => VirtualAlloc(emu),
+        0x75e7c1b6 => VirtualAllocEx(emu),
+        0x75e7c1de => WriteProcessMemory(emu),
+        0x75ecf33b => CreateRemoteThread(emu),
         _ => panic!("calling unknown kernel32 API 0x{:x}", addr),
     }
 }
@@ -122,7 +125,7 @@ fn VirtualAlloc(emu:&mut emu32::Emu32) {
     let protect = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!VirtualAlloc error reading protect");
 
     let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
-    let alloc = emu.maps.create_map("allocated");
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
     alloc.set_base(base);
     alloc.set_size(size);
 
@@ -135,6 +138,63 @@ fn VirtualAlloc(emu:&mut emu32::Emu32) {
     }
 }
 
+fn VirtualAllocEx(emu:&mut emu32::Emu32) {
+    let proc_hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!VirtualAllocEx cannot read the proc handle");
+    let addr = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!VirtualAllocEx cannot read the address");
+    let size = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!VirtualAllocEx cannot read the size");
+    let alloc_type = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!VirtualAllocEx cannot read the type");
+    let protect = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!VirtualAllocEx cannot read the protect");
 
+    println!("{}** {} kernel32!VirtualAllocEx hproc:0x{:x} addr:0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
+    alloc.set_base(base);
+    alloc.set_size(size);
+    
+    emu.regs.eax = base;
 
+    for _ in 0..5 {
+        emu.stack_pop(false);
+    }
+}
+
+fn WriteProcessMemory(emu:&mut emu32::Emu32) {
+    let proc_hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!WriteProcessMemory cannot read the proc handle");
+    let addr = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!WriteProcessMemory cannot read the address");
+    let buff = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!WriteProcessMemory cannot read the buffer");
+    let size = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!WriteProcessMemory cannot read the size");
+    let written_ptr = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!WriteProcessMemory cannot read the ptr of num of written bytes");
+
+    println!("{}** {} kernel32!WriteProcessMemory hproc:0x{:x} from:0x{:x } to:0x{:x} sz:{} {}", emu.colors.light_red, emu.pos, proc_hndl, buff, addr, size, emu.colors.nc);
+
+    if emu.maps.memcpy(buff, addr, size as usize) {
+        emu.regs.eax = 1;
+        println!("{}\twritten succesfully{}", emu.colors.light_red, emu.colors.nc);
+    } else {
+        emu.regs.eax = 0;
+        println!("{}\tcouldnt write the bytes{}", emu.colors.light_red, emu.colors.nc);
+    }
+
+    for _ in 0..5 {
+        emu.stack_pop(false);
+    }
+}
+
+fn CreateRemoteThread(emu:&mut emu32::Emu32) {
+    let proc_hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!CreateRemoteThread cannot read the proc handle");
+    let sec = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!CreateRemoteThread cannot read the proc security thread attributs");
+    let stack_size = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!CreateRemoteThread cannot read the stack size");
+    let addr = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!CreateRemoteThread cannot read the addr");
+    let param = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!CreateRemoteThread cannot read the param");
+    let flags = emu.maps.read_dword(emu.regs.esp+20).expect("kernel32!CreateRemoteThread cannot read the flags");
+    let tid = emu.maps.read_dword(emu.regs.esp+24).expect("kernel32!CreateRemoteThread cannot read the tid");
+
+    println!("{}** {} kernel32!CreateRemoteThread hproc:0x{:x} addr:0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
+
+    emu.regs.eax = 0x11223344; // created thread handle
+
+    for _ in 0..7 {
+        emu.stack_pop(false);
+    }
+}
