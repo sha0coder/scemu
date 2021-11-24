@@ -1,24 +1,37 @@
 # scemu
 x86 32bits emulator, for securely emulating shellcodes 
 
+## Features
 - rust safety, good for malware.
 - rust speed, ~10,000 instructions per second
 - iteration detector
 - colorized
 - stop at specific moment and explore the state or modify it.
-- 90 instructions implemented
+- 92 instructions implemented
 - 39 winapi implemented of 5 dlls
 - SEH chains
 - vectored exception handler
 - int3
 - non debugged cpuid
 - zero unsafe{} blocks
+- tests with known payloads:
+	- metasploit shellcodes
+	- metasploit encoder
+	- cobalt strike
+	- guloader (not totally for now)
 
-Usage:
+## TODO
+	- more fpu
+	- mmx
+	- 64 bits
+	- scripting?
+	- stagers: get next stage
+
+## Usage
 ![usage](pics/usage.png)
 
 
-Some use cases:
+## Some use cases
 
 scemu emulates a simple shellcode detecting the execve() interrupt.
 ![exploring basic shellcode](pics/basic_shellcode1.png)
@@ -51,3 +64,6 @@ Cobalt Strike API called:
 
 Metasploit rshell API called:
 ![msf rshell](pics/metasploit_rshell.png)
+
+Metasploit encoder using few fpu to hide the polymorfism:
+![msf encoded](pics/msf_encoded.png)
