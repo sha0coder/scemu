@@ -175,6 +175,7 @@ pub struct Emu32 {
     cfg: Config,
     colors: Colors,
     pos: u64,
+    force_break: bool,
 }
 
 impl Emu32 {
@@ -193,6 +194,7 @@ impl Emu32 {
             cfg: Config::new(),
             colors: Colors::new(),
             pos: 0,
+            force_break: false,
         }
     }
 
@@ -755,11 +757,19 @@ impl Emu32 {
             panic!("writting in non mapped memory");
         }*/
 
+        let name = match self.maps.get_addr_name(addr) {
+            Some(n) => n,
+            None => "error".to_string(),
+        };
+
+        if name == "code" {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ polymorfic code");
+            }
+            self.force_break = true;
+        }
+
         if self.cfg.trace_mem {
-            let name = match self.maps.get_addr_name(addr) {
-                Some(n) => n,
-                None => "error".to_string(),
-            };
             println!("mem trace write -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, value, name);
         }
 
@@ -1339,7 +1349,7 @@ impl Emu32 {
             let code = self.maps.get_mem(map_name.as_str());
             let block = code.read_from(eip);
             let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
-            
+
             for ins in insns.as_ref() {
                 //TODO: use InsnDetail https://docs.rs/capstone/0.4.0/capstone/struct.InsnDetail.html
                 //let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
@@ -5509,6 +5519,57 @@ impl Emu32 {
                         self.fpu.set_eip(self.regs.eip);
                     },
 
+                    Some("lcall") => {
+                        if !step {
+                            panic!("{}{} {}  {{{:?}}} {}", self.colors.green, self.pos, ins, ins.bytes(), self.colors.nc);
+                        }
+                        /*
+                            emulated with unicorn as a loop:
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
+                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
+                                0x1000016:      add     edx, 4   ebp:0x2801000
+                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
+                                0x100001b:      test    al, 0x72   ebp:0x2801000
+                                0x100001c:      jb      0xfffff3   ebp:0x2801000
+
+                            opcodes:
+                                10 0x3c0019: lcall 0x51c0, 0xd572a83f  {[154, 63, 168, 114, 213, 192, 81]} 
+                        */
+                    },
 
                     Some("sysenter") => {
                         println!("{}{} {}{} function: 0x{:x}", self.colors.red, self.pos, ins, self.colors.nc, self.regs.eax);
@@ -5519,11 +5580,16 @@ impl Emu32 {
                         println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
                         panic!("unimplemented instruction");
                     },
+
                     None => panic!("none instruction"),
                 }
 
                 self.regs.eip += sz as u32;
 
+                if self.force_break {
+                    self.force_break = false;
+                    break;
+                }
             }
         }   
 
