@@ -95,6 +95,56 @@ impl Maps {
         return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
     }
 
+    pub fn get_mem_by_addr(&self, addr:u32) -> Option<&Mem32> {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return Some(&mem);
+            }
+        }
+        return None;
+    }
+
+    pub fn memcpy(&mut self, to:u32, from:u32, size:usize) -> bool {
+        let mut b:u8;
+        for i in 0..size {
+            b = match self.read_byte(from+i as u32) {
+                Some(v) => v,
+                None => return false,
+            };
+            if !self.write_byte(to+i as u32, b) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /*
+    pub fn memcpy_faster(&mut self, to:u32, from:u32, size:u32) -> bool {
+        let mem_from = match self.get_mem_by_addr(from) {
+            Some(v) => v,
+            None => return false,    
+        };
+        let mut mem_to = match self.get_mem_by_addr(to) {
+            Some(v) => v,
+            None => return false,    
+        };
+        let mut b:u8;
+
+        for i in 0..size as usize  {
+            if !mem_from.inside(from+i as u32) {
+                return false;
+            }
+            if !mem_to.inside(to+i as u32) {
+                return false;
+            }
+            b = mem_from.read_byte(from+i as u32);
+            mem_to.write_byte(to+i as u32, b);
+        }
+
+        return true;
+    }*/
+
+
     pub fn print_maps(&self) {
         println!("--- maps ---");
         for k in self.maps.keys() {
@@ -105,14 +155,7 @@ impl Maps {
         println!("---");
     }
 
-    pub fn get_mem_by_addr(&self, addr:u32) -> Option<&Mem32> {
-        for (_,mem) in self.maps.iter() {
-            if mem.inside(addr) {
-                return Some(&mem);
-            }
-        }
-        return None;
-    }
+
 
     pub fn is_mapped(&self, addr:u32) -> bool {
         for (_,mem) in self.maps.iter() {
