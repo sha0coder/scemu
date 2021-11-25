@@ -2,9 +2,11 @@
     Little endian generic 32bits memory
 */
 
+use std::io::BufReader;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
+use md5;
 
 pub struct Mem32 {
     base_addr: u32,
@@ -143,13 +145,21 @@ impl Mem32 {
         println!("---");
     }
 
+    pub fn md5(&self) -> md5::Digest {
+        return md5::compute(&self.mem);
+    }
+
     pub fn load(&mut self, filename: &str) {
-        let mut f = File::open(&filename).expect("no file found");
+        let f = File::open(&filename).expect("no file found");
         let len = f.metadata().unwrap().len() as usize;
         self.bottom_addr = self.base_addr + (len as u32);
-        self.alloc(len);
-        f.read(&mut self.mem).expect("buffer overflow");
+        //self.alloc(len);
+        let mut reader = BufReader::new(&f);
+        reader.read_to_end(&mut self.mem).expect("cannot load map file");
+
         f.sync_all().unwrap();
+        //self.mem = unsafe { MmapOptions::new().map(&f).unwrap(); }
+
     }
 
     pub fn save(&self, addr:u32, size:usize, filename:String) {
