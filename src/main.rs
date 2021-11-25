@@ -14,7 +14,6 @@ use emu32::Emu32;
 use config::Config;
 use clap::{Arg, App};
 
-
 fn main() {
     let mut cfg = Config::new();
     let matches = App::new("SCEMU 32bits emulator for Shellcodes")
@@ -120,5 +119,6 @@ fn main() {
     emu32.init();
     emu32.set_config(cfg);
     emu32.load_code(&filename.to_string());
+
     emu32.run();
 }
