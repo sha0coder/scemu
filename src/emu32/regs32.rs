@@ -236,129 +236,56 @@ impl Regs32 {
         }
     }
 
-    pub fn show_eax(&self, maps:&Maps) {
-        if maps.is_mapped(self.eax) {
-            let s = maps.read_string(self.eax);
-            let w = maps.read_wide_string(self.eax);
-            let name = match maps.get_addr_name(self.eax) {
+    pub fn show_reg(&self, maps:&Maps, sreg:&str, value:u32) {
+        if maps.is_mapped(value) {
+            let mut s = maps.read_string(value);
+            let mut w = maps.read_wide_string(value);
+
+            if s.len() > 50 {
+                s = s[..50].to_string();
+            }
+            if w.len() > 50 {
+                w = w[..50].to_string();
+            }
+
+            let name = match maps.get_addr_name(value) {
                 Some(v) => format!("({})", v),
                 None => "".to_string(),
             };
             
             if s.len() > 1 {
-                println!("\teax: 0x{:x} '{}' {}", self.eax, s, name);
+                println!("\t{}: 0x{:x} '{}' {}", sreg, value, s, name);
             } else if w.len() > 1 {
-                println!("\teax: 0x{:x} '{}' {}", self.eax, w, name);
+                println!("\t{}: 0x{:x} '{}' {}", sreg, value, w, name);
             } else {
-                println!("\teax: 0x{:x} {}", self.eax, name);
+                println!("\t{}: 0x{:x} {}", sreg, value, name);
             }
         } else {
-            println!("\teax: 0x{:x}", self.eax);
+            println!("\t{}: 0x{:x}", sreg, value);
         }
+    }
+
+    pub fn show_eax(&self, maps:&Maps) {
+        self.show_reg(maps, "eax", self.eax);
     }
 
     pub fn show_ebx(&self, maps:&Maps) {
-        if maps.is_mapped(self.ebx) {
-            let s = maps.read_string(self.ebx);
-            let w = maps.read_wide_string(self.ebx);
-            let name = match maps.get_addr_name(self.ebx) {
-                Some(v) => format!("({})", v),
-                None => "".to_string(),
-            };
-                
-            if s.len() > 1 {
-                println!("\tebx: 0x{:x} '{}' {}", self.ebx, s, name);
-            } else if w.len() > 1 {
-                println!("\tebx: 0x{:x} '{}' {}", self.ebx, w, name);
-            } else {
-                println!("\tebx: 0x{:x} {}", self.ebx, name);
-            }
-        } else {
-            println!("\tebx: 0x{:x}", self.ebx);
-        }
+        self.show_reg(maps, "ebx", self.ebx);
     }
 
     pub fn show_ecx(&self, maps:&Maps) {
-        if maps.is_mapped(self.ecx) {
-            let s = maps.read_string(self.ecx);
-            let w = maps.read_wide_string(self.ecx);
-            let name = match maps.get_addr_name(self.ecx) {
-                Some(v) => format!("({})", v),
-                None => "".to_string(),
-            };
-
-            if s.len() > 1 {
-                println!("\tecx: 0x{:x} '{}' {}", self.ecx, s, name);
-            } else if w.len() > 1 {
-                println!("\tecx: 0x{:x} '{}' {}", self.ecx, w, name);
-            } else {
-                println!("\tecx: 0x{:x} {}", self.ecx, name);
-            }
-        } else {
-            println!("\tecx: 0x{:x}", self.ecx);
-        }
+        self.show_reg(maps, "ecx", self.ecx);
     }
 
     pub fn show_edx(&self, maps:&Maps) {
-        if maps.is_mapped(self.edx) {
-            let s = maps.read_string(self.edx);
-            let w = maps.read_wide_string(self.edx);
-            let name = match maps.get_addr_name(self.edx) {
-                Some(v) => format!("({})", v),
-                None => "".to_string(),
-            };
-
-            if s.len() > 1 {
-                println!("\tedx: 0x{:x} '{}' {}", self.edx, s, name);
-            } else if w.len() > 1 {
-                println!("\tedx: 0x{:x} '{}' {}", self.edx, w, name);
-            } else {
-                println!("\tedx: 0x{:x} {}", self.edx, name);
-            }
-        } else {
-            println!("\tedx: 0x{:x}", self.eax);
-        }
+        self.show_reg(maps, "edx", self.edx);
     }
 
     pub fn show_esi(&self, maps:&Maps) {
-        if maps.is_mapped(self.esi) {
-            let s = maps.read_string(self.esi);
-            let w = maps.read_wide_string(self.esi);
-            let name = match maps.get_addr_name(self.esi) {
-                Some(v) => format!("({})", v),
-                None => "".to_string(),
-            };
-
-            if s.len() > 1 {
-                println!("\tesi: 0x{:x} '{}' {}", self.esi, s, name);
-            } else if w.len() > 1 {
-                println!("\tesi: 0x{:x} '{}' {}", self.esi, w, name);
-            } else {
-                println!("\tesi: 0x{:x} {}", self.esi, name);
-            }
-        } else {
-            println!("\tesi: 0x{:x}", self.esi);
-        }
+        self.show_reg(maps, "esi", self.esi);
     }
 
     pub fn show_edi(&self, maps:&Maps) {
-        if maps.is_mapped(self.edi) {
-            let s = maps.read_string(self.edi);
-            let w = maps.read_wide_string(self.edi);
-            let name = match maps.get_addr_name(self.edi) {
-                Some(v) => format!("({})", v),
-                None => "".to_string(),
-            };
- 
-            if s.len() > 1 {
-                println!("\tedi: 0x{:x} '{}' {}", self.edi, s, name);
-            } else if w.len() > 1 {
-                println!("\tedi: 0x{:x} '{}' {}", self.edi, w, name);
-            } else {
-                println!("\tedi: 0x{:x} {}", self.edi, name);
-            }
-        } else {
-            println!("\tedi: 0x{:x}", self.edi);
-        }
+        self.show_reg(maps, "edi", self.edi);
     }
 }
