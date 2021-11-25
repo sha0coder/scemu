@@ -39,6 +39,19 @@ impl FPU {
         return r;
     }
 
+    pub fn print(&self) {
+        println!("---- fpu ----");
+        for i in 0..self.st.len() {
+            println!("st({}): {}", i, self.st[i]);
+        }
+
+        println!("stat: 0x{:x}", self.stat);
+        println!("ctrl: 0x{:x}", self.ctrl);
+        println!("eip:  0x{:x}", self.eip);
+
+        println!("--------");
+    }
+
 }
 
 
