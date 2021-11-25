@@ -268,9 +268,11 @@ impl Maps {
         return s;
     }
 
-    pub fn search_string(&self, kw:String, map_name:String) {
+    pub fn search_string(&self, kw:&String, map_name:&String) -> bool {
+        let mut found:bool = false;
+
         for (name,mem) in self.maps.iter() {
-            if *name == map_name {
+            if name == map_name {
                 for addr in mem.get_base()..mem.get_bottom() {
                     let bkw = kw.as_bytes();
                     let mut c = 0;
@@ -286,15 +288,18 @@ impl Maps {
 
                     if c == bkw.len() {
                         println!("found at 0x{:x}", addr);
-                        return
+                        found = true;
                     }
 
                 }
-                println!("string not found.");
-                return;
+                if !found {
+                    println!("string not found.");
+                }
+                return found;
             }
         }
         println!("map not found");
+        return false;
     }
 
     pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
@@ -308,19 +313,39 @@ impl Maps {
         return true;
     }
 
-    pub fn search_spaced_bytes(&self, sbs:String, map_name:String) {
+    pub fn search_spaced_bytes(&self, sbs:&String, map_name:&String) -> bool {
         let bs:Vec<&str> = sbs.split(" ").collect();
         let mut bytes:Vec<u8> = Vec::new();
         for i in 0..bs.len() {
-            let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
+            let b = match u8::from_str_radix(bs[i],16) {
+                Ok(b) => b,
+                Err(_) => {
+                    println!("bad hex bytes");
+                    return false;
+                }
+            };
             bytes.push(b);
         }
-        self.search_bytes(bytes, map_name);
+        return self.search_bytes(bytes, map_name);
+    }
+
+    pub fn search_space_bytes_in_all(&self, sbs:String) {
+        for (name,_) in self.maps.iter() {
+            self.search_spaced_bytes(&sbs, name);
+        }
+    }
+
+    pub fn search_string_in_all(&self, kw:String) {
+        for (name,_) in self.maps.iter() {
+            self.search_string(&kw, name);
+        }
     }
    
-    pub fn search_bytes(&self, bkw:Vec<u8>, map_name:String) {
+    pub fn search_bytes(&self, bkw:Vec<u8>, map_name:&String) -> bool {
+        let mut found:bool = false;
+
         for (name,mem) in self.maps.iter() {
-            if *name == map_name {
+            if name == map_name {
                 for addr in mem.get_base()..mem.get_bottom() {
                     let mut c = 0;
                     
@@ -335,16 +360,19 @@ impl Maps {
 
                     if c == bkw.len() {
                         println!("found at 0x{:x}", addr);
-                        return
+                        found = true;
                     }
 
                 }
-                println!("string not found.");
-                return;
+
+                if !found {
+                    println!("string not found.");
+                }
+                return found;
             }
         }
         println!("map not found");
-
+        return false;
     }
 
     pub fn size(&self) -> usize {
@@ -383,6 +411,17 @@ impl Maps {
                 return Some(addr);
             }
 
+        }
+    }
+
+    pub fn save(&self, addr:u32, size:u32, filename:String) {
+        match self.get_mem_by_addr(addr) {
+            Some(m) => {
+                m.save(addr, size as usize, filename);
+            },
+            None => {
+                println!("this address is not mapped.");
+            }
         }
     }
 

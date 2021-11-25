@@ -11,15 +11,18 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x77486bdd => connect(emu),
         0x77486b0e => recv(emu),
         0x77486f01 => send(emu),
+        0x77484582 => bind(emu),
+        0x7748b001 => listen(emu),
+        0x774868b6 => accept(emu),
+        0x77483918 => closesocket(emu),
+
         /*
         0x774834b5 => sendto(emu),
         0x7748b6dc => recvfrom(emu),
         0x77487089 => WsaRecv(emu),
         0x7748cba6 => WsaRecvFrom(emu),
         0x7748cc3f => WsaConnect(emu),
-        0x77484582 => bind(emu),
-        0x7748b001 => listen(emu),
-        0x774868b6 => accept(emu),
+
         0x774868d6 => WsaAccept(emu),*/
         _ => panic!("calling unknown ws2_32 API 0x{:x}", addr)
     }
@@ -140,3 +143,60 @@ fn send(emu:&mut emu32::Emu32) {
     }
     emu.regs.eax = len;
 }
+
+fn bind(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
+    let saddr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading addr");
+    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!send: error reading len"); 
+
+    let family:u16 = emu.maps.read_word(saddr).expect("ws2_32!connect: error reading family");
+    let port:u16 = emu.maps.read_word(saddr+2).expect("ws2_32!connect: error reading port");
+    let ip:u32 = emu.maps.read_dword(saddr+4).expect("ws2_32!connect: error reading ip");
+
+    let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
+
+    println!("{}** {} ws2_32!bind  family:{} {}:{}  {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(), emu.colors.nc);
+
+    for _ in 0..3 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}
+
+fn listen(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
+    let connections = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading num of connections");
+
+    println!("{}** {} ws2_32!listen  connections:{}  {}", emu.colors.light_red, emu.pos, connections, emu.colors.nc);
+
+    for _ in 0..2 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}
+
+fn accept(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
+    let saddr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading sockaddr");
+    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!send: error reading len"); 
+    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!send: error reading flags");
+
+    let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
+
+    println!("{}** {} ws2_32!listen  connections:{}  {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
+
+    for _ in 0..4 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}
+
+fn closesocket(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
+
+    println!("{}** {} ws2_32!closesocket {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.stack_pop(false);
+    emu.regs.eax = 0;
+}
+

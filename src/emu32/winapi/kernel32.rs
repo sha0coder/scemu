@@ -188,10 +188,11 @@ fn CreateRemoteThread(emu:&mut emu32::Emu32) {
     let addr = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!CreateRemoteThread cannot read the addr");
     let param = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!CreateRemoteThread cannot read the param");
     let flags = emu.maps.read_dword(emu.regs.esp+20).expect("kernel32!CreateRemoteThread cannot read the flags");
-    let tid = emu.maps.read_dword(emu.regs.esp+24).expect("kernel32!CreateRemoteThread cannot read the tid");
+    let out_tid = emu.maps.read_dword(emu.regs.esp+24).expect("kernel32!CreateRemoteThread cannot read the tid"); 
 
     println!("{}** {} kernel32!CreateRemoteThread hproc:0x{:x} addr:0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
+    emu.maps.write_dword(out_tid, 0x123); 
     emu.regs.eax = 0x11223344; // created thread handle
 
     for _ in 0..7 {

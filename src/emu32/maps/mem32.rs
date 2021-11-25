@@ -4,6 +4,7 @@
 
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 
 pub struct Mem32 {
     base_addr: u32,
@@ -148,6 +149,32 @@ impl Mem32 {
         self.bottom_addr = self.base_addr + (len as u32);
         self.alloc(len);
         f.read(&mut self.mem).expect("buffer overflow");
+        f.sync_all().unwrap();
+    }
+
+    pub fn save(&self, addr:u32, size:usize, filename:String) {
+        let idx = (addr - self.base_addr) as usize;
+        let sz2 = idx as usize + size;
+        if sz2 > self.mem.len() {
+            println!("size too big");
+            return;
+        }
+
+        let mut f = match File::create(filename) {
+            Ok(f) => f,
+            Err(e) => {
+                println!("cannot create the file {}", e);
+                return;
+            }
+        };
+
+        let blob = self.mem.get(idx..sz2).unwrap();
+
+        match f.write_all(blob) {
+            Ok(_) => println!("saved."),
+            Err(_) => println!("couldn't save the file"),
+        }
+
         f.sync_all().unwrap();
     }
 

@@ -13,6 +13,7 @@ pub struct Config {
     pub string_addr: u32,
     pub inspect: bool,
     pub inspect_seq: String,
+    pub endpoint: bool,
 }
 
 impl Config {
@@ -31,6 +32,7 @@ impl Config {
             string_addr: 0,
             inspect: false,
             inspect_seq: "".to_string(),
+            endpoint: false,
         }
     }
 }

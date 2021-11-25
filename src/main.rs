@@ -76,6 +76,11 @@ fn main() {
                         .help("monitor memory like: -i 'dword ptr [ebp + 0x24]")
                         .value_name("DIRECTION")
                         .takes_value(true))
+                    .arg(Arg::with_name("endpoint")
+                        .short("e")
+                        .long("endpoint")
+                        .help("perform communications with the endpoint, use tor or vpn!")
+                        .takes_value(false))
                     .get_matches();
 
 
@@ -106,7 +111,9 @@ fn main() {
         cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
     }
 
-    //match matches.occurrences_of("register")
+    if matches.is_present("endpoint") {
+        cfg.endpoint = true;
+    }
 
 
     let mut emu32 = Emu32::new();

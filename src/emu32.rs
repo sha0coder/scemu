@@ -1,6 +1,10 @@
 /*
     TODO:
         - scripting
+        - remove non printable bytes from strings
+        - dd command dump to disk
+        - on WriteProcessMemory save the payload written to disk
+        - stack command more clever and command v
         - intead of panic spawn console
         - set the code base addr
         - set the entry point
@@ -14,12 +18,6 @@
         - optimize loop counter
         - on execve syscall show the parameter
 
-
-    there is an er-ror, error in the ror implementation:
-        mov eax, 0x54
-        ror eax, 0xd
-
-        eax should be 0x02a00000
 
 
 
@@ -1108,7 +1106,7 @@ impl Emu32 {
                     let value = match self.memory_read(operand.as_str()) {
                         Some(v) => v,
                         None => {
-                            println!("bad address");
+                            println!("bad address.");
                             continue;
                         },
                     };
@@ -1118,23 +1116,41 @@ impl Emu32 {
                     con.print("memory argument");
                     let operand = con.cmd();
                     con.print("value");
-                    let value = con.cmd_hex();
+                    let value = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     if self.memory_write(operand.as_str(), value) {
                         println!("done.");
                     } else {
-                        println!("cannot write there");
+                        println!("cannot write there.");
                     }
                     
                 },
                 "ba" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     self.bp = addr;
                     return;
                 },
                 "bi" => {
                     con.print("instruction number");
-                    let num = u64::from_str_radix(con.cmd().as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let num = match con.cmd_hex64() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     self.exp = num;
                     return;
                 },
@@ -1147,8 +1163,13 @@ impl Emu32 {
                     con.print("name ");
                     let name = con.cmd();
                     con.print("base address ");
-                    let saddr = con.cmd();
-                    let addr = u32::from_str_radix(saddr.as_str().trim_start_matches("0x"), 16).expect("bad num conversion");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     self.maps.create_map(name.as_str());
                     self.maps.get_mem(name.as_str()).set_base(addr);
                 },
@@ -1161,7 +1182,13 @@ impl Emu32 {
                 },
                 "mn" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     match self.maps.get_addr_name(addr) {
                         Some(name)  => println!("address at '{}' map", name),
                         None => println!("address not found on any map"),
@@ -1169,28 +1196,80 @@ impl Emu32 {
                 },
                 "md" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
                     self.maps.dump(addr);
                 },
                 "mds" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
-                    println!("{}", self.maps.read_string(addr));
-
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    println!("0x{:x}: '{}'", addr, self.maps.read_string(addr));
                 },
                 "mdw" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
-                    println!("{}", self.maps.read_wide_string(addr));
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    println!("0x{:x}: '{}'", addr, self.maps.read_wide_string(addr));
                 },
+                "mdd" => {
+                    con.print("address");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    con.print("size");
+                    let sz = match con.cmd_num() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad numeric decimal value.");
+                            continue;
+                        }
+                    };
+                    if sz > 0 {
+                        con.print("file");
+                        let filename = con.cmd();
+                        self.maps.save(addr, sz, filename);
+                    }
+                }
                 "eip" => {
                     con.print("=");
-                    let addr = con.cmd_hex();
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
                     self.regs.eip = addr;
                 },
                 "push" => {
                     con.print("value");
-                    let value = con.cmd_hex();
+                    let value = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
                     self.stack_push(value);
                     println!("pushed.");
                 },
@@ -1198,29 +1277,42 @@ impl Emu32 {
                     let value = self.stack_pop(false);
                     println!("poped value 0x{:x}", value);
                 },
+                "fpu" => {
+                    self.fpu.print();
+                },
                 "ss" => {
                     con.print("map name");
                     let map_name = con.cmd();
                     con.print("string");
                     let kw = con.cmd();
-                    self.maps.search_string(kw, map_name);
+                    self.maps.search_string(&kw, &map_name);
                 },
                 "sb" => {
                     con.print("map name");
                     let map_name = con.cmd();
                     con.print("spaced bytes");
                     let sbs = con.cmd();
-                    let bs:Vec<&str> = sbs.split(" ").collect();
-                    let mut bytes:Vec<u8> = Vec::new();
-                    for i in 0..bs.len() {
-                        let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
-                        bytes.push(b);
-                    }
-                    self.maps.search_bytes(bytes, map_name);
+                    self.maps.search_spaced_bytes(&sbs, &map_name);
+                },
+                "sba" => {
+                    con.print("spaced bytes");
+                    let sbs = con.cmd();
+                    self.maps.search_space_bytes_in_all(sbs);
+                },
+                "ssa" => {
+                    con.print("string");
+                    let kw = con.cmd();
+                    self.maps.search_string_in_all(kw);
                 },
                 "ll" => {
                     con.print("ptr");
-                    let ptr1:u32 = con.cmd_hex();
+                    let ptr1:u32 = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
                     let mut ptr = ptr1;
                     loop {
                         println!("- 0x{:x}", ptr);
@@ -1240,7 +1332,13 @@ impl Emu32 {
                 "m" => self.maps.print_maps(),
                 "d" => {
                     con.print("address");
-                    let addr = con.cmd_hex();
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
                     self.disasemble(addr);
                 },
                 "" => {
