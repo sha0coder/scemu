@@ -332,7 +332,7 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
     emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
 
-    println!("{}** {} wininet!InternetReadFile sz:{} {}", emu.colors.light_red, emu.pos, bytes_to_read, emu.colors.nc);
+    println!("{}** {} wininet!InternetReadFile sz:{} buff:0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);

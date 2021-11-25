@@ -333,10 +333,16 @@ impl Emu32 {
         msvcrt_text.set_base(0x761e1000);
         msvcrt_text.load("maps/msvcrt_text.bin");
 
+        /*let reserved2 = self.maps.get_mem("reserved2");
+        reserved2.set_base(0x2c3000); //0x2c3018
+        reserved2.set_size(0xfd000);*/
+
         let reserved = self.maps.get_mem("reserved");
-        reserved.set_base(0x002c0000);
+        reserved.set_base(0x2c0000);
         reserved.load("maps/reserved.bin");
         assert!(reserved.read_byte(0x2c31a0) != 0);
+
+
 
 
         let peb = self.maps.get_mem("peb");
@@ -367,9 +373,7 @@ impl Emu32 {
         binary.set_base(0x400000);
         binary.set_size(0x1000);
 
-        let reserved2 = self.maps.get_mem("reserved2");
-        reserved2.set_base(0x2c3000);
-        reserved2.set_size(0xfd000);
+
 
         let ws2_32 = self.maps.get_mem("ws2_32");
         ws2_32.set_base(0x77480000);
@@ -1280,19 +1284,26 @@ impl Emu32 {
                 "fpu" => {
                     self.fpu.print();
                 },
+                "md5" => {
+                    con.print("map name");
+                    let mem_name = con.cmd();
+                    let mem = self.maps.get_mem(&mem_name);
+                    let md5 = mem.md5();
+                    println!("md5sum: {:x}", md5);
+                }
                 "ss" => {
                     con.print("map name");
-                    let map_name = con.cmd();
+                    let mem_name = con.cmd();
                     con.print("string");
                     let kw = con.cmd();
-                    self.maps.search_string(&kw, &map_name);
+                    self.maps.search_string(&kw, &mem_name);
                 },
                 "sb" => {
                     con.print("map name");
-                    let map_name = con.cmd();
+                    let mem_name = con.cmd();
                     con.print("spaced bytes");
                     let sbs = con.cmd();
-                    self.maps.search_spaced_bytes(&sbs, &map_name);
+                    self.maps.search_spaced_bytes(&sbs, &mem_name);
                 },
                 "sba" => {
                     con.print("spaced bytes");
