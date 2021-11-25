@@ -15,6 +15,8 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x7748b001 => listen(emu),
         0x774868b6 => accept(emu),
         0x77483918 => closesocket(emu),
+        0x774841b6 => setsockopt(emu),
+        0x7748737d => getsockopt(emu),
 
         /*
         0x774834b5 => sendto(emu),
@@ -22,7 +24,6 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x77487089 => WsaRecv(emu),
         0x7748cba6 => WsaRecvFrom(emu),
         0x7748cc3f => WsaConnect(emu),
-
         0x774868d6 => WsaAccept(emu),*/
         _ => panic!("calling unknown ws2_32 API 0x{:x}", addr)
     }
@@ -176,14 +177,14 @@ fn listen(emu:&mut emu32::Emu32) {
 }
 
 fn accept(emu:&mut emu32::Emu32) {
-    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
-    let saddr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading sockaddr");
-    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!send: error reading len"); 
-    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!send: error reading flags");
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!accept: error reading sock");
+    let saddr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!accept: error reading sockaddr");
+    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!seacceptnd: error reading len"); 
+    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!accept: error reading flags");
 
     let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
 
-    println!("{}** {} ws2_32!listen  connections:{}  {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
+    println!("{}** {} ws2_32!accept  connections:{}  {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
@@ -200,3 +201,40 @@ fn closesocket(emu:&mut emu32::Emu32) {
     emu.regs.eax = 0;
 }
 
+fn setsockopt(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!setsockopt: error reading sock");
+    let level = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!setsockopt: error reading level");
+    let optname = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!setsockopt: error reading optname"); 
+    let optval = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!setsockopt: error reading optval");
+    let optlen = emu.maps.read_dword(emu.regs.esp+16).expect("ws2_32!setsockopt: error reading optlen");
+
+    let val = match emu.maps.read_dword(optval) {
+        Some(v) => v,
+        None => 0,
+    };
+
+    println!("{}** {} ws2_32!setsockopt  lvl:{} opt:{} val:{} {}", emu.colors.light_red, emu.pos, level, optname, val, emu.colors.nc);
+
+    for _ in 0..5 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}
+
+fn getsockopt(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!getsockopt: error reading sock");
+    let level = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!getsockopt: error reading level");
+    let optname = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!getsockopt: error reading optname"); 
+    let optval = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!getsockopt: error reading optval");
+    let optlen = emu.maps.read_dword(emu.regs.esp+16).expect("ws2_32!getsockopt: error reading optlen");
+
+
+    emu.maps.write_dword(optval, 1);
+
+    println!("{}** {} ws2_32!getsockopt  lvl:{} opt:{} {}", emu.colors.light_red, emu.pos, level, optname, emu.colors.nc);
+
+    for _ in 0..5 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}

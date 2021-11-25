@@ -1,6 +1,7 @@
 /*
     TODO:
         - scripting
+        - ctrl + C spawn console
         - remove non printable bytes from strings
         - dd command dump to disk
         - on WriteProcessMemory save the payload written to disk
@@ -135,7 +136,7 @@ msvcrt.dll
 #![allow(unused_variables)]
 
 extern crate capstone;
-
+             
 mod flags; 
 mod eflags;
 pub mod maps;
@@ -522,7 +523,8 @@ impl Emu32 {
 
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
-        //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000);
+        //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000) 
+
     }
 
     pub fn set_config(&mut self, cfg:Config) {
