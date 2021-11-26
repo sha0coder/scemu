@@ -87,7 +87,7 @@ impl Flags {
         }
     
         self.f_of = rs < MIN_I8 as i16 || rs > MAX_I8 as i16;
-        return (((rs as u16) & 0xff) as u8) as  i8
+        return (((rs as u16) & 0xff) as u8) as  i8;
     }
 
     pub fn check_carry_sub_word(&mut self, a:u32, b:u32) {

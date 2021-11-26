@@ -1,15 +1,21 @@
 /*
     TODO:
-        - scripting
-        - ctrl + C spawn console
-        - remove non printable bytes from strings
-        - dd command dump to disk
-        - on WriteProcessMemory save the payload written to disk
+        - more apis
+        - better api implementations
+        - more syscalls
+        - on execve syscall show the parameter
+        - endpoint
+        - more fpu
+        - on WriteProcessMemory/recv save the payload written to disk
         - stack command more clever and command v
-        - intead of panic spawn console
-        - set the code base addr
+        - remove non printable bytes from strings
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
+        - guloader
+
+        - scripting
+        - intead of panic spawn console
+        - set the code base addr
         - on every set_eip of a non branch dump stack to log file
         - implement scas & rep
         - implement imul
@@ -17,7 +23,7 @@
         - save state to disk and continue
         - command to exit the bucle or to see  next instruction
         - optimize loop counter
-        - on execve syscall show the parameter
+        
 
 
 
@@ -154,7 +160,6 @@ use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 use colors::Colors;
-use winapi::WinAPI;
 use crate::config::Config;
 
 use capstone::prelude::*;
@@ -802,8 +807,7 @@ impl Emu32 {
 
             let retaddr = self.stack_pop(false);
 
-            let winapi = WinAPI::new();
-            winapi.gateway(addr, name, self);
+            winapi::gateway(addr, name, self);
 
             //self.regs.eip += 2; 
             self.regs.eip = retaddr;
@@ -1305,12 +1309,17 @@ impl Emu32 {
                     let mem_name = con.cmd();
                     con.print("spaced bytes");
                     let sbs = con.cmd();
-                    self.maps.search_spaced_bytes(&sbs, &mem_name);
+                    if !self.maps.search_spaced_bytes(&sbs, &mem_name) {
+                        println!("not found.");
+                    }
+                    
                 },
                 "sba" => {
                     con.print("spaced bytes");
                     let sbs = con.cmd();
-                    self.maps.search_space_bytes_in_all(sbs);
+                    if !self.maps.search_space_bytes_in_all(sbs) {
+                        println!("not found.");
+                    }
                 },
                 "ssa" => {
                     con.print("string");

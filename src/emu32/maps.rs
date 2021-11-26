@@ -57,9 +57,6 @@ impl Maps {
     pub fn read_dword(&self, addr:u32) -> Option<u32> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                /*if name == "kernel32" {
-                    println!("\treading kernel32 addr 0x{:x}", addr);
-                }*/
                 return Some(mem.read_dword(addr));
             }
         }
@@ -69,9 +66,6 @@ impl Maps {
     pub fn read_word(&self, addr:u32) -> Option<u16> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                /*if name == "kernel32" {
-                    println!("\treading kernel32 addr 0x{:x}", addr);
-                }*/
                 return Some(mem.read_word(addr));
             }
         }
@@ -81,10 +75,6 @@ impl Maps {
     pub fn read_byte(&self, addr:u32) -> Option<u8> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                /*
-                if name == "kernel32" {
-                    println!("\treading kernel32 addr 0x{:x}", addr);
-                }*/
                 return Some(mem.read_byte(addr));
             }
         }
@@ -329,10 +319,14 @@ impl Maps {
         return self.search_bytes(bytes, map_name);
     }
 
-    pub fn search_space_bytes_in_all(&self, sbs:String) {
+    pub fn search_space_bytes_in_all(&self, sbs:String)  -> bool {
+        let mut found:bool = false;
         for (name,_) in self.maps.iter() {
-            self.search_spaced_bytes(&sbs, name);
+            if self.search_spaced_bytes(&sbs, name) {
+                found = true;
+            }
         }
+        return found;
     }
 
     pub fn search_string_in_all(&self, kw:String) {
@@ -365,9 +359,6 @@ impl Maps {
 
                 }
 
-                if !found {
-                    println!("string not found.");
-                }
                 return found;
             }
         }

@@ -1,6 +1,6 @@
 use crate::emu32;
 
-pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
+pub fn gateway(addr:u32, emu:&mut emu32::Emu32)  {
     match addr {
         0x77483ab2 => WsaStartup(emu),
         0x7748c82a => WsaSocketA(emu),
@@ -17,6 +17,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x77483918 => closesocket(emu),
         0x774841b6 => setsockopt(emu),
         0x7748737d => getsockopt(emu),
+        0x774868d6 => WsaAccept(emu),
 
         /*
         0x774834b5 => sendto(emu),
@@ -24,8 +25,9 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x77487089 => WsaRecv(emu),
         0x7748cba6 => WsaRecvFrom(emu),
         0x7748cc3f => WsaConnect(emu),
-        0x774868d6 => WsaAccept(emu),*/
-        _ => panic!("calling unknown ws2_32 API 0x{:x}", addr)
+        */
+
+        _ => panic!("calling unimplemented ws2_32 API 0x{:x}", addr)
     }
 }
 
@@ -61,7 +63,7 @@ fn socket(emu:&mut emu32::Emu32) {
 }
 
 fn WsaHtons(emu:&mut emu32::Emu32) {
-    let out_port = emu.maps.read_dword(emu.regs.esp+8);
+    let out_port = emu.maps.read_dword(emu.regs.esp+8); //TODO: wtf? no expect y +8?? printar puerto esto es out
 
     println!("{}** {} ws2_32!WsaHtons {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
@@ -79,7 +81,7 @@ fn htons(emu:&mut emu32::Emu32) {
         None => 0,
     };
 
-    println!("{}** {} ws2_32!htons port:{} {}", emu.colors.light_red, emu.pos, port, emu.colors.nc);
+    println!("{}** {} ws2_32!htons port: {} {}", emu.colors.light_red, emu.pos, port, emu.colors.nc);
 
     emu.stack_pop(false);
     emu.regs.eax = port.to_be() as u32;
@@ -104,7 +106,7 @@ fn connect(emu:&mut emu32::Emu32) {
     let ip:u32 = emu.maps.read_dword(sockaddr_ptr+4).expect("ws2_32!connect: error reading ip");
 
     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
-    println!("{}** {} ws2_32!connect  family:{} {}:{} {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(),  emu.colors.nc);
+    println!("{}** {} ws2_32!connect  family: {} {}:{} {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(),  emu.colors.nc);
 
     for _ in 0..3 {
         emu.stack_pop(false);
@@ -156,7 +158,7 @@ fn bind(emu:&mut emu32::Emu32) {
 
     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
 
-    println!("{}** {} ws2_32!bind  family:{} {}:{}  {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(), emu.colors.nc);
+    println!("{}** {} ws2_32!bind  family: {} {}:{}  {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(), emu.colors.nc);
 
     for _ in 0..3 {
         emu.stack_pop(false);
@@ -168,7 +170,7 @@ fn listen(emu:&mut emu32::Emu32) {
     let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
     let connections = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading num of connections");
 
-    println!("{}** {} ws2_32!listen  connections:{}  {}", emu.colors.light_red, emu.pos, connections, emu.colors.nc);
+    println!("{}** {} ws2_32!listen  connections: {}  {}", emu.colors.light_red, emu.pos, connections, emu.colors.nc);
 
     for _ in 0..2 {
         emu.stack_pop(false);
@@ -184,7 +186,7 @@ fn accept(emu:&mut emu32::Emu32) {
 
     let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
 
-    println!("{}** {} ws2_32!accept  connections:{}  {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
+    println!("{}** {} ws2_32!accept  connections: {}  {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
@@ -213,7 +215,7 @@ fn setsockopt(emu:&mut emu32::Emu32) {
         None => 0,
     };
 
-    println!("{}** {} ws2_32!setsockopt  lvl:{} opt:{} val:{} {}", emu.colors.light_red, emu.pos, level, optname, val, emu.colors.nc);
+    println!("{}** {} ws2_32!setsockopt  lvl: {} opt: {} val: {} {}", emu.colors.light_red, emu.pos, level, optname, val, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -231,9 +233,26 @@ fn getsockopt(emu:&mut emu32::Emu32) {
 
     emu.maps.write_dword(optval, 1);
 
-    println!("{}** {} ws2_32!getsockopt  lvl:{} opt:{} {}", emu.colors.light_red, emu.pos, level, optname, emu.colors.nc);
+    println!("{}** {} ws2_32!getsockopt  lvl: {} opt: {} {}", emu.colors.light_red, emu.pos, level, optname, emu.colors.nc);
 
     for _ in 0..5 {
+        emu.stack_pop(false);
+    }
+    emu.regs.eax = 0;
+}
+
+fn WsaAccept(emu:&mut emu32::Emu32) {
+    let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!WsaAccept: error reading sock");
+    let saddr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!WsaAccept: error reading sockaddr");
+    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!WsaAccept: error reading len"); 
+    let cond = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!WsaAccept: error reading cond");
+    let callback = emu.maps.read_dword(emu.regs.esp+16).expect("ws2_32!WsaAccept: error reading callback");
+
+    let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
+
+    println!("{}** {} ws2_32!WsaAccept  connections: {} callback: {} {}", emu.colors.light_red, emu.pos, bytes, callback, emu.colors.nc);
+
+    for _ in 0..4 {
         emu.stack_pop(false);
     }
     emu.regs.eax = 0;
