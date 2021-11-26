@@ -1,5 +1,6 @@
 use crate::emu32;
 
+
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     match addr {
         0x7633f18e => InternetOpenA(emu),
@@ -14,7 +15,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x7633ba12 => HttpSendRequestW(emu),
         0x7632b406 => InternetReadFile(emu),
         0x763b3328 => InternetErrorDlg(emu),
-        _ => panic!("calling unknown wininet API 0x{:x}", addr)
+        _ => panic!("calling unimplemented wininet API 0x{:x}", addr)
     }
 }
 
@@ -139,7 +140,7 @@ pub fn InternetConnectW(emu:&mut emu32::Emu32) {
     }
 
 
-    println!("{}** {} wininet!InternetConnectW host:{} port:{} login:{} passw:{} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
+    println!("{}** {} wininet!InternetConnectW host: {} port: {} login: {} passw: {} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
 
     for _ in 0..8 {
         emu.stack_pop(false);
@@ -179,7 +180,7 @@ fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
         access = emu.maps.read_string(access_ptr);
     }
 
-    println!("{}** {} wininet!HttpOpenRequestA method:{} path:{} ver:{} ref:{} access:{} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
+    println!("{}** {} wininet!HttpOpenRequestA method: {} path: {} ver: {} ref: {} access: {} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
 
 
     for _ in 0..8 {
@@ -221,7 +222,7 @@ fn HttpOpenRequestW(emu:&mut emu32::Emu32) {
         access = emu.maps.read_wide_string(access_ptr);
     }
 
-    println!("{}** {} wininet!HttpOpenRequestW method:{} path:{} ver:{} ref:{} access:{} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
+    println!("{}** {} wininet!HttpOpenRequestW method: {} path: {} ver: {} ref: {} access: {} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
 
 
     for _ in 0..8 {
@@ -244,7 +245,7 @@ fn InternetSetOptionA(emu:&mut emu32::Emu32) {
     }
     let sbuff = emu.maps.read_string(buffer);
 
-    println!("{}** {} wininet!InternetSetOptionA option:0x{:x} buff:{{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
+    println!("{}** {} wininet!InternetSetOptionA option: 0x{:x} buff: {{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
@@ -265,7 +266,7 @@ fn InternetSetOptionW(emu:&mut emu32::Emu32) {
     }
     let sbuff = emu.maps.read_wide_string(buffer);
 
-    println!("{}** {} wininet!InternetSetOptionW option:0x{:x} buff:{{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
+    println!("{}** {} wininet!InternetSetOptionW option: 0x{:x} buff: {{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
@@ -284,7 +285,7 @@ fn HttpSendRequestA(emu:&mut emu32::Emu32) {
     let hdrs = emu.maps.read_string(hdrs_ptr);
     let opt = emu.maps.read_string(opt_ptr);
 
-    println!("{}** {} wininet!HttpSendRequestA hdrs:{} opt:{} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
+    println!("{}** {} wininet!HttpSendRequestA hdrs: {} opt: {} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -303,7 +304,7 @@ fn HttpSendRequestW(emu:&mut emu32::Emu32) {
     let hdrs = emu.maps.read_wide_string(hdrs_ptr);
     let opt = emu.maps.read_wide_string(opt_ptr);
 
-    println!("{}** {} wininet!HttpSendRequestW hdrs:{} opt:{} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
+    println!("{}** {} wininet!HttpSendRequestW hdrs: {} opt: {} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -315,7 +316,7 @@ fn HttpSendRequestW(emu:&mut emu32::Emu32) {
 fn InternetErrorDlg(emu:&mut emu32::Emu32) {
     let err = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetErrorDlg cannot read error");
 
-    println!("{}** {} wininet!InternetErrorDlg err:{} {}", emu.colors.light_red, emu.pos, err, emu.colors.nc);
+    println!("{}** {} wininet!InternetErrorDlg err: {} {}", emu.colors.light_red, emu.pos, err, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -332,11 +333,10 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
     emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
 
-    println!("{}** {} wininet!InternetReadFile sz:{} buff:0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
+    println!("{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
     }
     emu.regs.eax = 1; // true
 }
-

@@ -1,10 +1,11 @@
 use crate::emu32;
 
+
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     match addr {
         0x7740ea11 => MessageBoxA(emu),
         0x773c01a9 => GetDesktopWindow(emu),
-        _ => panic!("calling unknown user32 API 0x{:x}", addr)
+        _ => panic!("calling unimplemented user32 API 0x{:x}", addr)
     }
 }
 

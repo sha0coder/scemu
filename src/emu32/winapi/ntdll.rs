@@ -1,5 +1,6 @@
 use crate::emu32;
 
+
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     match addr {
         0x775b52d8 => NtAllocateVirtualMemory(emu),
@@ -9,7 +10,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x775b6258 => NtQueryVirtualMemory(emu),
         0x775d531f => stricmp(emu),
         0x7759f611 => RtlExitUserThread(emu),
-        _ => panic!("calling unknown ntdll API 0x{:x}", addr),
+        _ => panic!("calling unimplemented ntdll API 0x{:x}", addr),
     }
 }
 
@@ -128,7 +129,7 @@ fn LdrLoadDll(emu:&mut emu32::Emu32) {
     let libname_ptr = emu.maps.read_dword(emu.regs.esp+20).expect("LdrLoadDll: error reading lib param");
 
     let libname = emu.maps.read_wide_string(libname_ptr);
-    println!("{}** {} ntdll!LdrLoadDll   lib:{} {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
+    println!("{}** {} ntdll!LdrLoadDll   lib: {} {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
 
     
     if libname == "user32.dll" {
@@ -155,7 +156,7 @@ fn RtlVectoredExceptionHandler(emu:&mut emu32::Emu32) {
     let p1 = emu.maps.read_dword(emu.regs.esp).expect("ntdll_RtlVectoredExceptionHandler: error reading p1");
     let fptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr");
 
-    println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback:0x{:x} {}", emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc);
+    println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback: 0x{:x} {}", emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc);
 
     emu.veh = fptr;
 
@@ -170,7 +171,7 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
     let ctx = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
     let context_flags = emu.maps.read_dword(ctx).expect("ntdll_NtGetContextThread: error reading context flags");
 
-    println!("{}** {} ntdll_NtGetContextThread   ctx flags:0x{:x} {}", emu.colors.light_red, emu.pos, context_flags, emu.colors.nc);
+    println!("{}** {} ntdll_NtGetContextThread   ctx flags: 0x{:x} {}", emu.colors.light_red, emu.pos, context_flags, emu.colors.nc);
 
     if !emu.maps.write_dword(ctx+4, 0) {
         panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
@@ -239,3 +240,4 @@ fn RtlExitUserThread(emu:&mut emu32::Emu32) {
     println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
     std::process::exit(1);
 }
+
