@@ -42,7 +42,7 @@ pub fn InternetOpenA(emu:&mut emu32::Emu32) {
     }
     
 
-    println!("{}** {} wininet!InternetOpenA uagent:{} proxy:{} {} {}", emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc);
+    println!("{}** {} wininet!InternetOpenA uagent: {} proxy: {} {} {}", emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -72,7 +72,7 @@ pub fn InternetOpenW(emu:&mut emu32::Emu32) {
         proxy_bypass = emu.maps.read_wide_string(proxybypass_ptr);
     }
 
-    println!("{}** {} wininet!InternetOpenW uagent:{} proxy:{} {} {}", emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc);
+    println!("{}** {} wininet!InternetOpenW uagent: {} proxy: {} {} {}", emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc);
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -106,7 +106,7 @@ pub fn InternetConnectA(emu:&mut emu32::Emu32) {
     }
 
 
-    println!("{}** {} wininet!InternetConnectA host:{} port:{} login:{} passw:{} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
+    println!("{}** {} wininet!InternetConnectA host: {} port: {} login: {} passw: {} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
 
     for _ in 0..8 {
         emu.stack_pop(false);

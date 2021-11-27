@@ -3,12 +3,6 @@ use crate::emu32;
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
 
-
-lazy_static! {
-    static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
-    static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
-}
-
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     match addr {
         0x75e9395c => LoadLibraryA(emu),
@@ -26,11 +20,65 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75ecf33b => CreateRemoteThread(emu),
         0x75ecd44f => CreateNamedPipeA(emu),
         0x75e72727 => ConnectNamedPipe(emu),
+        0x75e9f438 => DisconnectNamedPipe(emu),
         0x75e896fb => ReadFile(emu),
         0x75e91400 => WriteFile(emu),
+        0x75e8ca7c => CloseHandle(emu),
+        //0x75e9214f
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
+
+lazy_static! {
+    static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
+    static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
+    static ref HANDLES:Mutex<Vec<u32>> = Mutex::new(vec![0;0]);
+}
+
+
+fn _handle_create() -> u32 {
+    let new_handle:u32;
+    let mut handles = HANDLES.lock().unwrap();
+
+    if handles.len() == 0 {
+        new_handle = 1;
+    } else {
+        let last_handle = handles[handles.len()-1];
+        new_handle = last_handle + 1;
+    }
+    
+    handles.push(new_handle);
+    return new_handle;
+}
+
+fn _handle_close(hndl:u32) -> bool {
+    println!("closing handle");
+    let mut handles = HANDLES.lock().unwrap();
+    let idx = match handles.iter().position(|h| *h == hndl) {
+        Some(i) => i,
+        None => return false,
+    };
+    handles.remove(idx);
+    return true;
+}
+
+fn _handle_print() {
+    let hndls = HANDLES.lock().unwrap();
+    for h in hndls.iter() {
+        println!("{:x}", h);
+    }
+}
+
+fn _handle_exist(hndl:u32) -> bool {
+    let handles = HANDLES.lock().unwrap();
+    match handles.iter().position(|h| *h == hndl) {
+        Some(_) => return true,
+        None => return false,
+    }
+}
+
+
+//// kernel32 API ////
 
 fn LoadLibraryA(emu:&mut emu32::Emu32) {
     let dllptr = emu.maps.read_dword(emu.regs.esp).expect("bad LoadLibraryA parameter");
@@ -206,7 +254,7 @@ fn CreateRemoteThread(emu:&mut emu32::Emu32) {
     println!("{}** {} kernel32!CreateRemoteThread hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
     emu.maps.write_dword(out_tid, 0x123); 
-    emu.regs.eax = 0x11223344; // created thread handle
+    emu.regs.eax = _handle_create();
 
     for _ in 0..7 {
         emu.stack_pop(false);
@@ -231,7 +279,7 @@ fn CreateNamedPipeA(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x11223344; // handle
+    emu.regs.eax = _handle_create(); 
 }
 
 fn ConnectNamedPipe(emu:&mut emu32::Emu32) {
@@ -239,10 +287,23 @@ fn ConnectNamedPipe(emu:&mut emu32::Emu32) {
     let overlapped = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!ConnectNamedPipe cannot read the overlapped");
 
     println!("{}** {} kernel32!ConnectNamedPipe hndl: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, emu.colors.nc);
+    if !_handle_exist(handle) {
+        println!("\tinvalid handle.");
+    }
+    
 
     for _ in 0..2 {
         emu.stack_pop(false);
     }
+    emu.regs.eax = 1;
+}
+
+fn DisconnectNamedPipe(emu:&mut emu32::Emu32) {
+    let handle = emu.maps.read_dword(emu.regs.esp).expect("kernel32!DisconnectNamedPipe cannot read the handle");
+
+    println!("{}** {} kernel32!DisconnectNamedPipe hndl: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, emu.colors.nc);
+
+    emu.stack_pop(false);
     emu.regs.eax = 1;
 }
 
@@ -253,24 +314,22 @@ fn ReadFile(emu:&mut emu32::Emu32) {
     let bytes_read = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!ReadFile cannot read the bytes_read");
     let overlapped = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!ReadFile cannot read the overlapped");
 
-    let mut count = *COUNT_READ.lock().unwrap();
-    count += 1;
-    *COUNT_READ.lock().unwrap() = count;
+    let mut count = COUNT_READ.lock().unwrap();
+    *count += 1;
 
-    count += 1;
-
-    if size == 4 && count == 1 {
+    if size == 4 && *count == 1 {
         // probably reading the size
         emu.maps.write_dword(buff, 0x10);
     }
 
-    if count < 3 { 
+    if *count < 3 { 
         // keep reading bytes
         emu.maps.write_dword(bytes_read, size);
+        emu.regs.eax = 1;
     } else {
         // try to force finishing reading and continue the malware logic
-        println!("\tlets force finishing reading.");
         emu.maps.write_dword(bytes_read, 0);
+        emu.regs.eax = 0;
     }
 
     //TODO: write some random bytes to the buffer
@@ -278,10 +337,14 @@ fn ReadFile(emu:&mut emu32::Emu32) {
     
     println!("{}** {} kernel32!ReadFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc);
 
+    if !_handle_exist(file_hndl) {
+        println!("\tinvalid handle.")
+    }
+
     for _ in 0..5 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 1;
+    
 }
 
 fn WriteFile(emu:&mut emu32::Emu32) {
@@ -291,16 +354,32 @@ fn WriteFile(emu:&mut emu32::Emu32) {
     let bytes_written = emu.maps.read_dword(emu.regs.esp+12).expect("kernel32!WriteFile cannot read the bytes_written");
     let overlapped = emu.maps.read_dword(emu.regs.esp+16).expect("kernel32!WriteFile cannot read the overlapped");
 
-    let mut count = *COUNT_WRITE.lock().unwrap();
-    count += 1;
-    *COUNT_WRITE.lock().unwrap() = count;
+    let mut count = COUNT_WRITE.lock().unwrap();
+    *count += 1;
 
     emu.maps.write_dword(bytes_written, size);
 
     println!("{}** {} kernel32!WriteFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc);
+
+    if !_handle_exist(file_hndl) {
+        println!("\tinvalid handle.")
+    }
 
     for _ in 0..5 {
         emu.stack_pop(false);
     }
     emu.regs.eax = 1;
 }
+
+fn CloseHandle(emu:&mut emu32::Emu32) {
+    let hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!CloseHandle cannot read the handle");
+
+    println!("{}** {} kernel32!CloseHandle 0x{:X} {}", emu.colors.light_red, emu.pos, hndl, emu.colors.nc);
+
+    if !_handle_close(hndl) {
+        println!("\tinvalid handle.")
+    }
+    emu.stack_pop(false);
+    emu.regs.eax = 1;
+}
+
