@@ -6,6 +6,8 @@ pub struct FPU {
     stat:u16,
     ctrl:u16,
     eip:u32,
+    err_off:u32,
+    err_sel:u32,
 }
 
 impl FPU {
@@ -16,6 +18,8 @@ impl FPU {
             stat: 0,
             ctrl: 0x027f,
             eip: 0,
+            err_off: 0,
+            err_sel: 0,
         }
     }
 
