@@ -1,6 +1,7 @@
 /*
     TODO:
         - track handles and sockets
+        - mr mw options can crash the console
         - more apis
         - better api implementations
         - more syscalls
@@ -153,6 +154,7 @@ pub mod colors;
 pub mod constants;
 mod winapi;
 mod fpu;
+mod context;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -161,6 +163,7 @@ use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 use colors::Colors;
+use context::Context;
 use crate::config::Config;
 
 use capstone::prelude::*;
@@ -1394,9 +1397,11 @@ impl Emu32 {
             next = self.seh;
 
             self.stack_push(0x10f00);
-            self.maps.write_dword(0x10f04, 0x10f00); // guloader trick  <- the veh push ptr to context
-            self.maps.write_dword(0x10fb8, self.regs.eip); // guloader trick
             self.stack_push(self.regs.eip);
+
+            self.maps.write_dword(0x10f04, 0x10f08);
+            let ctx = Context::new(&self.regs);
+            ctx.save(0x10f08, &mut self.maps);
 
         } else {
 
@@ -5640,56 +5645,20 @@ impl Emu32 {
                         self.fpu.set_eip(self.regs.eip);
                     },
 
+                    Some("fld") => {
+                        if !step {
+                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                        }
+
+                        //not implemented
+                        self.fpu.set_eip(self.regs.eip);
+
+                    }
+
                     Some("lcall") => {
                         if !step {
                             panic!("{}{} {}  {{{:?}}} {}", self.colors.green, self.pos, ins, ins.bytes(), self.colors.nc);
                         }
-                        /*
-                            emulated with unicorn as a loop:
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x1000010:      xor     dword ptr [edx + 0x14], ebx   ebp:0x2801000
-                                0x1000013:      add     ebx, dword ptr [edx + 0x14]   ebp:0x2801000
-                                0x1000016:      add     edx, 4   ebp:0x2801000
-                                0x1000019:      lcall   0x51c0:0xd572a83f   ebp:0x2801000
-                                0x100001b:      test    al, 0x72   ebp:0x2801000
-                                0x100001c:      jb      0xfffff3   ebp:0x2801000
-
-                            opcodes:
-                                10 0x3c0019: lcall 0x51c0, 0xd572a83f  {[154, 63, 168, 114, 213, 192, 81]} 
-                        */
                     },
 
                     Some("sysenter") => {

@@ -1,4 +1,6 @@
 use crate::emu32;
+use crate::emu32::winapi::helper;
+
 
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
@@ -24,7 +26,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e896fb => ReadFile(emu),
         0x75e91400 => WriteFile(emu),
         0x75e8ca7c => CloseHandle(emu),
-        //0x75e9214f
+        0x75e9214f => ExitProcess(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
@@ -32,11 +34,17 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
 lazy_static! {
     static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
     static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
+}
+
+/*
+lazy_static! {
+    static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
+    static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
     static ref HANDLES:Mutex<Vec<u32>> = Mutex::new(vec![0;0]);
 }
 
 
-fn _handle_create() -> u32 {
+fn _handler_create() -> u32 {
     let new_handle:u32;
     let mut handles = HANDLES.lock().unwrap();
 
@@ -51,7 +59,7 @@ fn _handle_create() -> u32 {
     return new_handle;
 }
 
-fn _handle_close(hndl:u32) -> bool {
+fn _handler_close(hndl:u32) -> bool {
     println!("closing handle");
     let mut handles = HANDLES.lock().unwrap();
     let idx = match handles.iter().position(|h| *h == hndl) {
@@ -62,21 +70,21 @@ fn _handle_close(hndl:u32) -> bool {
     return true;
 }
 
-fn _handle_print() {
+fn _handler_print() {
     let hndls = HANDLES.lock().unwrap();
     for h in hndls.iter() {
         println!("{:x}", h);
     }
 }
 
-fn _handle_exist(hndl:u32) -> bool {
+fn _handler_exist(hndl:u32) -> bool {
     let handles = HANDLES.lock().unwrap();
     match handles.iter().position(|h| *h == hndl) {
         Some(_) => return true,
         None => return false,
     }
 }
-
+*/
 
 //// kernel32 API ////
 
@@ -254,7 +262,7 @@ fn CreateRemoteThread(emu:&mut emu32::Emu32) {
     println!("{}** {} kernel32!CreateRemoteThread hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
     emu.maps.write_dword(out_tid, 0x123); 
-    emu.regs.eax = _handle_create();
+    emu.regs.eax = helper::handler_create();
 
     for _ in 0..7 {
         emu.stack_pop(false);
@@ -279,7 +287,7 @@ fn CreateNamedPipeA(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = _handle_create(); 
+    emu.regs.eax = helper::handler_create(); 
 }
 
 fn ConnectNamedPipe(emu:&mut emu32::Emu32) {
@@ -287,7 +295,7 @@ fn ConnectNamedPipe(emu:&mut emu32::Emu32) {
     let overlapped = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!ConnectNamedPipe cannot read the overlapped");
 
     println!("{}** {} kernel32!ConnectNamedPipe hndl: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, emu.colors.nc);
-    if !_handle_exist(handle) {
+    if !helper::handler_exist(handle) {
         println!("\tinvalid handle.");
     }
     
@@ -337,7 +345,7 @@ fn ReadFile(emu:&mut emu32::Emu32) {
     
     println!("{}** {} kernel32!ReadFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc);
 
-    if !_handle_exist(file_hndl) {
+    if !helper::handler_exist(file_hndl) {
         println!("\tinvalid handle.")
     }
 
@@ -361,7 +369,7 @@ fn WriteFile(emu:&mut emu32::Emu32) {
 
     println!("{}** {} kernel32!WriteFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc);
 
-    if !_handle_exist(file_hndl) {
+    if !helper::handler_exist(file_hndl) {
         println!("\tinvalid handle.")
     }
 
@@ -376,10 +384,18 @@ fn CloseHandle(emu:&mut emu32::Emu32) {
 
     println!("{}** {} kernel32!CloseHandle 0x{:X} {}", emu.colors.light_red, emu.pos, hndl, emu.colors.nc);
 
-    if !_handle_close(hndl) {
+    if !helper::handler_close(hndl) {
         println!("\tinvalid handle.")
     }
     emu.stack_pop(false);
     emu.regs.eax = 1;
+}
+
+fn ExitProcess(emu:&mut emu32::Emu32) {
+    let code = emu.maps.read_dword(emu.regs.esp).expect("kernel32!ExitProcess cannot read the exit code");
+
+    println!("{}** {} kernel32!ExitProcess code: {} {}", emu.colors.light_red, emu.pos, code, emu.colors.nc);
+
+    std::process::exit(1);
 }
 

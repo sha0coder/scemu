@@ -4,6 +4,7 @@ mod user32;
 mod wininet;
 mod ws2_32;
 mod advapi32;
+pub mod helper;
 
 use crate::emu32;
 

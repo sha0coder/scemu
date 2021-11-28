@@ -1,4 +1,5 @@
 use crate::emu32;
+use crate::emu32::winapi::helper;
 
 
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
@@ -48,7 +49,7 @@ pub fn InternetOpenA(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x11111111; // internet handle
+    emu.regs.eax = helper::handler_create();
 }
 
 pub fn InternetOpenW(emu:&mut emu32::Emu32) {
@@ -78,7 +79,7 @@ pub fn InternetOpenW(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x11111111; // internet handle
+    emu.regs.eax = helper::handler_create(); // internet handle
 }
 
 pub fn InternetConnectA(emu:&mut emu32::Emu32) {
@@ -108,11 +109,15 @@ pub fn InternetConnectA(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!InternetConnectA host: {} port: {} login: {} passw: {} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
 
+    if !helper::handler_exist(internet_hndl) {
+        println!("\tinvalid handle.");
+    }
+
     for _ in 0..8 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x22222222; // connect handle
+    emu.regs.eax = helper::handler_create(); // connect handle
 }
 
 pub fn InternetConnectW(emu:&mut emu32::Emu32) {
@@ -142,11 +147,15 @@ pub fn InternetConnectW(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!InternetConnectW host: {} port: {} login: {} passw: {} {}", emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc);
 
+    if !helper::handler_exist(internet_hndl) {
+        println!("\tinvalid handle.");
+    }
+
     for _ in 0..8 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x22222222; // connect handle
+    emu.regs.eax = helper::handler_create(); // connect handle
 }
 
 fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
@@ -182,12 +191,15 @@ fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!HttpOpenRequestA method: {} path: {} ver: {} ref: {} access: {} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
 
+    if !helper::handler_exist(conn_hndl) {
+        println!("\tinvalid handle.");
+    }
 
     for _ in 0..8 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x33333333; // request handle
+    emu.regs.eax = helper::handler_create(); // request handle
 
 }
 
@@ -224,13 +236,15 @@ fn HttpOpenRequestW(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!HttpOpenRequestW method: {} path: {} ver: {} ref: {} access: {} {}", emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc);
 
+    if !helper::handler_exist(conn_hndl) {
+        println!("\tinvalid handle.");
+    }
 
     for _ in 0..8 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x33333333; // request handle
-
+    emu.regs.eax = helper::handler_create(); // request handle
 }
 
 fn InternetSetOptionA(emu:&mut emu32::Emu32) {
@@ -246,6 +260,10 @@ fn InternetSetOptionA(emu:&mut emu32::Emu32) {
     let sbuff = emu.maps.read_string(buffer);
 
     println!("{}** {} wininet!InternetSetOptionA option: 0x{:x} buff: {{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
+
+    if !helper::handler_exist(inet_hndl) {
+        println!("\tinvalid handle.");
+    }
 
     for _ in 0..4 {
         emu.stack_pop(false);
@@ -268,6 +286,10 @@ fn InternetSetOptionW(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!InternetSetOptionW option: 0x{:x} buff: {{{}}} {} {}", emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc);
 
+    if !helper::handler_exist(inet_hndl) {
+        println!("\tinvalid handle.");
+    }
+
     for _ in 0..4 {
         emu.stack_pop(false);
     }
@@ -286,6 +308,10 @@ fn HttpSendRequestA(emu:&mut emu32::Emu32) {
     let opt = emu.maps.read_string(opt_ptr);
 
     println!("{}** {} wininet!HttpSendRequestA hdrs: {} opt: {} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
+
+    if !helper::handler_exist(req_hndl) {
+        println!("\tinvalid handle.");
+    }
 
     for _ in 0..5 {
         emu.stack_pop(false);
@@ -306,6 +332,10 @@ fn HttpSendRequestW(emu:&mut emu32::Emu32) {
 
     println!("{}** {} wininet!HttpSendRequestW hdrs: {} opt: {} {}", emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc);
 
+    if !helper::handler_exist(req_hndl) {
+        println!("\tinvalid handle.");
+    }
+    
     for _ in 0..5 {
         emu.stack_pop(false);
     }
@@ -334,6 +364,10 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
 
     println!("{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
+
+    if !helper::handler_exist(file_hndl) {
+        println!("\tinvalid handle.");
+    }
 
     for _ in 0..4 {
         emu.stack_pop(false);
