@@ -1,4 +1,8 @@
 use crate::emu32;
+use crate::emu32::winapi::helper;
+
+use lazy_static::lazy_static; 
+use std::sync::Mutex;
 
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32)  {
     match addr {
@@ -31,6 +35,12 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32)  {
     }
 }
 
+lazy_static! {
+    static ref COUNT_SEND:Mutex<u32> = Mutex::new(0);
+    static ref COUNT_RECV:Mutex<u32> = Mutex::new(0);
+}
+
+
 fn WsaStartup(emu:&mut emu32::Emu32) {
 
     println!("{}** {} ws2_32!WsaStartup {}", emu.colors.light_red, emu.pos, emu.colors.nc);
@@ -49,7 +59,7 @@ fn WsaSocketA(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x10; // socket descriptor
+    emu.regs.eax = helper::socket_create();
 }
 
 fn socket(emu:&mut emu32::Emu32) {
@@ -59,19 +69,22 @@ fn socket(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0x10; // socket descriptor
+    emu.regs.eax = helper::socket_create();
 }
 
 fn WsaHtons(emu:&mut emu32::Emu32) {
-    let out_port = emu.maps.read_dword(emu.regs.esp+8); //TODO: wtf? no expect y +8?? printar puerto esto es out
+    let host_port = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!WsaHtons cannot read host_port");
+    let out_port = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!WsaHtons cannot read out_port");
 
-    println!("{}** {} ws2_32!WsaHtons {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    println!("{}** {} ws2_32!WsaHtons {} {}", emu.colors.light_red, emu.pos, host_port, emu.colors.nc);
 
     for _ in 0..3 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = 0; // socket descriptor
+    //TODO: implement this
+
+    emu.regs.eax = 0; 
 }
 
 
@@ -111,40 +124,70 @@ fn connect(emu:&mut emu32::Emu32) {
     for _ in 0..3 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0; 
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0; 
+    }
 }
 
 fn recv(emu:&mut emu32::Emu32) {
     let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!recv: error reading sock");
     let buff = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!recv: error reading buff");
-    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!recv: error reading len"); 
+    let mut len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!recv: error reading len"); 
     let flags = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!recv: error reading flags");
 
-    println!("{}** {} ws2_32!recv   expecting {} bytes {}", emu.colors.light_red, emu.pos, len, emu.colors.nc);
-
-    //emu.maps.write_spaced_bytes(buff, "6c 73 0d 0a".to_string()); // send a ls\r\n
-    emu.maps.write_dword(buff, 0x0100); // send a size
-    emu.regs.eax = 4;
+    println!("{}** {} ws2_32!recv   buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, buff, len, emu.colors.nc);
 
     for _ in 0..4 {
         emu.stack_pop(false);
+    }
+
+    let mut count_recv = COUNT_RECV.lock().unwrap();
+    *count_recv += 1;
+    if *count_recv > 3 {
+        len = 0; // finish the recv loop
+    }
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        //emu.maps.write_spaced_bytes(buff, "6c 73 0d 0a".to_string()); // send a ls\r\n
+        emu.maps.write_dword(buff, 0x0100); // send a size
+        emu.regs.eax = len;
     }
 }
 
 fn send(emu:&mut emu32::Emu32) {
     let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
     let buff = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!send: error reading buff");
-    let len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!send: error reading len"); 
+    let mut len = emu.maps.read_dword(emu.regs.esp+8).expect("ws2_32!send: error reading len"); 
     let flags = emu.maps.read_dword(emu.regs.esp+12).expect("ws2_32!send: error reading flags");
 
     let bytes = emu.maps.read_string_of_bytes(buff, len as usize);
 
-    println!("{}** {} ws2_32!send {{{}}}   {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
-
     for _ in 0..4 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = len;
+
+    println!("{}** {} ws2_32!send {{{}}}   {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
+
+    let mut count_send = COUNT_SEND.lock().unwrap();
+    *count_send += 1;
+    if *count_send > 3 {
+        len = 0; // finish the send loop
+    }
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 0;
+    } else {
+        emu.regs.eax = len;
+    }
+    
 }
 
 fn bind(emu:&mut emu32::Emu32) {
@@ -163,7 +206,14 @@ fn bind(emu:&mut emu32::Emu32) {
     for _ in 0..3 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
+
 }
 
 fn listen(emu:&mut emu32::Emu32) {
@@ -175,7 +225,13 @@ fn listen(emu:&mut emu32::Emu32) {
     for _ in 0..2 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
 }
 
 fn accept(emu:&mut emu32::Emu32) {
@@ -191,13 +247,21 @@ fn accept(emu:&mut emu32::Emu32) {
     for _ in 0..4 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
 }
 
 fn closesocket(emu:&mut emu32::Emu32) {
     let sock = emu.maps.read_dword(emu.regs.esp).expect("ws2_32!send: error reading sock");
 
     println!("{}** {} ws2_32!closesocket {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    helper::socket_close(sock);
 
     emu.stack_pop(false);
     emu.regs.eax = 0;
@@ -220,7 +284,13 @@ fn setsockopt(emu:&mut emu32::Emu32) {
     for _ in 0..5 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
 }
 
 fn getsockopt(emu:&mut emu32::Emu32) {
@@ -238,7 +308,13 @@ fn getsockopt(emu:&mut emu32::Emu32) {
     for _ in 0..5 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
 }
 
 fn WsaAccept(emu:&mut emu32::Emu32) {
@@ -255,5 +331,11 @@ fn WsaAccept(emu:&mut emu32::Emu32) {
     for _ in 0..4 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = 0;
+
+    if !helper::socket_exist(sock) {
+        println!("\tinvalid socket.");
+        emu.regs.eax = 1;
+    } else {
+        emu.regs.eax = 0;
+    }
 }

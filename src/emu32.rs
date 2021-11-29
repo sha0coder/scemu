@@ -1,10 +1,12 @@
 /*
     TODO:
-        - track handles and sockets
+
+        - try linux shellcodes to implement more syscalls
         - mr mw options can crash the console
         - more apis
         - better api implementations
         - more syscalls
+        - stack_push and stack_pop assumes the stack is in the memory map stack
         - on execve syscall show the parameter
         - endpoint
         - more fpu
@@ -133,6 +135,8 @@ msvcrt.dll
         1937616 0x3cff5d: mov eax, dword ptr [eax + 4]
         1937617 0x3cff60: mov edx, dword ptr [eax + 0xb8]
 
+        bypased ;)
+
         http://index-of.es/Reverse-Engineering/bh-usa-07-yason.pdf <-- the context object
 
 
@@ -154,7 +158,7 @@ pub mod colors;
 pub mod constants;
 mod winapi;
 mod fpu;
-mod context;
+pub mod context;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -180,6 +184,7 @@ pub struct Emu32 {
     bp: u32,
     seh: u32,
     veh: u32,
+    veh_ctx: u32,
     cfg: Config,
     colors: Colors,
     pos: u64,
@@ -199,6 +204,7 @@ impl Emu32 {
             bp: 0,
             seh: 0,
             veh: 0,
+            veh_ctx: 0,
             cfg: Config::new(),
             colors: Colors::new(),
             pos: 0,
@@ -208,8 +214,8 @@ impl Emu32 {
 
     pub fn init_stack(&mut self) {
         let stack = self.maps.get_mem("stack");
-        stack.set_base(0x22d000);
-        stack.set_size(0x3000);
+        stack.set_base(0x220000);    //0x22d000
+        stack.set_size(0x010000);
         self.regs.esp = 0x22e000;
         self.regs.ebp = 0x22f000;
 
@@ -552,14 +558,35 @@ impl Emu32 {
 
     pub fn stack_push(&mut self, value:u32) {
         self.regs.esp -= 4;
-        self.maps.get_mem("stack").write_dword(self.regs.esp, value);
+        let stack = self.maps.get_mem("stack");
+        if stack.inside(self.regs.esp) {
+            stack.write_dword(self.regs.esp, value);
+        } else {
+            let mem = match self.maps.get_mem_by_addr(self.regs.esp) {
+                Some(m) => m,
+                None =>  panic!("pushing stack outside maps esp: 0x{:x}", self.regs.esp),
+            };
+        }
     }
 
     pub fn stack_pop(&mut self, pop_instruction:bool) -> u32 {
-        let value = self.maps.get_mem("stack").read_dword(self.regs.esp);
-        if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value) {
-            println!("/!\\ poping a code address 0x{:x}", value);
+        
+        let stack = self.maps.get_mem("stack");
+        if stack.inside(self.regs.esp) {    
+            let value = stack.read_dword(self.regs.esp);
+            if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value) {
+                println!("/!\\ poping a code address 0x{:x}", value);
+            }
+            self.regs.esp += 4;
+            return value;
         }
+
+        let mem = match self.maps.get_mem_by_addr(self.regs.esp) {
+            Some(m) => m,
+            None => panic!("poping stack outside map  esp: 0x{:x}", self.regs.esp),
+        };
+
+        let value = mem.read_dword(self.regs.esp);
         self.regs.esp += 4;
         return value;
     }
@@ -1273,6 +1300,7 @@ impl Emu32 {
                             continue;
                         }
                     };
+                    self.force_break = true;
                     self.regs.eip = addr;
                 },
                 "push" => {
@@ -1365,7 +1393,7 @@ impl Emu32 {
                             continue;
                         }
                     };
-                    self.disasemble(addr);
+                    self.disasemble(addr, 10);
                 },
                 "" => {
                     self.exp += 1;
@@ -1394,14 +1422,17 @@ impl Emu32 {
 
         if self.veh > 0 {
             addr = self.veh;
-            next = self.seh;
 
-            self.stack_push(0x10f00);
-            self.stack_push(self.regs.eip);
+            self.stack_push(0x10f00);   
+            self.stack_push(self.regs.eip); 
 
-            self.maps.write_dword(0x10f04, 0x10f08);
+            self.veh_ctx = 0x10f08;
+            self.maps.write_dword(0x10f04, self.veh_ctx);
             let ctx = Context::new(&self.regs);
-            ctx.save(0x10f08, &mut self.maps);
+            ctx.save(self.veh_ctx, &mut self.maps);
+
+            self.set_eip(addr, false);
+
 
         } else {
 
@@ -1410,6 +1441,8 @@ impl Emu32 {
                 self.spawn_console();
                 return;
             }
+
+            // SEH
 
             next = match self.maps.read_dword(self.seh) {
                 Some(value) => value,
@@ -1421,22 +1454,26 @@ impl Emu32 {
                 None => panic!("exception without correct SEH."),
             };
 
+
+            let con = Console::new();
+            con.print("jump the exception pointer (y/n)?");
+            let cmd = con.cmd();
+            if cmd == "y" { 
+                self.seh = next;
+                self.set_eip(addr, false);    
+            }
+
         }
 
 
-        let con = Console::new();
-        con.print("jump the exception pointer (y/n)?");
-        let cmd = con.cmd();
-        if cmd == "y" { 
-            self.seh = next;
-            self.set_eip(addr, false);    
-        }
+        
     }
 
-    pub fn disasemble(&mut self, addr:u32) {
+    pub fn disasemble(&mut self, addr:u32, amount:u32) {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
+        let mut count:u32 = 0;
         let cs = Capstone::new()
             .x86()
             .mode(arch::x86::ArchMode::Mode32)
@@ -1448,6 +1485,10 @@ impl Emu32 {
             let insns = cs.disasm_all(block, addr as u64).expect("Failed to disassemble");
             for ins in insns.as_ref() {
                 println!("{}", ins);
+                count += 1;
+                if count >= amount {
+                    break;
+                }    
             }
     }
 
@@ -1493,6 +1534,10 @@ impl Emu32 {
                     println!("-------");
                     println!("{} {}", self.pos, ins);
                     self.spawn_console();
+                    if self.force_break {
+                        self.force_break = false;
+                        break;
+                    }
                 }
                     
                 if self.cfg.loops {
@@ -1811,7 +1856,7 @@ impl Emu32 {
                         if !step {
                             println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
                         }
-                        let ret_addr = self.stack_pop(false); // return address
+                        let mut ret_addr = self.stack_pop(false); // return address
                         let op = ins.op_str().unwrap();
                         //println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
 
@@ -1832,7 +1877,11 @@ impl Emu32 {
                             }
                         }
                         
-                        self.set_eip(ret_addr, false);
+                        if self.veh_ctx != 0 {
+                            ret_addr = self.maps.read_dword(self.veh_ctx + 0xb8).expect("cannot read from context saved eip"); //TODO: do ctx.load()
+                        } 
+
+                        self.set_eip(ret_addr, false);                        
                         break;
                     },
 
@@ -5658,6 +5707,12 @@ impl Emu32 {
                     Some("lcall") => {
                         if !step {
                             panic!("{}{} {}  {{{:?}}} {}", self.colors.green, self.pos, ins, ins.bytes(), self.colors.nc);
+                        }
+                    },
+
+                    Some("rdmsr") => {
+                        match self.regs.ecx {
+                            _ => println!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
                         }
                     },
 
