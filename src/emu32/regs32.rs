@@ -1,6 +1,20 @@
 use crate::emu32::maps::Maps;
 
+
+    /*
+        DR0-DR3 – breakpoint registers
+        DR4 & DR5 – reserved
+        DR6 – debug status
+        DR7 – debug control
+    */
+
 pub struct Regs32 {
+    pub dr0: u32, // bp
+    pub dr1: u32, // bp
+    pub dr2: u32, // bp
+    pub dr3: u32, // bp
+    pub dr6: u32, // dbg stat
+    pub dr7: u32, // dbg ctrl
     pub eax: u32,
     pub ebx: u32,
     pub ecx: u32,
@@ -15,6 +29,12 @@ pub struct Regs32 {
 impl Regs32 {
     pub fn new() -> Regs32 {
         Regs32{
+            dr0: 0,
+            dr1: 0,
+            dr2: 0,
+            dr3: 0,
+            dr6: 0,
+            dr7: 0,
             eax: 0,
             ebx: 0,
             ecx: 0,
@@ -238,30 +258,31 @@ impl Regs32 {
 
     pub fn show_reg(&self, maps:&Maps, sreg:&str, value:u32) {
         if maps.is_mapped(value) {
-            let mut s = maps.read_string(value);
-            let mut w = maps.read_wide_string(value);
 
+
+            let mut s = maps.read_string(value);
+            if s.len() < 2 {
+                s = maps.read_wide_string(value);
+            }
+
+            maps.filter_string(&mut s);
+           
             if s.len() > 50 {
                 s = s[..50].to_string();
             }
-            if w.len() > 50 {
-                w = w[..50].to_string();
-            }
-
+ 
             let name = match maps.get_addr_name(value) {
                 Some(v) => format!("({})", v),
                 None => "".to_string(),
             };
             
             if s.len() > 1 {
-                println!("\t{}: 0x{:x} '{}' {}", sreg, value, s, name);
-            } else if w.len() > 1 {
-                println!("\t{}: 0x{:x} '{}' {}", sreg, value, w, name);
+                println!("\t{}: 0x{:x} {} '{}' {}", sreg, value, value, s, name);
             } else {
-                println!("\t{}: 0x{:x} {}", sreg, value, name);
+                println!("\t{}: 0x{:x} {} {}", sreg, value, value, name);
             }
         } else {
-            println!("\t{}: 0x{:x}", sreg, value);
+            println!("\t{}: 0x{:x} {}", sreg, value, value);
         }
     }
 

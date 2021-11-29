@@ -1,6 +1,7 @@
 use crate::emu32;
 use crate::emu32::winapi::helper;
-
+use lazy_static::lazy_static; 
+use std::sync::Mutex;
 
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     match addr {
@@ -18,6 +19,11 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x763b3328 => InternetErrorDlg(emu),
         _ => panic!("calling unimplemented wininet API 0x{:x}", addr)
     }
+}
+
+
+lazy_static! {
+    static ref COUNT_RECEIVE:Mutex<u32> = Mutex::new(0);
 }
 
 
@@ -360,8 +366,17 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     let bytes_to_read = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetReadFile cannot read bytes_to_read");
     let bytes_read_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("wininet!InternetReadFile cannot read bytes_read");
 
-    emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
-    emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
+    
+    let mut count = COUNT_RECEIVE.lock().unwrap();
+    *count += 1;
+
+    if *count < 3 {
+        emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
+        emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
+    } else {
+        emu.maps.write_dword(bytes_read_ptr, 0);
+    }
+
 
     println!("{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
 
@@ -372,5 +387,6 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     for _ in 0..4 {
         emu.stack_pop(false);
     }
+
     emu.regs.eax = 1; // true
 }

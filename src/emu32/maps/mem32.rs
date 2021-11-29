@@ -117,6 +117,7 @@ impl Mem32 {
     }
 
     pub fn write_dword(&mut self, addr:u32, value:u32) {
+        //println!("write dword addr: 0x{:x}  base_addr: 0x{:x}  value: {} ", addr, self.base_addr, value);
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx]   = (value & 0x000000ff) as u8;
         self.mem[idx+1] = ((value & 0x0000ff00) >> 8) as u8;

@@ -1,4 +1,6 @@
 use crate::emu32;
+use crate::emu32::winapi::helper;
+use crate::emu32::context::Context;
 
 
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
@@ -40,13 +42,18 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
-    println!("{}** {} ntdll!NtAllocateVirtualMemory  0x003e0000 {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    let alloc_addr = match emu.maps.alloc(size) {
+        Some(a) => a,
+        None => panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "),
+    };
+
+    println!("{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, alloc_addr, size, emu.colors.nc);
 
     //TODO: modify this, its allowing just one allocation
-    let alloc = emu.maps.create_map("alloc");
-    let alloc_addr = 0x003e0000;
+    let alloc = emu.maps.create_map(format!("valloc_{:x}", alloc_addr).as_str());
     alloc.set_base(alloc_addr);
-    alloc.set_bottom(alloc_addr + size);
+    alloc.set_size(size);
+    //alloc.set_bottom(alloc_addr + size);
 
     if !emu.maps.write_dword(addr_ptr, alloc_addr) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
@@ -84,8 +91,14 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll!NtQueryVirtualMemory: error reading handle");
     let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!NtQueryVirtualMemory: error reading address");
 
+    println!("{}** {} ntdll!NtQueryVirtualMemory {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
     if handle != 0xffffffff {
-        panic!("ntdll!NtQueryVirtualMemory: using handle of remote process {:x}", handle);
+        println!("\tusing handle of remote process {:x}", handle);
+
+        if !helper::handler_exist(handle) {
+            println!("\nhandler doesnt exist.");
+        }
     }
 
     let out_meminfo_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo");
@@ -110,7 +123,7 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
     */
 
     
-    println!("{}** {} ntdll_NtQueryVirtualMemory {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    
 
     if !emu.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
         panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
@@ -168,11 +181,11 @@ fn RtlVectoredExceptionHandler(emu:&mut emu32::Emu32) {
 fn NtGetContextThread(emu:&mut emu32::Emu32) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll_NtGetContextThread: error reading stack");
     let ctx_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_NtGetContextThread: error reading context pointer");
-    let ctx = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
-    let context_flags = emu.maps.read_dword(ctx).expect("ntdll_NtGetContextThread: error reading context flags");
+    let ctx_ptr2 = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
+    
+    println!("{}** {} ntdll_NtGetContextThread   ctx  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    println!("{}** {} ntdll_NtGetContextThread   ctx flags: 0x{:x} {}", emu.colors.light_red, emu.pos, context_flags, emu.colors.nc);
-
+    /*
     if !emu.maps.write_dword(ctx+4, 0) {
         panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
     }
@@ -190,49 +203,14 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
     }
     if !emu.maps.write_dword(ctx+16, 0) {
         panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
-    }
+    }*/
+
+    let ctx = Context::new(&emu.regs);
+    ctx.save(ctx_ptr2, &mut emu.maps);
 
     emu.regs.eax = 0;
     emu.stack_pop(false);
     emu.stack_pop(false);
-    
-    /*
-
-    DR0-DR3 – breakpoint registers
-    DR4 & DR5 – reserved
-    DR6 – debug status
-    DR7 – debug control
-
-
-    typedef struct _CONTEXT
-    {
-        ULONG ContextFlags;
-        ULONG Dr0;
-        ULONG Dr1;
-        ULONG Dr2;
-        ULONG Dr3;
-        ULONG Dr6;
-        ULONG Dr7;
-        FLOATING_SAVE_AREA FloatSave;
-        ULONG SegGs;
-        ULONG SegFs;
-        ULONG SegEs;
-        ULONG SegDs;
-        ULONG Edi;
-        ULONG Esi;
-        ULONG Ebx;
-        ULONG Edx;
-        ULONG Ecx;
-        ULONG Eax;
-        ULONG Ebp;
-        ULONG Eip;
-        ULONG SegCs;
-        ULONG EFlags;
-        ULONG Esp;
-        ULONG SegSs;
-        UCHAR ExtendedRegisters[512];
-    } CONTEXT, *PCONTEXT;
-    */
 
 }
 
