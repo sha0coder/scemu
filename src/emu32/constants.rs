@@ -18,3 +18,26 @@ pub const WAIT_FAILED:u32 = 0xFFFFFFFF;
 pub const CALL_FIRST:u32 = 1;
 pub const CALL_LAST:u32 = 0;
 
+
+
+
+pub const SYS_SOCKET:u32 = 1;		
+pub const SYS_BIND:u32 = 2;	
+pub const SYS_CONNECT:u32 = 3;	
+pub const SYS_LISTEN:u32 = 4;		
+pub const SYS_ACCEPT:u32 = 5;	
+pub const SYS_GETSOCKNAME:u32 = 6;	
+pub const SYS_GETPEERNAME:u32 = 7;
+pub const SYS_SOCKETPAIR:u32 = 8;	
+pub const SYS_SEND:u32 = 9;		
+pub const SYS_RECV:u32 = 10;			
+pub const SYS_SENDTO:u32 = 11;	
+pub const SYS_RECVFROM:u32 = 12;	
+pub const SYS_SHUTDOWN:u32 = 13;	
+pub const SYS_SETSOCKOPT:u32 = 14;
+pub const SYS_GETSOCKOPT:u32 = 15;	
+pub const SYS_SENDMSG:u32 =	16;	
+pub const SYS_RECVMSG:u32 =	17;	
+pub const SYS_ACCEPT4:u32 =	18;	
+pub const SYS_RECVMMSG:u32 = 19;	
+pub const SYS_SENDMMSG:u32 = 20;
