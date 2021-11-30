@@ -1,4 +1,5 @@
 use crate::emu32;
+use crate::emu32::constants;
 use crate::emu32::winapi::helper;
 
    //  /usr/include/asm/unistd_32.h
@@ -437,9 +438,106 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         }
 
         102 => {
-            let sock = helper::socket_create();
-            emu.regs.eax = sock;
-            println!("{}** {} syscall socketcall() sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
+
+            match emu.regs.ebx {
+                constants::SYS_SOCKET => {
+                    let sock = helper::socket_create();
+                    emu.regs.eax = sock;
+                    println!("{}** {} syscall socketcall socket() sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
+                    emu.stack_pop(false);
+                    emu.stack_pop(false);
+                    emu.stack_pop(false);
+                }
+
+                constants::SYS_BIND => {
+                    let fd = emu.stack_pop(false);
+                    let sockaddr = emu.stack_pop(false);
+                    let len = emu.stack_pop(false);
+
+                    println!("{}** {} syscall socketcall bind()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_CONNECT => {
+                    println!("{}** {} syscall socketcall connect()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_LISTEN => {
+                    println!("{}** {} syscall socketcall listen()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_ACCEPT => {
+                    println!("{}** {} syscall socketcall accept() {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_GETSOCKNAME => {
+                    println!("{}** {} syscall socketcall getsockname() {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_GETPEERNAME => {
+                    println!("{}** {} syscall socketcall getpeername()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SOCKETPAIR => {
+                    println!("{}** {} syscall socketcall socketpair()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SEND => {
+                    println!("{}** {} syscall socketcall send()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_RECV => {
+                    println!("{}** {} syscall socketcall recv()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SENDTO => {
+                    println!("{}** {} syscall socketcall sendto()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_RECVFROM => {
+                    println!("{}** {} syscall socketcall recvfrom()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SHUTDOWN => {
+                    println!("{}** {} syscall socketcall shutdown()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SETSOCKOPT => {
+                    println!("{}** {} syscall socketcall setsockopt()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_GETSOCKOPT => {
+                    println!("{}** {} syscall socketcall getsockopt()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SENDMSG => {
+                    println!("{}** {} syscall socketcall sendmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_RECVMSG => {
+                    println!("{}** {} syscall socketcall recvmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_ACCEPT4 => {
+                    println!("{}** {} syscall socketcall accept4()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_RECVMMSG => {
+                    println!("{}** {} syscall socketcall recvmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+                constants::SYS_SENDMMSG => {
+                    println!("{}** {} syscall socketcall sendmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                }
+
+
+                
+
+                _=> panic!("invalid socket call {} ", emu.regs.ebx),
+            }
+
+
+
+            
 
         }
 
