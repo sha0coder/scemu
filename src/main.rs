@@ -112,6 +112,7 @@ fn main() {
 
     if matches.is_present("endpoint") {
         cfg.endpoint = true;
+        unimplemented!("endpoint option unimplemented");
     }
 
 

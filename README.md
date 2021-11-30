@@ -65,5 +65,8 @@ Cobalt Strike API called:
 Metasploit rshell API called:
 ![msf rshell](pics/metasploit_rshell.png)
 
-Metasploit encoder using few fpu to hide the polymorfism:
+Metasploit SGN encoder using few fpu to hide the polymorfism:
 ![msf encoded](pics/msf_encoded.png)
+
+Metasploit shikata-ga-nai encoder that also starts with fpu:
+![msf encoded](pics/shikata.png)

@@ -85,13 +85,19 @@ impl Maps {
         return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
     }
 
-    pub fn get_mem_by_addr(&self, addr:u32) -> Option<&Mem32> {
-        for (_,mem) in self.maps.iter() {
+    pub fn get_mem_by_addr(&mut self, addr:u32) -> Option<&mut Mem32> {
+        for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
-                return Some(&mem);
+                return Some(mem);
             }
         }
         return None;
+    }
+
+    pub fn memset(&mut self, addr:u32, b:u8, amount:usize)  {
+        for i in 0..amount {
+            self.write_byte(addr+i as u32, b);
+        }
     }
 
     pub fn memcpy(&mut self, to:u32, from:u32, size:usize) -> bool {
@@ -107,32 +113,6 @@ impl Maps {
         }
         return true;
     }
-
-    /*
-    pub fn memcpy_faster(&mut self, to:u32, from:u32, size:u32) -> bool {
-        let mem_from = match self.get_mem_by_addr(from) {
-            Some(v) => v,
-            None => return false,    
-        };
-        let mut mem_to = match self.get_mem_by_addr(to) {
-            Some(v) => v,
-            None => return false,    
-        };
-        let mut b:u8;
-
-        for i in 0..size as usize  {
-            if !mem_from.inside(from+i as u32) {
-                return false;
-            }
-            if !mem_to.inside(to+i as u32) {
-                return false;
-            }
-            b = mem_from.read_byte(from+i as u32);
-            mem_to.write_byte(to+i as u32, b);
-        }
-
-        return true;
-    }*/
 
 
     pub fn print_maps(&self) {
@@ -191,7 +171,7 @@ impl Maps {
         }
     }
 
-    pub fn read_bytes(&self, addr:u32, sz:usize) -> &[u8] {
+    pub fn read_bytes(&mut self, addr:u32, sz:usize) -> &[u8] {
         let mem = match self.get_mem_by_addr(addr) {
             Some(v) => v,
             None => return &[0;0],
@@ -200,7 +180,7 @@ impl Maps {
         return bytes;
     }
 
-    pub fn read_string_of_bytes(&self, addr:u32, sz:usize) -> String {
+    pub fn read_string_of_bytes(&mut self, addr:u32, sz:usize) -> String {
         let mut svec:Vec<String> = Vec::new();
         let bytes = self.read_bytes(addr, sz);
         for i in 0..bytes.len() {   
@@ -405,7 +385,7 @@ impl Maps {
         }
     }
 
-    pub fn save(&self, addr:u32, size:u32, filename:String) {
+    pub fn save(&mut self, addr:u32, size:u32, filename:String) {
         match self.get_mem_by_addr(addr) {
             Some(m) => {
                 m.save(addr, size as usize, filename);
