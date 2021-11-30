@@ -159,6 +159,7 @@ pub mod constants;
 mod winapi;
 mod fpu;
 pub mod context;
+pub mod syscall;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -1743,7 +1744,7 @@ impl Emu32 {
                             0x66 => {
                                 match ins.bytes()[1] {
                                     0x56 => self.stack_push(self.regs.esi), // push si
-                                    _ => panic!("unimplemented push")
+                                    _ => unimplemented!("unimplemented push")
                                 }
                             },
 
@@ -1760,7 +1761,7 @@ impl Emu32 {
                                     self.stack_push(self.seh);
 
                                 } else {
-                                    panic!("weird push instruction {:?}", bs);
+                                    unimplemented!("weird push instruction {:?}", bs);
                                 }
                             },
 
@@ -1800,7 +1801,7 @@ impl Emu32 {
                             0x66 => {
                                 match ins.bytes()[1] {
                                     0x5e => self.regs.esi = self.stack_pop(true), // pop si
-                                    _ => panic!("unimplemented pop")
+                                    _ => unimplemented!("unimplemented pop")
                                 }
                             },
 
@@ -5239,7 +5240,7 @@ impl Emu32 {
                                 self.regs.ecx = 0;
                                 self.regs.edx = 0;
                             },
-                            _ => panic!("unimplemented cpuid call 0x{:x}", self.regs.eax),
+                            _ => unimplemented!("unimplemented cpuid call 0x{:x}", self.regs.eax),
                         }
 
                     },
@@ -5467,19 +5468,12 @@ impl Emu32 {
                         let interrupt = u32::from_str_radix(op.trim_start_matches("0x"),16).expect("conversion error");
                         match interrupt {
                             0x80 => {
-                                println!("/!\\ interrupt 0x80 function:{}", self.regs.eax);
-                                if self.break_on_alert {
-                                    panic!();
-                                }
-                                match self.regs.eax {
-                                    11 => {
-                                        panic!("execve() detected");
-                                    }
-                                    _ => {}
-                                }
+
+                                syscall::gateway(self);
+                                
                             },
                             _ => {
-                                panic!("unknown interrupt {}", interrupt);
+                                unimplemented!("unknown interrupt {}", interrupt);
                             }
                         }
                     },
@@ -5710,20 +5704,32 @@ impl Emu32 {
                         }
                     },
 
-                    Some("rdmsr") => {
-                        match self.regs.ecx {
-                            _ => println!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
-                        }
-                    },
-
                     Some("sysenter") => {
                         println!("{}{} {}{} function: 0x{:x}", self.colors.red, self.pos, ins, self.colors.nc, self.regs.eax);
                         return;
-                    }
+                    },
+
+                    ////   Ring0  ////
+
+                    Some("rdmsr") => {
+                        if !step {
+                            println!("{}{} {} ecx: {} {}", self.colors.green, self.pos, ins, self.regs.ecx, self.colors.nc);
+                        }
+
+                        match self.regs.ecx {
+                            0x176 => {
+                                self.regs.edx = 0;
+                                self.regs.eax = 0x3c0042;
+                            },
+                            _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
+                        }
+                    },
+
+   
 
                     Some(&_) =>  { 
                         println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
-                        panic!("unimplemented instruction");
+                        unimplemented!("unimplemented instruction");
                     },
 
                     None => panic!("none instruction"),

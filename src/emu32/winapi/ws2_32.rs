@@ -156,7 +156,12 @@ fn recv(emu:&mut emu32::Emu32) {
         emu.regs.eax = 1;
     } else {
         //emu.maps.write_spaced_bytes(buff, "6c 73 0d 0a".to_string()); // send a ls\r\n
-        emu.maps.write_dword(buff, 0x0100); // send a size
+        if len == 4 {
+            emu.maps.write_dword(buff, 0x0100); // probably expect a size
+        } else {
+            emu.maps.memset(buff, 0x90, len as usize);
+        }
+
         emu.regs.eax = len;
     }
 }
