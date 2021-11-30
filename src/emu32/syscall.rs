@@ -21,6 +21,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
             let fd = emu.regs.ebx;
             let buff = emu.regs.ecx;
             let sz = emu.regs.edx;
+            emu.regs.eax = buff;
             println!("{}** {} syscall read() fd: {} buf: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc);
         }
 
@@ -28,6 +29,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
             let fd = emu.regs.ebx;
             let buff = emu.regs.ecx;
             let sz = emu.regs.edx;
+            emu.regs.eax = sz;
             println!("{}** {} syscall write() fd: {} buf: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc);
         }
 
@@ -170,7 +172,9 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         }
 
         37 => {
-            println!("{}** {} syscall kill()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+            let pid = emu.regs.ebx;
+            let sig = emu.regs.ecx;
+            println!("{}** {} syscall kill() pid: {} sig: {} {}", emu.colors.light_red, emu.pos, pid, sig, emu.colors.nc);
         }
 
         38 => {
@@ -186,7 +190,8 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         }
 
         41 => {
-            println!("{}** {} syscall dup()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+            let fd = emu.regs.ebx;
+            println!("{}** {} syscall dup() fd: {} {}", emu.colors.light_red, emu.pos, fd, emu.colors.nc);
         }
 
         42 => {
@@ -274,7 +279,9 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         }
 
         63 => {
-            println!("{}** {} syscall dup2()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+            let old_fd = emu.regs.ebx;
+            let new_fd = emu.regs.ecx;
+            println!("{}** {} syscall dup2() oldfd: {} newfd: {} {}", emu.colors.light_red, emu.pos, old_fd, new_fd, emu.colors.nc);
         }
 
         64 => {

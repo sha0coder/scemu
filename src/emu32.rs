@@ -2170,6 +2170,118 @@ impl Emu32 {
                             }
                         } 
                     },
+
+                    Some("adc") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
+                        if !step {
+                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                        }
+                        let ops = ins.op_str().unwrap();
+                        let parts:Vec<&str> = ops.split(", ").collect();
+
+                        let cf:u32;
+                        if self.flags.f_cf {
+                            cf = 1
+                        } else {
+                            cf = 0;
+                        }
+
+                        if parts[0].contains("[") {
+                            if self.is_reg(parts[1]) {
+                                // mov mem, reg
+                                let value1:u32 = self.regs.get_by_name(parts[1]);
+                                let value0:u32 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
+                                let res:u32;
+                                
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1+cf),
+                                    16 => res = self.flags_add16(value0, value1+cf),
+                                    8  => res = self.flags_add8(value0, value1+cf),
+                                    _  => panic!("weird precision")
+                                }
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
+                                
+                            } else {
+                                // mov mem, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = match self.memory_read(parts[0]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_add32(value0, inm+cf),
+                                    16 => res = self.flags_add16(value0, inm+cf),
+                                    8  => res = self.flags_add8(value0, inm+cf),
+                                    _  => panic!("weird precision")
+                                }
+                                if !self.memory_write(parts[0], res) {
+                                    self.exception();
+                                    break;
+                                }
+                            }
+
+                        } else {
+
+                            if parts[1].contains("[") {
+                                // mov reg, mem 
+                                let value1 = match self.memory_read(parts[1]) {
+                                    Some(v) => v,
+                                    None => {
+                                        self.exception();
+                                        break;
+                                    }
+                                };
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1+cf),
+                                    16 => res = self.flags_add16(value0, value1+cf),
+                                    8  => res = self.flags_add8(value0, value1+cf),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+
+
+                            } else if self.is_reg(parts[1]) {
+                                // mov reg, reg
+                                let value1 = self.regs.get_by_name(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[1]) {
+                                    32 => res = self.flags_add32(value0, value1+cf),
+                                    16 => res = self.flags_add16(value0, value1+cf),
+                                    8  => res = self.flags_add8(value0, value1+cf),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+                                
+                            } else {
+                                // mov reg, inm
+                                let inm = self.get_inmediate(parts[1]);
+                                let value0 = self.regs.get_by_name(parts[0]);
+                                let res:u32;
+                                match self.get_size(parts[0]) {
+                                    32 => res = self.flags_add32(value0, inm+cf),
+                                    16 => res = self.flags_add16(value0, inm+cf),
+                                    8  => res = self.flags_add8(value0, inm+cf),
+                                    _  => panic!("weird precision")
+                                }
+                                self.regs.set_by_name(parts[0], res);
+                            }
+                        } 
+                    },
                     
                     Some("sbb") => {
                         if !step {
