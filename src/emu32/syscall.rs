@@ -4,6 +4,8 @@ use crate::emu32::winapi::helper;
 
    //  /usr/include/asm/unistd_32.h
 
+//TODO: check if buff is mapped
+
 pub fn gateway(emu:&mut emu32::Emu32) {
 
     match emu.regs.eax {      
@@ -66,6 +68,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         11 => {
             let cmd = emu.maps.read_string(emu.regs.ebx);
             println!("{}** {} syscall execve()  cmd: {} {}", emu.colors.light_red, emu.pos, cmd, emu.colors.nc);
+            emu.regs.eax = 0;
         }
 
         12 => {
@@ -440,37 +443,100 @@ pub fn gateway(emu:&mut emu32::Emu32) {
         102 => {
 
             match emu.regs.ebx {
+
                 constants::SYS_SOCKET => {
                     let sock = helper::socket_create();
+                    let fam = emu.maps.read_dword(emu.regs.esp).expect("socket() cannot read family");
+                    let typ = emu.maps.read_dword(emu.regs.esp+4).expect("socket() cannot ready type");
+                    let proto = emu.maps.read_dword(emu.regs.esp+8).expect("socket() cannot read proto");
+
+                    println!("{}** {} syscall socketcall socket()  fam: {} type: {} proto: {} sock: {} {}", emu.colors.light_red, emu.pos, fam, typ, proto, sock, emu.colors.nc);
                     emu.regs.eax = sock;
-                    println!("{}** {} syscall socketcall socket() sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
-                    emu.stack_pop(false);
-                    emu.stack_pop(false);
-                    emu.stack_pop(false);
                 }
 
                 constants::SYS_BIND => {
-                    let fd = emu.stack_pop(false);
-                    let sockaddr = emu.stack_pop(false);
-                    let len = emu.stack_pop(false);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("bind() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("bind() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("bind() cannot read len");
 
-                    println!("{}** {} syscall socketcall bind()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
+                    let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
+                    let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                    let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
+
+                    println!("{}** {} syscall socketcall bind() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, sip, port , emu.colors.nc);
+
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = 0;
+                    }
+                    
                 }
 
                 constants::SYS_CONNECT => {
-                    println!("{}** {} syscall socketcall connect()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("connect() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("connect() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("connect() cannot read len");
+
+                    let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
+                    let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
+                    let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                    let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
+
+                    println!("{}** {} syscall socketcall connect() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, ip, port, emu.colors.nc);
+                    
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = 0;
+                    }
+                
                 }
 
                 constants::SYS_LISTEN => {
-                    println!("{}** {} syscall socketcall listen()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("listen() cannot read sock");
+                    let conns = emu.maps.read_dword(emu.regs.esp+4).expect("listen() cannot read num of conns");
+
+                    println!("{}** {} syscall socketcall listen() sock: {} conns: {} {}", emu.colors.light_red, emu.pos, sock, conns, emu.colors.nc);
+                    
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = 0;
+                    }
                 }
 
                 constants::SYS_ACCEPT => {
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("accept() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("accept() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("accept() cannot read len");
+                    let port:u16 = 8080;
+                    let incoming_ip:u32 = 0x11223344;
+
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
+                        emu.maps.write_word(sockaddr, 0x0002);
+                        emu.maps.write_word(sockaddr+2, port.to_le());  //TODO: port should be the same than bind()
+                        emu.maps.write_dword(sockaddr+4, incoming_ip);
+                    }
+
                     println!("{}** {} syscall socketcall accept() {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = 0;
+                    }
                 }
 
                 constants::SYS_GETSOCKNAME => {
-                    println!("{}** {} syscall socketcall getsockname() {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("getsockname() cannot read sock");
+                    println!("{}** {} syscall socketcall getsockname() sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
+                    todo!("implement this");
                 }
 
                 constants::SYS_GETPEERNAME => {
@@ -482,19 +548,90 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                 }
 
                 constants::SYS_SEND => {
-                    println!("{}** {} syscall socketcall send()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("send() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("send() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("send() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("send() cannot read flags");
+
+                    println!("{}** {} syscall socketcall send() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
+                    
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = len;
+                    }
                 }
 
                 constants::SYS_RECV => {
-                    println!("{}** {} syscall socketcall recv()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("recv() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("recv() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("recv() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("recv() cannot read flags");
+
+                    println!("{}** {} syscall socketcall recv() sock: {} buff: {} len: {}  {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
+
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = len; //TODO: avoid loops
+                    }
                 }
 
                 constants::SYS_SENDTO => {
-                    println!("{}** {} syscall socketcall sendto()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("sendto() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("sendto() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("sendto() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("sendto() cannot read flags");
+                    let sockaddr = emu.maps.read_dword(emu.regs.esp+16).expect("sendto() cannot read sockaddr");
+                    let addrlen = emu.maps.read_dword(emu.regs.esp+20).expect("sendto() cannot read addrlen");
+
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
+                        let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
+                        let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
+                        let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                        let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
+
+                        println!("{}** {} syscall socketcall sendto() sock: {} buff: {} len: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, buf, len, fam, sip, port, emu.colors.nc);
+                    } else {
+                        println!("{}** {} syscall socketcall sendto() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
+                    }
+
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = len; 
+                    }
+
                 }
 
                 constants::SYS_RECVFROM => {
-                    println!("{}** {} syscall socketcall recvfrom()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    let sock = emu.maps.read_dword(emu.regs.esp).expect("recvfrom() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.esp+8).expect("recvfrom() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.esp+12).expect("recvfrom() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.esp+16).expect("recvfrom() cannot read flags");
+                    let sockaddr = emu.maps.read_dword(emu.regs.esp+20).expect("recvfrom() cannot read sockaddr");
+                    let addrlen = emu.maps.read_dword(emu.regs.esp+24).expect("recvfrom() cannot read sockaddr len");
+
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
+                        let port:u16 = 8080;
+                        let incoming_ip:u32 = 0x11223344;
+
+                        emu.maps.write_word(sockaddr, 0x0002);
+                        emu.maps.write_word(sockaddr+2, port.to_le());  //TODO: port should be the same than bind()
+                        emu.maps.write_dword(sockaddr+4, incoming_ip);
+                    } 
+
+                    println!("{}** {} syscall socketcall recvfrom() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
+
+                    if !helper::socket_exist(sock) {
+                        println!("\tbad socket/");
+                        emu.regs.eax = constants::ENOTSOCK;
+                    } else {
+                        emu.regs.eax = len; //TODO: avoid loops
+                    }
                 }
 
                 constants::SYS_SHUTDOWN => {
@@ -528,9 +665,6 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                 constants::SYS_SENDMMSG => {
                     println!("{}** {} syscall socketcall sendmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
                 }
-
-
-                
 
                 _=> panic!("invalid socket call {} ", emu.regs.ebx),
             }

@@ -4,6 +4,7 @@ use crate::emu32::winapi::helper;
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
 
+
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32)  {
     match addr {
         0x77483ab2 => WsaStartup(emu),
@@ -48,7 +49,6 @@ fn WsaStartup(emu:&mut emu32::Emu32) {
     for _ in 0..2 {
         emu.stack_pop(false);
     }
-
     emu.regs.eax = 0;
 }
 
@@ -213,7 +213,7 @@ fn bind(emu:&mut emu32::Emu32) {
     }
 
     if !helper::socket_exist(sock) {
-        println!("\tinvalid socket.");
+        println!("\tbad socket.");
         emu.regs.eax = 1;
     } else {
         emu.regs.eax = 0;
