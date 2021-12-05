@@ -6,7 +6,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - very fast emulation (much faster than unicorn) 100.000 instructions/second printing every instruction.
 - powered by iced-x86 rust dissasembler awesome library.
 - iteration detector.
-- memory tracking.
+- memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
 - 77 instructions implemented.
