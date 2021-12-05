@@ -23,10 +23,6 @@ impl FPU {
         }
     }
 
-    pub fn clear(&mut self, n:u32) {
-        self.st[n as usize] = 0.0;
-    }
-
     pub fn set_eip(&mut self, eip:u32) {
         self.eip = eip;
     }
@@ -54,6 +50,14 @@ impl FPU {
         println!("eip:  0x{:x}", self.eip);
 
         println!("--------");
+    }
+
+    pub fn set_st(&mut self, i:usize, value:f32) {
+        self.st[i] = value;
+    }
+
+    pub fn clear_st(&mut self, i:usize) {
+        self.st[i] = 0.0;
     }
 
 }

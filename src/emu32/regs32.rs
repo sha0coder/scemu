@@ -1,4 +1,5 @@
 use crate::emu32::maps::Maps;
+use iced_x86::Register;
 
 
     /*
@@ -196,6 +197,103 @@ impl Regs32 {
         self.edx = self.edx & 0xffffff00;
         self.edx += val & 0x000000ff;
     }
+
+    pub fn get_reg(&self, reg:Register) -> u32 {
+        let value = match reg {
+            Register::EAX => self.eax,
+            Register::EBX => self.ebx,
+            Register::ECX => self.ecx,
+            Register::EDX => self.edx,
+            Register::ESI => self.esi,
+            Register::EDI => self.edi,
+            Register::ESP => self.esp,
+            Register::EBP => self.ebp,
+            Register::EIP => self.eip,
+            Register::AX => self.get_ax(),
+            Register::BX => self.get_bx(),
+            Register::CX => self.get_cx(),
+            Register::DX => self.get_dx(),
+            Register::SI => self.get_si(),
+            Register::DI => self.get_di(),
+            Register::AH => self.get_ah(),
+            Register::AL => self.get_al(),
+            Register::BH => self.get_bh(),
+            Register::BL => self.get_bl(),
+            Register::CH => self.get_ch(),
+            Register::CL => self.get_cl(),
+            Register::DH => self.get_dh(),
+            Register::DL => self.get_dl(),
+            Register::DS => 0,
+            Register::CS => 0,
+            Register::SS => 0,
+            _ => unimplemented!("unimplemented register {:?}", reg),
+        };
+
+        return value;
+    }
+
+    pub fn set_reg(&mut self, reg:Register, value:u32) {
+        match reg {
+            Register::EAX => self.eax = value,
+            Register::EBX => self.ebx = value,
+            Register::ECX => self.ecx = value,
+            Register::EDX => self.edx = value,
+            Register::ESI => self.esi = value,
+            Register::EDI => self.edi = value,
+            Register::ESP => self.esp = value,
+            Register::EBP => self.ebp = value,
+            Register::EIP => self.eip = value,
+            Register::AX => self.set_ax(value),
+            Register::BX => self.set_bx(value),
+            Register::CX => self.set_cx(value),
+            Register::DX => self.set_dx(value),
+            Register::SI => self.set_si(value),
+            Register::DI => self.set_di(value),
+            Register::AH => self.set_ah(value),
+            Register::AL => self.set_al(value),
+            Register::BH => self.set_bh(value),
+            Register::BL => self.set_bl(value),
+            Register::CH => self.set_ch(value),
+            Register::CL => self.set_cl(value),
+            Register::DH => self.set_dh(value),
+            Register::DL => self.set_dl(value),
+            _ => unimplemented!("unimplemented register {:?}", reg),
+        };
+    }
+
+    pub fn get_size(&self, reg:Register) -> usize {
+        let sz:usize = match reg {
+            Register::EAX => 32,
+            Register::EBX => 32,
+            Register::ECX => 32,
+            Register::EDX => 32,
+            Register::ESI => 32,
+            Register::EDI => 32,
+            Register::ESP => 32,
+            Register::EBP => 32,
+            Register::EIP => 32,
+            Register::AX => 16,
+            Register::BX => 16,
+            Register::CX => 16,
+            Register::DX => 16,
+            Register::SI => 16,
+            Register::DI => 16,
+            Register::AH => 8,
+            Register::AL => 8,
+            Register::BH => 8,
+            Register::BL => 8,
+            Register::CH => 8,
+            Register::CL => 8,
+            Register::DH => 8,
+            Register::DL => 8,
+            _ => unimplemented!("unimplemented register {:?}", reg),
+        };
+
+        return sz;
+    }
+
+
+
 
 
     pub fn get_by_name(&self, reg_name:&str) -> u32 {

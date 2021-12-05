@@ -47,10 +47,15 @@ impl Console {
         println!("r reg .................. show reg");
         println!("rc ..................... register change");
         println!("f ...................... show all flags");
-        println!("cf ..................... clear all flags");
+        println!("fc ..................... clear all flags");
+        println!("fz ..................... toggle flag zero");
+        println!("fs ..................... toggle flag sign");
         println!("c ...................... continue");
         println!("ba ..................... breakpoint on address");
         println!("bi ..................... breakpoint on instruction number");
+        println!("bmr .................... breakpoint on read memory");
+        println!("bmw .................... breakpoint on write memory");
+        println!("bc ..................... clear breakpoint");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
         println!("push ................... push dword to the stack");
