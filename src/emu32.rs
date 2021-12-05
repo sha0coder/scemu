@@ -1,6 +1,6 @@
 /*
     TODO:
-
+        - md memory dump filter strings, replace by .
         - try linux shellcodes to implement more syscalls
         - mr mw options can crash the console
         - more apis
@@ -146,8 +146,8 @@ msvcrt.dll
 #![allow(non_snake_case)]
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unused_must_use)]
 
-extern crate capstone;
              
 mod flags; 
 mod eflags;
@@ -160,6 +160,7 @@ mod winapi;
 mod fpu;
 pub mod context;
 pub mod syscall;
+mod breakpoint;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -169,10 +170,10 @@ use regs32::Regs32;
 use console::Console;
 use colors::Colors;
 use context::Context;
+use breakpoint::Breakpoint;
 use crate::config::Config;
 
-use capstone::prelude::*;
-
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter, Mnemonic, OpKind, InstructionInfoFactory, Register, MemorySize};
 
 pub struct Emu32 {
     regs: Regs32,
@@ -182,7 +183,7 @@ pub struct Emu32 {
     maps: Maps,
     exp: u64,
     break_on_alert: bool,
-    bp: u32,
+    bp: Breakpoint,
     seh: u32,
     veh: u32,
     veh_ctx: u32,
@@ -202,7 +203,7 @@ impl Emu32 {
             maps: Maps::new(),
             exp: 0,
             break_on_alert: false,
-            bp: 0,
+            bp: Breakpoint::new(),
             seh: 0,
             veh: 0,
             veh_ctx: 0,
@@ -591,7 +592,8 @@ impl Emu32 {
         self.regs.esp += 4;
         return value;
     }
-
+ 
+    #[deprecated(note = "this is not used on the emulation")]
     pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
 
@@ -706,7 +708,8 @@ impl Emu32 {
 
         return 0
     }
-    
+
+    #[deprecated(note = "this is not used on the emulation")]
     pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
         if operand.contains("fs:[0]") {
             if self.cfg.verbose >= 1 {
@@ -780,11 +783,12 @@ impl Emu32 {
                     None => return None,
                 }
             },
-             _ => panic!("weird precision: {}", operand),
+             _ => panic!("weird size: {}", operand),
         };
 
     }
 
+    #[deprecated(note = "this is not used on the emulation")]
     pub fn memory_write(&mut self, operand:&str, value:u32) -> bool {
         if operand.contains("fs:[0]") {
             println!("Setting SEH fs:[0]  0x{:x}", value);
@@ -819,13 +823,14 @@ impl Emu32 {
             32 => self.maps.write_dword(addr, value),
             16 => self.maps.write_word(addr, (value & 0x0000ffff) as u16),
              8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
-             _ => panic!("weird precision: {}", operand)
+             _ => panic!("weird size: {}", operand)
         };
 
         return ret;
     }
 
 
+    
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
         let name = self.maps.get_addr_name(addr).expect("/!\\ setting eip to non mapped addr");
@@ -850,6 +855,7 @@ impl Emu32 {
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
     }
 
+    #[deprecated(note = "this is not used on the emulation")]
     pub fn is_reg(&self, operand:&str) -> bool {
         match operand {
             "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => return true,
@@ -857,6 +863,7 @@ impl Emu32 {
         }
     }
 
+    /*
     pub fn get_inmediate(&self, operand:&str) -> u32 {
         
         if operand.contains("0x") {
@@ -867,8 +874,9 @@ impl Emu32 {
         } else {
             return u32::from_str_radix(operand, 16).unwrap();
         }
-    }
+    }*/
 
+    #[deprecated(note = "this is not used on the emulation")]
     pub fn get_size(&self, operand:&str) -> u8 {
         if operand.contains("byte ptr") {
             return 8;
@@ -901,211 +909,261 @@ impl Emu32 {
             }
         }
 
-        panic!("weird precision: {}", operand);
+        panic!("weird size: {}", operand);
     }
 
-
-    /// FLAGS ///
-    /// 
-    /// overflow 0xffffffff + 1     
-    /// carry    0x7fffffff + 1     o  0x80000000 - 1       o    0 - 1
-    
-
-    pub fn flags_add32(&mut self, value1:u32, value2:u32) -> u32 {
-        let unsigned:u64 = value1 as u64 + value2 as u64;
-
-        self.flags.f_sf = (unsigned as i32) < 0;
-        self.flags.f_zf = unsigned == 0;
-        self.flags.f_pf = (unsigned & 0xff) % 2 == 0;
-        self.flags.f_of = (value1 as i32) > 0 && (unsigned as i32) < 0;
-        self.flags.f_cf = unsigned > 0xffffffff;
-
-        return (unsigned & 0xffffffff) as u32;
+    fn mul32(&mut self, value0:u32) {
+        let value1:u32 = self.regs.eax;
+        let value2:u32 = value0;
+        let res:u64 = value1 as u64 * value2 as u64;
+        self.regs.edx = ((res & 0xffffffff00000000) >> 32) as u32;
+        self.regs.eax = (res & 0x00000000ffffffff) as u32;
+        self.flags.f_pf = (res & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.edx != 0;
+        self.flags.f_cf = self.regs.edx != 0;
     }
 
-    pub fn flags_add16(&mut self, value1:u32, value2:u32) -> u32 {
-        if value1 > 0xffff || value2 > 0xffff {
-            panic!("flags_add16 with a bigger precision");
+    fn mul16(&mut self, value0:u32) {
+        let value1:u32 = self.regs.get_ax();
+        let value2:u32 = value0;
+        let res:u32 = value1 * value2;
+        self.regs.set_dx((res & 0xffff0000) >> 16);
+        self.regs.set_ax(res & 0xffff);
+        self.flags.f_pf = (res & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.get_dx() != 0;
+        self.flags.f_cf = self.regs.get_dx() != 0;
+    }
+
+    fn mul8(&mut self, value0:u32) {
+        let value1:u32 = self.regs.get_al();
+        let value2:u32 = value0;
+        let res:u32 = value1 * value2;
+        self.regs.set_ax(res & 0xffff);
+        self.flags.f_pf = (res & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.get_ah() != 0;
+        self.flags.f_cf = self.regs.get_ah() != 0;
+    }
+
+    fn imul32p1(&mut self, value0:u32) {
+        let value1:i32 = self.regs.eax as i32;
+        let value2:i32 = value0 as i32;
+        let res:i64 = value1 as i64 * value2 as i64;
+        let ures:u64 = res as u64;
+        self.regs.edx = ((ures & 0xffffffff00000000) >> 32) as u32;
+        self.regs.eax = (ures & 0x00000000ffffffff) as u32;
+        self.flags.f_pf = (ures & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.edx != 0;
+        self.flags.f_cf = self.regs.edx != 0;
+    }
+
+    fn imul16p1(&mut self, value0:u32) {
+        let value1:i32 = self.regs.get_ax() as i32;
+        let value2:i32 = value0 as i32;
+        let res:i32 = value1 * value2;
+        let ures:u32 = res as u32;
+        self.regs.set_dx((ures & 0xffff0000) >> 16);
+        self.regs.set_ax(ures & 0xffff);
+        self.flags.f_pf = (ures & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.get_dx() != 0;
+        self.flags.f_cf = self.regs.get_dx() != 0;
+    }
+
+    fn imul8p1(&mut self, value0:u32) {
+        let value1:i32 = self.regs.get_al() as i32;
+        let value2:i32 = value0 as i32;
+        let res:i32 = value1 * value2;
+        let ures:u32 = res as u32;
+        self.regs.set_ax(ures & 0xffff);
+        self.flags.f_pf = (ures & 0xff) % 2 == 0;
+        self.flags.f_of = self.regs.get_ah() != 0;
+        self.flags.f_cf = self.regs.get_ah() != 0;
+    }
+
+    fn div32(&mut self, value0:u32) {
+        let mut value1:u64 = self.regs.edx as u64;
+        value1 = value1 << 32;
+        value1 += self.regs.eax as u64;
+        let value2:u64 = value0 as u64;
+
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
         }
 
-        let unsigned:u32 = value1 as u32 + value2 as u32;
-
-        self.flags.f_sf = (unsigned as i16) < 0;
-        self.flags.f_zf = unsigned == 0;
-        self.flags.f_pf = (unsigned & 0xff) % 2 == 0;
-        self.flags.f_of = (value1 as i16) > 0 && (unsigned as i16) < 0;
-        self.flags.f_cf = unsigned > 0xffff;
-
-        return (unsigned & 0xffff) as u32;
-    }
-
-    pub fn flags_add8(&mut self, value1:u32, value2:u32) -> u32 {
-        if value1 > 0xff || value2 > 0xff {
-            panic!("flags_add8 with a bigger precision");
+        let resq:u64 = value1 / value2;
+        let resr:u64 = value1 % value2;
+        self.regs.eax = resq as u32;
+        self.regs.edx = resr as u32;
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        self.flags.f_of = resq > 0xffffffff;
+        if self.flags.f_of {
+            println!("/!\\ int overflow on division");
         }
-
-        let unsigned:u16 = value1 as u16 + value2 as u16;
-
-        self.flags.f_sf = (unsigned as i8) < 0;
-        self.flags.f_zf = unsigned == 0;
-        self.flags.f_pf = unsigned % 2 == 0;
-        self.flags.f_of = (value1 as i8) > 0 && (unsigned as i8) < 0;
-        self.flags.f_cf = unsigned > 0xff;
-
-        return (unsigned & 0xff) as u32;
     }
 
-    pub fn flags_sub32(&mut self, value1:u32, value2:u32) -> u32 {
-        let r:i32;
+    fn div16(&mut self, value0:u32) {
+        let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
+        let value2:u32 = value0;
 
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
+        } 
 
-        self.flags.check_carry_sub_dword(value1, value2);
-        r = self.flags.check_overflow_sub_dword(value1, value2);
-        self.flags.f_zf = value1 == value2;
-
-        self.flags.f_sf = r < 0;
-        self.flags.f_pf = ((r as u32) & 0xff) % 2 == 0;
-
-        return r as u32;
-    }
-
-    pub fn flags_sub16(&mut self, value1:u32, value2:u32) -> u32 {
-        let r:i16;
-
-
-        self.flags.check_carry_sub_word(value1, value2);
-        r = self.flags.check_overflow_sub_word(value1, value2);
-        self.flags.f_zf = value1 == value2;
-
-        self.flags.f_sf = r < 0;
-        self.flags.f_pf = ((r as u16) & 0xff) % 2 == 0;
-
-        return (r as u16) as u32;
-    }
-
-    pub fn flags_sub8(&mut self, value1:u32, value2:u32) -> u32 {
-        let r:i8;
-
-        self.flags.check_carry_sub_byte(value1, value2);
-        r = self.flags.check_overflow_sub_byte(value1, value2);
-        self.flags.f_zf = value1 == value2;
-
-        self.flags.f_sf = r < 0;
-        self.flags.f_pf = ((r as u8) & 0xff) % 2 == 0;
-        return (r as u8) as u32;
-    }
-
-
-
-
-
-
-    pub fn flags_inc32(&mut self, value:u32) -> u32 { 
-        if value == 0xffffffff {
-            self.flags.f_zf = true;
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            return 0;
-        }
-        self.flags.f_of = value == 0x7fffffff;
-        self.flags.f_sf = value > 0x7fffffff;
-        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
-        self.flags.f_zf = false;
-        return value + 1;
-    }
-
-    pub fn flags_inc16(&mut self, value:u32) -> u32 {
-        if value == 0xffff {
-            self.flags.f_zf = true;
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            return 0;
-        }
-        self.flags.f_of = value == 0x7fff;
-        self.flags.f_sf = value > 0x7fff;
-        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
-        self.flags.f_zf = false;
-        return value + 1;
-    }
-
-    pub fn flags_inc8(&mut self, value:u32) -> u32 {
-        if value == 0xff {
-            self.flags.f_zf = true;
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            return 0;
-        }
-        self.flags.f_of = value == 0x7f;
-        self.flags.f_sf = value > 0x7f;
-        self.flags.f_pf = (((value as i32) +1) & 0xff) % 2 == 0;
-        self.flags.f_zf = false;
-        return value + 1;
-    }
-
-    pub fn flags_dec32(&mut self, value:u32) -> u32 { 
-        if value == 0 {
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            self.flags.f_sf = true;
-            return 0xffffffff;
-        }
-        self.flags.f_of = value == 0x80000000;
-        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
-        self.flags.f_af = false;
-        self.flags.f_sf = false;
-
-        self.flags.f_zf = value == 1;
-
-        return value - 1;
-    }
-
-    pub fn flags_dec16(&mut self, value:u32) -> u32 { 
-        if value == 0 {
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            self.flags.f_sf = true;
-            return 0xffff;
-        }
-        self.flags.f_of = value == 0x8000;
-        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
-        self.flags.f_af = false;
-        self.flags.f_sf = false;
-
-        self.flags.f_zf = value == 1;
-
-        return value - 1;
-    }
-
-    pub fn flags_dec8(&mut self, value:u32) -> u32 { 
-        if value == 0 {
-            self.flags.f_pf = true;
-            self.flags.f_af = true;
-            self.flags.f_sf = true;
-            return 0xff;
-        }
-        self.flags.f_of = value == 0x80;
-        self.flags.f_pf = (((value as i32) -1) & 0xff) % 2 == 0;
-        self.flags.f_af = false;
-        self.flags.f_sf = false;
-
-        self.flags.f_zf = value == 1;
-
-        return value - 1;
-    }
-
-    pub fn calc_flags(&mut self, final_value:u32, bits:u8) {
-        
-        match bits {
-            32 => self.flags.f_sf = (final_value as i32) < 0,
-            16 => self.flags.f_sf = (final_value as i16) < 0,
-            8  => self.flags.f_sf = (final_value as i8) < 0,
-            _ => panic!("weird precision")
+        let resq:u32 = value1 / value2;
+        let resr:u32 = value1 % value2;
+        self.regs.set_ax(resq);
+        self.regs.set_dx(resr);
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        self.flags.f_of = resq > 0xffff;
+        self.flags.f_tf = false;
+        if self.flags.f_of {
+            println!("/!\\ int overflow on division");
         }
         
-        self.flags.f_zf = final_value == 0;
-        self.flags.f_pf = (final_value & 0xff) % 2 == 0;
-        self.flags.f_tf = false;        
     }
+
+    fn div8(&mut self, value0:u32) {
+        let value1:u32 = self.regs.get_ax();
+        let value2:u32 = value0;
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
+        } 
+
+        let resq:u32 = value1 / value2;
+        let resr:u32 = value1 % value2;
+        self.regs.set_al(resq);
+        self.regs.set_ah(resr);
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        self.flags.f_of = resq > 0xff;
+        self.flags.f_tf = false;
+        if self.flags.f_of {
+            println!("/!\\ int overflow");
+        }
+    }
+
+    fn idiv32(&mut self, value0:u32) {
+        let mut value1:u64 = self.regs.edx as u64;
+        value1 = value1 << 32;
+        value1 += self.regs.eax as u64;
+        let value2:u64 = value0 as u64;
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
+        } 
+
+        let resq:u64 = value1 / value2;
+        let resr:u64 = value1 % value2;
+        self.regs.eax = resq as u32;
+        self.regs.edx = resr as u32;
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        if resq > 0xffffffff {
+            println!("/!\\ int overflow exception on division");
+            if self.break_on_alert {
+                panic!();
+            }
+        } else {
+            if (value1 as i64) > 0 && (resq as i32) < 0 {
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            }
+        } 
+    }
+
+    fn idiv16(&mut self, value0:u32) {
+        let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
+        let value2:u32 = value0;
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
+        }
+
+        let resq:u32 = value1 / value2;
+        let resr:u32 = value1 % value2;
+        self.regs.set_ax(resq);
+        self.regs.set_dx(resr);
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        self.flags.f_tf = false;
+        if resq > 0xffff {
+            println!("/!\\ int overflow exception on division");
+            if self.break_on_alert {
+                panic!();
+            }
+        } else {
+            if (value1 as i32) > 0 && (resq as i16) < 0 {
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            }
+        }
+    }
+
+    fn idiv8(&mut self, value0:u32) {
+        let value1:u32 = self.regs.get_ax();
+        let value2:u32 = value0;
+        if value2 == 0 {
+            self.flags.f_tf = true;
+            println!("/!\\ division by 0 exception");
+            self.exception();
+            self.force_break = true;
+            return;
+        } 
+
+        let resq:u32 = value1 / value2;
+        let resr:u32 = value1 % value2;
+        self.regs.set_al(resq);
+        self.regs.set_ah(resr);
+        self.flags.f_pf = (resq & 0xff) % 2 == 0;
+        self.flags.f_tf = false;
+        if  resq > 0xff {
+            println!("/!\\ int overflow exception on division");
+            if self.break_on_alert {
+                panic!();
+            }
+        } else {
+            if (value1 as i16) > 0 && (resq as i8) < 0 {
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
+                println!("/!\\ sign change exception on division");
+                if self.break_on_alert {
+                    panic!();
+                }
+            }
+        }
+    }
+
 
     pub fn rotate_left(&self, val:u32, rot:u32, bits:u32) -> u32 {
         return (val << rot) | (val >> bits-rot);
@@ -1181,9 +1239,34 @@ impl Emu32 {
                             continue;
                         }
                     };
-                    self.bp = addr;
+                    self.bp.set_bp(addr);
                     return;
                 },
+
+                "bmr" => {
+                    con.print("address");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    self.bp.set_mem_read(addr);
+                },
+
+                "bmw" => {
+                    con.print("address");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    self.bp.set_mem_write(addr);
+                },
+
                 "bi" => {
                     con.print("instruction number");
                     let num = match con.cmd_hex64() {
@@ -1200,7 +1283,9 @@ impl Emu32 {
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
                 "f" => self.flags.print(),
-                "cf" => self.flags.clear(),
+                "fc" => self.flags.clear(),
+                "fz" => self.flags.f_zf = !self.flags.f_zf,
+                "fs" => self.flags.f_sf = !self.flags.f_sf,
                 "mc" => {
                     con.print("name ");
                     let name = con.cmd();
@@ -1474,24 +1559,239 @@ impl Emu32 {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
-        let mut count:u32 = 0;
-        let cs = Capstone::new()
-            .x86()
-            .mode(arch::x86::ArchMode::Mode32)
-            .syntax(arch::x86::ArchSyntax::Intel)
-            .detail(true)
-            .build()
-            .expect("Failed to create Capstone object");
-        
-            let insns = cs.disasm_all(block, addr as u64).expect("Failed to disassemble");
-            for ins in insns.as_ref() {
-                println!("{}", ins);
-                count += 1;
-                if count >= amount {
-                    break;
-                }    
+        let mut decoder = Decoder::with_ip(32, &block, 0x3c0000, DecoderOptions::NONE);
+        let mut formatter = NasmFormatter::new();
+        formatter.options_mut().set_digit_separator("");
+        formatter.options_mut().set_first_operand_char_index(10);
+        let mut output = String::new();
+        let mut instruction = Instruction::default();
+        let mut count:u32 = 1;
+        while decoder.can_decode() {
+            decoder.decode_out(&mut instruction);
+            output.clear();
+            formatter.format(&instruction, &mut output);
+            println!("0x{:x}: {}", instruction.ip32(), output);
+            count += 1;
+            if count == amount {
+                break;
             }
+        }
     }
+
+    pub fn get_operand_value(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<u32> {
+
+        assert!(ins.op_count() > noperand);
+
+        let value:u32 = match ins.op_kind(noperand) {
+            OpKind::NearBranch32 => ins.near_branch32(),
+            OpKind::NearBranch16 => ins.near_branch16() as u32,
+            OpKind::FarBranch32 => ins.far_branch32(),
+            OpKind::FarBranch16 => ins.far_branch16() as u32,
+            OpKind::Immediate8 => ins.immediate8() as u32,
+            OpKind::Immediate16 => ins.immediate16() as u32,
+            OpKind::Immediate32 => ins.immediate32(),
+            OpKind::Immediate8to32 => ins.immediate8to32() as u32,
+            OpKind::Immediate8to16 => ins.immediate8to16() as u32,
+            OpKind::Register => self.regs.get_reg(ins.op_register(noperand)), 
+            OpKind::Memory => {
+                let mut derref = do_derref;
+                let mut fs = false;
+
+                let mut mem_addr = ins.virtual_address(noperand, 0, |reg,idx,_sz| {
+                    if reg == Register::FS || reg == Register::GS {
+                        derref = false;
+                        fs = true;
+      
+                        Some(0)
+                    } else {
+                        Some(self.regs.get_reg(reg) as u64)
+                    }
+                }).expect("error reading memory") as u32;
+
+                if fs {
+                    let value:u32 = match mem_addr {
+                        0x30 => {
+                            let peb = self.maps.get_mem("peb");
+                            if self.cfg.verbose >= 1 {
+                                println!("Reding PEB 0x{:x}", peb.get_base());
+                            }
+                            peb.get_base()
+                        }
+                        0x18 => {
+                            let teb = self.maps.get_mem("teb");
+                            if self.cfg.verbose >= 1 {
+                                println!("Reding TEB 0x{:x}", teb.get_base());
+                            }
+                            teb.get_base()
+                        }
+                        0x00 =>  {
+                            if self.cfg.verbose >= 1 {
+                                println!("Reding SEH 0x{:x}", self.seh);
+                            }
+                            self.seh
+                        }
+                        _ => unimplemented!("fs:[{}]", mem_addr),
+                    };
+                    mem_addr = value;
+                }
+
+                let value:u32;
+                if derref {
+
+                    value = match self.get_operand_sz(&ins, noperand) {
+
+                        32 => match self.maps.read_dword(mem_addr) {
+                            Some(v) => v,
+                            None =>  { self.exception(); return None; }
+                        }
+
+                        16 => match self.maps.read_word(mem_addr) {
+                            Some(v) => v as u32,
+                            None =>  { self.exception(); return None; }
+                        }
+
+                        8 => match self.maps.read_byte(mem_addr) {
+                            Some(v) => v as u32,
+                            None =>  { self.exception(); return None; }
+                        }
+
+                        _ => unimplemented!("weird size")
+                    };
+
+
+                    if mem_addr == self.bp.get_mem_read() {
+                        println!("Memory breakpoint on read 0x{:x}", mem_addr);
+                        self.spawn_console();
+                    }
+
+                } else {
+                    value = mem_addr;
+                }
+                value
+            }
+
+            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+        };
+        return Some(value);
+    }
+
+    pub fn set_operand_value(&mut self, ins:&Instruction, noperand:u32, value:u32) -> bool {
+
+        assert!(ins.op_count() > noperand);
+
+        match ins.op_kind(noperand) {
+            OpKind::Register => self.regs.set_reg(ins.op_register(noperand), value), 
+            OpKind::Memory => {
+                let mut write = true;
+                let mem_addr = ins.virtual_address(noperand, 0, |reg,idx,_sz| {
+                    if reg == Register::FS || reg == Register::GS {
+                        write = false;
+                        if idx == 0 {
+                            if self.cfg.verbose >= 1 {
+                                println!("seting SEH to 0x{:x}", value);
+                            }
+                            self.seh = value;
+                        } else {
+                            unimplemented!("set FS:[{}]", idx);
+                        }
+                        Some(0)
+                    
+                    } else {
+                        Some(self.regs.get_reg(reg) as u64)
+                    }
+                }).unwrap() as u32;
+
+                if write {
+
+                    match self.get_operand_sz(&ins, noperand) {
+                        32 => {
+                            if !self.maps.write_dword(mem_addr, value) {
+                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                self.exception();
+                                return false;
+                            }
+                        }
+                        16  => {
+                            if !self.maps.write_word(mem_addr, value as  u16) {
+                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                self.exception();
+                                return false;
+                            }
+                        }
+                        8  => {
+                            if !self.maps.write_byte(mem_addr, value as u8) {
+                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                self.exception();
+                                return false;
+                            }
+                        }
+                        _  => unimplemented!("weird size"),
+                    }
+
+                    let name = match self.maps.get_addr_name(mem_addr) {
+                        Some(n) => n,
+                        None => "error".to_string(),
+                    };
+
+                    if name == "code" {
+                        if self.cfg.verbose >= 1 {
+                            println!("/!\\ polymorfic code");
+                        }
+                        self.force_break = true;
+                    }
+
+                    if mem_addr == self.bp.get_mem_write() {
+                        println!("Memory breakpoint on write 0x{:x}", mem_addr);
+                        self.spawn_console();
+                    }
+                }
+            }
+
+            _ => unimplemented!("unimplemented operand type"),
+        };
+        return true;
+    }
+
+    fn get_operand_sz(&self, ins:&Instruction, noperand:u32) -> usize {
+        let size:usize = match ins.op_kind(noperand) {
+            OpKind::NearBranch32 => 32,
+            OpKind::NearBranch16 => 16,
+            OpKind::FarBranch32 => 32,
+            OpKind::FarBranch16 => 16,
+            OpKind::Immediate8 => 8,
+            OpKind::Immediate16 => 16,
+            OpKind::Immediate32 => 32,
+            OpKind::Immediate8to32 => 32,
+            OpKind::Register => self.regs.get_size(ins.op_register(noperand)),
+            OpKind::Memory => {                
+                let mut info_factory = InstructionInfoFactory::new();
+                let info = info_factory.info(&ins);
+                let mem = info.used_memory()[0];
+
+                let size2:usize = match mem.memory_size() {
+                    MemorySize::UInt32 => 32,
+                    MemorySize::UInt16 => 16,
+                    MemorySize::UInt8 => 8,
+                    MemorySize::Int32 => 32,
+                    MemorySize::Int16 => 16,
+                    MemorySize::Int8 => 8,
+                    MemorySize::DwordOffset => 32,
+                    MemorySize::WordOffset => 16,
+                    _  => 0,
+                };
+
+                if size2 == 0 {
+                    unimplemented!("weird size {:?}", mem.memory_size());
+                } 
+
+                size2
+            }
+            _  => unimplemented!("operand type {:?}", ins.op_kind(noperand)),
+        };
+
+        return size;
+    }
+
 
 
     ///  RUN ENGINE ///
@@ -1499,41 +1799,37 @@ impl Emu32 {
     pub fn run(&mut self) {        
         println!(" ----- emulation -----");
         let mut looped:Vec<u64> = Vec::new();
-        let cs = Capstone::new()
-            .x86()
-            .mode(arch::x86::ArchMode::Mode32)
-            .syntax(arch::x86::ArchSyntax::Intel)
-            .detail(true)
-            .build()
-            .expect("Failed to create Capstone object");
+        let mut out = String::new();
+        //let ins = Instruction::default();
+        let mut formatter = NasmFormatter::new();
+        formatter.options_mut().set_digit_separator("");
+        formatter.options_mut().set_first_operand_char_index(10);
 
         self.pos = 0;
-        
 
         loop {
+            let code = match self.maps.get_mem_by_addr(self.regs.eip) {
+                Some(c) => c,
+                None => panic!("redirecting code flow to non maped address 0x{:x}", self.regs.eip),
+            };
+            let block = code.read_from(self.regs.eip).to_vec();
+            let mut decoder = Decoder::with_ip(32,  &block, self.regs.eip as u64, DecoderOptions::NONE);
 
-            let eip = self.regs.eip.clone();
-            let map_name = self.maps.get_addr_name(eip).expect("jumped to an address non mapped");
-            let code = self.maps.get_mem(map_name.as_str());
-            let block = code.read_from(eip);
-            let insns = cs.disasm_all(block, eip as u64).expect("Failed to disassemble");
 
-            for ins in insns.as_ref() {
-                //TODO: use InsnDetail https://docs.rs/capstone/0.4.0/capstone/struct.InsnDetail.html
-                //let detail: InsnDetail = cs.insn_detail(&ins).expect("Failed to get insn detail");
-                //let arch_detail: ArchDetail = detail.arch_detail();
-                //let ops = arch_detail.operands();
-
-                let sz = ins.bytes().len();
-                let addr = ins.address();
+            for ins in decoder.iter() {
+  
+                let sz = ins.len();
+                let addr = ins.ip32() as u32;
                 let mut step = false;
+                out.clear();
+                formatter.format(&ins, &mut out);
 
                 self.pos += 1;
 
-                if self.exp == self.pos || self.bp == addr as u32 {
+                if self.exp == self.pos || self.bp.get_bp() == addr {
                     step = true;
                     println!("-------");
-                    println!("{} {}", self.pos, ins);
+                    println!("{} 0x{:x}: {}", self.pos, ins.ip32(), out);
                     self.spawn_console();
                     if self.force_break {
                         self.force_break = false;
@@ -1543,10 +1839,10 @@ impl Emu32 {
                     
                 if self.cfg.loops {
                     // loop detector
-                    looped.push(addr);
+                    looped.push(addr as u64);
                     let mut count:u32 = 0;
                     for a in looped.iter() {
-                        if addr == *a {
+                        if addr as u64 == *a {
                             count += 1;
                         }
                     }
@@ -1598,6 +1894,7 @@ impl Emu32 {
                     }
                 }
 
+                //TODO: change this
                 if self.cfg.inspect {
                     let addr:u32 = self.memory_operand_to_address(self.cfg.inspect_seq.clone().as_str());
                     let bits = self.get_size(self.cfg.inspect_seq.clone().as_str());
@@ -1609,218 +1906,78 @@ impl Emu32 {
                     println!("\t{} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.cfg.inspect_seq, addr, value, value, self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
                 }
 
-                /*
-                if self.cfg.trace_dword {
-                    let dw:u32 = match self.maps.read_dword(self.cfg.dword_addr) {
-                        Some(v) => v,
-                        None => 0,
-                    };
-                    println!("\ttrace dword -> 0x{:x} {:x} {} ", self.cfg.dword_addr, dw, dw);
-                }
+                let mut info_factory = InstructionInfoFactory::new();
+                let info = info_factory.info(&ins);
 
-                if self.cfg.trace_word {
-                    let w:u16 = match self.maps.read_word(self.cfg.word_addr) {
-                        Some(v) => v,
-                        None => 0,
-                    };
-                    println!("\ttrace word -> 0x{:x} {:x} {} ", self.cfg.word_addr, w, w);
-                }
-
-                if self.cfg.trace_bytes {
-                    let s = self.maps.read_string_of_bytes(self.cfg.bytes_addr, constants::NUM_BYTES_TRACE);
-                    println!("\ttrace bytes -> 0x{:x}: {{{}}}", self.cfg.bytes_addr, s);
-                }*/
-                
-
-           
 
                 // instructions implementation
+
                 match ins.mnemonic() {
-                    Some("jmp") => {
+                    
+                    Mnemonic::Jmp => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let addr:u32;
-                        if self.is_reg(op) {
-                            addr = self.regs.get_by_name(op);
-
-                        } else if op.contains("[") {
-                            addr = match self.memory_read(op) {
-                                Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
-                            };
-                        } else  {
-                            addr = self.get_inmediate(op);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
+                        if ins.op_count() != 1 {
+                            unimplemented!("weird variant of jmp");
+                        }
+
+                        let addr = match self.get_operand_value(&ins, 0, true) {
+                            Some(a) => a,
+                            None => break
+                        };
                         self.set_eip(addr, false);
                         break;
-                    },
+                    }
 
-                    Some("call") => {
+                    Mnemonic::Call => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let op = ins.op_str().unwrap();
-                        let addr:u32;
-                        let bytes = ins.bytes();
-
-                        if sz == 3 || sz == 6 {
-                            addr = match self.memory_read(op) {
-                                Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
-                            };
-                        } else  if sz == 5 {
-                            addr = self.get_inmediate(op);
-
-                        } else if sz == 2 {
-                            if bytes[0] == 0xff {
-                            
-                                addr = match bytes[1] {
-                                    0xd0 => self.regs.eax,
-                                    0xd3 => self.regs.ebx,
-                                    0xd1 => self.regs.ecx,
-                                    0xd2 => self.regs.edx,
-                                    0xd6 => self.regs.esi,
-                                    0xd7 => self.regs.edi,
-                                    0xd4 => self.regs.esp,
-                                    0xd5 => self.regs.ebp,
-
-                                    _ => match self.memory_read(op) {
-                                            Some(v) => v,
-                                            None => {
-                                                self.exception();
-                                                break;
-                                            }
-                                    },
-                                };
-                                
-                                
-
-                            } else {
-                                addr = self.regs.get_by_name(op);
-                            }
-                            
-                        } else {
-                            panic!("weird call");
+                        if ins.op_count() != 1 {
+                            unimplemented!("weird variant of call");
                         }
-
-                        let name = match self.maps.get_addr_name(addr) {
-                            Some(n) => n,
-                            None => panic!("calling non  mapped addr 0x{:x}", addr)
+                        
+                        let addr = match self.get_operand_value(&ins, 0, true) {
+                            Some(a) => a,
+                            None => break
                         };
-
+                        
                         self.stack_push(self.regs.eip + sz as u32);
                         self.set_eip(addr, false);
                         break;
-                    },
+                    }
 
-                    Some("push") => {
+                    Mnemonic::Push => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let opcode:u8 = ins.bytes()[0];
 
-                        match opcode {
-                            // push + regs
-                            0x50 => self.stack_push(self.regs.eax),
-                            0x51 => self.stack_push(self.regs.ecx),
-                            0x52 => self.stack_push(self.regs.edx),
-                            0x53 => self.stack_push(self.regs.ebx),
-                            0x54 => self.stack_push(self.regs.esp),
-                            0x55 => self.stack_push(self.regs.ebp),
-                            0x56 => self.stack_push(self.regs.esi),
-                            0x57 => self.stack_push(self.regs.edi),
-                            0x16 => self.stack_push(self.regs.esp),
+                        let value = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break
+                        };
+                        self.stack_push(value);
+                    }
 
-                            0x66 => {
-                                match ins.bytes()[1] {
-                                    0x56 => self.stack_push(self.regs.esi), // push si
-                                    _ => unimplemented!("unimplemented push")
-                                }
-                            },
-
-                            // push + inmediate
-                            0x68|0x6a => {
-                                let addr = self.get_inmediate(ins.op_str().unwrap());
-                                self.stack_push(addr as u32);
-                            },
-
-                            0x64 => {
-                                let bs = ins.bytes();
-                                if bs[1] == 0xff && bs[2] == 0x35 && bs[3] == 0x00 && bs[4] == 0x00 && bs[5] == 0x00 && bs[6] == 0x00 {
-                                    // pushing SEH
-                                    self.stack_push(self.seh);
-
-                                } else {
-                                    unimplemented!("weird push instruction {:?}", bs);
-                                }
-                            },
-
-                            // push + mem operation
-                            _ => {
-                                let value = match self.memory_read(ins.op_str().unwrap()) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                self.stack_push(value);
-                            }
-                        }
-                    },
-
-                    Some("pop") => {
+                    Mnemonic::Pop => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
-                        }
-                        let opcode:u8 = ins.bytes()[0];
-                        
-
-                        match opcode {
-                            // pop + regs
-                            0x58 => self.regs.eax = self.stack_pop(true),
-                            0x59 => self.regs.ecx = self.stack_pop(true),
-                            0x5a => self.regs.edx = self.stack_pop(true),
-                            0x5b => self.regs.ebx = self.stack_pop(true),
-                            0x5c => self.regs.esp = self.stack_pop(true),
-                            0x5d => self.regs.ebp = self.stack_pop(true),
-                            0x5e => self.regs.esi = self.stack_pop(true),
-                            0x5f => self.regs.edi = self.stack_pop(true),
-                            0x17 => self.regs.esp = self.stack_pop(true),
-
-                            0x66 => {
-                                match ins.bytes()[1] {
-                                    0x5e => self.regs.esi = self.stack_pop(true), // pop si
-                                    _ => unimplemented!("unimplemented pop")
-                                }
-                            },
-
-                            // pop + mem operation
-                            _ => {
-                                let value = self.stack_pop(true);
-                                if !self.memory_write(ins.op_str().unwrap(), value) {
-                                    self.exception();
-                                    break;
-                                }
-                            },
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                    },
+                        let value = self.stack_pop(true);
+                        if !self.set_operand_value(&ins, 0, value) {
+                            break;
+                        }
+                    }
 
-                    Some("pushal") => {
+                    Mnemonic::Pushad => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
+
                         let tmp_esp = self.regs.esp;
                         self.stack_push(self.regs.eax);
                         self.stack_push(self.regs.ecx);
@@ -1830,12 +1987,13 @@ impl Emu32 {
                         self.stack_push(self.regs.ebp);
                         self.stack_push(self.regs.esi);
                         self.stack_push(self.regs.edi);
-                    },
+                    }
 
-                    Some("popal") => {
+                    Mnemonic::Popad => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
+
                         self.regs.edi = self.stack_pop(false);
                         self.regs.esi = self.stack_pop(false);
                         self.regs.ebp = self.stack_pop(false);
@@ -1844,27 +2002,28 @@ impl Emu32 {
                         self.regs.edx = self.stack_pop(false);
                         self.regs.ecx = self.stack_pop(false);
                         self.regs.eax = self.stack_pop(false);
-                    },
+                    }
 
-                    Some("cdq") => {
+                    Mnemonic::Cdq => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
                         let num:i64 = self.regs.eax as i64;
                         let unum:u64 = num as u64;
                         self.regs.edx = ((unum & 0xffffffff00000000) >> 32) as u32;
                         self.regs.eax = (unum & 0xffffffff) as u32;
-                    },
+                    }
 
-                    Some("ret") => {
+                    Mnemonic::Ret => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
+
                         let mut ret_addr = self.stack_pop(false); // return address
-                        let op = ins.op_str().unwrap();
-                        //println!("\tret return addres: 0x{:x}  return value: 0x{:x}", ret_addr, self.regs.eax);
 
-                        
-                        if op.len() > 0 {
-                            let mut arg = self.get_inmediate(op);
-
+                        if ins.op_count() > 0 {
+                            let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
                             // apply stack compensation of ret operand
 
                             if arg % 4 != 0 {
@@ -1877,306 +2036,116 @@ impl Emu32 {
                                 self.stack_pop(false);
                             }
                         }
-                        
+
                         if self.veh_ctx != 0 {
                             ret_addr = self.maps.read_dword(self.veh_ctx + 0xb8).expect("cannot read from context saved eip"); //TODO: do ctx.load()
                         } 
 
                         self.set_eip(ret_addr, false);                        
                         break;
-                    },
+                    }
 
-                    Some("xchg") => {
+                    Mnemonic::Xchg => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
+                        assert!(ins.op_count() == 2);
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // xchg mem, reg
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                if !self.memory_write(parts[0], value1) {
-                                    self.exception();
-                                    break;
-                                }
-                                self.regs.set_by_name(parts[1], value0);
-                            } 
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v)  => v,
+                            None => break,
+                        };
 
-                        } else {
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v)  => v,
+                            None => break,
+                        };
 
-                            if parts[1].contains("[") {
-                                // xchg reg, mem 
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                if !self.memory_write(parts[1], value0) {
-                                    self.exception();
-                                    break;
-                                }
-                                self.regs.set_by_name(parts[0], value1);
-
-                            } else {
-                                // xchg reg, reg
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                self.regs.set_by_name(parts[0], value1);
-                                self.regs.set_by_name(parts[1], value0);
-                            }
+                        if !self.set_operand_value(&ins, 0, value1) { 
+                            break;
+                        }
+                        if !self.set_operand_value(&ins, 1, value0) {
+                            break;
                         }
                     }
 
-
-                    Some("mov") => {
+                    Mnemonic::Mov => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let bs = ins.bytes();
+                        assert!(ins.op_count() == 2);
 
-                        if bs[0] == 0x69 && bs[1] == 0x89 && bs[2] == 0x25 && bs[3] == 0x00 && bs[4] == 0x00 && bs[5] == 0x00 && bs[6] == 0x00 {
-                            self.seh = self.regs.esp;
-                            println!("\n/!\\ programming exception handler SEH");
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if !self.set_operand_value(&ins, 0, value1) {
+                            break;
                         }
+                    }
 
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
-                        
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value = self.regs.get_by_name(parts[1]);
-                                if !self.memory_write(parts[0], value) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                if !self.memory_write(parts[0], inm) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-
-                        } else { 
-
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                self.regs.set_by_name(parts[0], value);
-                                //println!("reg '{}' '{}' new value: 0x{:x}", parts[0], parts[1], value);
-
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                self.regs.set_by_name(parts[0], self.regs.get_by_name(parts[1]));
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                self.regs.set_by_name(parts[0], inm);
-                            }
-                        }
-                    
-                    },
-
-                    Some("xor") => {
+                    Mnemonic::Xor => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
+                        assert!(ins.op_count() == 2);
 
-                                if !self.memory_write(parts[0], value0 ^ value1) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                if !self.memory_write(parts[0], value0 ^ inm) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                        } else {
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                self.regs.set_by_name(parts[0], value0 ^ value1);
-
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                self.regs.set_by_name(parts[0], value0 ^ value1);
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                self.regs.set_by_name(parts[0], value0 ^ inm);
-                            }
+                        if !self.set_operand_value(&ins, 0, value0 ^ value1) {
+                            break;
                         }
-                    },
+                    }
 
-                    Some("add") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
+                    Mnemonic::Add => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let ops = ins.op_str().unwrap();
-                        let parts:Vec<&str> = ops.split(", ").collect();
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value1:u32 = self.regs.get_by_name(parts[1]);
-                                let value0:u32 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1),
-                                    16 => res = self.flags_add16(value0, value1),
-                                    8  => res = self.flags_add8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_add32(value0, inm),
-                                    16 => res = self.flags_add16(value0, inm),
-                                    8  => res = self.flags_add8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
+                        assert!(ins.op_count() == 2);
 
-                        } else {
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1),
-                                    16 => res = self.flags_add16(value0, value1),
-                                    8  => res = self.flags_add8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
+                        let res:u32;
+                        match self.get_operand_sz(&ins, 1) {
+                            32 => res = self.flags.add32(value0, value1),
+                            16 => res = self.flags.add16(value0, value1),
+                            8  => res = self.flags.add8(value0, value1),
+                            _  => panic!("weird size")
+                        }
 
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1),
-                                    16 => res = self.flags_add16(value0, value1),
-                                    8  => res = self.flags_add8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_add32(value0, inm),
-                                    16 => res = self.flags_add16(value0, inm),
-                                    8  => res = self.flags_add8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                            }
-                        } 
-                    },
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        }
 
-                    Some("adc") => { // https://c9x.me/x86/html/file_module_x86_id_5.html
+                    }
+
+                    Mnemonic::Adc => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let ops = ins.op_str().unwrap();
-                        let parts:Vec<&str> = ops.split(", ").collect();
+
+                        assert!(ins.op_count() == 2);
 
                         let cf:u32;
                         if self.flags.f_cf {
@@ -2185,2726 +2154,924 @@ impl Emu32 {
                             cf = 0;
                         }
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value1:u32 = self.regs.get_by_name(parts[1]);
-                                let value0:u32 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1+cf),
-                                    16 => res = self.flags_add16(value0, value1+cf),
-                                    8  => res = self.flags_add8(value0, value1+cf),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_add32(value0, inm+cf),
-                                    16 => res = self.flags_add16(value0, inm+cf),
-                                    8  => res = self.flags_add8(value0, inm+cf),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let res:u32;
+                        match self.get_operand_sz(&ins, 1) {
+                            32 => res = self.flags.add32(value0, value1+cf),
+                            16 => res = self.flags.add16(value0, value1+cf),
+                            8  => res = self.flags.add8(value0, value1+cf),
+                            _  => panic!("weird size")
+                        }
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        }                        
+
+                    }
+
+                    Mnemonic::Sbb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let cf:u32;
+                        if self.flags.f_cf {
+                            cf = 1
                         } else {
+                            cf = 0;
+                        }
 
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1+cf),
-                                    16 => res = self.flags_add16(value0, value1+cf),
-                                    8  => res = self.flags_add8(value0, value1+cf),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_add32(value0, value1+cf),
-                                    16 => res = self.flags_add16(value0, value1+cf),
-                                    8  => res = self.flags_add8(value0, value1+cf),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_add32(value0, inm+cf),
-                                    16 => res = self.flags_add16(value0, inm+cf),
-                                    8  => res = self.flags_add8(value0, inm+cf),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                            }
+                        let res:u32;
+                        match self.get_operand_sz(&ins, 1) {
+                            32 => res = self.flags.sub32(value0, value1+cf),
+                            16 => res = self.flags.sub16(value0, value1+cf),
+                            8  => res = self.flags.sub8(value0, value1+cf),
+                            _  => panic!("weird size")
+                        }
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
                         } 
-                    },
-                    
-                    Some("sbb") => {
+
+                    }
+
+                    Mnemonic::Sub => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(op) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(op) {
-                                    32 => res = self.flags_sub32(value0, inm),
-                                    16 => res = self.flags_sub16(value0, inm),
-                                    8  => res = self.flags_sub8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
+                        assert!(ins.op_count() == 2);
 
-                        } else {
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_sub32(value0, inm),
-                                    16 => res = self.flags_sub16(value0, inm),
-                                    8  => res = self.flags_sub8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                            }
+                        let res:u32;
+                        match self.get_operand_sz(&ins, 1) {
+                            32 => res = self.flags.sub32(value0, value1),
+                            16 => res = self.flags.sub16(value0, value1),
+                            8  => res = self.flags.sub8(value0, value1),
+                            _  => panic!("weird size")
                         }
-                    },
-                    
-                    Some("sub") => {
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        } 
+
+                    }
+
+                    Mnemonic::Inc => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
 
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // mov mem, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(op) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // mov mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                match self.get_size(op) {
-                                    32 => res = self.flags_sub32(value0, inm),
-                                    16 => res = self.flags_sub16(value0, inm),
-                                    8  => res = self.flags_sub8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
+                        assert!(ins.op_count() == 1);
 
-                        } else {
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                            if parts[1].contains("[") {
-                                // mov reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
+                        let res:u32 = match self.get_operand_sz(&ins, 0) {
+                            32 => self.flags.inc32(value0),
+                            16 => self.flags.inc16(value0),
+                            8  => self.flags.inc8(value0),
+                            _  => panic!("weird size")
+                        };
 
-                            } else if self.is_reg(parts[1]) {
-                                // mov reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[1]) {
-                                    32 => res = self.flags_sub32(value0, value1),
-                                    16 => res = self.flags_sub16(value0, value1),
-                                    8  => res = self.flags_sub8(value0, value1),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // mov reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res:u32;
-                                match self.get_size(parts[0]) {
-                                    32 => res = self.flags_sub32(value0, inm),
-                                    16 => res = self.flags_sub16(value0, inm),
-                                    8  => res = self.flags_sub8(value0, inm),
-                                    _  => panic!("weird precision")
-                                }
-                                self.regs.set_by_name(parts[0], res);
-                            }
-                        }
-                    },
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        } 
+                    }
 
-                    Some("inc") => {
+                    Mnemonic::Dec => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        if self.is_reg(op) {
-                            let value = self.regs.get_by_name(op);
-                            let res:u32;
 
-                            match self.get_size(op) {
-                                32 => res = self.flags_inc32(value),
-                                16 => res = self.flags_inc16(value),
-                                8 =>  res = self.flags_inc8(value),
-                                _ => res = 0,
-                            }
+                        assert!(ins.op_count() == 1);
 
-                            self.regs.set_by_name(op, res);
-                            
-                        } else {
-                            let value = match self.memory_read(op) {
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let res:u32 = match self.get_operand_sz(&ins, 0) {
+                            32 => self.flags.dec32(value0),
+                            16 => self.flags.dec16(value0),
+                            8  => self.flags.dec8(value0),
+                            _  => panic!("weird size")
+                        };
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        } 
+                    }
+
+                    Mnemonic::Neg => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1);
+                        
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let res:u32 = match self.get_operand_sz(&ins, 0) {
+                            32 => self.flags.neg32(value0),
+                            16 => self.flags.neg16(value0),
+                            8  => self.flags.neg8(value0),
+                            _  => panic!("weird size")
+                        };
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Not => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1);
+                        
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let mut ival = value0 as i32;
+                        ival = !ival;
+
+                        if !self.set_operand_value(&ins, 0, ival as u32) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::And => {  // TODO: how to trigger overflow and carry with and
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let result = value0 & value1;
+
+                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+
+                    }
+
+                    Mnemonic::Or => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let result = value0 | value1;
+
+                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Sal => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
-                            let res:u32;
 
-                            match self.get_size(op) {
-                                32 => res = self.flags_inc32(value),
-                                16 => res = self.flags_inc16(value),
-                                8 =>  res = self.flags_inc8(value),
-                                _ => res = 0,
-                            }
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.sal1p32(value0),
+                                16 => self.flags.sal1p16(value0),
+                                8  => self.flags.sal1p8(value0),
+                                _  => panic!("weird size")
+                            };
 
-                            if !self.memory_write(op, res) {
-                                self.exception();
+                            if !self.set_operand_value(&ins, 0, result) {
                                 break;
                             }
-                        }
-                    },
 
-                    Some("dec") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        if self.is_reg(op) {
-                            // dec reg
-                            let value = self.regs.get_by_name(op);
-                            let res:u32;
 
-                            match self.get_size(op) {
-                                32 => res = self.flags_dec32(value),
-                                16 => res = self.flags_dec16(value),
-                                8 =>  res = self.flags_dec8(value),
-                                _ => res = 0,
-                            }
+                        } else { // 2 params
 
-                            self.regs.set_by_name(op, res);
-                        } else {
-                            // dec  mem
-                            let value = match self.memory_read(op) {
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
-                            let res:u32;
 
-                            match self.get_size(op) {
-                                32 => res = self.flags_dec32(value),
-                                16 => res = self.flags_dec16(value),
-                                8 =>  res = self.flags_dec8(value),
-                                _ => res = 0,
-                            }
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
 
-                            if !self.memory_write(op, res) {
-                                self.exception();
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.sal2p32(value0, value1),
+                                16 => self.flags.sal2p16(value0, value1),
+                                8  => self.flags.sal2p8(value0, value1),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
                                 break;
                             }
-                        }
-                    },
 
-               
-                    // neg not and or ror rol  sar sal shr shl 
-                    Some("neg") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        if self.is_reg(op) {
-                            let mut value = self.regs.get_by_name(op);
-                            let mut signed:i32 = value as i32;
-                            let bits = self.get_size(op);
-                            match bits {
-                                32 => self.flags.f_of = value == 0x80000000,
-                                16 => self.flags.f_of = value == 0x8000,
-                                8 =>  self.flags.f_of = value == 0x80,
-                                _ => panic!("weird precision")
-                            }
-                            signed = signed * -1;
-                            value = signed as u32;
-                            self.calc_flags(value, bits);
-                            self.flags.f_cf = true;
-                            self.regs.set_by_name(op, value);
-                            
-                        } else {
-                            let mut value = match self.memory_read(op) {
+                    }
+
+                    Mnemonic::Sar => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
-                            let mut signed:i32 = value as i32;
-                            let bits = self.get_size(op);
-                            match  bits {
-                                32 => self.flags.f_of = value == 0x80000000,
-                                16 => self.flags.f_of = value == 0x8000,
-                                8 =>  self.flags.f_of = value == 0x80,
-                                _ => panic!("weird precision")
-                            }
-                            signed = signed * -1;
-                            value = signed as u32;
-                            self.calc_flags(value, bits);
-                            self.flags.f_cf = true;
-                            
-                            if !self.memory_write(op, value) {
-                                self.exception();
+
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.sar1p32(value0),
+                                16 => self.flags.sar1p16(value0),
+                                8  => self.flags.sar1p8(value0),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
                                 break;
                             }
-                        }
-                    },
 
-                    Some("not") => { // dont alter flags
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        if self.is_reg(op) {
-                            let mut value = self.regs.get_by_name(op);
-                            let mut signed:i32 = value as i32;
-                            signed = !signed;
-                            value = signed as u32;
-                            self.regs.set_by_name(op, value);
-                        } else {
-                            let mut value = match self.memory_read(op) {
+
+                        } else { // 2 params
+
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
-                            let mut signed:i32 = value as i32;
-                            signed = !signed;
-                            value = signed as u32;
-                            if !self.memory_write(op, value) {
-                                self.exception();
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.sar2p32(value0, value1),
+                                16 => self.flags.sar2p16(value0, value1),
+                                8  => self.flags.sar2p8(value0, value1),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
                                 break;
                             }
-                        }
-                    },
 
-                    Some("and") => { // TODO: how to trigger overflow and carry with and
+                        }
+                    }
+
+                    Mnemonic::Shl => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
-
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // and mem, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res = value0 & value1;
-                                self.calc_flags(res, self.get_size(parts[1]));
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // and mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res = value0 & inm;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-
-                        } else {
-
-                            if parts[1].contains("[") {
-                                // and reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 & value1;
-                                self.calc_flags(res, self.get_size(parts[1]));
-                                self.regs.set_by_name(parts[0], res);
-
-                            } else if self.is_reg(parts[1]) {
-                                // and reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 & value1;
-                                self.calc_flags(res, self.get_size(parts[1]));
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // and reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 & inm;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                self.regs.set_by_name(parts[0], res);
-                            }
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                    },
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
-                    Some("or") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let parts:Vec<&str> = ins.op_str().unwrap().split(", ").collect();
-
-                        if parts[0].contains("[") {
-                            if self.is_reg(parts[1]) {
-                                // or mem, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res = value0 | value1;
-                                self.calc_flags(res, self.get_size(parts[1]));
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                                
-                            } else {
-                                // or mem, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res = value0 | inm;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                if !self.memory_write(parts[0], res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-
-                        } else {
-
-                            if parts[1].contains("[") {
-                                // or reg, mem 
-                                let value1 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 | value1;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                self.regs.set_by_name(parts[0], res);
-
-                            } else if self.is_reg(parts[1]) {
-                                // or reg, reg
-                                let value1 = self.regs.get_by_name(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 | value1;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                self.regs.set_by_name(parts[0], res);
-                                
-                            } else {
-                                // or reg, inm
-                                let inm = self.get_inmediate(parts[1]);
-                                let value0 = self.regs.get_by_name(parts[0]);
-                                let res = value0 | inm;
-                                self.calc_flags(res, self.get_size(parts[0]));
-                                self.regs.set_by_name(parts[0], res);
-                            }
-                        }
-                    },
-
-                    Some("sal") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 1;
-
-                        if twoparams {
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // sal reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-
-                                } else  {
-                                    // sal reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // sal mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-
-                                } else {
-                                    // sal mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-
-                            }
-
-
-                        } else { // one param
-                            if self.is_reg(op) { // reg
-                                let value:i32 = self.regs.get_by_name(op) as i32;
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) * 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { // mem 
-                                let value:i32 = match self.memory_read(op) {
-                                    Some(v) => v as i32,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) * 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-                    },
-
-                    Some("sar") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 1;
-
-                        if twoparams {
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // shl reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-                                } else  {
-                                    // shl reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // shl mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;  
-                                    }
-
-
-                                } else {
-                                    // shl mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-
-                            }
-
-                        } else { // one param
-                            if self.is_reg(op) { // reg
-                                let value:i32 = self.regs.get_by_name(op) as i32;
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) / 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { // mem 
-                                let value:i32 = match self.memory_read(op) {
-                                    Some(v) => v as i32,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) / 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-                    },
-
-                    Some("shr") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 2;
-
-                        if twoparams {
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // shr reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-
-                                } else  {
-                                    // shr reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // shr mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                    
-
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-
-                                } else {
-                                    // shr mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 /= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-
-                            }
-
-
-                        } else { // one param
-                            if self.is_reg(op) { // reg
-                                let value:i32 = self.regs.get_by_name(op) as i32;
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) / 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { // mem 
-                                let value:i32 = match self.memory_read(op) {
-                                    Some(v) => v as i32,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) / 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-
-                    },
-
-                    Some("shl") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 2;
-
-                        if twoparams {
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // shl reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-
-                                } else  {
-                                    // shl reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // shl mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-
-                                } else {
-                                    // shl mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let mut unsigned64:u64 = value0 as u64;
-                                    let res:u32;
-                                    let bits = self.get_size(parts[0]);
-                                
-                                    for _ in 0..value1 {
-                                        unsigned64 *= 2;
-                                    }
-
-                                    match bits {
-                                        32 => {
-                                            self.flags.f_cf = unsigned64 > 0xffffffff;
-                                            res = (unsigned64 & 0xffffffff) as u32
-                                        },
-                                        16 => {
-                                            self.flags.f_cf = unsigned64 > 0xffff;
-                                            res = (unsigned64 & 0xffff) as u32
-                                        },
-                                        8  => {
-                                            self.flags.f_cf = unsigned64 > 0xff;
-                                            res = (unsigned64 & 0xff) as u32;
-                                        },
-                                        _  => panic!("weird precision")
-                                    }
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-
-                            }
-
-
-                        } else { // one param
-                            if self.is_reg(op) { // reg
-                                let value:i32 = self.regs.get_by_name(op) as i32;
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) * 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { // mem 
-                                let value:i32 = match self.memory_read(op) {
-                                    Some(v) => v as i32,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let unsigned64:u64;
-                                let res:u32;
-                                let bits = self.get_size(op);
-
-                                unsigned64 = (value as u64) * 2;
-
-                                match bits {
-                                    32 => {
-                                        self.flags.f_cf = unsigned64 > 0xffffffff;
-                                        res = (unsigned64 & 0xffffffff) as u32
-                                    },
-                                    16 => {
-                                        self.flags.f_cf = unsigned64 > 0xffff;
-                                        res = (unsigned64 & 0xffff) as u32
-                                    },
-                                    8  => {
-                                        self.flags.f_cf = unsigned64 > 0xff;
-                                        res = (unsigned64 & 0xff) as u32;
-                                    },
-                                    _  => panic!("weird precision")
-                                }
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-                    },
-
-
-
-                    Some("ror") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 2;
-
-                        if twoparams {
-                            
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // ror reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(parts[0]);
-                                
-                                    res = self.rotate_right(value0, value1, bits as u32);
-                            
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-
-                                } else  {
-                                    // ror reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(parts[0]);
-                                    
-                                    res = self.rotate_right(value0, value1, bits as u32);
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // ror mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-
-                                    res = self.rotate_right(value0, value1, bits as u32);
-                              
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-
-                                } else {
-                                    // ror mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-
-                                    res = self.rotate_right(value0, value1, bits as u32);
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-                            }
-
-
-                        } else { // one param
-                            if self.is_reg(op) { 
-                                // ror reg
-                                let value:u32 = self.regs.get_by_name(op);
-                                let res:u32;
-                                let bits:u8 = self.get_size(op);
-
-                                res = self.rotate_right(value, 1, bits as u32);
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { 
-                                // ror mem 
-                                let value:u32 = match self.memory_read(op) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                let bits:u8 = self.get_size(op);
-
-                                res = self.rotate_right(value, 1, bits as u32);
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-                    },
-
-                    Some("rol") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let twoparams = parts.len() == 1;
-
-                        if twoparams {
-                            if self.is_reg(parts[0]) {
-                                // reg
-                                if self.is_reg(parts[1]) {
-                                    // rol reg, reg
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-                                
-                                    res = self.rotate_left(value0, value1, bits as u32);
-                            
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-
-
-                                } else  {
-                                    // rol reg, imm
-                                    let value0:u32 = self.regs.get_by_name(parts[0]);
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-                                    
-                                    res = self.rotate_left(value0, value1, bits as u32);
-
-                                    self.calc_flags(res, bits);
-                                    self.regs.set_by_name(parts[0], res);
-                                }
-
-
-                            } else {
-                                // mem
-                                if self.is_reg(parts[1]) {
-                                    // rol mem, reg
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.regs.get_by_name(parts[1]);
-
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-
-                                    res = self.rotate_left(value0, value1, bits as u32);
-                              
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;  
-                                    }
-
-                                } else {
-                                    // rol mem, imm
-                                    let value0:u32 = match self.memory_read(parts[0]) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let value1:u32 = self.get_inmediate(parts[1]);
-                                    let res:u32;
-                                    let bits:u8 = self.get_size(op);
-
-                                    res = self.rotate_left(value0, value1, bits as u32);
-
-                                    self.calc_flags(res, bits);
-                                    if !self.memory_write(parts[0], res) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-                            }
-
-
-                        } else { // one param
-                            if self.is_reg(op) { 
-                                // rol reg
-                                let value:u32 = self.regs.get_by_name(op);
-                                let res:u32;
-                                let bits:u8 = self.get_size(op);
-
-                                res = self.rotate_left(value, 1, bits as u32);
-
-                                self.calc_flags(res, bits);
-                                self.regs.set_by_name(op, res);
-
-
-                            } else { 
-                                // rol mem 
-                                let value:u32 = match self.memory_read(op) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                let res:u32;
-                                let bits:u8 = self.get_size(op);
-
-                                res = self.rotate_left(value, 1, bits as u32);
-
-                                self.calc_flags(res, bits);
-                                if !self.memory_write(op, res) {
-                                    self.exception();
-                                    break;
-                                }
-                            }
-                        }
-                    },
-
-                    Some("mul") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let bits = self.get_size(op);
-                        if self.is_reg(op) {
-                            // mul reg
-
-                            match bits {
-                                32 => {
-                                    let value1:u32 = self.regs.eax;
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    let res:u64 = value1 as u64 * value2 as u64;
-                                    self.regs.edx = ((res & 0xffffffff00000000) >> 32) as u32;
-                                    self.regs.eax = (res & 0x00000000ffffffff) as u32;
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.edx != 0;
-                                    self.flags.f_cf = self.regs.edx != 0;
-                                },
-                                16 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    let res:u32 = value1 * value2;
-                                    self.regs.set_dx((res & 0xffff0000) >> 16);
-                                    self.regs.set_ax(res & 0xffff);
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.get_dx() != 0;
-                                    self.flags.f_cf = self.regs.get_dx() != 0;
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_al();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    let res:u32 = value1 * value2;
-                                    self.regs.set_ax(res & 0xffff);
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.get_ah() != 0;
-                                    self.flags.f_cf = self.regs.get_ah() != 0;
-                                },
-                                _ => panic!("weird precision")
-                            }
-
-                        } else {
-                            // mul mem
-                            match bits {
-                                32 => {
-                                    let value1:u32 = self.regs.eax;
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let res:u64 = value1 as u64 * value2 as u64;
-                                    self.regs.edx = ((res & 0xffffffff00000000) >> 32) as u32;
-                                    self.regs.eax = (res & 0x00000000ffffffff) as u32;
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.edx != 0;
-                                    self.flags.f_cf = self.regs.edx != 0;
-                                },
-                                16 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v & 0xffff,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let res:u32 = value1 * value2;
-                                    self.regs.set_dx((res & 0xffff0000) >> 16);
-                                    self.regs.set_ax(res & 0xffff);
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.get_dx() != 0;
-                                    self.flags.f_cf = self.regs.get_dx() != 0;
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_al();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v & 0xff,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    let res:u32 = value1 * value2;
-                                    self.regs.set_ax(res & 0xffff);
-                                    self.flags.f_pf = (res & 0xff) % 2 == 0;
-                                    self.flags.f_of = self.regs.get_ah() != 0;
-                                    self.flags.f_cf = self.regs.get_ah() != 0;
-                                },
-                                _ => panic!("weird precision")
-                            }
-                        }
-                    },
-
-                    Some("div") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let bits = self.get_size(op);
-                        if self.is_reg(op) {
-                            // div reg
-
-                            match bits {
-                                32 => {
-                                    let mut value1:u64 = self.regs.edx as u64;
-                                        value1 = value1 << 32;
-                                        value1 += self.regs.eax as u64;
-                                    let value2:u64 = self.regs.get_by_name(op) as u64;
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                        
-                                        
-                                    } else {
-                                        let resq:u64 = value1 / value2;
-                                        let resr:u64 = value1 % value2;
-                                        self.regs.eax = resq as u32;
-                                        self.regs.edx = resr as u32;
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xffffffff;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow on division");
-                                        }
-                                    }
-
-                                },
-                                16 => {
-                                    let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_ax(resq);
-                                        self.regs.set_dx(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xffff;
-                                        self.flags.f_tf = false;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow on division");
-                                        }
-                                    }
-             
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_al(resq);
-                                        self.regs.set_ah(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xff;
-                                        self.flags.f_tf = false;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow");
-                                        }
-                                    }
-                                    
-                                },
-                                _ => panic!("weird precision")
-                            }
-
-                        } else {
-                            // div mem
-                            match bits {
-                                32 => {
-                                    let mut value1:u64 = self.regs.edx as u64;
-                                        value1 = value1 << 32;
-                                        value1 += self.regs.eax as u64;
-                                    let value2:u64 = match self.memory_read(op) {
-                                        Some(v) => v as u64,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u64 = value1 / value2;
-                                        let resr:u64 = value1 % value2;
-                                        self.regs.eax = resq as u32;
-                                        self.regs.edx = resr as u32;
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xffffffff;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow in division");
-                                        }
-                                    }
-
-                                },
-                                16 => {
-                                    let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_ax(resq);
-                                        self.regs.set_dx(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xffff;
-                                        self.flags.f_tf = false;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow on division");
-                                        }
-                                    }
-             
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_al(resq);
-                                        self.regs.set_ah(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_of = resq > 0xff;
-                                        self.flags.f_tf = false;
-                                        if self.flags.f_of {
-                                            println!("/!\\ int overflow on division");
-                                        }
-                                    }
-                                    
-                                },
-                                _ => panic!("weird precision")
-                            }
-                        }
-                    },
-
-                    Some("idiv") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let bits = self.get_size(op);
-                        if self.is_reg(op) {
-                            // idiv reg
-
-                            match bits {
-                                32 => {
-                                    let mut value1:u64 = self.regs.edx as u64;
-                                        value1 = value1 << 32;
-                                        value1 += self.regs.eax as u64;
-                                    let value2:u64 = self.regs.get_by_name(op) as u64;
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u64 = value1 / value2;
-                                        let resr:u64 = value1 % value2;
-                                        self.regs.eax = resq as u32;
-                                        self.regs.edx = resr as u32;
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        if resq > 0xffffffff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i64) > 0 && (resq as i32) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                },
-                                16 => {
-                                    let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_ax(resq);
-                                        self.regs.set_dx(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_tf = false;
-                                        if resq > 0xffff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i32) > 0 && (resq as i16) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-             
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = self.regs.get_by_name(op);
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_al(resq);
-                                        self.regs.set_ah(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_tf = false;
-                                        if  resq > 0xff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i16) > 0 && (resq as i8) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                },
-                                _ => panic!("weird precision")
-                            }
-
-                        } else {
-                            // idiv mem
-                            match bits {
-                                32 => {
-                                    let mut value1:u64 = self.regs.edx as u64;
-                                        value1 = value1 << 32;
-                                        value1 += self.regs.eax as u64;
-                                    let value2:u64 = match self.memory_read(op) {
-                                        Some(v) => v as u64,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u64 = value1 / value2;
-                                        let resr:u64 = value1 % value2;
-                                        self.regs.eax = resq as u32;
-                                        self.regs.edx = resr as u32;
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        if resq > 0xffffffff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i64) > 0 && (resq as i32) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                },
-                                16 => {
-                                    let value1:u32 = (self.regs.get_dx() << 16) + self.regs.get_ax();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_ax(resq);
-                                        self.regs.set_dx(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_tf = false;
-                                        if resq > 0xffff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i32) > 0 && (resq as i16) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-             
-                                },
-                                8 => {
-                                    let value1:u32 = self.regs.get_ax();
-                                    let value2:u32 = match self.memory_read(op) {
-                                        Some(v) => v,
-                                        None => {
-                                            self.exception();
-                                            break;
-                                        }
-                                    };
-                                    if value2 == 0 {
-                                        self.flags.f_tf = true;
-                                        println!("/!\\ division by 0 exception");
-                                        self.exception();
-                                        break;
-                                    } else {
-                                        let resq:u32 = value1 / value2;
-                                        let resr:u32 = value1 % value2;
-                                        self.regs.set_al(resq);
-                                        self.regs.set_ah(resr);
-                                        self.flags.f_pf = (resq & 0xff) % 2 == 0;
-                                        self.flags.f_tf = false;
-                                        if resq > 0xff {
-                                            println!("/!\\ int overflow exception on division");
-                                            if self.break_on_alert {
-                                                panic!();
-                                            }
-                                        } else {
-                                            if (value1 as i16) > 0 && (resq as i8) < 0 {
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
-                                                println!("/!\\ sign change exception on division");
-                                                if self.break_on_alert {
-                                                    panic!();
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                },
-                                _ => panic!("weird precision")
-                            }
-                        }
-                    },
-
-                    Some("imul") => {
-                        if !step {
-                            println!("{} {}", self.pos, ins);
-                        }
-                        //https://c9x.me/x86/html/file_module_x86_id_138.html
-                        panic!("not implemented");
-                    },
-
-                    Some("movsx") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let value2:u32;                    
-
-                        if self.is_reg(parts[1]) {
-                            // movzx reg, reg
-                            value2 = self.regs.get_by_name(parts[1]);
-                        } else {
-                            // movzx reg, mem
-                            value2 = match self.memory_read(parts[1]) {
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
-                        }
 
-                        let rbits = self.get_size(parts[1]);
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.shl1p32(value0),
+                                16 => self.flags.shl1p16(value0),
+                                8  => self.flags.shl1p8(value0),
+                                _  => panic!("weird size")
+                            };
 
-                        match rbits {
-                            32 => panic!("cant be movsx of 32 bits"),
-                            16 => {
-                                if value2 > 0x7fff {
-                                    self.regs.set_by_name(parts[0], 0xffff0000 + value2)
-                                } else {
-                                    self.regs.set_by_name(parts[0], value2);
-                                }
-                            },
-                            8 => {
-                                if value2 > 0x7f {
-                                    self.regs.set_by_name(parts[0], 0xffffff00 + value2)
-                                } else {
-                                    self.regs.set_by_name(parts[0], value2);
-                                }
-                            },
-                            _ => panic!("wrong precision"),
-                        }
-                    },
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
 
-                    Some("movzx") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let value2:u32;                    
 
-                        if self.is_reg(parts[1]) {
-                            // movzx reg, reg
-                            value2 = self.regs.get_by_name(parts[1]);
-                        } else {
-                            // movzx reg, mem
-                            value2 = match self.memory_read(parts[1]) {
+                        } else { // 2 params
+
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
-                                None => {
-                                    self.exception();
-                                    break;
-                                }
+                                None => break,
                             };
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.shl2p32(value0, value1),
+                                16 => self.flags.shl2p16(value0, value1),
+                                8  => self.flags.shl2p8(value0, value1),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
+
                         }
+                    }
 
-                        self.regs.set_by_name(parts[0], value2);
-                    },
-
-                    Some("test") => {
+                    Mnemonic::Shr => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let bits = self.get_size(parts[0]);
-                        let value1:u32;
-                        let value2:u32;
+
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.shr1p32(value0),
+                                16 => self.flags.shr1p16(value0),
+                                8  => self.flags.shr1p8(value0),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
+
+
+                        } else { // 2 params
+
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let result:u32 = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.shr2p32(value0, value1),
+                                16 => self.flags.shr2p16(value0, value1),
+                                8  => self.flags.shr2p8(value0, value1),
+                                _  => panic!("weird size")
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
+
+                        }
+                    }
+
+                    Mnemonic::Ror => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
                         let result:u32;
-
-                        if self.is_reg(parts[0]) {
-                            if self.is_reg(parts[1]) {
-                                // cmp reg, reg
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.regs.get_by_name(parts[1]);
-
-                            } else if parts[1].contains("[") {
-                                // cmp reg, mem
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
+                        let sz = self.get_operand_sz(&ins, 0);
 
 
-                            } else {
-                                // cmp reg, inm
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.get_inmediate(parts[1]);
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
 
-                            }
+                            result = self.rotate_right(value0, 1, sz as u32);
 
-                        } else {
-                            if self.is_reg(parts[1]) {
-                                // cmp mem, reg
-                                value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                value2 = self.regs.get_by_name(parts[1]);
+                        } else { // 2 params
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
 
-                            } else {
-                                // cmp mem, inm
-                                value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                value2 = self.get_inmediate(parts[1]);
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
 
-                            }
+                            
+                            result = self.rotate_right(value0, value1, sz as u32);
                         }
 
-                        result = value1 & value2;
-
-                        self.flags.f_zf = result == 0;
-                        self.flags.f_cf = false;
-                        self.flags.f_of = false;
-                        self.flags.f_pf = (result & 0xff) % 2 == 0;
-
-                        match bits {
-                            32 => self.flags.f_sf = (result as i32) < 0,
-                            16 => self.flags.f_sf = (result as i16) < 0,
-                            8  => self.flags.f_sf = (result as i8) < 0,
-                            _  => panic!("weird precision")
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
                         }
 
-                    },
+                        self.flags.calc_flags(result, sz as u8);
+                    }
 
-                    Some("cmp") => {
+                    Mnemonic::Rol => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);                            
-                            //println!("\tcmp-> eax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let bits = self.get_size(parts[0]);
-                        let value1:u32;
-                        let value2:u32;
-
-                        if self.is_reg(parts[0]) {
-                            if self.is_reg(parts[1]) {
-                                // cmp reg, reg
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.regs.get_by_name(parts[1]);
-
-                            } else if parts[1].contains("[") {
-                                // cmp reg, mem
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = match self.memory_read(parts[1]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-
-
-                            } else {
-                                // cmp reg, inm
-                                value1 = self.regs.get_by_name(parts[0]);
-                                value2 = self.get_inmediate(parts[1]);
-
-                            }
-
-                        } else {
-                            if self.is_reg(parts[1]) {
-                                // cmp mem, reg
-                                value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                value2 = self.regs.get_by_name(parts[1]);
-
-                            } else {
-                                // cmp mem, inm
-                                value1 = match self.memory_read(parts[0]) {
-                                    Some(v) => v,
-                                    None => {
-                                        self.exception();
-                                        break;
-                                    }
-                                };
-                                value2 = self.get_inmediate(parts[1]);
-
-                            }
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                        let result:u32;
+                        let sz = self.get_operand_sz(&ins, 0);
+
+
+                        if ins.op_count() == 1 { // 1 param
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            result = self.rotate_left(value0, 1, sz as u32);
+
+                        } else { // 2 params
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            
+                            result = self.rotate_left(value0, value1, sz as u32);
+                        }
+
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+
+                        self.flags.calc_flags(result, sz as u8);
+                    }
+
+                    Mnemonic::Mul => {
                         if !step {
-                            if value1 > value2 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value1, value2);
-                            } else if value1 < value2 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value1, value2);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value1, value2);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        match self.get_operand_sz(&ins, 0) {
+                            32 => self.mul32(value0),
+                            16 => self.mul16(value0),
+                            8  => self.mul8(value0),
+                            _ => unimplemented!("wrong size"),
+                        }
+                    }
+
+                    Mnemonic::Div => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        match self.get_operand_sz(&ins, 0) {
+                            32 => self.div32(value0),
+                            16 => self.div16(value0),
+                            8  => self.div8(value0),
+                            _ => unimplemented!("wrong size"),
+                        }
+                    }
+
+                    Mnemonic::Idiv => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        match self.get_operand_sz(&ins, 0) {
+                            32 => self.idiv32(value0),
+                            16 => self.idiv16(value0),
+                            8  => self.idiv8(value0),
+                            _ => unimplemented!("wrong size"),
+                        }
+                    }
+
+                    Mnemonic::Imul => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                        if ins.op_count() == 1 { // 1 param
+                            
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            match self.get_operand_sz(&ins, 0) {
+                                32 => self.imul32p1(value0),
+                                16 => self.imul16p1(value0),
+                                8  => self.imul8p1(value0),
+                                _ => unimplemented!("wrong size"),
                             }
+
+                        } else { // 2 params
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let iresult:i32 = value0 as i32 * value1 as i32;
+                            let result:u32 = iresult as u32;
+
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
+
+                        }
+                    }
+
+                    Mnemonic::Movsx => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
+                        assert!(ins.op_count() == 2);
 
-                        match bits {
-                            32 => { self.flags_sub32(value1, value2); },
-                            16 => { self.flags_sub16(value1, value2); },
-                             8 => { self.flags_sub8(value1, value2); },
-                             _ => panic!("incorrect bits size"),
-                        }
+            
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                        /*
-                        let res:i32 = (value1 as i64 - value2 as i64) as i32;
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
 
-                        self.flags.f_zf = res == 0;
-                        self.flags.f_sf = res < 0;
-
-    
-
-                        if value1 < value2 {
-                            self.flags.f_zf = false;
-                            self.flags.f_cf = true;
-
-                        } else if value1 > value2 {
-                            self.flags.f_zf = false;
-                            self.flags.f_cf = false;
-
-                        } else if value1 == value2 {
-                            self.flags.f_zf = true;
-                            self.flags.f_cf = false;
-                            self.flags.f_of = false;
-                        }*/
+                        assert!((sz0 == 16 && sz1 == 8) || 
+                                (sz0 == 32 && sz1 == 8) || 
+                                (sz0 == 32 && sz1 == 16));
                         
 
+                        let mut result:u32 = 0;
 
-                    },  
+                        if sz0 == 16 {
+                            assert!(sz1 == 8);
+                            result = value1 as u8 as i8 as i16 as u16 as u32;
+                        } else if sz0 == 32 {
+                            if sz1 == 8 {
+                                result = sz1 as u8 as i8 as i32 as u32;
+                            } else if sz1 == 16 {
+                                result = sz1 as u8 as i8 as i16 as u16 as u32;
+                            }
+                        } 
 
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+
+                    }
+
+                    Mnemonic::Movzx => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
+
+                        assert!((sz0 == 16 && sz1 == 8) || 
+                                (sz0 == 32 && sz1 == 8) || 
+                                (sz0 == 32 && sz1 == 16));
+                        
+
+                        let mut result:u32 = 0;
+
+                        if sz0 == 16 {
+                            assert!(sz1 == 8);
+                            result = value1 as u8 as u16 as u32;
+                        } else if sz0 == 32 {
+                            if sz1 == 8 {
+                                result = value1 as u8 as u32;
+                            } else if sz1 == 16 {
+                                result = value1 as u16 as u32;
+                            }
+                        } 
+
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+
+                    }
+
+                    Mnemonic::Test => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let sz = self.get_operand_sz(&ins, 0);
+
+                        self.flags.test(value0, value1, sz);
+                    }
+
+                    Mnemonic::Cmp => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if !step {
+                            if value0 > value1 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            } else if value0 < value1 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+
+                        match self.get_operand_sz(&ins, 0) {
+                            32 => { self.flags.sub32(value0, value1); },
+                            16 => { self.flags.sub16(value0, value1); },
+                            8 => { self.flags.sub8(value0, value1); },
+                            _  => { panic!("wrong size {}", self.get_operand_sz(&ins, 0)); }
+                        }
+
+                    }
 
                     //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
                     //          https://c9x.me/x86/html/file_module_x86_id_146.html
                     //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
 
-                    Some("jo") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.orange, self.pos, ins, self.colors.nc);
-                        }
+                    //esquema global -> https://en.wikipedia.org/wiki/X86_instruction_listings
+                    // test jnle jpe jpo loopz loopnz int 0x80
+
+                    Mnemonic::Jo => {
+
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jno") => {
-                        
+                    Mnemonic::Jno => {
+
+                        assert!(ins.op_count() == 1);
+
                         if !self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
+                    
+                    Mnemonic::Js => {
 
-                    Some("js") => {
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_sf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                        
-                    },
+                    }
 
-                    Some("jns") => {
+                    Mnemonic::Jns => {
+
+                        assert!(ins.op_count() == 1);
+
                         if !self.flags.f_sf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("je") => {
+                    Mnemonic::Je => {
+
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jz") => {
-                        if self.flags.f_zf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jne => {
 
+                        assert!(ins.op_count() == 1);
 
-                    Some("jne") => {
                         if !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnz") => {
-                        if !self.flags.f_zf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
+                    Mnemonic::Jb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                    },
 
-                    Some("jb") => {
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_cf {
                             if !step {
                                 println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
@@ -4912,44 +3079,24 @@ impl Emu32 {
                                 println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnae") => {
-                        if self.flags.f_cf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
+                    Mnemonic::Jae => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                    },
 
-                    Some("jc") => {
-                        if self.flags.f_cf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                        assert!(ins.op_count() == 1);
 
-                    Some("jnb") => {
                         if !self.flags.f_cf {
                             if !step {
                                 println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
@@ -4957,44 +3104,24 @@ impl Emu32 {
                                 println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jae") => {
-                        if !self.flags.f_cf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
+                    Mnemonic::Jbe => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                    },
 
-                    Some("jnc") => {
-                        if !self.flags.f_cf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                        assert!(ins.op_count() == 1);
 
-                    Some("jbe") => {
                         if self.flags.f_cf || self.flags.f_zf {
                             if !step {
                                 println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
@@ -5002,29 +3129,24 @@ impl Emu32 {
                                 println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jna") => {
-                        if self.flags.f_cf || self.flags.f_zf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
+                    Mnemonic::Ja => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                    },
 
-                    Some("ja") => {
+                        assert!(ins.op_count() == 1);
+
                         if !self.flags.f_cf && !self.flags.f_zf {
                             if !step {
                                 println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
@@ -5032,261 +3154,213 @@ impl Emu32 {
                                 println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnbe") => {
-                        if !self.flags.f_cf && !self.flags.f_zf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jl => {
+                
+                        assert!(ins.op_count() == 1);
 
-                    Some("jl") => {
                         if self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnge") => {
-                        if self.flags.f_sf != self.flags.f_of {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
+                    Mnemonic::Jge => {
+                        if !step {
+                            
                         }
-                    },
 
-                    Some("jge") => {
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_sf == self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnl") => {
-                        if self.flags.f_sf == self.flags.f_of {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jle => {
+             
+                        assert!(ins.op_count() == 1);
 
-                    Some("jle") => {
                         if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jng") => {
-                        if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-    
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jg => {
+                
+                        assert!(ins.op_count() == 1);
 
-                    Some("jg") => {
                         if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jnle") => {
-                        if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jp => {
 
-                    Some("jp") => {
+                        assert!(ins.op_count() == 1);
+
                         if self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jpe") => {
-                        if self.flags.f_pf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jnp => {
 
-                    Some("jnp") => {
+                        assert!(ins.op_count() == 1);
+
                         if !self.flags.f_pf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jpo") => {
-                        if !self.flags.f_pf {
-                            if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
-                            self.set_eip(addr, true);
-                            break;
-                        } else {
-                            if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
-                            }
-                        }
-                    },
+                    Mnemonic::Jcxz => {
 
-                    Some("jcxz") => {
+                        assert!(ins.op_count() == 1);
+
                         if self.regs.get_cx() == 0 {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-                    Some("jecxz") => {
-                        if self.regs.ecx == 0 {
+                    Mnemonic::Jecxz => {
+
+                        assert!(ins.op_count() == 1);
+
+                        if self.regs.get_cx() == 0 {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
-                            let addr = self.get_inmediate(ins.op_str().unwrap());       
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
                             self.set_eip(addr, true);
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
-                    },
+                    }
 
-
-                    //TODO: test syenter / int80
-                    Some("int3") => {
+                    Mnemonic::Int3 => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                         println!("/!\\ int 3 sigtrap!!!!");
                         self.exception();
                         break;
-                    },
+                    }
 
-                    Some("nop") => {
+                    Mnemonic::Nop => {
                         if !step {
-                            println!("{} {}", self.pos, ins);
-                        }
-                    },
-
-                    Some("mfence")|Some("lfence")|Some("sfence") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_gray, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                     }
 
-                    Some("cpuid") => {
+                    Mnemonic::Mfence|Mnemonic::Lfence|Mnemonic::Sfence => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         }
+                    }
+
+                    Mnemonic::Cpuid => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
                         // guloader checks bit31 which is if its hipervisor with command
                         // https://c9x.me/x86/html/file_module_x86_id_45.html
                         // TODO: implement 0x40000000 -> get the virtualization vendor
@@ -5354,30 +3428,35 @@ impl Emu32 {
                             },
                             _ => unimplemented!("unimplemented cpuid call 0x{:x}", self.regs.eax),
                         }
+                    }
 
-                    },
-
-                    Some("clc") => {
+                    Mnemonic::Clc => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_gray, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_gray, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                         self.flags.f_cf = false;
-                    },
-
-                    Some("rdtsc") => {
+                    }
+                    
+                    Mnemonic::Rdtsc => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                         self.regs.edx = 0;
                         self.regs.eax = 0;
+                    }
 
-                    },
-
-                    Some("loop") => {
+                    Mnemonic::Loop => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());
+
+                        assert!(ins.op_count() == 1);
+
+                        let addr = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
                                 self.regs.ecx = 0xffffffff;
@@ -5402,13 +3481,20 @@ impl Emu32 {
                                 break;
                             }
                         }
-                    },
-
-                    Some("loope") => {
+                    }
+    
+                    Mnemonic::Loope => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());
+
+                        assert!(ins.op_count() == 1);
+
+                        let addr = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
                                 self.regs.ecx = 0xffffffff;
@@ -5432,43 +3518,20 @@ impl Emu32 {
                                 break;
                             }
                         }
-                    },
+                    }
 
-                    Some("loopz") => {
+                    Mnemonic::Loopne => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());
-                        if addr > 0xffff {
-                            if self.regs.ecx == 0 {
-                                self.regs.ecx = 0xffffffff;
-                            } else {
-                                self.regs.ecx -= 1;
-                            }
-                            
-                            if self.regs.ecx > 0 && self.flags.f_zf {
-                                self.set_eip(addr, false);
-                                break;
-                            }
-                        } else {
-                            if self.regs.get_cx() == 0 {
-                                self.regs.set_cx(0xffff);
-                            } else {
-                                self.regs.set_cx(self.regs.get_cx() -1);
-                            }
-                            
-                            if self.regs.get_cx() > 0 && self.flags.f_zf  {
-                                self.set_eip(addr, false);
-                                break;
-                            }
-                        }
-                    },
 
-                    Some("loopne") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
-                        }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());
+                        assert!(ins.op_count() == 1);
+
+                        let addr = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+                        
                         if addr > 0xffff {
                             if self.regs.ecx == 0 {
                                 self.regs.ecx = 0xffffffff;
@@ -5492,340 +3555,181 @@ impl Emu32 {
                                 break;
                             }
                         }
-                    },
+                    }
 
-                    Some("loopnz") => {
+                    Mnemonic::Lea => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.yellow, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let addr = self.get_inmediate(ins.op_str().unwrap());
-                        if addr > 0xffff {
-                            if self.regs.ecx == 0 {
-                                self.regs.ecx = 0xffffffff;
-                            } else {
-                                self.regs.ecx -= 1;
-                            }
-                            
-                            if self.regs.ecx > 0 && !self.flags.f_zf {
-                                self.set_eip(addr, false);
-                                break;
-                            }
-                        } else {
-                            if self.regs.get_cx() == 0 {
-                                self.regs.set_cx(0xffff);
-                            } else {
-                                self.regs.set_cx(self.regs.get_cx() -1);
-                            }
-                            
-                            if self.regs.get_cx() > 0 && !self.flags.f_zf  {
-                                self.set_eip(addr, false);
-                                break;
-                            }
-                        }
-                    },
 
-                    Some("lea") => {
+                        assert!(ins.op_count() == 2);
+
+                        let value1 = match self.get_operand_value(&ins, 1, false) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if !self.set_operand_value(&ins, 0, value1) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Leave => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.light_cyan, self.pos, ins, self.colors.nc);
-                        }
-                        let ops = ins.op_str().unwrap();
-                        let parts:Vec<&str> = ops.split(", ").collect();
-                        let spl:Vec<&str> = parts[1].split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
-                        let mut result:u32 = 0;
-                        let mut sum = false;
-                        let mut sub = false;
-
-                        for i in 0..spl.len() {
-                            if spl[i] == "+" {
-                                sub = false;
-                                sum = true;
-                            } else if  spl[i] == "-" {
-                                sum = false;
-                                sub = true;
-                            } else if self.is_reg(spl[i]) {
-                                if sum {
-                                    result = result + self.regs.get_by_name(spl[i]);
-                                } else if sub {
-                                    result = result - self.regs.get_by_name(spl[i]);
-                                } else {
-                                    result = self.regs.get_by_name(spl[i]);
-                                }
-                            } else {
-                                if sum {
-                                    result = result + self.get_inmediate(spl[i]);
-                                } else if sub {
-                                    result = result - self.get_inmediate(spl[i]);
-                                } else {
-                                    result = self.get_inmediate(spl[i]);
-                                }
-                            }
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        self.regs.set_by_name(parts[0], result);
-                    },
-
-                    Some("leave") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
-                        }
                         self.regs.esp = self.regs.ebp;
                         self.regs.ebp = self.stack_pop(true);
-                    },
+                    }
 
-                    Some("int") => {
+                    Mnemonic::Int => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let op = ins.op_str().unwrap();
-                        let interrupt = u32::from_str_radix(op.trim_start_matches("0x"),16).expect("conversion error");
+
+                        assert!(ins.op_count() == 1);
+
+                        let interrupt = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         match interrupt {
-                            0x80 => {
-
-                                syscall::gateway(self);
-                                
-                            },
-                            _ => {
-                                unimplemented!("unknown interrupt {}", interrupt);
-                            }
+                            0x80 => syscall::gateway(self),
+                            _ => unimplemented!("unknown interrupt {}", interrupt),
                         }
-                    },
+                    }
 
-                    Some("lock btr") => {
-                        // 747712 0x775b77b2: lock btr dword ptr [eax], 0
+                    Mnemonic::Std => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
-                        }
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let bit_off = self.get_inmediate(parts[1]);
-                        let bit_base = match self.memory_read(parts[0]) {
-                            Some(v) => v,
-                            None => {
-                                self.exception();
-                                break;
-                            }
-                        };
-                        let bit:u32 = bit_base & (1 << (bit_off-1)); // thanks Robert
-
-                        self.flags.f_cf = bit == 1;
-                        
-                    },
-
-                    Some("lock cmpxchg") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
-                        }
-                        // 747743 0x775a229a: lock cmpxchg dword ptr [ebx], edx
-                        // compare memory [ebx] with eax if they are same, move edx to [ebx]
-                        let op = ins.op_str().unwrap();
-                        let parts:Vec<&str> = op.split(", ").collect();
-                        let bits = self.get_size(parts[0]);
-                        let memval = match self.memory_read(parts[0]) {
-                            Some(v) => v,
-                            None=> {
-                                self.exception();
-                                break;
-                            }
-                        };
-
-                        match bits {
-                            32 => {
-                                if memval == self.regs.eax {
-                                    if !self.memory_write(parts[0], memval) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-                            },
-                            16 => {
-                                if memval == self.regs.get_ax() {
-                                    if !self.memory_write(parts[0], memval) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-                            },
-                             8 => {
-                                if memval == self.regs.get_al() {
-                                    if !self.memory_write(parts[0], memval) {
-                                        self.exception();
-                                        break;
-                                    }
-                                }
-                            },
-                             _ => panic!("weird precision"),
-                        }
-
-                    },
-
-                    Some("std") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                         self.flags.f_df = true;
-                    },
+                    }
 
-                    Some("cld") => {
+                    Mnemonic::Cld => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.blue, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                         self.flags.f_df = false;
-                    },
+                    }
 
-                    Some("lodsd") => {
+                    Mnemonic::Lodsd => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let val = match self.memory_read("dword ptr [esi]") { 
+
+                        let val = match self.maps.read_dword(self.regs.esi) {
                             Some(v) => v,
-                            None => panic!("lodsw: memory read error")
+                            None => panic!("lodsw: memory read error"),
                         };
+
                         self.regs.eax = val;
                         if self.flags.f_df {
                             self.regs.esi -= 4;
                         } else {
                             self.regs.esi += 4;
                         }
-                    },
 
-                    Some("lodsw") => {
+                    }
+
+                    Mnemonic::Lodsw => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let val = match self.memory_read("word ptr [esi]") {
+
+                        let val = match self.maps.read_word(self.regs.esi) {
                             Some(v) => v,
-                            None => panic!("lodsw: memory read error")
+                            None => panic!("lodsw: memory read error"),
                         };
-                        self.regs.set_ax(val);
+
+                        self.regs.eax = val as u32;
                         if self.flags.f_df {
                             self.regs.esi -= 2;
                         } else {
                             self.regs.esi += 2;
                         }
-                    },
+                    }
 
-                    Some("lodsb") => {
+                    Mnemonic::Lodsb => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                        let val = match self.memory_read("byte ptr [esi]") {
+
+                        let val = match self.maps.read_byte(self.regs.esi) {
                             Some(v) => v,
-                            None => panic!("lodsw: memory read error")
+                            None => panic!("lodsw: memory read error"),
                         };
-                        self.regs.set_al(val);
+
+                        self.regs.set_ax(val as u32);
                         if self.flags.f_df {
                             self.regs.esi -= 1;
                         } else {
                             self.regs.esi += 1;
                         }
-                    },
-
-                    Some("lods") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.cyan, self.pos, ins, self.colors.nc);
-                        }
-
-                        let op = ins.op_str().unwrap();
-                        let bits = self.get_size(op);
-                        let val = match self.memory_read(op) {
-                            Some(v) => v,
-                            None => panic!("lodsw: memory read error")
-                        };
-
-                        match bits {
-                            32 => {
-                                self.regs.eax = val;
-                                if self.flags.f_df {
-                                    self.regs.esi -= 4;
-                                } else {
-                                    self.regs.esi += 4;
-                                }
-                            },
-                            16 => {
-                                self.regs.set_ax(val);
-                                if self.flags.f_df {
-                                    self.regs.esi -= 2;
-                                } else {
-                                    self.regs.esi += 2;
-                                }
-                            },
-                            8 => {
-                                self.regs.set_al(val);
-                                if self.flags.f_df {
-                                    self.regs.esi -= 1;
-                                } else {
-                                    self.regs.esi += 1;
-                                }
-                            },
-                            _ => panic!("bad precision"),
-                        }
-                    },
+                    }
 
                     ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
-
-                    Some("ffree") => {
+                     
+                    Mnemonic::Ffree => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-
-                        let op = ins.op_str().unwrap();
-                        match op {
-                            "st(0)" => self.fpu.clear(0),
-                            "st(1)" => self.fpu.clear(1),
-                            "st(2)" => self.fpu.clear(2),
-                            "st(3)" => self.fpu.clear(3),
-                            "st(4)" => self.fpu.clear(4),
-                            "st(5)" => self.fpu.clear(5),
-                            "st(6)" => self.fpu.clear(6),
-                            "st(7)" => self.fpu.clear(7),
-                            _ => panic!("fpu ffre operand no implemented"),
-                        }  
+          
+                  
+                        match ins.op_register(0) {
+                            Register::ST0 => self.fpu.clear_st(0),
+                            Register::ST1 => self.fpu.clear_st(1),
+                            Register::ST2 => self.fpu.clear_st(2),
+                            Register::ST3 => self.fpu.clear_st(3),
+                            Register::ST4 => self.fpu.clear_st(4),
+                            Register::ST5 => self.fpu.clear_st(5),
+                            Register::ST6 => self.fpu.clear_st(6),
+                            Register::ST7 => self.fpu.clear_st(7),
+                            _  => unimplemented!("impossible case"),
+                        }
+                       
                         self.fpu.set_eip(self.regs.eip);
-                    },
+                    }
 
-                    Some("fnstenv") => {
+                    Mnemonic::Fnstenv => {
                         if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let mut dir = "dword ptr ".to_string();
-                        dir.push_str(ins.op_str().unwrap());
+                        let addr = match self.get_operand_value(&ins, 0, false) {
+                            Some(v) => v,
+                            None => break,
+                        };
 
-                        let addr:u32 = self.memory_operand_to_address(dir.as_str());
                         let env = self.fpu.get_env();
                         for i in 0..4 {
                             self.maps.write_dword(addr+(i*4), env[i as usize]);
                         }
 
                         self.fpu.set_eip(self.regs.eip);
-                    },
-
-                    Some("fld") => {
-                        if !step {
-                            println!("{}{} {}{}", self.colors.green, self.pos, ins, self.colors.nc);
-                        }
-
-                        //not implemented
-                        self.fpu.set_eip(self.regs.eip);
-
                     }
 
-                    Some("lcall") => {
+    
+                    Mnemonic::Fld => {
                         if !step {
-                            panic!("{}{} {}  {{{:?}}} {}", self.colors.green, self.pos, ins, ins.bytes(), self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
-                    },
 
-                    Some("sysenter") => {
-                        println!("{}{} {}{} function: 0x{:x}", self.colors.red, self.pos, ins, self.colors.nc, self.regs.eax);
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Sysenter => {
+                        println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         return;
-                    },
+                    }
 
                     ////   Ring0  ////
-
-                    Some("rdmsr") => {
+                    
+                    Mnemonic::Rdmsr => {
                         if !step {
-                            println!("{}{} {} ecx: {} {}", self.colors.green, self.pos, ins, self.regs.ecx, self.colors.nc);
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
                         match self.regs.ecx {
@@ -5835,19 +3739,19 @@ impl Emu32 {
                             },
                             _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
                         }
-                    },
 
-   
+                    }
+                    
 
-                    Some(&_) =>  { 
-                        println!("{}{} {}{}", self.colors.red, self.pos, ins, self.colors.nc);
+                    _ =>  { 
+                        println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         unimplemented!("unimplemented instruction");
                     },
-
-                    None => panic!("none instruction"),
                 }
 
                 self.regs.eip += sz as u32;
+                
+
 
                 if self.force_break {
                     self.force_break = false;

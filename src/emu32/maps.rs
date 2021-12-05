@@ -81,6 +81,10 @@ impl Maps {
         return None;
     }
 
+    pub fn get_mem_ref(&self, name:&str) -> &Mem32 {
+        return self.maps.get(&name.to_string()).expect("incorrect memory map name");
+    }
+
     pub fn get_mem(&mut self, name:&str) -> &mut Mem32 {
         return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
     }
