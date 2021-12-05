@@ -1638,7 +1638,9 @@ impl Emu32 {
                 let value:u32;
                 if derref {
 
-                    value = match self.get_operand_sz(&ins, noperand) {
+                    let sz = self.get_operand_sz(&ins, noperand);
+
+                    value = match sz {
 
                         32 => match self.maps.read_dword(mem_addr) {
                             Some(v) => v,
@@ -1658,6 +1660,13 @@ impl Emu32 {
                         _ => unimplemented!("weird size")
                     };
 
+                    if self.cfg.trace_mem {
+                        let name = match self.maps.get_addr_name(value) {
+                            Some(n) => n,
+                            None => "error".to_string(),
+                        };
+                        println!("mem trace read {} bits ->  0x{:x}: 0x{:x}  map:'{}'", sz, mem_addr, value, name);
+                    }
 
                     if mem_addr == self.bp.get_mem_read() {
                         println!("Memory breakpoint on read 0x{:x}", mem_addr);
@@ -1702,8 +1711,9 @@ impl Emu32 {
                 }).unwrap() as u32;
 
                 if write {
-
-                    match self.get_operand_sz(&ins, noperand) {
+                    let sz = self.get_operand_sz(&ins, noperand);
+                    
+                    match sz {
                         32 => {
                             if !self.maps.write_dword(mem_addr, value) {
                                 println!("exception dereferencing bad address. 0x{:x}", mem_addr);
@@ -1726,6 +1736,14 @@ impl Emu32 {
                             }
                         }
                         _  => unimplemented!("weird size"),
+                    }
+
+                    if self.cfg.trace_mem {
+                        let name = match self.maps.get_addr_name(value) {
+                            Some(n) => n,
+                            None => "error".to_string(),
+                        };
+                        println!("mem trace write {} bits ->  0x{:x}: 0x{:x}  map:'{}'", sz, mem_addr, value, name);
                     }
 
                     let name = match self.maps.get_addr_name(mem_addr) {
