@@ -3075,15 +3075,12 @@ impl Emu32 {
                     }
 
                     Mnemonic::Jb => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
+          
                         assert!(ins.op_count() == 1);
 
                         if self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3094,7 +3091,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
@@ -3105,7 +3102,7 @@ impl Emu32 {
 
                         if !self.flags.f_cf {
                             if !step {
-                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3116,7 +3113,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
@@ -3127,7 +3124,7 @@ impl Emu32 {
 
                         if self.flags.f_cf || self.flags.f_zf {
                             if !step {
-                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3138,7 +3135,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
@@ -3149,7 +3146,7 @@ impl Emu32 {
 
                         if !self.flags.f_cf && !self.flags.f_zf {
                             if !step {
-                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3160,7 +3157,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
