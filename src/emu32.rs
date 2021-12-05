@@ -1712,7 +1712,7 @@ impl Emu32 {
 
                 if write {
                     let sz = self.get_operand_sz(&ins, noperand);
-                    
+
                     match sz {
                         32 => {
                             if !self.maps.write_dword(mem_addr, value) {
@@ -3100,15 +3100,12 @@ impl Emu32 {
                     }
 
                     Mnemonic::Jae => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
+        
                         assert!(ins.op_count() == 1);
 
                         if !self.flags.f_cf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3125,15 +3122,12 @@ impl Emu32 {
                     }
 
                     Mnemonic::Jbe => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
+         
                         assert!(ins.op_count() == 1);
 
                         if self.flags.f_cf || self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3144,21 +3138,18 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
 
                     Mnemonic::Ja => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
 
                         assert!(ins.op_count() == 1);
 
                         if !self.flags.f_cf && !self.flags.f_zf {
                             if !step {
-                                println!("{}{} {}{} taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                             let addr =  match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -3169,7 +3160,7 @@ impl Emu32 {
                             break;
                         } else {
                             if !step {
-                                println!("{}{} {}{} not taken", self.colors.orange, self.pos, ins, self.colors.nc);
+                                println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
                         }
                     }
@@ -3197,10 +3188,7 @@ impl Emu32 {
                     }
 
                     Mnemonic::Jge => {
-                        if !step {
-                            
-                        }
-
+                        
                         assert!(ins.op_count() == 1);
 
                         if self.flags.f_sf == self.flags.f_of {
