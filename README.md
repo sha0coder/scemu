@@ -2,18 +2,21 @@
 x86 32bits emulator, for securely emulating shellcodes 
 
 ## Features
-- rust safety, good for malware.
-- rust speed, ~10,000 instructions per second
-- iteration detector
-- colorized
+- rust safety, good for malware. All dependencies are in rust.
+- very fast emulation (much faster than unicorn) 100.000 instructions/second printing every instruction.
+- powered by iced-x86 rust dissasembler awesome library.
+- iteration detector.
+- memory tracking.
+- colorized.
 - stop at specific moment and explore the state or modify it.
-- 92 instructions implemented
-- 49 winapi implemented of 5 dlls
-- SEH chains
-- vectored exception handler
-- int3
-- non debugged cpuid
-- zero unsafe{} blocks
+- 77 instructions implemented.
+- 49 winapi implemented of 5 dlls.
+- 200 first linux syscalls.
+- SEH chains.
+- vectored exception handler.
+- int3.
+- non debugged cpuid.
+- zero unsafe{} blocks.
 - tests with known payloads:
 	- metasploit shellcodes
 	- metasploit encoder
