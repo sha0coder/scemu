@@ -651,7 +651,7 @@ impl Emu32 {
         return value;
     }
  
-    #[deprecated(note = "this is not used on the emulation")]
+    // this is not used on the emulation
     pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
         let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
 
@@ -767,7 +767,7 @@ impl Emu32 {
         return 0
     }
 
-    #[deprecated(note = "this is not used on the emulation")]
+    // this is not used on the emulation
     pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
         if operand.contains("fs:[0]") {
             if self.cfg.verbose >= 1 {
@@ -846,7 +846,7 @@ impl Emu32 {
 
     }
 
-    #[deprecated(note = "this is not used on the emulation")]
+    // this is not used on the emulation
     pub fn memory_write(&mut self, operand:&str, value:u32) -> bool {
         if operand.contains("fs:[0]") {
             println!("Setting SEH fs:[0]  0x{:x}", value);
@@ -916,7 +916,7 @@ impl Emu32 {
         // escanear en cambios de eip pero no en bucles, evitar escanear en bucles!
     }
 
-    #[deprecated(note = "this is not used on the emulation")]
+    //this is not used on the emulation
     pub fn is_reg(&self, operand:&str) -> bool {
         match operand {
             "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => return true,
@@ -937,7 +937,7 @@ impl Emu32 {
         }
     }*/
 
-    #[deprecated(note = "this is not used on the emulation")]
+    // this is not used on the emulation
     pub fn get_size(&self, operand:&str) -> u8 {
         if operand.contains("byte ptr") {
             return 8;
