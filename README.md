@@ -11,7 +11,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - stop at specific moment and explore the state or modify it.
 - 77 instructions implemented.
 - 49 winapi implemented of 5 dlls.
-- 200 first linux syscalls.
+- all linux syscalls.
 - SEH chains.
 - vectored exception handler.
 - int3.
