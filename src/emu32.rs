@@ -376,38 +376,44 @@ impl Emu32 {
         m20000.set_base(0x20000);
         m20000.set_size(0x10000);
 
+        let orig_path = std::env::current_dir().unwrap();
+        std::env::set_current_dir(self.cfg.maps_folder.clone());
+
         self.maps.get_mem("code").set_base(self.regs.eip);
         let kernel32 = self.maps.get_mem("kernel32");
         kernel32.set_base(0x75e40000);
-        kernel32.load("maps/kernel32.bin");
+        if !kernel32.load("kernel32.bin") {
+            println!("cannot find the maps files, use --maps flag to speficy the folder.");
+            std::process::exit(1);
+        }
 
         let kernel32_text = self.maps.get_mem("kernel32_text");
         kernel32_text.set_base(0x75e41000);
-        kernel32_text.load("maps/kernel32_text.bin");
+        kernel32_text.load("kernel32_text.bin");
 
         let kernel32_data = self.maps.get_mem("kernel32_data");
         kernel32_data.set_base(0x75f06000);
-        kernel32_data.load("maps/kernel32_data.bin");
+        kernel32_data.load("kernel32_data.bin");
 
         let kernelbase = self.maps.get_mem("kernelbase");
         kernelbase.set_base(0x75940000);
-        kernelbase.load("maps/kernelbase.bin");
+        kernelbase.load("kernelbase.bin");
 
         let kernelbase_text = self.maps.get_mem("kernelbase_text");
         kernelbase_text.set_base(0x75941000);
-        kernelbase_text.load("maps/kernelbase_text.bin");
+        kernelbase_text.load("kernelbase_text.bin");
 
         let kernelbase_data = self.maps.get_mem("kernelbase_data");
         kernelbase_data.set_base(0x75984000);
-        kernelbase_data.load("maps/kernelbase_data.bin");
+        kernelbase_data.load("kernelbase_data.bin");
 
         let msvcrt = self.maps.get_mem("msvcrt");
         msvcrt.set_base(0x761e0000);
-        msvcrt.load("maps/msvcrt.bin");
+        msvcrt.load("msvcrt.bin");
 
         let msvcrt_text = self.maps.get_mem("msvcrt_text");
         msvcrt_text.set_base(0x761e1000);
-        msvcrt_text.load("maps/msvcrt_text.bin");
+        msvcrt_text.load("msvcrt_text.bin");
 
         /*let reserved2 = self.maps.get_mem("reserved2");
         reserved2.set_base(0x2c3000); //0x2c3018
@@ -415,35 +421,33 @@ impl Emu32 {
 
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x2c0000);
-        reserved.load("maps/reserved.bin");
+        reserved.load("reserved.bin");
         assert!(reserved.read_byte(0x2c31a0) != 0);
-
-
 
 
         let peb = self.maps.get_mem("peb");
         peb.set_base(  0x7ffdf000);
-        peb.load("maps/peb.bin");
+        peb.load("peb.bin");
 
         let teb = self.maps.get_mem("teb");
         teb.set_base(  0x7ffde000);
-        teb.load("maps/teb.bin");
+        teb.load("teb.bin");
 
         let ntdll = self.maps.get_mem("ntdll");
         ntdll.set_base(0x77570000);
-        ntdll.load("maps/ntdll.bin");
+        ntdll.load("ntdll.bin");
 
         let ntdll_text = self.maps.get_mem("ntdll_text");
         ntdll_text.set_base(0x77571000);
-        ntdll_text.load("maps/ntdll_text.bin");
+        ntdll_text.load("ntdll_text.bin");
 
         let ntdll_data = self.maps.get_mem("ntdll_data");
         ntdll_data.set_base(0x77647000);
-        ntdll_data.load("maps/ntdll_data.bin");
+        ntdll_data.load("ntdll_data.bin");
 
         let kuser_shared_data = self.maps.get_mem("kuser_shared_data");
         kuser_shared_data.set_base(0x7ffe0000);
-        kuser_shared_data.load("maps/kuser_shared_data.bin");
+        kuser_shared_data.load("kuser_shared_data.bin");
 
         let binary = self.maps.get_mem("binary");
         binary.set_base(0x400000);
@@ -453,152 +457,155 @@ impl Emu32 {
 
         let ws2_32 = self.maps.get_mem("ws2_32");
         ws2_32.set_base(0x77480000);
-        ws2_32.load("maps/ws2_32.bin");
+        ws2_32.load("ws2_32.bin");
 
         let ws2_32_text = self.maps.get_mem("ws2_32_text");
         ws2_32_text.set_base(0x77481000);
-        ws2_32_text.load("maps/ws2_32_text.bin");
+        ws2_32_text.load("ws2_32_text.bin");
 
         let wininet = self.maps.get_mem("wininet");
         wininet.set_base(0x76310000);
-        wininet.load("maps/wininet.bin");
+        wininet.load("wininet.bin");
 
         let wininet_text = self.maps.get_mem("wininet_text");
         wininet_text.set_base(0x76311000);
-        wininet_text.load("maps/wininet_text.bin");
+        wininet_text.load("wininet_text.bin");
 
         let shlwapi = self.maps.get_mem("shlwapi");
         shlwapi.set_base(0x76700000);
-        shlwapi.load("maps/shlwapi.bin");
+        shlwapi.load("shlwapi.bin");
 
         let shlwapi_text = self.maps.get_mem("shlwapi_text");
         shlwapi_text.set_base(0x76701000);
-        shlwapi_text.load("maps/shlwapi_text.bin");
+        shlwapi_text.load("shlwapi_text.bin");
 
         let gdi32 = self.maps.get_mem("gdi32");
         gdi32.set_base(0x759c0000);
-        gdi32.load("maps/gdi32.bin");
+        gdi32.load("gdi32.bin");
 
         let gdi32_text = self.maps.get_mem("gdi32_text");
         gdi32_text.set_base(0x759c1000);
-        gdi32_text.load("maps/gdi32_text.bin");
+        gdi32_text.load("gdi32_text.bin");
 
         let user32 = self.maps.get_mem("user32");
         user32.set_base(0x773b0000);
-        user32.load("maps/user32.bin");
+        user32.load("user32.bin");
         
         let user32_text = self.maps.get_mem("user32_text");
         user32_text.set_base(0x773b1000);
-        user32_text.load("maps/user32_text.bin");
+        user32_text.load("user32_text.bin");
 
         let lpk = self.maps.get_mem("lpk");
         lpk.set_base(0x75b00000);
-        lpk.load("maps/lpk.bin");
+        lpk.load("lpk.bin");
 
         let lpk_text = self.maps.get_mem("lpk_text");
         lpk_text.set_base(0x75b01000);
-        lpk_text.load("maps/lpk_text.bin");
+        lpk_text.load("lpk_text.bin");
 
         let usp10 = self.maps.get_mem("usp10");
         usp10.set_base(0x76660000);
-        usp10.load("maps/usp10.bin");
+        usp10.load("usp10.bin");
 
         let usp10_text = self.maps.get_mem("usp10_text");
         usp10_text.set_base(0x76661000);
-        usp10_text.load("maps/usp10_text.bin");
+        usp10_text.load("usp10_text.bin");
 
         let advapi32 = self.maps.get_mem("advapi32");
         advapi32.set_base(0x776f0000);
-        advapi32.load("maps/advapi32.bin");
+        advapi32.load("advapi32.bin");
         
         let advapi32_text = self.maps.get_mem("advapi32_text");
         advapi32_text.set_base(0x776f1000);
-        advapi32_text.load("maps/advapi32_text.bin");
+        advapi32_text.load("advapi32_text.bin");
 
         let sechost = self.maps.get_mem("sechost");
         sechost.set_base(0x75a10000);
-        sechost.load("maps/sechost.bin");
+        sechost.load("sechost.bin");
 
         let sechost_text = self.maps.get_mem("sechost_text");
         sechost_text.set_base(0x75a11000);
-        sechost_text.load("maps/sechost_text.bin");
+        sechost_text.load("sechost_text.bin");
 
         let rpcrt4 = self.maps.get_mem("rpcrt4");
         rpcrt4.set_base(0x774c0000);
-        rpcrt4.load("maps/rpcrt4.bin");
+        rpcrt4.load("rpcrt4.bin");
 
         let rpcrt4_text = self.maps.get_mem("rpcrt4_text");
         rpcrt4_text.set_base(0x774c1000);
-        rpcrt4_text.load("maps/rpcrt4_text.bin");
+        rpcrt4_text.load("rpcrt4_text.bin");
 
         let urlmon = self.maps.get_mem("urlmon");
         urlmon.set_base(0x75b60000);
-        urlmon.load("maps/urlmon.bin");
+        urlmon.load("urlmon.bin");
 
         let urlmon_text = self.maps.get_mem("urlmon_text");
         urlmon_text.set_base(0x75b61000);
-        urlmon_text.load("maps/urlmon_text.bin");
+        urlmon_text.load("urlmon_text.bin");
 
         let ole32 = self.maps.get_mem("ole32");
         ole32.set_base(0x76500000);
-        ole32.load("maps/ole32.bin");
+        ole32.load("ole32.bin");
 
         let ole32_text = self.maps.get_mem("ole32_text");
         ole32_text.set_base(0x76501000);
-        ole32_text.load("maps/ole32_text.bin");
+        ole32_text.load("ole32_text.bin");
 
         let oleaut32 = self.maps.get_mem("oleaut32");
         oleaut32.set_base(0x76470000);
-        oleaut32.load("maps/oleaut32.bin");
+        oleaut32.load("oleaut32.bin");
 
         let oleaut32_text = self.maps.get_mem("oleaut32_text");
         oleaut32_text.set_base(0x76471000);
-        oleaut32_text.load("maps/oleaut32_text.bin");
+        oleaut32_text.load("oleaut32_text.bin");
 
         let crypt32 = self.maps.get_mem("crypt32");
         crypt32.set_base(0x757d0000);
-        crypt32.load("maps/crypt32.bin");
+        crypt32.load("crypt32.bin");
 
         let crypt32_text = self.maps.get_mem("crypt32_text");
         crypt32_text.set_base(0x757d1000);
-        crypt32_text.load("maps/crypt32_text.bin");
+        crypt32_text.load("crypt32_text.bin");
 
         let msasn1 = self.maps.get_mem("msasn1");
         msasn1.set_base(0x75730000);
-        msasn1.load("maps/msasn1.bin");
+        msasn1.load("msasn1.bin");
 
         let msasn1_text = self.maps.get_mem("msasn1_text");
         msasn1_text.set_base(0x75731000);
-        msasn1_text.load("maps/msasn1_text.bin");
+        msasn1_text.load("msasn1_text.bin");
 
         let iertutils = self.maps.get_mem("iertutils");
         iertutils.set_base(0x75fb0000);
-        iertutils.load("maps/iertutils.bin");
+        iertutils.load("iertutils.bin");
 
         let iertutils_text = self.maps.get_mem("iertutils_text");
         iertutils_text.set_base(0x75fb1000);
-        iertutils_text.load("maps/iertutils_text.bin");
+        iertutils_text.load("iertutils_text.bin");
 
         let imm32 = self.maps.get_mem("imm32");
         imm32.set_base(0x776d0000);
-        imm32.load("maps/imm32.bin");
+        imm32.load("imm32.bin");
 
         let imm32_text = self.maps.get_mem("imm32_text");
         imm32_text.set_base(0x776d1000);
-        imm32_text.load("maps/imm32_text.bin");
+        imm32_text.load("imm32_text.bin");
 
         let msctf = self.maps.get_mem("msctf");
         msctf.set_base(0x75a30000);
-        msctf.load("maps/msctf.bin");
+        msctf.load("msctf.bin");
 
         let msctf_text = self.maps.get_mem("msctf_text");
         msctf_text.set_base(0x75a31000);
-        msctf_text.load("maps/msctf_text.bin");
+        msctf_text.load("msctf_text.bin");
 
 
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
         //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000) 
+
+
+        std::env::set_current_dir(orig_path);
 
     }
 
@@ -613,7 +620,10 @@ impl Emu32 {
     }
 
     pub fn load_code(&mut self, filename: &String) {
-        self.maps.get_mem("code").load(filename);
+        if !self.maps.get_mem("code").load(filename) {
+            println!("shellcode not found, select the file with -f");
+            std::process::exit(1);
+        }
     }
 
     pub fn stack_push(&mut self, value:u32) {

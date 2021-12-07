@@ -14,6 +14,7 @@ pub struct Config {
     pub inspect: bool,
     pub inspect_seq: String,
     pub endpoint: bool,
+    pub maps_folder: String,
 }
 
 impl Config {
@@ -33,6 +34,7 @@ impl Config {
             inspect: false,
             inspect_seq: "".to_string(),
             endpoint: false,
+            maps_folder: "".to_string(),
         }
     }
 }

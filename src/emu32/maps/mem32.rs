@@ -150,8 +150,11 @@ impl Mem32 {
         return md5::compute(&self.mem);
     }
 
-    pub fn load(&mut self, filename: &str) {
-        let f = File::open(&filename).expect("no file found");
+    pub fn load(&mut self, filename: &str) -> bool {
+        let f = match File::open(&filename) {
+            Ok(f) => f,
+            Err(_) => {  return false; }
+        };
         let len = f.metadata().unwrap().len() as usize;
         self.bottom_addr = self.base_addr + (len as u32);
         //self.alloc(len);
@@ -159,6 +162,7 @@ impl Mem32 {
         reader.read_to_end(&mut self.mem).expect("cannot load map file");
 
         f.sync_all(); // thanks Alberto Segura
+        return true;
     }
 
     pub fn save(&self, addr:u32, size:usize, filename:String) {
