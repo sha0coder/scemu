@@ -115,7 +115,6 @@ fn main() {
         unimplemented!("endpoint option unimplemented");
     }
 
-
     let mut emu32 = Emu32::new();
     emu32.init();
     emu32.set_config(cfg);

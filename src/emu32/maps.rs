@@ -170,8 +170,8 @@ impl Maps {
             }
             //let s:String = String::from_iter(bytes);
             //let s = str::from_utf8(&bytes).unwrap();
-            let s: String = bytes.into_iter().collect();
-            println!("{}",s);
+            let s:String = bytes.into_iter().collect();
+            println!("{}",self.filter_replace_string(&s));
         }
     }
 
@@ -420,6 +420,30 @@ impl Maps {
         }
 
         *s = s[..new_len].to_string();
+    }
+
+    pub fn filter_replace_string(&self, s:&String) -> String {
+        let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \t".as_bytes();
+        let sb = s.as_bytes();
+        let mut p;
+        let mut dst:Vec<char> = Vec::new();
+
+        for i in 0..s.len() {
+            p = false;
+            for j in 0..valid.len() {
+                if sb[i as usize] == valid[j as usize] {
+                    dst.push(sb[i] as char);
+                    p = true;
+                    break;    
+                }
+            }
+            if !p {
+                dst.push('.');
+            }
+        }
+
+        let sdst: String = dst.into_iter().collect();
+        return sdst;
     }
 
 }

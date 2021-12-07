@@ -158,9 +158,7 @@ impl Mem32 {
         let mut reader = BufReader::new(&f);
         reader.read_to_end(&mut self.mem).expect("cannot load map file");
 
-        f.sync_all().unwrap();
-        //self.mem = unsafe { MmapOptions::new().map(&f).unwrap(); }
-
+        f.sync_all(); // thanks kNN
     }
 
     pub fn save(&self, addr:u32, size:usize, filename:String) {

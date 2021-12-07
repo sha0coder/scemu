@@ -1,13 +1,10 @@
 /*
     TODO:
         - md memory dump filter strings, replace by .
-        - try linux shellcodes to implement more syscalls
         - mr mw options can crash the console
         - more apis
         - better api implementations
-        - more syscalls
         - stack_push and stack_pop assumes the stack is in the memory map stack
-        - on execve syscall show the parameter
         - endpoint
         - more fpu
         - on WriteProcessMemory/recv save the payload written to disk
@@ -16,7 +13,6 @@
         - set the entry point
         - randomize initial register for avoid targeted anti-amulation
         - guloader
-
         - scripting
         - intead of panic spawn console
         - set the code base addr
@@ -30,112 +26,174 @@
         
 
 
+    guloader:
 
+3005218 0x3c0a6c: call      003CD6DBh
+3005224 0x3cd709: cmp       eax,ebx
+        cmp: 0x6d3d940b < 0x86a726d7
+3005225 0x3cd70b: call      003CC459h
+3005248 0x3cc57e: cmp       di,0C272h
+        cmp: 0x0 < 0xc272
+3005251 0x3cc58d: cmp       [ebp+196h],eax
+        cmp: 0x6d3d940b > 0x539
+3005254 0x3cc73d: call      dword [ebp+0Ch]
 
-    metasploit:
+        ** 3005254 kernel32!LoadLibraryA  'ntdll' =0x77570000 
+3005255 0x3cc740: call      003CC78Fh
+3005260 0x3cc79d: cmp       bl,cl
+        cmp: 0xd0 > 0x0
+3005290 0x3cc855: call      003CC8E0h
+3005298 0x3cc951: cmp       dl,bl
+        cmp: 0x4e < 0x90
+3005302 0x3cc95d: cmp       al,40h
+        cmp: 0x41 > 0x40
+3005312 0x3cc98e: cmp       [esi],cl
+        cmp: 0x41 > 0x3f
+3005317 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x90 < 0x9c
+3005323 0x3cc9f1: cmp       [esi],al
+        cmp: 0x41 > 0x24
+3005328 0x3cca03: cmp       bl,7Fh
+        cmp: 0x41 < 0x7f
+3005340 0x3cca28: cmp       dl,0
+        cmp: 0x5f > 0x0
+3005346 0x3cc95d: cmp       al,40h
+        cmp: 0x5f > 0x40
+3005356 0x3cc98e: cmp       [esi],cl
+        cmp: 0x5f > 0x3f
+3005361 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x5 < 0x9c
+3005367 0x3cc9f1: cmp       [esi],al
+        cmp: 0x5f > 0x24
+3005372 0x3cca03: cmp       bl,7Fh
+        cmp: 0x5f < 0x7f
+3005384 0x3cca28: cmp       dl,0
+        cmp: 0x53 > 0x0
+3005390 0x3cc95d: cmp       al,40h
+        cmp: 0x53 > 0x40
+3005400 0x3cc98e: cmp       [esi],cl
+        cmp: 0x53 > 0x3f
+3005405 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0xce > 0x9c
+3005411 0x3cc9f1: cmp       [esi],al
+        cmp: 0x53 > 0x24
+3005416 0x3cca03: cmp       bl,7Fh
+        cmp: 0x53 < 0x7f
+3005428 0x3cca28: cmp       dl,0
+        cmp: 0x48 > 0x0
+3005434 0x3cc95d: cmp       al,40h
+        cmp: 0x48 > 0x40
+3005444 0x3cc98e: cmp       [esi],cl
+        cmp: 0x48 > 0x3f
+3005449 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0xc5 > 0x9c
+3005455 0x3cc9f1: cmp       [esi],al
+        cmp: 0x48 > 0x24
+3005460 0x3cca03: cmp       bl,7Fh
+        cmp: 0x48 < 0x7f
+3005472 0x3cca28: cmp       dl,0
+        cmp: 0x41 > 0x0
+3005478 0x3cc95d: cmp       al,40h
+        cmp: 0x41 > 0x40
+3005488 0x3cc98e: cmp       [esi],cl
+        cmp: 0x41 > 0x3f
+3005493 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x90 < 0x9c
+3005499 0x3cc9f1: cmp       [esi],al
+        cmp: 0x41 > 0x24
+3005504 0x3cca03: cmp       bl,7Fh
+        cmp: 0x41 < 0x7f
+3005516 0x3cca28: cmp       dl,0
+        cmp: 0x46 > 0x0
+3005522 0x3cc95d: cmp       al,40h
+        cmp: 0x46 > 0x40
+3005532 0x3cc98e: cmp       [esi],cl
+        cmp: 0x46 > 0x3f
+3005537 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0xf0 > 0x9c
+3005543 0x3cc9f1: cmp       [esi],al
+        cmp: 0x46 > 0x24
+3005548 0x3cca03: cmp       bl,7Fh
+        cmp: 0x46 < 0x7f
+3005560 0x3cca28: cmp       dl,0
+        cmp: 0x69 > 0x0
+3005566 0x3cc95d: cmp       al,40h
+        cmp: 0x69 > 0x40
+3005576 0x3cc98e: cmp       [esi],cl
+        cmp: 0x69 > 0x3f
+3005581 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x19 < 0x9c
+3005587 0x3cc9f1: cmp       [esi],al
+        cmp: 0x69 > 0x24
+3005592 0x3cca03: cmp       bl,7Fh
+        cmp: 0x69 < 0x7f
+3005604 0x3cca28: cmp       dl,0
+        cmp: 0x6e > 0x0
+3005610 0x3cc95d: cmp       al,40h
+        cmp: 0x6e > 0x40
+3005620 0x3cc98e: cmp       [esi],cl
+        cmp: 0x6e > 0x3f
+3005625 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x57 < 0x9c
+3005631 0x3cc9f1: cmp       [esi],al
+        cmp: 0x6e > 0x24
+3005636 0x3cca03: cmp       bl,7Fh
+        cmp: 0x6e < 0x7f
+3005648 0x3cca28: cmp       dl,0
+        cmp: 0x61 > 0x0
+3005654 0x3cc95d: cmp       al,40h
+        cmp: 0x61 > 0x40
+3005664 0x3cc98e: cmp       [esi],cl
+        cmp: 0x61 > 0x3f
+3005669 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0x88 < 0x9c
+3005675 0x3cc9f1: cmp       [esi],al
+        cmp: 0x61 > 0x24
+3005680 0x3cca03: cmp       bl,7Fh
+        cmp: 0x61 < 0x7f
+3005692 0x3cca28: cmp       dl,0
+        cmp: 0x6c > 0x0
+3005698 0x3cc95d: cmp       al,40h
+        cmp: 0x6c > 0x40
+3005708 0x3cc98e: cmp       [esi],cl
+        cmp: 0x6c > 0x3f
+3005713 0x3cc9d8: cmp       bl,9Ch
+        cmp: 0xde > 0x9c
+3005719 0x3cc9f1: cmp       [esi],al
+        cmp: 0x6c > 0x24
+3005724 0x3cca03: cmp       bl,7Fh
+        cmp: 0x6c < 0x7f
+3005736 0x3cca28: cmp       dl,0
+        cmp: 0x0 == 0x0
+3005743 0x3c0a6c: call      003CD6DBh
+3005749 0x3cd709: cmp       eax,ebx
+        cmp: 0x6d3d940b < 0x86a726d7
+3005750 0x3cd70b: call      003CC459h
+3005773 0x3cc57e: cmp       di,0C272h
+        cmp: 0x0 < 0xc272
+3005776 0x3cc58d: cmp       [ebp+196h],eax
+        cmp: 0x6d3d940b > 0x539 
+3005779 0x3cc73d: call      dword [ebp+0Ch]
+** 3005779 kernel32!LoadLibraryA  'ntdll' =0x77570000 
 
-    13 0x3c000b: mov edx, dword ptr fs:[edx + 0x30]   <-- poor detection of  fs:[0x30] or fs:[0]
+        
+        guloader2.bin 
 
-        poner bp en 0x3c006b
-
-        7915429 0x3c0020: lodsb al, byte ptr [esi]
-        --- console ---
-        =>r esi
-        esi: 0x3b3000
-        =>mn
-        address=>0x3b3000
-        address at 'reserved2' map
-        =>md
-        address=>0x3b3000
-        thread 'main' panicked at 'index out of bounds: the len is 983040 but the index is 983040', src/emu32/maps/mem32.rs:76:11
-
-
-        InMemoryOrder:
-
-=>md 
-address=>0x2c18c0
-50 19 2c 00  94 78 64 77  00 00 00 00  00 00 00 00  P,xdw
-00 00 40 00  e0 14 40 00  00 d0 01 00  3e 00 40 00  @à@Ð>@
-16 17 2c 00  10 00 12 00  44 17 2c 00  00 40 00 00  ,D,@
-ff ff ff ff  6c 1d 2c 00  40 a6 64 77  f2 cd 71 61  ÿÿÿÿl,@¦dwòÍqa
-00 00 00 00  00 00 00 00  08 19 2c 00  08 19 2c 00 ,
-10 19 2c 00  10 19 2c 00  50 28 2c 00  c8 26 2c 00  ,,P(,È&,
-38 05 5e 77  00 00 40 00  00 00 00 00  00 00 00 00  8^w@
-ab ab ab ab  ab ab ab ab  00 00 00 00  00 00 00 00  ««««««««
-
-    in 0x28 is the ptr  to the name of the lib in wide:
-=>mr
-memory argument=>dword ptr [0x2c1978]
-0x2c1978: 0x775d8328
-
-=>mdw
-address=>0x775d8328
-ntdll.dll
-
-    in 0 is the pointer to the next item:
-
-=>mr
-memory argument=>dword ptr [0x2c18c0]
-0x2c18c0: 0x2c1950 (ptr to next)
-
-Next module name:
->>> hex(0x2c1950 + 0x28)
-'0x2c1978'
-
-=>mr
-memory argument=>dword ptr [0x2c1978]
-0x2c1978: 0x775d8328
-=>mdw
-address=>0x775d8328
-ntdll.dll
+56028 0x3d29b7: xor       ecx,0E9627BC2h
+56029 0x3d29bd: test      cx,bx
+56030 0x3d29c0: cmp       eax,ecx
+        cmp: 0x539 == 0x539
+56031 0x3d29c2: mov       ecx,[ebp+1ABh]
+56032 0x3d29c8: jne       short 003D29E1h not taken 
+56033 0x3d29ca: push      0DC425575h
+56034 0x3d29cf: call      003D3216h
+56035 0x3d3216: mov       eax,[fs:30h]
+Reding PEB 0x7ffdf000
+-------
+56036 0x3d321c: mov       eax,[eax+0Ch]
+--- console ---
 =>
 
-ponter to next
-=>mr
-memory argument=>dword ptr [0x2c1950]
-0x2c1950: 0x2c1d38 (ptr to next)
-
-module name
-=>mr
-memory argument=>dword ptr [0x2c2778]
-0x2c2778: 0x2c2718
-=>mdw
-address=>0x2c2718
-msvcrt.dll
-
-
-
-
-
-    guloader:
-        8273 --> exit the loop
-
-                        9911 0xc794: mov dword ptr [ebp + 4], eax ---> has to point to kernel32 base address
-        9911 0x3ccfa1: movzx ebx, byte ptr [esi]
-
-        8500 0x3ccfc6: ret 4 ---> since here all ok
-
-        0x3cca37: ret 4 ---> iterating api names
-
-
-        747332 0x3cca37: ret 4 --> LoadLibraryA
-
-        747358 0x3cc73d: call dword ptr [ebp + 0xc] --> jump to kernel32
-
-
-        747505 0x775c2c11: push dword ptr fs:[0] ---> SEH  (debugger stop by here?)
-
-
-        ** ntdll_NtGetContextThread   ctx flags:0x0 
-        ** ntdll_RtlVectoredExceptionHandler   callback:0x3cff59 
-
-        int3
-        jump the exception pointer (y/n)?=>
-        1937615 0x3cff59: mov eax, dword ptr [esp + 4]                (debuger has this ptrs?)
-        1937616 0x3cff5d: mov eax, dword ptr [eax + 4]
-        1937617 0x3cff60: mov edx, dword ptr [eax + 0xb8]
-
-        bypased ;)
 
         http://index-of.es/Reverse-Engineering/bh-usa-07-yason.pdf <-- the context object
 
@@ -216,8 +274,8 @@ impl Emu32 {
 
     pub fn init_stack(&mut self) {
         let stack = self.maps.get_mem("stack");
-        stack.set_base(0x220000);    //0x22d000
-        stack.set_size(0x010000);
+        stack.set_base(0x210000);    //0x22d000
+        stack.set_size(0x020000);
         self.regs.esp = 0x22e000;
         self.regs.ebp = 0x22f000;
 
@@ -833,7 +891,10 @@ impl Emu32 {
     
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
-        let name = self.maps.get_addr_name(addr).expect("/!\\ setting eip to non mapped addr");
+        let name = match self.maps.get_addr_name(addr) {
+            Some(n) => n,
+            None => panic!("/!\\ setting eip to non mapped addr 0x{:x}", addr),
+        };
 
         if name == "code" || addr < 0x70000000 {
             self.regs.eip = addr;
