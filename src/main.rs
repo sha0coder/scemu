@@ -36,6 +36,11 @@ fn main() {
                         .long("memory")
                         .help("trace all the memory accesses read and write.")
                         .takes_value(false))
+                    .arg(Arg::with_name("maps")
+                        .long("maps")
+                        .help("select the memory maps folder")
+                        .takes_value(true)
+                        .value_name("PATH"))
                     .arg(Arg::with_name("registers")
                         .short("r")
                         .long("regs")
@@ -118,9 +123,16 @@ fn main() {
         unimplemented!("endpoint option unimplemented");
     }
 
+    if matches.is_present("maps") {
+        cfg.maps_folder = matches.value_of("maps").expect("specify the maps folder").to_string();
+    } else {
+        cfg.maps_folder = "maps/".to_string();
+    }
+
     let mut emu32 = Emu32::new();
-    emu32.init();
+    
     emu32.set_config(cfg);
+    emu32.init();
     emu32.load_code(&filename.to_string());
 
     emu32.run();
