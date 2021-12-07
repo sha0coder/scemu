@@ -1243,12 +1243,12 @@ impl Emu32 {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => self.featured_regs(),
-                "r eax" => self.regs.show_eax(&self.maps),
-                "r ebx" => self.regs.show_ebx(&self.maps),
-                "r ecx" => self.regs.show_ecx(&self.maps),
-                "r edx" => self.regs.show_edx(&self.maps),
-                "r esi" => self.regs.show_esi(&self.maps),
-                "r edi" => self.regs.show_edi(&self.maps),
+                "r eax" => self.regs.show_eax(&self.maps, 0),
+                "r ebx" => self.regs.show_ebx(&self.maps, 0),
+                "r ecx" => self.regs.show_ecx(&self.maps, 0),
+                "r edx" => self.regs.show_edx(&self.maps, 0),
+                "r esi" => self.regs.show_esi(&self.maps, 0),
+                "r edi" => self.regs.show_edi(&self.maps, 0),
                 "r esp" => println!("\tesp: 0x{:x}", self.regs.esp),
                 "r ebp" => println!("\tebp: 0x{:x}", self.regs.ebp),
                 "r eip" => println!("\teip: 0x{:x}", self.regs.eip),
@@ -1552,12 +1552,12 @@ impl Emu32 {
     }
 
     fn featured_regs(&self) {
-        self.regs.show_eax(&self.maps);
-        self.regs.show_ebx(&self.maps);
-        self.regs.show_ecx(&self.maps);
-        self.regs.show_edx(&self.maps);
-        self.regs.show_esi(&self.maps);
-        self.regs.show_edi(&self.maps);
+        self.regs.show_eax(&self.maps, 0);
+        self.regs.show_ebx(&self.maps, 0);
+        self.regs.show_ecx(&self.maps, 0);
+        self.regs.show_edx(&self.maps, 0);
+        self.regs.show_esi(&self.maps, 0);
+        self.regs.show_edi(&self.maps, 0);
         println!("\tesp: 0x{:x}", self.regs.esp);
         println!("\tebp: 0x{:x}", self.regs.ebp);
         println!("\teip: 0x{:x}", self.regs.eip);
@@ -1941,15 +1941,15 @@ impl Emu32 {
 
                 if self.cfg.trace_reg {
                     match self.cfg.reg_name.as_str() {
-                        "eax" => self.regs.show_eax(&self.maps),
-                        "ebx" => self.regs.show_ebx(&self.maps),
-                        "ecx" => self.regs.show_ecx(&self.maps),
-                        "edx" => self.regs.show_edx(&self.maps),
-                        "esi" => self.regs.show_esi(&self.maps),
-                        "edi" => self.regs.show_edi(&self.maps),
-                        "esp" => println!("\tesp: 0x{:}", self.regs.esp),
-                        "ebp" => println!("\tebp: 0x{:}", self.regs.ebp),
-                        "eip" => println!("\teip: 0x{:}", self.regs.eip),
+                        "eax" => self.regs.show_eax(&self.maps, self.pos),
+                        "ebx" => self.regs.show_ebx(&self.maps, self.pos),
+                        "ecx" => self.regs.show_ecx(&self.maps, self.pos),
+                        "edx" => self.regs.show_edx(&self.maps, self.pos),
+                        "esi" => self.regs.show_esi(&self.maps, self.pos),
+                        "edi" => self.regs.show_edi(&self.maps, self.pos),
+                        "esp" => println!("\t{} esp: 0x{:}", self.pos, self.regs.esp),
+                        "ebp" => println!("\t{} ebp: 0x{:}", self.pos, self.regs.ebp),
+                        "eip" => println!("\t{} eip: 0x{:}", self.pos, self.regs.eip),
                         _ => panic!("invalid register."),
                     }
                 }

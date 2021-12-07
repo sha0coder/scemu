@@ -354,9 +354,8 @@ impl Regs32 {
         }
     }
 
-    pub fn show_reg(&self, maps:&Maps, sreg:&str, value:u32) {
+    pub fn show_reg(&self, maps:&Maps, sreg:&str, value:u32, pos:u64) {
         if maps.is_mapped(value) {
-
 
             let mut s = maps.read_string(value);
             if s.len() < 2 {
@@ -375,36 +374,48 @@ impl Regs32 {
             };
             
             if s.len() > 1 {
-                println!("\t{}: 0x{:x} {} '{}' {}", sreg, value, value, s, name);
+                if pos > 0 {
+                    println!("\t{} {}: 0x{:x} {} '{}' {}", pos, sreg, value, value, s, name);
+                } else {
+                    println!("\t{}: 0x{:x} {} '{}' {}", sreg, value, value, s, name);
+                }
             } else {
-                println!("\t{}: 0x{:x} {} {}", sreg, value, value, name);
+                if pos > 0 {
+                    println!("\t{} {}: 0x{:x} {} {}", pos, sreg, value, value, name);
+                } else {
+                    println!("\t{}: 0x{:x} {} {}", sreg, value, value, name);
+                }
             }
         } else {
-            println!("\t{}: 0x{:x} {}", sreg, value, value);
+            if pos > 0 {
+                println!("\t{} {}: 0x{:x} {}", pos, sreg, value, value);
+            } else {
+                println!("\t{}: 0x{:x} {}", sreg, value, value);
+            }
         }
     }
 
-    pub fn show_eax(&self, maps:&Maps) {
-        self.show_reg(maps, "eax", self.eax);
+    pub fn show_eax(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "eax", self.eax, pos);
     }
 
-    pub fn show_ebx(&self, maps:&Maps) {
-        self.show_reg(maps, "ebx", self.ebx);
+    pub fn show_ebx(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "ebx", self.ebx, pos);
     }
 
-    pub fn show_ecx(&self, maps:&Maps) {
-        self.show_reg(maps, "ecx", self.ecx);
+    pub fn show_ecx(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "ecx", self.ecx, pos);
     }
 
-    pub fn show_edx(&self, maps:&Maps) {
-        self.show_reg(maps, "edx", self.edx);
+    pub fn show_edx(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "edx", self.edx, pos);
     }
 
-    pub fn show_esi(&self, maps:&Maps) {
-        self.show_reg(maps, "esi", self.esi);
+    pub fn show_esi(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "esi", self.esi, pos);
     }
 
-    pub fn show_edi(&self, maps:&Maps) {
-        self.show_reg(maps, "edi", self.edi);
+    pub fn show_edi(&self, maps:&Maps, pos:u64) {
+        self.show_reg(maps, "edi", self.edi, pos);
     }
 }
