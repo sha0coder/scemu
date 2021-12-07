@@ -3798,7 +3798,59 @@ impl Emu32 {
                         self.fpu.set_eip(self.regs.eip);
                     }
 
+                    Mnemonic::Fld1 => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
 
+                        self.fpu.push(1.0);
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fldpi => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(std::f32::consts::PI);
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fldl2t => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(10f32.log2());
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fldlg2 => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(2f32.log10());
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fldln2 => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(2f32.log(std::f32::consts::E));
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fldl2e => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(std::f32::consts::E.log2());
+                        self.fpu.set_eip(self.regs.eip);
+                    }
 
                     Mnemonic::Sysenter => {
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
