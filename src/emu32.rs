@@ -802,7 +802,7 @@ impl Emu32 {
                         if self.cfg.trace_mem {
                             let name = match self.maps.get_addr_name(addr) {
                                 Some(n) => n,
-                                None => "error".to_string(),
+                                None => "not mapped".to_string(),
                             };
                             println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
                         }
@@ -817,7 +817,7 @@ impl Emu32 {
                         if self.cfg.trace_mem {
                             let name = match self.maps.get_addr_name(addr) {
                                 Some(n) => n,
-                                None => "error".to_string(),
+                                None => "not mapped".to_string(),
                             };
                             println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
                         }

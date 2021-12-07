@@ -4,8 +4,8 @@ x86 32bits emulator, for securely emulating shellcodes
 ## Features
 - rust safety, good for malware. All dependencies are in rust.
 - very fast emulation (much faster than unicorn) 
-	3,000,000 instructions/second
-	100,000 instructions/second printing every instruction -vv.
+	- 3,000,000 instructions/second
+	- 100,000 instructions/second printing every instruction -vv.
 - powered by iced-x86 rust dissasembler awesome library.
 - iteration detector.
 - memory and register tracking.
