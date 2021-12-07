@@ -37,6 +37,7 @@ fn main() {
                         .help("trace all the memory accesses read and write.")
                         .takes_value(false))
                     .arg(Arg::with_name("maps")
+                        .short("M")
                         .long("maps")
                         .help("select the memory maps folder")
                         .takes_value(true)
