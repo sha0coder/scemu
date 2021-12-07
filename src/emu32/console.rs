@@ -21,6 +21,7 @@ impl Console {
         let mut line = String::new();
         self.print("=>");
         std::io::stdin().read_line(&mut line).unwrap();
+        line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
         line.truncate(line.len() - 1);
         return line;
     }
