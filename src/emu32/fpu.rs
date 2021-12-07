@@ -8,6 +8,7 @@ pub struct FPU {
     eip:u32,
     err_off:u32,
     err_sel:u32,
+    stack:Vec<f32>
 }
 
 impl FPU {
@@ -20,6 +21,7 @@ impl FPU {
             eip: 0,
             err_off: 0,
             err_sel: 0,
+            stack: Vec::new(),
         }
     }
 
@@ -58,6 +60,10 @@ impl FPU {
 
     pub fn clear_st(&mut self, i:usize) {
         self.st[i] = 0.0;
+    }
+
+    pub fn push(&mut self, value:f32) {
+        self.stack.push(value);
     }
 
 }

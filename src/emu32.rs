@@ -2183,7 +2183,12 @@ impl Emu32 {
                             None => break,
                         };
 
-                        if !self.set_operand_value(&ins, 0, value0 ^ value1) {
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let result = value0 ^ value1;
+
+                        self.flags.calc_flags(result, sz as u8);
+
+                        if !self.set_operand_value(&ins, 0, result) {
                             break;
                         }
                     }
@@ -3783,6 +3788,17 @@ impl Emu32 {
 
                         self.fpu.set_eip(self.regs.eip);
                     }
+
+                    Mnemonic::Fldz => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.fpu.push(0.0);
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+
 
                     Mnemonic::Sysenter => {
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
