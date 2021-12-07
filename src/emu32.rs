@@ -832,7 +832,7 @@ impl Emu32 {
                         if self.cfg.trace_mem {
                             let name = match self.maps.get_addr_name(addr) {
                                 Some(n) => n,
-                                None => "error".to_string(),
+                                None => "not mapped".to_string(),
                             };
                             println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
                         }
@@ -1722,11 +1722,11 @@ impl Emu32 {
                     };
 
                     if self.cfg.trace_mem {
-                        let name = match self.maps.get_addr_name(value) {
+                        let name = match self.maps.get_addr_name(mem_addr) {
                             Some(n) => n,
-                            None => "error".to_string(),
+                            None => "not mapped".to_string(),
                         };
-                        println!("mem trace read {} bits ->  0x{:x}: 0x{:x}  map:'{}'", sz, mem_addr, value, name);
+                        println!("{} mem trace read {} bits ->  0x{:x}: 0x{:x}  map:'{}'", self.pos, sz, mem_addr, value, name);
                     }
 
                     if mem_addr == self.bp.get_mem_read() {
@@ -1800,16 +1800,16 @@ impl Emu32 {
                     }
 
                     if self.cfg.trace_mem {
-                        let name = match self.maps.get_addr_name(value) {
+                        let name = match self.maps.get_addr_name(mem_addr) {
                             Some(n) => n,
-                            None => "error".to_string(),
+                            None => "not mapped".to_string(),
                         };
-                        println!("mem trace write {} bits ->  0x{:x}: 0x{:x}  map:'{}'", sz, mem_addr, value, name);
+                        println!("{} mem trace write {} bits ->  0x{:x}: 0x{:x}  map:'{}'", self.pos, sz, mem_addr, value, name);
                     }
 
                     let name = match self.maps.get_addr_name(mem_addr) {
                         Some(n) => n,
-                        None => "error".to_string(),
+                        None => "not mapped".to_string(),
                     };
 
                     if name == "code" {
