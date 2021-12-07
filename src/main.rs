@@ -89,6 +89,9 @@ fn main() {
 
     let filename = matches.value_of("filename").expect("please enter the filename.");
     cfg.verbose = matches.occurrences_of("verbose") as u32;
+    if cfg.verbose == 0 {
+        println!("use -vv to see the assembly code emulated, and -v to see the messages");
+    }
     cfg.trace_mem = matches.is_present("memory");
     cfg.trace_regs = matches.is_present("registers");
     if matches.is_present("register") {
