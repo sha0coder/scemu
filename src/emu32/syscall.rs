@@ -1,6 +1,7 @@
 use crate::emu32;
 use crate::emu32::constants;
 use crate::emu32::winapi::helper;
+use crate::emu32::endpoint;
 
    //  /usr/include/asm/unistd_32.h
 
@@ -47,6 +48,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
             let fd = emu.regs.ebx;
             println!("{}** {} syscall close() fd: {}  {}", emu.colors.light_red, emu.pos, fd, emu.colors.nc);
             helper::socket_close(fd);
+            endpoint::sock_close();
         }
 
         7 => {
@@ -490,10 +492,18 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                     if !helper::socket_exist(sock) {
                         println!("\tbad socket/");
                         emu.regs.eax = constants::ENOTSOCK;
-                    } else {
-                        emu.regs.eax = 0;
+                        return;
+                    } 
+                    
+                    if emu.cfg.endpoint {
+                        if endpoint::sock_connect(sip.as_str(), port) {
+                            println!("\tconnected to the endpoint.");
+                        } else {
+                            println!("\tcannot connect. dont use -e");
+                        }
                     }
-                
+                    
+                    emu.regs.eax = 0;            
                 }
 
                 constants::SYS_LISTEN => {
@@ -558,6 +568,14 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                     if !helper::socket_exist(sock) {
                         println!("\tbad socket/");
                         emu.regs.eax = constants::ENOTSOCK;
+                        return;
+                    } 
+
+                    if emu.cfg.endpoint {
+                        let buffer = emu.maps.read_buffer(buf, len as usize);
+                        let n = endpoint::sock_send(&buffer);
+                        println!("\tsent {} bytes.", n);
+                        emu.regs.eax = n as u32;
                     } else {
                         emu.regs.eax = len;
                     }
@@ -574,6 +592,17 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                     if !helper::socket_exist(sock) {
                         println!("\tbad socket/");
                         emu.regs.eax = constants::ENOTSOCK;
+                        return;
+                    }
+
+                    if emu.cfg.endpoint {
+
+                        let mut rbuff:Vec<u8> = vec![0;len as usize];
+                        let n = endpoint::sock_recv(&mut rbuff);
+                        emu.maps.write_buffer(buf, &rbuff);
+                        println!("\nreceived {} bytes from the endpoint.", n);
+                        emu.regs.eax = n as u32;
+
                     } else {
                         emu.regs.eax = len; //TODO: avoid loops
                     }
@@ -636,6 +665,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
 
                 constants::SYS_SHUTDOWN => {
                     println!("{}** {} syscall socketcall shutdown()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+                    endpoint::sock_close();
                 }
 
                 constants::SYS_SETSOCKOPT => {

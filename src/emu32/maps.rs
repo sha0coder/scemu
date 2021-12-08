@@ -118,6 +118,25 @@ impl Maps {
         return true;
     }
 
+    pub fn write_buffer(&mut self, to:u32, from:&[u8]) {
+        for i in 0..from.len() {
+            self.write_byte(to + i as u32, from[i]);
+        }
+    }
+
+    pub fn read_buffer(&mut self, from:u32, sz:usize) -> Vec<u8> {
+        let mut buff:Vec<u8> = Vec::new();
+
+        for i in 0..sz {
+            let b = match self.read_byte(from + i as u32) {
+                Some(v) => v,
+                None => { break; }
+            };
+            buff.push(b);
+        }
+
+        return buff;
+    }
 
     pub fn print_maps(&self) {
         println!("--- maps ---");

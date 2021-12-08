@@ -1,5 +1,6 @@
 use crate::emu32;
 use crate::emu32::winapi::helper;
+use crate::emu32::endpoint;
 
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
@@ -115,21 +116,31 @@ fn connect(emu:&mut emu32::Emu32) {
     let sockaddr_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ws2_32!connect: error reading sockaddr ptr");
     //let sockaddr = emu.maps.read_bytes(sockaddr_ptr, 8);
     let family:u16 = emu.maps.read_word(sockaddr_ptr).expect("ws2_32!connect: error reading family");
-    let port:u16 = emu.maps.read_word(sockaddr_ptr+2).expect("ws2_32!connect: error reading port");
+    let port:u16 = emu.maps.read_word(sockaddr_ptr+2).expect("ws2_32!connect: error reading port").to_be();
     let ip:u32 = emu.maps.read_dword(sockaddr_ptr+4).expect("ws2_32!connect: error reading ip");
 
     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
-    println!("{}** {} ws2_32!connect  family: {} {}:{} {}", emu.colors.light_red, emu.pos, family, sip, port.to_be(),  emu.colors.nc);
+    println!("{}** {} ws2_32!connect  family: {} {}:{} {}", emu.colors.light_red, emu.pos, family, sip, port,  emu.colors.nc);
 
     for _ in 0..3 {
         emu.stack_pop(false);
     }
 
-    if !helper::socket_exist(sock) {
-        println!("\tinvalid socket.");
-        emu.regs.eax = 1;
+    if emu.cfg.endpoint {  
+        if endpoint::sock_connect(sip.as_str(), port) {
+            println!("\tconnected to the endpoint.");
+        } else {
+            println!("\tcannot connect. dont use -e");
+        }
+        emu.regs.eax = 0;
     } else {
-        emu.regs.eax = 0; 
+
+        if !helper::socket_exist(sock) {
+            println!("\tinvalid socket.");
+            emu.regs.eax = 1;
+        } else {
+            emu.regs.eax = 0; 
+        }
     }
 }
 
@@ -145,24 +156,39 @@ fn recv(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
-    let mut count_recv = COUNT_RECV.lock().unwrap();
-    *count_recv += 1;
-    if *count_recv > 3 {
-        len = 0; // finish the recv loop
-    }
-
     if !helper::socket_exist(sock) {
         println!("\tinvalid socket.");
         emu.regs.eax = 1;
+        return;
+    }
+
+    if emu.cfg.endpoint {
+
+        let mut rbuff:Vec<u8> = vec![0;len as usize];
+        let n = endpoint::sock_recv(&mut rbuff);
+
+        emu.maps.write_buffer(buff, &rbuff);
+
+        println!("\nreceived {} bytes from the endpoint.", n);
+        emu.regs.eax = n as u32;
+
     } else {
-        //emu.maps.write_spaced_bytes(buff, "6c 73 0d 0a".to_string()); // send a ls\r\n
-        if len == 4 {
-            emu.maps.write_dword(buff, 0x0100); // probably expect a size
-        } else {
-            emu.maps.memset(buff, 0x90, len as usize);
+        let mut count_recv = COUNT_RECV.lock().unwrap();
+        *count_recv += 1;
+        if *count_recv > 3 {
+            len = 0; // finish the recv loop
         }
 
-        emu.regs.eax = len;
+        if helper::socket_exist(sock) {
+            //emu.maps.write_spaced_bytes(buff, "6c 73 0d 0a".to_string()); // send a ls\r\n
+            if len == 4 {
+                emu.maps.write_dword(buff, 0x0100); // probably expect a size
+            } else {
+                emu.maps.memset(buff, 0x90, len as usize);
+            }
+
+            emu.regs.eax = len;
+        }
     }
 }
 
@@ -180,18 +206,29 @@ fn send(emu:&mut emu32::Emu32) {
 
     println!("{}** {} ws2_32!send {{{}}}   {}", emu.colors.light_red, emu.pos, bytes, emu.colors.nc);
 
-    let mut count_send = COUNT_SEND.lock().unwrap();
-    *count_send += 1;
-    if *count_send > 3 {
-        len = 0; // finish the send loop
-    }
-
     if !helper::socket_exist(sock) {
         println!("\tinvalid socket.");
         emu.regs.eax = 0;
+        return;
+    }
+
+    if emu.cfg.endpoint {
+
+        let buffer = emu.maps.read_buffer(buff, len as usize);
+        let n = endpoint::sock_send(&buffer);
+        println!("\tsent {} bytes.", n);
+        emu.regs.eax = n as u32;
+
     } else {
+        let mut count_send = COUNT_SEND.lock().unwrap();
+        *count_send += 1;
+        if *count_send > 3 {
+            len = 0; // finish the send loop
+        }
+
         emu.regs.eax = len;
     }
+    
     
 }
 
@@ -267,6 +304,10 @@ fn closesocket(emu:&mut emu32::Emu32) {
     println!("{}** {} ws2_32!closesocket {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
     helper::socket_close(sock);
+
+    if emu.cfg.endpoint {
+        endpoint::sock_close();
+    }
 
     emu.stack_pop(false);
     emu.regs.eax = 0;
