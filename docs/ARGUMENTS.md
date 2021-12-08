@@ -17,7 +17,7 @@ But it will try to locate the maps files in "maps/" if the maps are not there se
 
 scemu looks for the memory maps folder in "maps/"  but also can be configured with `-M` or `--maps` 
 
-The maps are TEB and PEB and other structures, and also memory headers and code mapped in different memory maps.
+The maps are TEB and PEB and other structures, and also memory headers and library code mapped in different memory maps.
 
 Use the console m command to see the memory maps.
 
@@ -39,7 +39,26 @@ More information about the console in [CONSOLE.md](CONSOLE.md)
 
 ## Registers
 
-Its possible to display all the registers in every step with `-r` or `--regs`.
+Its possible to display all the registers in every step with `-r` or `--regs` often used together with `-vv`.
+
+```
+22325 0x3c0078: add       edi,eax
+        eax: 0x72 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4536 edi: 0xc17800e2
+22326 0x3c007a: cmp       al,ah
+        cmp: 0x72 > 0x0
+        eax: 0x72 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4536 edi: 0xc17800e2
+22327 0x3c007c: jne       short 003C0072h taken 
+        eax: 0x72 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4536 edi: 0xc17800e2
+22328 0x3c0072: xor       eax,eax
+        eax: 0x0 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4536 edi: 0xc17800e2
+22329 0x3c0074: ror       edi,0Dh
+        eax: 0x0 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4536 edi: 0x7160bc0
+22330 0x3c0077: lodsb
+        eax: 0x0 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4537 edi: 0x7160bc0
+22331 0x3c0078: add       edi,eax
+        eax: 0x0 ebx: 0x775a80d0 ecx: 0x6b7 edx: 0x77570000 esi: 0x775b4537 edi: 0x7160bc0
+```
+
 
 But more detail is provided if you specify a register ie `--reg esi`
 
