@@ -41,7 +41,29 @@ Its possible to display all the registers in every step with "-r" or "--regs".
 
 But more detail is provided if you specify a register ie "--reg esi"
 
-This alow to do a tracing of what is going on or guessing for what is used every register.
+This allow to do a tracing of what is going on or guessing for what is used every register.
+
+```
+54351 esi: 0x775b31cc 2002465228 'ZwCreatePor' (ntdll_text)
+54352 esi: 0x775b31cc 2002465228 'ZwCreatePor' (ntdll_text)
+54353 esi: 0x775b31cc 2002465228 'ZwCreatePor' (ntdll_text)
+54354 esi: 0x431a3 274851
+54355 esi: 0x775b31a3 2002465187 'ZwCreateNamedPipeFil' (ntdll_text)
+54356 esi: 0x775b31a3 2002465187 'ZwCreateNamedPipeFil' (ntdll_text)
+54357 esi: 0x775b31a3 2002465187 'ZwCreateNamedPipeFil' (ntdll_text)
+54358 esi: 0x775b31a3 2002465187 'ZwCreateNamedPipeFil' (ntdll_text)
+54359 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54360 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54361 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54362 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54363 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54364 esi: 0x775b31a4 2002465188 'wCreateNamedPipeFil' (ntdll_text)
+54365 esi: 0x775b31a5 2002465189 'CreateNamedPipeFil' (ntdll_text)
+54366 esi: 0x775b31a5 2002465189 'CreateNamedPipeFil' (ntdll_text)
+54367 esi: 0x775b31a5 2002465189 'CreateNamedPipeFil' (ntdll_text)
+54368 esi: 0x775b31a5 2002465189 'CreateNamedPipeFil' (ntdll_text)
+```
+
 
 ## Memory
 
