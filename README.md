@@ -2,8 +2,10 @@
 x86 32bits emulator, for securely emulating shellcodes 
 
 ## Features
-- rust safety, good for malware. All dependencies are in rust.
-- very fast emulation (much faster than unicorn) 
+- 📦 rust safety, good for malware. 
+	- All dependencies are in rust.
+	- zero unsafe{} blocks.
+- ⚡ very fast emulation (much faster than unicorn) 
 	- 3,000,000 instructions/second
 	- 100,000 instructions/second printing every instruction -vv.
 - powered by iced-x86 rust dissasembler awesome library.
@@ -16,13 +18,14 @@ x86 32bits emulator, for securely emulating shellcodes
 - all linux syscalls.
 - SEH chains.
 - vectored exception handler.
-- int3.
+- PEB, TEB structures.
+- react with int3.
 - non debugged cpuid.
-- zero unsafe{} blocks.
 - tests with known payloads:
-	- metasploit shellcodes
-	- metasploit encoder
-	- cobalt strike
+	- metasploit shellcodes.
+	- metasploit encoders.
+	- cobalt strike.
+	- shellgen.
 	- guloader (not totally for now)
 
 ## TODO
@@ -30,7 +33,7 @@ x86 32bits emulator, for securely emulating shellcodes
 	- mmx
 	- 64 bits
 	- scripting?
-	- stagers: get next stage
+	- -e --endpoint mode to get next stage automatically
 
 ## Usage
 ![usage](pics/usage.png)
