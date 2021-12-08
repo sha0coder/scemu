@@ -62,6 +62,10 @@ impl FPU {
         self.st[i] = 0.0;
     }
 
+    pub fn move_to_st0(&mut self, i:usize) {
+        self.st[0] = self.st[i];
+    }
+
     pub fn push(&mut self, value:f32) {
         self.stack.push(value);
     }

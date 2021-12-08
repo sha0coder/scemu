@@ -23,7 +23,7 @@ impl Console {
         std::io::stdin().read_line(&mut line).unwrap();
         line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
         line.truncate(line.len() - 1);
-        return line;
+        return line.to_lowercase();
     }
 
     pub fn cmd_hex(&self) -> Result<u32,ParseIntError> {

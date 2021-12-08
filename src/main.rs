@@ -98,36 +98,41 @@ fn main() {
     if cfg.verbose == 0 {
         println!("use -vv to see the assembly code emulated, and -v to see the messages");
     }
+    
     cfg.trace_mem = matches.is_present("memory");
     cfg.trace_regs = matches.is_present("registers");
+
     if matches.is_present("register") {
         cfg.trace_reg = true;
         cfg.reg_name = matches.value_of("register").expect("select the 32bit register example: eax").to_string();
     }
+
     if matches.is_present("console") {
         cfg.console = true;
         cfg.console_num = u64::from_str_radix(matches.value_of("console").expect("select the number of moment to inspect"), 10).expect("select a valid number to spawn console");
     }
+
     cfg.loops = matches.is_present("loops");
     cfg.nocolors = matches.is_present("nocolors");
+
     if matches.is_present("string") {
         cfg.trace_string = true;
         cfg.string_addr = u32::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
     }
+
     if matches.is_present("inspect") {
         cfg.inspect = true;
         cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
-    }
-
-    if matches.is_present("endpoint") {
-        cfg.endpoint = true;
-        unimplemented!("endpoint option unimplemented");
     }
 
     if matches.is_present("maps") {
         cfg.maps_folder = matches.value_of("maps").expect("specify the maps folder").to_string();
     } else {
         cfg.maps_folder = "maps/".to_string();
+    }
+    if matches.is_present("endpoint") {
+        emu32::endpoint::warning();
+        cfg.endpoint = true;
     }
 
     let mut emu32 = Emu32::new();

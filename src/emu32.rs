@@ -219,6 +219,7 @@ mod fpu;
 pub mod context;
 pub mod syscall;
 mod breakpoint;
+pub mod endpoint;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -3861,6 +3862,184 @@ impl Emu32 {
                         self.fpu.push(std::f32::consts::E.log2());
                         self.fpu.set_eip(self.regs.eip);
                     }
+
+                    Mnemonic::Fcmove => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_zf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_cf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovbe => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_cf || self.flags.f_zf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovu => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_pf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovnb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if !self.flags.f_cf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovne => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if !self.flags.f_zf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovnbe => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if !self.flags.f_cf && !self.flags.f_zf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+                    Mnemonic::Fcmovnu => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if !self.flags.f_pf {
+                            match ins.op_register(0) {
+                                Register::ST0 => self.fpu.move_to_st0(0),
+                                Register::ST1 => self.fpu.move_to_st0(1),
+                                Register::ST2 => self.fpu.move_to_st0(2),
+                                Register::ST3 => self.fpu.move_to_st0(3),
+                                Register::ST4 => self.fpu.move_to_st0(4),
+                                Register::ST5 => self.fpu.move_to_st0(5),
+                                Register::ST6 => self.fpu.move_to_st0(6),
+                                Register::ST7 => self.fpu.move_to_st0(7),
+                                _  => unimplemented!("impossible case"),
+                            }
+                        }
+
+                        self.fpu.set_eip(self.regs.eip);
+                    }
+
+
 
                     Mnemonic::Sysenter => {
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
