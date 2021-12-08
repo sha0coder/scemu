@@ -4,16 +4,18 @@
 
 ## Select shellcode 
 
-The unique required parameter is the shellcode "-f" or "--file".
+The unique required parameter is the shellcode `-f` or `--file`.
 
+```
 target/release/scemu -f path/shellcode.bin
+```
 
 But it will try to locate the maps files in "maps/" if the maps are not there see "Memory maps" chapter.
 
 
 ## Memory maps
 
-scemu looks for the memory maps folder in "maps/"  but also can be configured with "-M" or "--maps"  
+scemu looks for the memory maps folder in "maps/"  but also can be configured with `-M` or `--maps` 
 
 The maps are TEB and PEB and other structures, and also memory headers and code mapped in different memory maps.
 
@@ -23,13 +25,13 @@ Use the console m command to see the memory maps.
 
 Without verbose only the Windows API and Linux syscalls are shown in red.
 
-One level of verbosity "-v" shows messages, like "/!\ polymorfic code" or "/!\ poping a code address" etc.
+One level of verbosity `-v` shows messages, like "/!\ polymorfic code" or "/!\ poping a code address" etc.
 
-Two level of verbosity "-vv" shows also the assembly code, this mode is cool but not showing the asm is even faster.
+Two level of verbosity `-vv` shows also the assembly code, this mode is cool but not showing the asm is even faster.
 
 ## Console
 
-Every line start with an identificator of the emulation moment. We can stop in a specific moment and spawn a console to inspect or edit the emulator status. 
+Every line start with an identificator of the emulation moment. We can stop in a specific moment and spawn a console to inspect or edit the emulator status using the flag `-c num` for example to stop in the emulation step 1000 `-c 1000`
 
 It's like a debugger, but with the difference that the code is not executed, it's emulated which is safer, ideal for analyzing malware.
 
@@ -37,9 +39,9 @@ More information about the console in [CONSOLE.md](CONSOLE.md)
 
 ## Registers
 
-Its possible to display all the registers in every step with "-r" or "--regs".
+Its possible to display all the registers in every step with `-r` or `--regs`.
 
-But more detail is provided if you specify a register ie "--reg esi"
+But more detail is provided if you specify a register ie `--reg esi`
 
 This allow to do a tracing of what is going on or guessing for what is used every register.
 
@@ -67,7 +69,7 @@ This allow to do a tracing of what is going on or guessing for what is used ever
 
 ## Memory
 
-Sometimes could be strategic to trace the memory usage. The argument "-m" will trace all memory operations both read and write, specifying if its a 32bits, 16 bits or 8 bits operation, address, content and the memory map. 
+Sometimes could be strategic to trace the memory usage. The argument `-m` will trace all memory operations both read and write, specifying if its a 32bits, 16 bits or 8 bits operation, address, content and the memory map. 
 
 ```
 1677856 mem trace read 32 bits ->  0x22de44: 0xe0df0fea  map:'stack'
@@ -88,7 +90,7 @@ Sometimes could be strategic to trace the memory usage. The argument "-m" will t
 1678693 mem trace read 32 bits ->  0x22de44: 0xe0df0fea  map:'stack'
 ```
 
-Its also possible to inspect memory with "-i" or "--inspect" providing a more complex argument like "-i 'dword ptr [esi + 0xa]'"
+Its also possible to inspect memory with `-i` or `--inspect` providing a more complex argument like `-i 'dword ptr [esi + 0xa]'`
 
 ```
 dword ptr [esi] (0x775b3339): 0x41677562 1097299298 'bugActiveProcess' {62 75 67 41 63 74 69 76 65 50 72 6f 63 65 73 73 }
