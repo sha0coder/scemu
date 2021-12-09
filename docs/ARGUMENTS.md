@@ -125,3 +125,15 @@ dword ptr [esi] (0x775b333a): 0x63416775 1665230709 'ugActiveProcess' {75 67 41 
 dword ptr [esi] (0x775b333a): 0x63416775 1665230709 'ugActiveProcess' {75 67 41 63 74 69 76 65 50 72 6f 63 65 73 73 00 }
 dword ptr [esi] (0x775b333a): 0x63416775 1665230709 'ugActiveProcess' {75 67 41 63 74 69 76 65 50 72 6f 63 65 73 73 00 }
 ```
+
+## No-Color
+
+If your purpose is to log to file the output, is better disable the colorized mode with option `-n`
+
+## Endpoint
+
+Use this option only if you know what you are doing.
+The option `-e` or `--endpoint` perform communications with the command & controls to retrieve data useful to continue the emulation.
+Use VPN or Tor to protect your IP if the endpoing is not trusted.
+
+The endpoint mode is like a Man In The Middle proxy between the API calls and the C&C, it support socket communications in windows and linux and also wininet.

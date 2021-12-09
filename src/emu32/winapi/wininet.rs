@@ -1,5 +1,7 @@
 use crate::emu32;
 use crate::emu32::winapi::helper;
+use crate::emu32::endpoint;
+use crate::emu32::constants;
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
 
@@ -55,6 +57,12 @@ pub fn InternetOpenA(emu:&mut emu32::Emu32) {
         emu.stack_pop(false);
     }
 
+    if emu.cfg.endpoint {
+        if  uagent_ptr != 0 && uagent != "" {
+            endpoint::http_set_headers("User-Agent", &uagent);
+        }
+    }
+
     emu.regs.eax = helper::handler_create();
 }
 
@@ -83,6 +91,12 @@ pub fn InternetOpenW(emu:&mut emu32::Emu32) {
 
     for _ in 0..5 {
         emu.stack_pop(false);
+    }
+
+    if emu.cfg.endpoint {
+        if  uagent_ptr != 0 && uagent != "" {
+            endpoint::http_set_headers("User-Agent", &uagent.replace("\x00",""));
+        }
     }
 
     emu.regs.eax = helper::handler_create(); // internet handle
@@ -117,6 +131,10 @@ pub fn InternetConnectA(emu:&mut emu32::Emu32) {
 
     if !helper::handler_exist(internet_hndl) {
         println!("\tinvalid handle.");
+    }
+
+    if emu.cfg.endpoint {
+        endpoint::http_set_serverport(&server, port as u16);
     }
 
     for _ in 0..8 {
@@ -157,6 +175,10 @@ pub fn InternetConnectW(emu:&mut emu32::Emu32) {
         println!("\tinvalid handle.");
     }
 
+    if emu.cfg.endpoint {
+        endpoint::http_set_serverport(&server.replace("\x00", ""), port as u16);
+    }
+
     for _ in 0..8 {
         emu.stack_pop(false);
     }
@@ -179,6 +201,7 @@ fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
     let mut version = "".to_string();
     let mut referrer = "".to_string();
     let mut access = "".to_string();
+    
     if method_ptr != 0 {
         method = emu.maps.read_string(method_ptr);
     }
@@ -199,6 +222,27 @@ fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
 
     if !helper::handler_exist(conn_hndl) {
         println!("\tinvalid handle.");
+    }
+
+    if flags & constants::INTERNET_FLAG_SECURE == 1 {
+        println!("\tssl communication.");
+    }
+
+    if emu.cfg.endpoint {
+        endpoint::http_set_path(&path);
+        if flags & constants::INTERNET_FLAG_SECURE == 1 {
+            endpoint::http_set_ssl();
+        }
+
+        if method_ptr != 0 {
+            if method == "" {
+                endpoint::http_set_method("get");
+            } else {
+                endpoint::http_set_method(&method);
+            }
+        } else {
+            endpoint::http_set_method("get");
+        }
     }
 
     for _ in 0..8 {
@@ -244,6 +288,23 @@ fn HttpOpenRequestW(emu:&mut emu32::Emu32) {
 
     if !helper::handler_exist(conn_hndl) {
         println!("\tinvalid handle.");
+    }
+
+    if emu.cfg.endpoint {
+        endpoint::http_set_path(&path);
+        if flags & constants::INTERNET_FLAG_SECURE == 1 {
+            endpoint::http_set_ssl();
+        }
+
+        if method_ptr != 0 {
+            if method.len() < 3 {
+                endpoint::http_set_method("get");
+            } else {
+                endpoint::http_set_method(&method.replace("\x00", ""));
+            }
+        } else {
+            endpoint::http_set_method("get");
+        }
     }
 
     for _ in 0..8 {
@@ -319,6 +380,11 @@ fn HttpSendRequestA(emu:&mut emu32::Emu32) {
         println!("\tinvalid handle.");
     }
 
+    if emu.cfg.endpoint {
+        endpoint::http_set_headers_str(&hdrs);
+        endpoint::http_send_request();
+    }
+
     for _ in 0..5 {
         emu.stack_pop(false);
     }
@@ -340,6 +406,11 @@ fn HttpSendRequestW(emu:&mut emu32::Emu32) {
 
     if !helper::handler_exist(req_hndl) {
         println!("\tinvalid handle.");
+    }
+
+    if emu.cfg.endpoint {
+        endpoint::http_set_headers_str(&hdrs.replace("\x00", ""));
+        endpoint::http_send_request();
     }
     
     for _ in 0..5 {
@@ -367,21 +438,28 @@ fn InternetReadFile(emu:&mut emu32::Emu32) {
     let bytes_read_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("wininet!InternetReadFile cannot read bytes_read");
 
     
-    let mut count = COUNT_RECEIVE.lock().unwrap();
-    *count += 1;
-
-    if *count < 3 {
-        emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
-        emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
-    } else {
-        emu.maps.write_dword(bytes_read_ptr, 0);
-    }
-
 
     println!("{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}", emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc);
 
     if !helper::handler_exist(file_hndl) {
         println!("\tinvalid handle.");
+    }
+
+    if emu.cfg.endpoint {
+        let buff = endpoint::http_read_data();
+        emu.maps.write_buffer(buff_ptr, &buff);
+        emu.maps.write_dword(bytes_read_ptr, buff.len() as u32);
+
+    } else {
+        let mut count = COUNT_RECEIVE.lock().unwrap();
+        *count += 1;
+    
+        if *count < 3 {
+            emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
+            emu.maps.write_dword(bytes_read_ptr, bytes_to_read);
+        } else {
+            emu.maps.write_dword(bytes_read_ptr, 0);
+        }
     }
 
     for _ in 0..4 {

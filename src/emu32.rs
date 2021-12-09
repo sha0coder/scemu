@@ -4,6 +4,7 @@
         - mr mw options can crash the console
         - more apis
         - better api implementations
+        - winhttp
         - stack_push and stack_pop assumes the stack is in the memory map stack
         - endpoint
         - more fpu
@@ -2434,7 +2435,7 @@ impl Emu32 {
                         }
                     }
 
-                    Mnemonic::And => {  // TODO: how to trigger overflow and carry with and
+                    Mnemonic::And => {  
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
@@ -2454,6 +2455,8 @@ impl Emu32 {
                         let result = value0 & value1;
 
                         self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+                        self.flags.f_of = false;
+                        self.flags.f_cf = false;
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
@@ -2481,6 +2484,8 @@ impl Emu32 {
                         let result = value0 | value1;
 
                         self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+                        self.flags.f_of = false;
+                        self.flags.f_cf = false;
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
