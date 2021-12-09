@@ -33,7 +33,7 @@ lazy_static! {
 
 
 pub fn warning() {
-    print!("/!\\ is your VPN or Tor ready (y/n) ?");
+    print!("/!\\ is your VPN or Tor ready (y/n)? ");
     std::io::stdout().flush().unwrap();
 
     let mut answer = String::new();
@@ -99,7 +99,7 @@ pub fn http_set_serverport(host:&str, port:u16) {
 
 pub fn http_set_headers(key:&str, value:&str) {
     let mut headers = HTTP_HDRS.lock().unwrap();
-    headers.insert(key.to_string(), value.to_string());
+    headers.insert(key.to_string().replace("\r", "").replace("\n", ""), value.to_string().replace("\r", "").replace("\n", ""));
 }
 
 pub fn http_set_headers_str(hdrs:&str) {
@@ -109,7 +109,7 @@ pub fn http_set_headers_str(hdrs:&str) {
     for l in lines.iter() {
         let cols:Vec<&str> = l.split(": ").collect();
         if cols.len() == 2 {
-            headers.insert(cols[0].to_string(), cols[1].to_string());
+            headers.insert(cols[0].to_string().replace("\r", "").replace("\n", ""), cols[1].to_string().replace("\r", "").replace("\n", ""));
         } 
     }
 }
@@ -136,9 +136,9 @@ pub fn http_send_request() {
     let url:String;
 
     if *https {
-        url = format!("https://{}:{}/{}", host, port, path);
+        url = format!("https://{}:{}{}", host, port, path);
     } else {
-        url = format!("http://{}:{}/{}", host, port, path);
+        url = format!("http://{}:{}{}", host, port, path);
     }
 
     println!("\tconnecting to url: {}", url);
@@ -157,11 +157,21 @@ pub fn http_send_request() {
         }
     };
 
+    req = req.danger_accept_invalid_hostnames(true);
+    req = req.danger_accept_invalid_certs(true);
+
     for k in hdrs.keys() {
         let key = k.clone();
         let v = &hdrs[&key];
-        let hn:header::HeaderName = header::HeaderName::from_bytes(&key.as_bytes()).unwrap();
-        req = req.header_append::<header::HeaderName,&str>(hn, &v);
+        let hn:header::HeaderName = match header::HeaderName::from_bytes(&key.to_lowercase().as_bytes()) {
+            Ok(h) => h,
+            Err(e) => {
+                println!("\terror in header {}  err: {}", &key, e); 
+                return;
+            }
+        };
+        //println!("\tadding header: `{}` value: `{}`", &key, &v);
+        req = req.try_header_append::<header::HeaderName,&str>(hn, &v).expect("cannot add header");
     }
 
     let resp = match req.send() {

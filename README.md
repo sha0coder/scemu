@@ -19,6 +19,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - SEH chains.
 - vectored exception handler.
 - PEB, TEB structures.
+- memory allocator.
 - react with int3.
 - non debugged cpuid.
 - tests with known payloads:
