@@ -46,7 +46,8 @@ pub const INTERNET_OPTION_DATA_SEND_TIMEOUT:u32 = 7;
 // https://docs.microsoft.com/en-us/windows/win32/wininet/api-flags
 pub const INTERNET_FLAG_SECURE:u32 = 0x00800000;
 
-
+pub const ERROR_NO_MORE_FILES:u32 = 18;
+pub const CREATE_SUSPENDED:u32 = 0x00000004;
 
 //// LINUX ////
 

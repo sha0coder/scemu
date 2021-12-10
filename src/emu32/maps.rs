@@ -118,6 +118,15 @@ impl Maps {
         return true;
     }
 
+    pub fn write_string(&mut self, to:u32, from:&str) {
+        let bs:Vec<u8> = from.bytes().collect();
+
+        for i in 0..bs.len() {
+            self.write_byte(to + i as u32, bs[i]);
+        }
+
+    }
+
     pub fn write_buffer(&mut self, to:u32, from:&[u8]) {
         for i in 0..from.len() {
             self.write_byte(to + i as u32, from[i]);

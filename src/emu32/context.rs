@@ -79,4 +79,35 @@ impl Context {
         maps.write_dword(addr+0xc4, self.esp);        
     }
 
+    pub fn load(&mut self, addr:u32, maps:&mut Maps) {
+        self.dr0 = maps.read_dword(addr+4).expect("cannot read dr0 from ctx");
+        self.dr1 = maps.read_dword(addr+8).expect("cannot read dr1 from ctx");
+        self.dr2 = maps.read_dword(addr+12).expect("cannot read dr2 from ctx");
+        self.dr3 = maps.read_dword(addr+16).expect("cannot read dr3 from ctx");
+        self.dr6 = maps.read_dword(addr+20).expect("cannot read dr6 from ctx");
+        self.dr7 = maps.read_dword(addr+24).expect("cannot read dr7 from ctx");
+
+        self.edi = maps.read_dword(addr+0x9c).expect("cannot read edi from ctx");
+        self.esi = maps.read_dword(addr+0xa0).expect("cannot read esi from ctx");
+        self.ebx = maps.read_dword(addr+0xa4).expect("cannot read ebx from ctx");
+        self.edx = maps.read_dword(addr+0xa8).expect("cannot read edx from ctx");
+        self.ecx = maps.read_dword(addr+0xac).expect("cannot read ecx from ctx");
+        self.eax = maps.read_dword(addr+0xb0).expect("cannot read eax from ctx");
+        self.ebp = maps.read_dword(addr+0xb4).expect("cannot read ebp from ctx");
+        self.eip = maps.read_dword(addr+0xb8).expect("cannot read eip from ctx");
+        self.esp = maps.read_dword(addr+0xc4).expect("cannot read esp from ctx");
+    }
+
+    pub fn sync(&self, regs:&mut Regs32) {
+        regs.eax = self.eax;
+        regs.ebx = self.ebx;
+        regs.ecx = self.ecx;
+        regs.edx = self.edx;
+        regs.esi = self.esi;
+        regs.edi = self.edi;
+        regs.esp = self.esp;
+        regs.ebp = self.ebp;
+        regs.eip = self.eip;
+    }
+
 }
