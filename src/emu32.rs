@@ -1,5 +1,7 @@
 /*
     TODO:
+        - clear breakpoint bug
+        - md accept registers
         - md memory dump filter strings, replace by .
         - mr mw options can crash the console
         - more apis
@@ -1352,6 +1354,11 @@ impl Emu32 {
                     self.exp = num;
                     return;
                 },
+                "bc" => {
+                    self.bp.clear_bp();
+                    self.exp = self.pos+1;
+                },
+
                 "s" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.esp, self.regs.esp+48),
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
@@ -1632,7 +1639,7 @@ impl Emu32 {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
-        let mut decoder = Decoder::with_ip(32, &block, 0x3c0000, DecoderOptions::NONE);
+        let mut decoder = Decoder::with_ip(32, &block, addr as u64, DecoderOptions::NONE);
         let mut formatter = NasmFormatter::new();
         formatter.options_mut().set_digit_separator("");
         formatter.options_mut().set_first_operand_char_index(10);
@@ -1853,6 +1860,7 @@ impl Emu32 {
             OpKind::Immediate16 => 16,
             OpKind::Immediate32 => 32,
             OpKind::Immediate8to32 => 32,
+            OpKind::Immediate8to16 => 16,
             OpKind::Register => self.regs.get_size(ins.op_register(noperand)),
             OpKind::Memory => {                
                 let mut info_factory = InstructionInfoFactory::new();
@@ -2908,9 +2916,9 @@ impl Emu32 {
                             result = value1 as u8 as i8 as i16 as u16 as u32;
                         } else if sz0 == 32 {
                             if sz1 == 8 {
-                                result = sz1 as u8 as i8 as i32 as u32;
+                                result = value1 as u8 as i8 as i32 as u32;
                             } else if sz1 == 16 {
-                                result = sz1 as u8 as i8 as i16 as u16 as u32;
+                                result = value1 as u8 as i8 as i16 as u16 as u32;
                             }
                         } 
 
@@ -2957,6 +2965,84 @@ impl Emu32 {
                             break;
                         }
 
+                    }
+
+                    Mnemonic::Movsb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if ins.has_rep_prefix() {
+
+                            loop {
+
+                                let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); //TODO: control this, exception or 
+                                self.maps.write_byte(self.regs.edi, val);
+
+                                self.regs.esi += 1;
+                                self.regs.edi += 1;
+
+                                self.regs.ecx -= 1;
+                                if self.regs.ecx == 0 { 
+                                    break 
+                                }
+                            }
+
+                        } else {
+
+                            let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); //TODO: control this, exception or 
+                            self.maps.write_byte(self.regs.edi, val);
+
+                            self.regs.esi += 1;
+                            self.regs.edi += 1;
+
+                        }
+
+
+                    }
+
+                    Mnemonic::Stosb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                       
+
+                        self.maps.write_byte(self.regs.edi, self.regs.get_al() as u8);
+
+                        if self.flags.f_df {
+                            self.regs.edi -= 1;
+                        } else {
+                            self.regs.edi += 1;
+                        }
+                    }
+
+                    Mnemonic::Stosw => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.maps.write_word(self.regs.edi, self.regs.get_ax() as u16);
+
+                        if self.flags.f_df {
+                            self.regs.edi -= 2;
+                        } else {
+                            self.regs.edi += 2;
+                        }
+                    }
+
+                    Mnemonic::Stosd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.maps.write_dword(self.regs.edi, self.regs.eax);
+
+                        if self.flags.f_df {
+                            self.regs.edi -= 4;
+                        } else {
+                            self.regs.edi += 4;
+                        }
                     }
 
                     Mnemonic::Test => {
@@ -4044,6 +4130,25 @@ impl Emu32 {
                         self.fpu.set_eip(self.regs.eip);
                     }
 
+                    Mnemonic::Popf => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let poped_value = self.maps.read_word(self.regs.esp).expect("cannot read the stack");
+                        self.regs.esp += 2;
+
+                    }
+
+                    Mnemonic::Popfd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let poped_value = self.maps.read_dword(self.regs.esp).expect("cannot read the stack");
+                        self.regs.esp += 4;
+
+                    }
 
 
                     Mnemonic::Sysenter => {

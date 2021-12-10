@@ -18,6 +18,12 @@ impl Breakpoint {
         self.addr = addr;
     }
 
+    pub fn clear_bp(&mut self) {
+        self.addr = 0;
+        self.mem_read_addr = 0;
+        self.mem_write_addr = 0;
+    }
+
     pub fn set_mem_read(&mut self, addr:u32) {
         self.mem_read_addr = addr;
     }
