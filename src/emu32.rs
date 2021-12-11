@@ -5,6 +5,7 @@
         - md memory dump filter strings, replace by .
         - mr mw options can crash the console
         - more apis
+        - improve seh command
         - better api implementations
         - winhttp
         - stack_push and stack_pop assumes the stack is in the memory map stack
@@ -253,6 +254,7 @@ pub struct Emu32 {
     colors: Colors,
     pos: u64,
     force_break: bool,
+    tls: Vec<u32>,
 }
 
 impl Emu32 {
@@ -273,6 +275,7 @@ impl Emu32 {
             colors: Colors::new(),
             pos: 0,
             force_break: false,
+            tls: Vec::new(),
         }
     }
 
@@ -1500,7 +1503,16 @@ impl Emu32 {
                     let mem_name = con.cmd();
                     con.print("string");
                     let kw = con.cmd();
-                    self.maps.search_string(&kw, &mem_name);
+                    let result = match self.maps.search_string(&kw, &mem_name) {
+                        Some(v) => v,
+                        None => { 
+                            println!("not found.");
+                            continue;
+                        }
+                    };
+                    for addr in result.iter() {
+                        println!("found 0x{:x} '{}'", addr, self.maps.read_string(*addr));
+                    }
                 },
                 "sb" => {
                     con.print("map name");
@@ -1510,7 +1522,6 @@ impl Emu32 {
                     if !self.maps.search_spaced_bytes(&sbs, &mem_name) {
                         println!("not found.");
                     }
-                    
                 },
                 "sba" => {
                     con.print("spaced bytes");
@@ -1523,6 +1534,12 @@ impl Emu32 {
                     con.print("string");
                     let kw = con.cmd();
                     self.maps.search_string_in_all(kw);
+                },
+                "seh" => {
+                    println!("0x{:x}", self.seh);
+                },
+                "veh" => {
+                    println!("0x{:x}", self.veh);
                 },
                 "ll" => {
                     con.print("ptr");
@@ -3103,6 +3120,71 @@ impl Emu32 {
 
                     }
 
+                    Mnemonic::Cmpsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.maps.read_dword(self.regs.esi).expect("cannot read esi");
+                        let value1 = self.maps.read_dword(self.regs.edi).expect("cannot read edi");
+
+                        if !step {
+                            if value0 > value1 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            } else if value0 < value1 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+      
+                        self.flags.sub32(value0, value1);
+                    }
+
+                    Mnemonic::Cmpsw => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.maps.read_dword(self.regs.esi).expect("cannot read esi");
+                        let value1 = self.maps.read_dword(self.regs.edi).expect("cannot read edi");
+
+                        if !step {
+                            if value0 > value1 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            } else if value0 < value1 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+      
+                        self.flags.sub16(value0, value1);
+                    }
+
+                    Mnemonic::Cmpsb => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.maps.read_dword(self.regs.esi).expect("cannot read esi");
+                        let value1 = self.maps.read_dword(self.regs.edi).expect("cannot read edi");
+
+                        if !step {
+                            if value0 > value1 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            } else if value0 < value1 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+
+
+                        self.flags.sub8(value0, value1);
+                    }
+
+
                     //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
                     //          https://c9x.me/x86/html/file_module_x86_id_146.html
                     //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
@@ -4147,6 +4229,48 @@ impl Emu32 {
 
                         let poped_value = self.maps.read_dword(self.regs.esp).expect("cannot read the stack");
                         self.regs.esp += 4;
+
+                    }
+
+                    Mnemonic::Sete => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_zf {
+                            self.set_operand_value(&ins, 0, 1);
+                        }
+                    }
+
+                    Mnemonic::Daa => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let old_al = self.regs.get_al();
+                        let old_cf = self.flags.f_cf;
+                        self.flags.f_cf = false;
+                        
+                        if (self.regs.get_al() & 0x0f > 9) || self.flags.f_af  {
+                            let sum = self.regs.get_al() + 6;
+                            self.regs.set_al(sum & 0xff);
+                            if sum > 0xff {
+                                self.flags.f_cf = true;
+                            } else {
+                                self.flags.f_cf = old_cf;
+                            }
+                        
+                            self.flags.f_af = true;
+                        } else {
+                            self.flags.f_af = false;
+                        }
+
+                        if old_al > 0x99 || old_cf {
+                            self.regs.set_al(self.regs.get_al() + 0x60);
+                            self.flags.f_cf = true;
+                        } else {
+                            self.flags.f_cf = false;
+                        }
 
                     }
 

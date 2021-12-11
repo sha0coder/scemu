@@ -270,8 +270,8 @@ impl Maps {
         return s;
     }
 
-    pub fn search_string(&self, kw:&String, map_name:&String) -> bool {
-        let mut found:bool = false;
+    pub fn search_string(&self, kw:&String, map_name:&String) -> Option<Vec<u32>> {
+        let mut found:Vec<u32> = Vec::new();
 
         for (name,mem) in self.maps.iter() {
             if name == map_name {
@@ -289,19 +289,20 @@ impl Maps {
                     }
 
                     if c == bkw.len() {
-                        println!("found at 0x{:x}", addr);
-                        found = true;
+                        found.push(addr);
                     }
 
                 }
-                if !found {
-                    println!("string not found.");
+
+                if found.len() > 0 {
+                    return Some(found);
+                } else {
+                    return None;
                 }
-                return found;
             }
         }
         println!("map not found");
-        return false;
+        return None;
     }
 
     pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
@@ -342,8 +343,26 @@ impl Maps {
     }
 
     pub fn search_string_in_all(&self, kw:String) {
-        for (name,_) in self.maps.iter() {
-            self.search_string(&kw, name);
+        let mut found = false;
+        for (name, mem) in self.maps.iter() {
+
+            if mem.get_base() >= 0x7000000 {
+                continue;
+            }
+
+            let results = match self.search_string(&kw, name) {
+                Some(v) => v,
+                None => { continue; }
+            };
+
+            for addr in results.iter() {
+                println!("found at 0x{:x} '{}'", addr, self.read_string(*addr));
+                found = true;
+            }
+        }
+
+        if !found {
+            println!("not found.");
         }
     }
    
