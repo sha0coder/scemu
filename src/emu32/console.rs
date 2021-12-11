@@ -63,6 +63,8 @@ impl Console {
         println!("pop .................... pop dword from stack");
         println!("fpu .................... fpu view");
         println!("md5 .................... check the md5 of a memory map");
+        println!("seh .................... view SEH");
+        println!("veh .................... view vectored execption pointer");
         println!("m ...................... memory maps");
         println!("mc ..................... memory create map");
         println!("mn ..................... memory name of an address");
