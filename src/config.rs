@@ -15,6 +15,8 @@ pub struct Config {
     pub inspect_seq: String,
     pub endpoint: bool,
     pub maps_folder: String,
+    pub console2: bool,
+    pub console_addr: u32,
 }
 
 impl Config {
@@ -35,6 +37,8 @@ impl Config {
             inspect_seq: "".to_string(),
             endpoint: false,
             maps_folder: "".to_string(),
+            console2: false,
+            console_addr: 0,
         }
     }
 }

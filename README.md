@@ -79,3 +79,16 @@ Metasploit SGN encoder using few fpu to hide the polymorfism:
 
 Metasploit shikata-ga-nai encoder that also starts with fpu:
 ![msf encoded](pics/shikata.png)
+
+
+
+Displaying PEB structure:
+![msf encoded](pics/structure.png)
+
+Displaying PEB_LDR_DATA structure:
+![msf encoded](pics/structure2.png)
+
+Displaying LDR_DATA_TABLE_ENTRY and first module name
+![msf encoded](pics/structure3.png)
+
+

@@ -640,4 +640,52 @@ impl Flags {
             _  => panic!("weird size")
         }
     }
+
+    //// imul //// 
+    
+    pub fn imul32p2(&mut self, value0:u32, value1:u32) -> u32 {
+        let result:i64 = value0 as i32 as i64 * value1 as i32 as i64;
+        let uresult:u64 = result as u64;
+
+        if uresult > 0xffffffff {
+            self.f_cf = true;
+            self.f_of = true;
+        }
+
+        let res:u32 = (uresult & 0xffffffff) as u32;
+
+        self.calc_flags(res, 32);
+        return res;
+    }
+
+    pub fn imul16p2(&mut self, value0:u16, value1:u16) -> u32 {
+        let result:i32 = value0 as i16 as i32 * value1 as i16 as i32;
+        let uresult:u32 = result as u32;
+
+        if uresult > 0xffff {
+            self.f_cf = true;
+            self.f_of = true;
+        }
+
+        let res:u32 = (uresult & 0xffff) as u32;
+
+        self.calc_flags(res, 16);
+        return res;
+    }
+
+    pub fn imul8p2(&mut self, value0:u8, value1:u8) -> u32 {
+        let result:i16 = value0 as i8 as i16 * value1 as i8 as i16;
+        let uresult:u16 = result as u16;
+
+        if uresult > 0xff {
+            self.f_cf = true;
+            self.f_of = true;
+        }
+
+        let res:u32 = (uresult & 0xff) as u32;
+
+        self.calc_flags(res, 8);
+        return res;
+    }
+
 }
