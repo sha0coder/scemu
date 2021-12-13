@@ -1,209 +1,4 @@
-/*
-    TODO:
-        - clear breakpoint bug
-        - md accept registers
-        - md memory dump filter strings, replace by .
-        - mr mw options can crash the console
-        - more apis
-        - improve seh command
-        - better api implementations
-        - winhttp
-        - stack_push and stack_pop assumes the stack is in the memory map stack
-        - endpoint
-        - more fpu
-        - on WriteProcessMemory/recv save the payload written to disk
-        - stack command more clever and command v
-        - remove non printable bytes from strings
-        - set the entry point
-        - randomize initial register for avoid targeted anti-amulation
-        - guloader
-        - scripting
-        - intead of panic spawn console
-        - set the code base addr
-        - on every set_eip of a non branch dump stack to log file
-        - implement scas & rep
-        - implement imul
-        - check pf flag bug
-        - save state to disk and continue
-        - command to exit the bucle or to see  next instruction
-        - optimize loop counter
-        
 
-
-    guloader:
-
-3005218 0x3c0a6c: call      003CD6DBh
-3005224 0x3cd709: cmp       eax,ebx
-        cmp: 0x6d3d940b < 0x86a726d7
-3005225 0x3cd70b: call      003CC459h
-3005248 0x3cc57e: cmp       di,0C272h
-        cmp: 0x0 < 0xc272
-3005251 0x3cc58d: cmp       [ebp+196h],eax
-        cmp: 0x6d3d940b > 0x539
-3005254 0x3cc73d: call      dword [ebp+0Ch]
-
-        ** 3005254 kernel32!LoadLibraryA  'ntdll' =0x77570000 
-3005255 0x3cc740: call      003CC78Fh
-3005260 0x3cc79d: cmp       bl,cl
-        cmp: 0xd0 > 0x0
-3005290 0x3cc855: call      003CC8E0h
-3005298 0x3cc951: cmp       dl,bl
-        cmp: 0x4e < 0x90
-3005302 0x3cc95d: cmp       al,40h
-        cmp: 0x41 > 0x40
-3005312 0x3cc98e: cmp       [esi],cl
-        cmp: 0x41 > 0x3f
-3005317 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x90 < 0x9c
-3005323 0x3cc9f1: cmp       [esi],al
-        cmp: 0x41 > 0x24
-3005328 0x3cca03: cmp       bl,7Fh
-        cmp: 0x41 < 0x7f
-3005340 0x3cca28: cmp       dl,0
-        cmp: 0x5f > 0x0
-3005346 0x3cc95d: cmp       al,40h
-        cmp: 0x5f > 0x40
-3005356 0x3cc98e: cmp       [esi],cl
-        cmp: 0x5f > 0x3f
-3005361 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x5 < 0x9c
-3005367 0x3cc9f1: cmp       [esi],al
-        cmp: 0x5f > 0x24
-3005372 0x3cca03: cmp       bl,7Fh
-        cmp: 0x5f < 0x7f
-3005384 0x3cca28: cmp       dl,0
-        cmp: 0x53 > 0x0
-3005390 0x3cc95d: cmp       al,40h
-        cmp: 0x53 > 0x40
-3005400 0x3cc98e: cmp       [esi],cl
-        cmp: 0x53 > 0x3f
-3005405 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0xce > 0x9c
-3005411 0x3cc9f1: cmp       [esi],al
-        cmp: 0x53 > 0x24
-3005416 0x3cca03: cmp       bl,7Fh
-        cmp: 0x53 < 0x7f
-3005428 0x3cca28: cmp       dl,0
-        cmp: 0x48 > 0x0
-3005434 0x3cc95d: cmp       al,40h
-        cmp: 0x48 > 0x40
-3005444 0x3cc98e: cmp       [esi],cl
-        cmp: 0x48 > 0x3f
-3005449 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0xc5 > 0x9c
-3005455 0x3cc9f1: cmp       [esi],al
-        cmp: 0x48 > 0x24
-3005460 0x3cca03: cmp       bl,7Fh
-        cmp: 0x48 < 0x7f
-3005472 0x3cca28: cmp       dl,0
-        cmp: 0x41 > 0x0
-3005478 0x3cc95d: cmp       al,40h
-        cmp: 0x41 > 0x40
-3005488 0x3cc98e: cmp       [esi],cl
-        cmp: 0x41 > 0x3f
-3005493 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x90 < 0x9c
-3005499 0x3cc9f1: cmp       [esi],al
-        cmp: 0x41 > 0x24
-3005504 0x3cca03: cmp       bl,7Fh
-        cmp: 0x41 < 0x7f
-3005516 0x3cca28: cmp       dl,0
-        cmp: 0x46 > 0x0
-3005522 0x3cc95d: cmp       al,40h
-        cmp: 0x46 > 0x40
-3005532 0x3cc98e: cmp       [esi],cl
-        cmp: 0x46 > 0x3f
-3005537 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0xf0 > 0x9c
-3005543 0x3cc9f1: cmp       [esi],al
-        cmp: 0x46 > 0x24
-3005548 0x3cca03: cmp       bl,7Fh
-        cmp: 0x46 < 0x7f
-3005560 0x3cca28: cmp       dl,0
-        cmp: 0x69 > 0x0
-3005566 0x3cc95d: cmp       al,40h
-        cmp: 0x69 > 0x40
-3005576 0x3cc98e: cmp       [esi],cl
-        cmp: 0x69 > 0x3f
-3005581 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x19 < 0x9c
-3005587 0x3cc9f1: cmp       [esi],al
-        cmp: 0x69 > 0x24
-3005592 0x3cca03: cmp       bl,7Fh
-        cmp: 0x69 < 0x7f
-3005604 0x3cca28: cmp       dl,0
-        cmp: 0x6e > 0x0
-3005610 0x3cc95d: cmp       al,40h
-        cmp: 0x6e > 0x40
-3005620 0x3cc98e: cmp       [esi],cl
-        cmp: 0x6e > 0x3f
-3005625 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x57 < 0x9c
-3005631 0x3cc9f1: cmp       [esi],al
-        cmp: 0x6e > 0x24
-3005636 0x3cca03: cmp       bl,7Fh
-        cmp: 0x6e < 0x7f
-3005648 0x3cca28: cmp       dl,0
-        cmp: 0x61 > 0x0
-3005654 0x3cc95d: cmp       al,40h
-        cmp: 0x61 > 0x40
-3005664 0x3cc98e: cmp       [esi],cl
-        cmp: 0x61 > 0x3f
-3005669 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0x88 < 0x9c
-3005675 0x3cc9f1: cmp       [esi],al
-        cmp: 0x61 > 0x24
-3005680 0x3cca03: cmp       bl,7Fh
-        cmp: 0x61 < 0x7f
-3005692 0x3cca28: cmp       dl,0
-        cmp: 0x6c > 0x0
-3005698 0x3cc95d: cmp       al,40h
-        cmp: 0x6c > 0x40
-3005708 0x3cc98e: cmp       [esi],cl
-        cmp: 0x6c > 0x3f
-3005713 0x3cc9d8: cmp       bl,9Ch
-        cmp: 0xde > 0x9c
-3005719 0x3cc9f1: cmp       [esi],al
-        cmp: 0x6c > 0x24
-3005724 0x3cca03: cmp       bl,7Fh
-        cmp: 0x6c < 0x7f
-3005736 0x3cca28: cmp       dl,0
-        cmp: 0x0 == 0x0
-3005743 0x3c0a6c: call      003CD6DBh
-3005749 0x3cd709: cmp       eax,ebx
-        cmp: 0x6d3d940b < 0x86a726d7
-3005750 0x3cd70b: call      003CC459h
-3005773 0x3cc57e: cmp       di,0C272h
-        cmp: 0x0 < 0xc272
-3005776 0x3cc58d: cmp       [ebp+196h],eax
-        cmp: 0x6d3d940b > 0x539 
-3005779 0x3cc73d: call      dword [ebp+0Ch]
-** 3005779 kernel32!LoadLibraryA  'ntdll' =0x77570000 
-
-        
-        guloader2.bin 
-
-56028 0x3d29b7: xor       ecx,0E9627BC2h
-56029 0x3d29bd: test      cx,bx
-56030 0x3d29c0: cmp       eax,ecx
-        cmp: 0x539 == 0x539
-56031 0x3d29c2: mov       ecx,[ebp+1ABh]
-56032 0x3d29c8: jne       short 003D29E1h not taken 
-56033 0x3d29ca: push      0DC425575h
-56034 0x3d29cf: call      003D3216h
-56035 0x3d3216: mov       eax,[fs:30h]
-Reding PEB 0x7ffdf000
--------
-56036 0x3d321c: mov       eax,[eax+0Ch]
---- console ---
-=>
-
-
-        http://index-of.es/Reverse-Engineering/bh-usa-07-yason.pdf <-- the context object
-
-
-
-*/
 
 #![allow(non_snake_case)]
 #![allow(dead_code)]
@@ -224,6 +19,7 @@ pub mod context;
 pub mod syscall;
 mod breakpoint;
 pub mod endpoint;
+mod structures;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -647,9 +443,8 @@ impl Emu32 {
     }
 
     pub fn stack_pop(&mut self, pop_instruction:bool) -> u32 {
-        
         let stack = self.maps.get_mem("stack");
-        if stack.inside(self.regs.esp) {    
+        if stack.inside(self.regs.esp) {
             let value = stack.read_dword(self.regs.esp);
             if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value) {
                 println!("/!\\ poping a code address 0x{:x}", value);
@@ -788,7 +583,7 @@ impl Emu32 {
     pub fn memory_read(&mut self, operand:&str) -> Option<u32> {
         if operand.contains("fs:[0]") {
             if self.cfg.verbose >= 1 {
-                println!("Reading SEH fs:[0] 0x{:x}", self.seh);
+                println!("{} Reading SEH fs:[0] 0x{:x}", self.pos, self.seh);
             }
             return Some(self.seh);
         }
@@ -1252,6 +1047,120 @@ impl Emu32 {
         return (val >> rot) | (val << bits-rot);
     }
 
+    pub fn shld32(&mut self, value0:u32, value1:u32, counter:u16) -> u32 {
+        let mut storage1:u64 = value0 as u64;
+        let mut storage2:u64 = value1 as u64;
+
+        storage1 = storage1 << counter;
+        storage2 = storage2 << counter;
+
+        let new_bits = (storage2 & 0xffffffff00000000) >> 32;
+        storage1 += new_bits;
+
+        if storage1 > 0xffffffff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xffffffff) as u32;
+        self.flags.calc_flags(result, 32);
+        return result;
+    }
+
+    pub fn shld16(&mut self, value0:u16, value1:u16, counter:u16) -> u32 {
+        let mut storage1:u32 = value0 as u32;
+        let mut storage2:u32 = value1 as u32;
+
+        storage1 = storage1 << counter;
+        storage2 = storage2 << counter;
+
+        let new_bits = (storage2 & 0xffff0000) >> 16;
+        storage1 += new_bits;
+
+        if storage1 > 0xffff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xffff) as u32;
+        self.flags.calc_flags(result, 16);
+        return result;
+    }
+
+    pub fn shld8(&mut self, value0:u8, value1:u8, counter:u16) -> u32 {
+        let mut storage1:u16 = value0 as u16;
+        let mut storage2:u16 = value1 as u16;
+
+        storage1 = storage1 << counter;
+        storage2 = storage2 << counter;
+
+        let new_bits = (storage2 & 0xff00) >> 8;
+        storage1 += new_bits;
+
+        if storage1 > 0xff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xff) as u32;
+        self.flags.calc_flags(result, 8);
+        return result;
+    }
+
+    pub fn shrd32(&mut self, value0:u32, value1:u32, counter:u16) -> u32 {
+        let mut storage1:u64 = value0 as u64;
+        let mut storage2:u64 = value1 as u64;
+
+        storage1 = storage1 >> counter;
+        storage2 = storage2 >> counter;
+
+        let new_bits = (storage2 & 0xffffffff00000000) >> 32;
+        storage1 += new_bits;
+
+        if storage1 > 0xffffffff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xffffffff) as u32;
+        self.flags.calc_flags(result, 32);
+        return result;
+    }
+
+    pub fn shrd16(&mut self, value0:u16, value1:u16, counter:u16) -> u32 {
+        let mut storage1:u32 = value0 as u32;
+        let mut storage2:u32 = value1 as u32;
+
+        storage1 = storage1 >> counter;
+        storage2 = storage2 >> counter;
+
+        let new_bits = (storage2 & 0xffff0000) >> 16;
+        storage1 += new_bits;
+
+        if storage1 > 0xffff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xffff) as u32;
+        self.flags.calc_flags(result, 16);
+        return result;
+    }
+
+    pub fn shrd8(&mut self, value0:u8, value1:u8, counter:u16) -> u32 {
+        let mut storage1:u16 = value0 as u16;
+        let mut storage2:u16 = value1 as u16;
+
+        storage1 = storage1 >> counter;
+        storage2 = storage2 >> counter;
+
+        let new_bits = (storage2 & 0xff00) >> 8;
+        storage1 += new_bits;
+
+        if storage1 > 0xff {
+            self.flags.f_cf = true;
+        }
+
+        let result:u32 = (storage1 & 0xff) as u32;
+        self.flags.calc_flags(result, 8);
+        return result;
+    }
+
     pub fn spawn_console(&mut self) {
         let con = Console::new();
         loop {
@@ -1318,7 +1227,6 @@ impl Emu32 {
                         }
                     };
                     self.bp.set_bp(addr);
-                    return;
                 },
 
                 "bmr" => {
@@ -1355,7 +1263,6 @@ impl Emu32 {
                         }
                     };
                     self.exp = num;
-                    return;
                 },
                 "bc" => {
                     self.bp.clear_bp();
@@ -1460,6 +1367,13 @@ impl Emu32 {
                         self.maps.save(addr, sz, filename);
                     }
                 }
+                "mt" => {
+                    if self.maps.mem_test() {
+                        println!("mem test passed ok.");
+                    } else {
+                        println!("memory errors.");
+                    }
+                }
                 "eip" => {
                     con.print("=");
                     let addr = match con.cmd_hex() {
@@ -1526,8 +1440,9 @@ impl Emu32 {
                 "sba" => {
                     con.print("spaced bytes");
                     let sbs = con.cmd();
-                    if !self.maps.search_space_bytes_in_all(sbs) {
-                        println!("not found.");
+                    let results = self.maps.search_space_bytes_in_all(&sbs);
+                    for addr in results.iter() {
+                        println!("found at 0x{:x}", addr);
                     }
                 },
                 "ssa" => {
@@ -1562,8 +1477,8 @@ impl Emu32 {
                         }
                     }
                 },
-                "n" => {
-                    self.exp += 1;
+                "n"|"" => {
+                    self.exp = self.pos + 1;
                     return;
                 },
                 "m" => self.maps.print_maps(),
@@ -1578,10 +1493,42 @@ impl Emu32 {
                     };
                     self.disasemble(addr, 10);
                 },
-                "" => {
-                    self.exp += 1;
-                    return;
-                },
+                "dt" => {
+                    con.print("structure");
+                    let struc = con.cmd();
+                    con.print("address");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
+
+                    match struc.as_str() {
+                        "peb" => {
+                            let s = structures::PEB::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "peb_ldr_data" => {
+                            let s = structures::PebLdrData::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "ldr_data_table_entry" => {
+                            let s = structures::LdrDataTableEntry::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "list_entry" => {
+                            let s = structures::ListEntry::load(addr, &self.maps);
+                            s.print();
+                        }
+
+                        _  => println!("unrecognized structure."),
+                    }
+
+
+                }
+              
                 _ => println!("command not found, type h"),
             }
         }
@@ -1689,7 +1636,7 @@ impl Emu32 {
             OpKind::Immediate32 => ins.immediate32(),
             OpKind::Immediate8to32 => ins.immediate8to32() as u32,
             OpKind::Immediate8to16 => ins.immediate8to16() as u32,
-            OpKind::Register => self.regs.get_reg(ins.op_register(noperand)), 
+            OpKind::Register => self.regs.get_reg(ins.op_register(noperand)),
             OpKind::Memory => {
                 let mut derref = do_derref;
                 let mut fs = false;
@@ -1710,14 +1657,14 @@ impl Emu32 {
                         0x30 => {
                             let peb = self.maps.get_mem("peb");
                             if self.cfg.verbose >= 1 {
-                                println!("Reding PEB 0x{:x}", peb.get_base());
+                                println!("{} Reding PEB 0x{:x}", self.pos, peb.get_base());
                             }
                             peb.get_base()
                         }
                         0x18 => {
                             let teb = self.maps.get_mem("teb");
                             if self.cfg.verbose >= 1 {
-                                println!("Reding TEB 0x{:x}", teb.get_base());
+                                println!("{} Reding TEB 0x{:x}", self.pos, teb.get_base());
                             }
                             teb.get_base()
                         }
@@ -1867,6 +1814,67 @@ impl Emu32 {
         return true;
     }
 
+    pub fn get_operand_xmm_value(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<f32> {
+
+        assert!(ins.op_count() > noperand);
+
+        let value:f32 = match ins.op_kind(noperand) {
+            OpKind::Register => self.regs.get_xmm_reg(ins.op_register(noperand)),
+            OpKind::Memory => {
+                let mem_addr = match ins.virtual_address(noperand, 0, |reg,idx,_sz| {
+                    Some(self.regs.get_reg(reg) as u64)
+                }) {
+                    Some(addr) => addr,
+                    None => {
+                        self.exception();
+                        return None
+                    }
+                };
+
+                if do_derref {
+                    let value:u32 = match self.maps.read_dword(mem_addr as u32) {
+                        Some(v) => v,
+                        None => { 
+                            self.exception(); 
+                            return None
+                        }
+                    };
+                    value as f32
+                } else {
+                    mem_addr as f32
+                }
+            }
+            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+        };
+        return Some(value);
+    }
+
+    pub fn set_operand_xmm_value(&mut self, ins:&Instruction, noperand:u32, value:f32) {
+
+        assert!(ins.op_count() > noperand);
+
+        match ins.op_kind(noperand) {
+            OpKind::Register => self.regs.set_xmm_reg(ins.op_register(noperand), value),
+            OpKind::Memory => {
+                let mem_addr = match ins.virtual_address(noperand, 0, |reg,idx,_sz| {
+                    Some(self.regs.get_reg(reg) as u64)
+                }) {
+                    Some(addr) => addr,
+                    None => {
+                        self.exception();
+                        return;
+                    }
+                };
+                
+                if !self.maps.write_dword(mem_addr as u32, value as u32) {
+                    self.exception();
+                }
+                
+            }
+            _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
+        };
+    }
+
     fn get_operand_sz(&self, ins:&Instruction, noperand:u32) -> usize {
         let size:usize = match ins.op_kind(noperand) {
             OpKind::NearBranch32 => 32,
@@ -1942,7 +1950,8 @@ impl Emu32 {
 
                 self.pos += 1;
 
-                if self.exp == self.pos || self.bp.get_bp() == addr {
+                if self.exp == self.pos || self.bp.get_bp() == addr || (self.cfg.console2 && self.cfg.console_addr == addr) {
+                    self.cfg.console2 = false;
                     step = true;
                     println!("-------");
                     println!("{} 0x{:x}: {}", self.pos, ins.ip32(), out);
@@ -1952,7 +1961,7 @@ impl Emu32 {
                         break;
                     }
                 }
-                    
+                
                 if self.cfg.loops {
                     // loop detector
                     looped.push(addr as u64);
@@ -1973,7 +1982,7 @@ impl Emu32 {
                 }
 
                 if self.cfg.trace_regs {
-                    println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi);
+                    println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x} ebp: 0x{:x}", self.regs.eax, self.regs.ebx, self.regs.ecx, self.regs.edx, self.regs.esi, self.regs.edi, self.regs.ebp);
                 }
 
                 if self.cfg.trace_reg {
@@ -2868,7 +2877,7 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
+                        assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
 
                         if ins.op_count() == 1 { // 1 param
                             
@@ -2884,7 +2893,7 @@ impl Emu32 {
                                 _ => unimplemented!("wrong size"),
                             }
 
-                        } else { // 2 params
+                        } if ins.op_count() == 2 { // 2 params
                             let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
                                 None => break,
@@ -2895,8 +2904,35 @@ impl Emu32 {
                                 None => break,
                             };
 
-                            let iresult:i32 = value0 as i32 * value1 as i32;
-                            let result:u32 = iresult as u32;
+                            let result = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.imul32p2(value0, value1),
+                                16 => self.flags.imul16p2(value0 as u16, value1 as u16),
+                                8  => self.flags.imul8p2(value0 as u8, value1 as u8),
+                                _ => unimplemented!("wrong size"),
+                            };
+
+                            if !self.set_operand_value(&ins, 0, result) {
+                                break;
+                            }
+
+                        } else { // 3 params
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let value2 = match self.get_operand_value(&ins, 2, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let result = match self.get_operand_sz(&ins, 0) {
+                                32 => self.flags.imul32p2(value1, value2),
+                                16 => self.flags.imul16p2(value1 as u16, value2 as u16),
+                                8  => self.flags.imul8p2(value1 as u8, value2 as u8),
+                                _ => unimplemented!("wrong size"),
+                            };
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -3951,7 +3987,7 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let addr = match self.get_operand_value(&ins, 0, false) {
+                        let addr = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break,
                         };
@@ -3963,7 +3999,6 @@ impl Emu32 {
 
                         self.fpu.set_eip(self.regs.eip);
                     }
-
     
                     Mnemonic::Fld => {
                         if !step {
@@ -4274,11 +4309,104 @@ impl Emu32 {
 
                     }
 
+                    Mnemonic::Shld => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let counter = match self.get_operand_value(&ins, 2, true) {
+                            Some(v) => v as u16,
+                            None => break,
+                        };
+
+                        let result = match self.get_operand_sz(&ins, 0) {
+                            32 => self.shld32(value0, value1, counter),
+                            16 => self.shld16(value0 as u16, value1 as u16, counter),
+                            8  => self.shld8(value0 as u8, value1 as u8, counter),
+                            _  => unimplemented!("weird size"),
+                        };
+                        
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Shrd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let counter = match self.get_operand_value(&ins, 2, true) {
+                            Some(v) => v as u16,
+                            None => break,
+                        };
+
+                        let result = match self.get_operand_sz(&ins, 0) {
+                            32 => self.shrd32(value0, value1, counter),
+                            16 => self.shrd16(value0 as u16, value1 as u16, counter),
+                            8  => self.shrd8(value0 as u8, value1 as u8, counter),
+                            _  => unimplemented!("weird size"),
+                        };
+                        
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+                    }
+
 
                     Mnemonic::Sysenter => {
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
                         return;
                     }
+
+                    //// SSE XMM //// 
+                    
+                    Mnemonic::Xorps => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = self.get_operand_xmm_value(&ins, 0, true).expect("error getting xmm value0");
+                        let value1 = self.get_operand_xmm_value(&ins, 0, true).expect("error getting xmm value1");
+
+                        let result:u32 = value0 as u32 ^ value1 as u32;
+                        self.flags.calc_flags(result as u32, 32);
+
+                        self.set_operand_xmm_value(&ins, 0, result as f32);
+                    }
+
+                    Mnemonic::Movlpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value1 = self.get_operand_xmm_value(&ins, 1, true).expect("error getting xmm value1");
+
+                        self.set_operand_xmm_value(&ins, 0, value1);
+                    }
+
 
                     ////   Ring0  ////
                     
@@ -4306,8 +4434,6 @@ impl Emu32 {
 
                 self.regs.eip += sz as u32;
                 
-
-
                 if self.force_break {
                     self.force_break = false;
                     break;

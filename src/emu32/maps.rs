@@ -316,7 +316,7 @@ impl Maps {
         return true;
     }
 
-    pub fn search_spaced_bytes(&self, sbs:&String, map_name:&String) -> bool {
+    pub fn spaced_bytes_to_bytes(&self, sbs:&str) -> Vec<u8> {
         let bs:Vec<&str> = sbs.split(" ").collect();
         let mut bytes:Vec<u8> = Vec::new();
         for i in 0..bs.len() {
@@ -324,21 +324,50 @@ impl Maps {
                 Ok(b) => b,
                 Err(_) => {
                     println!("bad hex bytes");
-                    return false;
+                    return bytes;
                 }
             };
             bytes.push(b);
         }
+        return bytes;
+    }
+
+    pub fn search_spaced_bytes(&self, sbs:&String, map_name:&String) -> bool {
+        let bytes = self.spaced_bytes_to_bytes(sbs);
         return self.search_bytes(bytes, map_name);
     }
 
-    pub fn search_space_bytes_in_all(&self, sbs:String)  -> bool {
-        let mut found:bool = false;
-        for (name,_) in self.maps.iter() {
-            if self.search_spaced_bytes(&sbs, name) {
-                found = true;
+    pub fn search_space_bytes_in_all(&self, sbs:&str)  -> Vec<u32> {
+        let bytes = self.spaced_bytes_to_bytes(sbs);
+        let mut found:Vec<u32> = Vec::new();
+
+        for (name, mem) in self.maps.iter() {
+            for addr in mem.get_base()..mem.get_bottom() {
+                if addr < 0x70000000 {
+                    
+                    let mut c = 0;
+                    for i in 0..bytes.len() {
+                        let addri = addr + (i as u32);
+                        if !mem.inside(addri) {
+                            break;
+                        }
+
+                        let b = mem.read_byte(addri);
+                        if b == bytes[i] {
+                            c += 1;
+                        } else {
+                            break;
+                        }
+                    
+                    }
+
+                    if c == bytes.len() {
+                        found.push(addr);
+                    }
+                }
             }
         }
+
         return found;
     }
 
@@ -405,6 +434,15 @@ impl Maps {
         return sz;
     }
 
+    pub fn overlapps(&self, addr:u32, sz:u32) -> bool {
+        for a in addr..addr+sz {
+            if self.is_mapped(a) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     pub fn alloc(&self, sz:u32) -> Option<u32> {
         // super simple memory allocator
 
@@ -429,7 +467,7 @@ impl Maps {
 
             //println!("step2");
 
-            if !self.is_mapped(addr) {
+            if !self.overlapps(addr, sz) {
                 return Some(addr);
             }
 
@@ -491,6 +529,34 @@ impl Maps {
 
         let sdst: String = dst.into_iter().collect();
         return sdst;
+    }
+
+    pub fn mem_test(&self) -> bool {
+
+        for (name1, mem1) in self.maps.iter() {
+            for (name2, mem2) in self.maps.iter() {
+
+                if name1 != name2 {
+
+                    for addr1 in mem1.get_base()..mem1.get_bottom() {
+                        if mem2.inside(addr1) {
+                            println!("/!\\ {} overlaps with {}", name1, name2);
+                            println!("/!\\ 0x{:x}-0x{:x} vs 0x{:x}-0x{:x}", mem1.get_base(), mem1.get_bottom(), mem2.get_base(), mem2.get_bottom());
+                            return false;
+                        }
+                    }
+
+                }
+            }
+
+            if (mem1.get_base() + (mem1.size() as u32)) != mem1.get_bottom() {
+                println!("/!\\ memory bottom dont match, mem: {}", name1);
+                return false;
+            }
+
+        }
+
+        return true;
     }
 
 }

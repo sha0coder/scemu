@@ -83,6 +83,9 @@ impl Mem32 {
     }
 
     pub fn read_byte(&self, addr:u32) -> u8 {
+
+        assert!(self.inside(addr));
+
         let idx = (addr - self.base_addr) as usize;
         if idx < self.mem.len() {
             self.mem[idx]

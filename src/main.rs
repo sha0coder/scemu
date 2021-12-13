@@ -86,6 +86,12 @@ fn main() {
                         .long("endpoint")
                         .help("perform communications with the endpoint, use tor or vpn!")
                         .takes_value(false))
+                    .arg(Arg::with_name("console_addr")
+                        .short("a")
+                        .long("addr")
+                        .help("spawn console on first eip = address")
+                        .takes_value(true)
+                        .value_name("ADDRESS"))
                     .get_matches();
 
 
@@ -133,6 +139,10 @@ fn main() {
     if matches.is_present("endpoint") {
         emu32::endpoint::warning();
         cfg.endpoint = true;
+    }
+    if matches.is_present("console_addr") {
+        cfg.console2 = true;
+        cfg.console_addr = u32::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -a").trim_start_matches("0x"), 16).expect("invalid address");
     }
 
     let mut emu32 = Emu32::new();

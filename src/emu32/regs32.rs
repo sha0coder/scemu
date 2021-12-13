@@ -24,7 +24,15 @@ pub struct Regs32 {
     pub edi: u32,
     pub ebp: u32,
     pub esp: u32,
-    pub eip: u32
+    pub eip: u32,
+    pub xmm0: f32,
+    pub xmm1: f32,
+    pub xmm2: f32,
+    pub xmm3: f32,
+    pub xmm4: f32,
+    pub xmm5: f32,
+    pub xmm6: f32,
+    pub xmm7: f32,
 }
 
 impl Regs32 {
@@ -44,7 +52,15 @@ impl Regs32 {
             edi: 0,
             ebp: 0,
             esp: 0,
-            eip: 0
+            eip: 0,
+            xmm0: 0.0,
+            xmm1: 0.0,
+            xmm2: 0.0,
+            xmm3: 0.0,
+            xmm4: 0.0,
+            xmm5: 0.0,
+            xmm6: 0.0,
+            xmm7: 0.0,
         }
     }
 
@@ -72,6 +88,18 @@ impl Regs32 {
         println!("  esp: 0x{:x}", self.esp);
         println!("  eip: 0x{:x}", self.eip);
         println!("---");
+    }
+
+    pub fn print_xmm(&self) {
+        println!("xmm regs:");
+        println!("  xmm0: {}", self.xmm0);
+        println!("  xmm1: {}", self.xmm1);
+        println!("  xmm2: {}", self.xmm2);
+        println!("  xmm3: {}", self.xmm3);
+        println!("  xmm4: {}", self.xmm4);
+        println!("  xmm5: {}", self.xmm5);
+        println!("  xmm6: {}", self.xmm6);
+        println!("  xmm7: {}", self.xmm7);
     }
 
     pub fn get_ax(&self) -> u32 {
@@ -196,6 +224,50 @@ impl Regs32 {
     pub fn set_dl(&mut self, val:u32) {
         self.edx = self.edx & 0xffffff00;
         self.edx += val & 0x000000ff;
+    }
+
+    pub fn is_xmm(&self, reg:Register) -> bool {
+        let result = match reg {
+            Register::XMM0 => true,
+            Register::XMM1 => true,
+            Register::XMM2 => true,
+            Register::XMM3 => true,
+            Register::XMM4 => true,
+            Register::XMM5 => true,
+            Register::XMM6 => true,
+            Register::XMM7 => true,
+            _ => false,
+        };
+        return result;
+    }
+
+    pub fn get_xmm_reg(&self, reg:Register) -> f32 {
+        let value = match reg {
+            Register::XMM0 => self.xmm0,
+            Register::XMM1 => self.xmm1,
+            Register::XMM2 => self.xmm2,
+            Register::XMM3 => self.xmm3,
+            Register::XMM4 => self.xmm4,
+            Register::XMM5 => self.xmm5,
+            Register::XMM6 => self.xmm6,
+            Register::XMM7 => self.xmm7,
+            _ => unimplemented!("SSE  XMM re gister: {:?} ", reg),
+        };
+        return value;
+    }
+
+    pub fn set_xmm_reg(&mut self, reg:Register, value:f32)  {
+        match reg {
+            Register::XMM0 => self.xmm0 = value,
+            Register::XMM1 => self.xmm1 = value,
+            Register::XMM2 => self.xmm2 = value,
+            Register::XMM3 => self.xmm3 = value,
+            Register::XMM4 => self.xmm4 = value,
+            Register::XMM5 => self.xmm5 = value,
+            Register::XMM6 => self.xmm6 = value,
+            Register::XMM7 => self.xmm7 = value,
+            _ => unimplemented!("SSE  XMM re gister: {:?} ", reg),
+        };
     }
 
     pub fn get_reg(&self, reg:Register) -> u32 {

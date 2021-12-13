@@ -102,8 +102,8 @@ fn GetProcAddress(emu:&mut emu32::Emu32) {
 
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
-    let ldr = peb.read_dword(peb_base+0x0c);
-    let mut flink = emu.maps.read_dword(ldr+0x14).expect("kernel32!GetProcAddress error reading flink");
+    let ldr = peb.read_dword(peb_base + 0x0c);
+    let mut flink = emu.maps.read_dword(ldr + 0x14).expect("kernel32!GetProcAddress error reading flink");
 
     loop { // walk modules
 
@@ -145,7 +145,7 @@ fn GetProcAddress(emu:&mut emu32::Emu32) {
                 let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal");
                 let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva");
                 let func_addr_tbl = func_addr_tbl_rva + mod_base;
-
+                
                 let func_rva = emu.maps.read_dword(func_addr_tbl + 4 * ordinal as u32).expect("kernel32!GetProcAddress error reading func_rva");
                 let func_va = func_rva + mod_base;
 

@@ -75,12 +75,14 @@ impl Console {
         println!("mds .................... memory dump string");
         println!("mdw .................... memory dump wide string");
         println!("mdd .................... memory dump to disk");
+        println!("mt ..................... memory test");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");
         println!("sba .................... search bytes in all the maps");
         println!("ssa .................... search string in all the maps");
         println!("ll ..................... linked list walk");
         println!("d ...................... dissasemble");
+        println!("dt ..................... dump structure");
         println!("");
         println!("---");
     }
