@@ -83,6 +83,8 @@ impl Console {
         println!("ll ..................... linked list walk");
         println!("d ...................... dissasemble");
         println!("dt ..................... dump structure");
+        println!("enter .................. step into");
+        //println!("o ...................... step over");
         println!("");
         println!("---");
     }
