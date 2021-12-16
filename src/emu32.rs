@@ -2134,7 +2134,7 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let num:i64 = self.regs.eax as i64;
+                        let num:i64 = self.regs.eax as i32 as i64; // sign-extend
                         let unum:u64 = num as u64;
                         self.regs.edx = ((unum & 0xffffffff00000000) >> 32) as u32;
                         self.regs.eax = (unum & 0xffffffff) as u32;
@@ -3001,18 +3001,26 @@ impl Emu32 {
                                 (sz0 == 32 && sz1 == 16));
                         
 
-                        let mut result:u32 = 0;
+                        let result:u32;
 
-                        if sz0 == 16 {
-                            assert!(sz1 == 8);
-                            result = value1 as u8 as u16 as u32;
-                        } else if sz0 == 32 {
-                            if sz1 == 8 {
-                                result = value1 as u8 as u32;
-                            } else if sz1 == 16 {
-                                result = value1 as u16 as u32;
-                            }
-                        } 
+                        /*
+                        if sz0 == 16 && sz1 == 8 {
+                            value0 = value0 & 0x0000ff00;
+                            value1 = value1 & 0x000000ff;
+                            
+                        } else if sz0 == 32 && sz1 == 8 {
+                            value0 = value0 & 0xffffff00;
+                            value1 = value1 & 0x000000ff;
+
+                        } else if sz0 == 32 && sz1 == 16 {
+                            value0 = value0 & 0xffff0000;
+                            value1 = value1 & 0x0000ffff;
+
+                        } else {
+                            unreachable!("impossible");
+                        }*/
+
+                        result = value1;
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
@@ -3518,7 +3526,7 @@ impl Emu32 {
                 
                         assert!(ins.op_count() == 1);
 
-                        if !self.flags.f_zf && self.flags.f_sf != self.flags.f_of {
+                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
                             if !step {
                                 println!("{}{} 0x{:x}: {} taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                             }
