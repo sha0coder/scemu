@@ -1893,6 +1893,7 @@ impl Emu32 {
                 let mem = info.used_memory()[0];
 
                 let size2:usize = match mem.memory_size() {
+                    MemorySize::FpuEnv28 => 32,
                     MemorySize::UInt32 => 32,
                     MemorySize::UInt16 => 16,
                     MemorySize::UInt8 => 8,
@@ -2517,6 +2518,9 @@ impl Emu32 {
 
                         let result = value0 | value1;
 
+                        //println!("0x{:x} or 0x{:x} = 0x{:x}", value0, value1, result);
+                        
+
                         self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
                         self.flags.f_of = false;
                         self.flags.f_cf = false;
@@ -3021,6 +3025,8 @@ impl Emu32 {
                         }*/
 
                         result = value1;
+
+                        println!("0x{:x}: MOVZX 0x{:x}", ins.ip32(), result);
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
@@ -3995,7 +4001,7 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let addr = match self.get_operand_value(&ins, 0, true) {
+                        let addr = match self.get_operand_value(&ins, 0, false) {
                             Some(v) => v,
                             None => break,
                         };
