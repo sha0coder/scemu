@@ -410,6 +410,49 @@ impl Emu32 {
 
         std::env::set_current_dir(orig_path);
 
+
+
+        // test
+
+
+        assert!(self.get_bit(0xffffff00, 0) == 0);
+        assert!(self.get_bit(0xffffffff, 5) == 1);
+        assert!(self.get_bit(0xffffff00, 5) == 0);
+        assert!(self.get_bit(0xffffff00, 7) == 0);
+        assert!(self.get_bit(0xffffff00, 8) == 1);
+
+        let mut a = 0xffffff00;
+        self.set_bit(&mut a, 0, 1);
+        self.set_bit(&mut a, 1, 1);
+        self.set_bit(&mut a, 2, 1);
+        self.set_bit(&mut a, 3, 1);
+        self.set_bit(&mut a, 4, 1);
+        self.set_bit(&mut a, 5, 1);
+        self.set_bit(&mut a, 6, 1);
+        self.set_bit(&mut a, 7, 1);
+
+        assert!(a == 0xffffffff);
+
+        self.set_bit(&mut a, 0, 0);
+        self.set_bit(&mut a, 1, 0);
+        self.set_bit(&mut a, 2, 0);
+        self.set_bit(&mut a, 3, 0);
+        self.set_bit(&mut a, 4, 0);
+        self.set_bit(&mut a, 5, 0);
+        self.set_bit(&mut a, 6, 0);
+        self.set_bit(&mut a, 7, 0);
+
+        assert!(a == 0xffffff00);
+
+
+
+        assert!(self.shrd(0x9fd88893, 0x1b, 0x6, 32) == 0x6e7f6222);
+        assert!(self.shrd(0x6fdcb03, 0x0, 0x6, 32) == 0x1bf72c);
+        assert!(self.shrd(0x91545f1d, 0x6fe2, 0x6, 32) == 0x8a45517c);
+
+
+        assert!(self.shld(0x1b, 0xf1a7eb1d, 0xa, 32) == 0x6fc6);
+        
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -1046,7 +1089,7 @@ impl Emu32 {
         //TODO: care with overflow
         return (val >> rot) | (val << bits-rot);
     }
-
+/*
     pub fn shld32(&mut self, value0:u32, value1:u32, counter:u16) -> u32 {
         let mut storage1:u64 = value0 as u64;
         let mut storage2:u64 = value1 as u64;
@@ -1102,63 +1145,74 @@ impl Emu32 {
         let result:u32 = (storage1 & 0xff) as u32;
         self.flags.calc_flags(result, 8);
         return result;
+    }*/
+
+
+    fn get_bit(&self, val:u32, count:u32) -> u32 {
+        return (val & (1 << count )) >> count;
     }
 
-    pub fn shrd32(&mut self, value0:u32, value1:u32, counter:u16) -> u32 {
-        let mut storage1:u64 = value0 as u64;
-        let mut storage2:u64 = value1 as u64;
-
-        storage1 = storage1 >> counter;
-        storage2 = storage2 >> counter;
-
-        let new_bits = (storage2 & 0xffffffff00000000) >> 32;
-        storage1 += new_bits;
-
-        if storage1 > 0xffffffff {
-            self.flags.f_cf = true;
+    fn set_bit(&self, val:&mut u32, count:u32, bit:u32)  {
+        if bit == 1 {
+            *val |= 1 << count;
+        } else {
+            *val &= !(1 << count);
         }
-
-        let result:u32 = (storage1 & 0xffffffff) as u32;
-        self.flags.calc_flags(result, 32);
-        return result;
     }
 
-    pub fn shrd16(&mut self, value0:u16, value1:u16, counter:u16) -> u32 {
-        let mut storage1:u32 = value0 as u32;
-        let mut storage2:u32 = value1 as u32;
+    pub fn shrd(&mut self, value0:u32, value1:u32, counter:u16, size:u32) -> u32 {
+        let mut storage0:u32 = value0;
+        self.flags.f_cf = self.get_bit(value0, counter as u32 - 1) == 1;
 
-        storage1 = storage1 >> counter;
-        storage2 = storage2 >> counter;
-
-        let new_bits = (storage2 & 0xffff0000) >> 16;
-        storage1 += new_bits;
-
-        if storage1 > 0xffff {
-            self.flags.f_cf = true;
+        if counter == 0 {
+            return storage0;
         }
 
-        let result:u32 = (storage1 & 0xffff) as u32;
-        self.flags.calc_flags(result, 16);
-        return result;
+        if counter as u32 > size {
+            println!("SHRD bad params.");
+            return 0;
+        }
+        
+        for i in 0..=(size-1-counter as u32) {
+            let bit = self.get_bit(storage0, i as u32 + counter as u32);
+            self.set_bit(&mut storage0, i as u32, bit);
+        }
+        
+        for i in (size-counter as u32)..size {
+            let bit = self.get_bit(value1, i as u32 + counter as u32 - 32);
+            self.set_bit(&mut storage0, i as u32, bit);
+        }
+
+        self.flags.calc_flags(storage0, size as u8);
+        return storage0;
     }
 
-    pub fn shrd8(&mut self, value0:u8, value1:u8, counter:u16) -> u32 {
-        let mut storage1:u16 = value0 as u16;
-        let mut storage2:u16 = value1 as u16;
+    pub fn shld(&mut self, value0:u32, value1:u32, counter:u16, size:u32) -> u32 {
+        let mut storage0:u32 = value0;
 
-        storage1 = storage1 >> counter;
-        storage2 = storage2 >> counter;
+        self.flags.f_cf = self.get_bit(value0, size - counter as u32) == 1;
 
-        let new_bits = (storage2 & 0xff00) >> 8;
-        storage1 += new_bits;
-
-        if storage1 > 0xff {
-            self.flags.f_cf = true;
+        if counter == 0 {
+            return storage0;
         }
 
-        let result:u32 = (storage1 & 0xff) as u32;
-        self.flags.calc_flags(result, 8);
-        return result;
+        if counter as u32 > size {
+            println!("SHLD bad params.");
+            return 0;
+        }
+
+        for i in ((counter as u32)..=(size-1)).rev() {
+            let bit = self.get_bit(storage0, i - counter as u32);
+            self.set_bit(&mut storage0, i, bit);
+        }
+
+        for i in (0..=(counter as u32 - 1)).rev() {
+            let bit = self.get_bit(value1, i - counter as u32 + size);
+            self.set_bit(&mut storage0, i, bit);
+        }
+
+        self.flags.calc_flags(storage0, size as u8);
+        return storage0;
     }
 
     pub fn spawn_console(&mut self) {
@@ -2727,6 +2781,8 @@ impl Emu32 {
                                 _  => panic!("weird size")
                             };
 
+                            //println!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
+
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
                             }
@@ -3026,7 +3082,7 @@ impl Emu32 {
 
                         result = value1;
 
-                        println!("0x{:x}: MOVZX 0x{:x}", ins.ip32(), result);
+                        //println!("0x{:x}: MOVZX 0x{:x}", ins.ip32(), result);
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
@@ -4343,13 +4399,11 @@ impl Emu32 {
                             None => break,
                         };
 
-                        let result = match self.get_operand_sz(&ins, 0) {
-                            32 => self.shld32(value0, value1, counter),
-                            16 => self.shld16(value0 as u16, value1 as u16, counter),
-                            8  => self.shld8(value0 as u8, value1 as u8, counter),
-                            _  => unimplemented!("weird size"),
-                        };
-                        
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let result = self.shld(value0, value1, counter, sz as u32);
+
+                        println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
+
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
                         }
@@ -4375,12 +4429,10 @@ impl Emu32 {
                             None => break,
                         };
 
-                        let result = match self.get_operand_sz(&ins, 0) {
-                            32 => self.shrd32(value0, value1, counter),
-                            16 => self.shrd16(value0 as u16, value1 as u16, counter),
-                            8  => self.shrd8(value0 as u8, value1 as u8, counter),
-                            _  => unimplemented!("weird size"),
-                        };
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let result = self.shrd(value0, value1, counter, sz as u32);
+                        
+                        //println!("0x{:x} SHRD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
                         
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
