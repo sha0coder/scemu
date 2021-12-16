@@ -3,7 +3,7 @@ use crate::emu32::constants;
 use crate::emu32::winapi::helper;
 use crate::emu32::endpoint;
 
-   //  /usr/include/asm/unistd_32.h
+//  /usr/include/asm/unistd_32.h
 
 //TODO: check if buff is mapped
 
@@ -487,7 +487,7 @@ pub fn gateway(emu:&mut emu32::Emu32) {
                     let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
                     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
 
-                    println!("{}** {} syscall socketcall connect() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, ip, port, emu.colors.nc);
+                    println!("{}** {} syscall socketcall connect() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, sip, port, emu.colors.nc);
                     
                     if !helper::socket_exist(sock) {
                         println!("\tbad socket/");
