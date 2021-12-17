@@ -1812,6 +1812,18 @@ impl Emu32 {
                     let sz = self.get_operand_sz(&ins, noperand);
 
                     match sz {
+                        64 => {
+                            if !self.maps.write_dword(mem_addr, value) {
+                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                self.exception();
+                                return false;
+                            }
+                            if !self.maps.write_dword(mem_addr+4, value) { //TODO: this value should be the other dword
+                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                self.exception();
+                                return false;
+                            }
+                        }
                         32 => {
                             if !self.maps.write_dword(mem_addr, value) {
                                 println!("exception dereferencing bad address. 0x{:x}", mem_addr);
@@ -1868,11 +1880,11 @@ impl Emu32 {
         return true;
     }
 
-    pub fn get_operand_xmm_value(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<f32> {
+    pub fn get_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<f64> {
 
         assert!(ins.op_count() > noperand);
 
-        let value:f32 = match ins.op_kind(noperand) {
+        let value:f64 = match ins.op_kind(noperand) {
             OpKind::Register => self.regs.get_xmm_reg(ins.op_register(noperand)),
             OpKind::Memory => {
                 let mem_addr = match ins.virtual_address(noperand, 0, |reg,idx,_sz| {
@@ -1893,9 +1905,9 @@ impl Emu32 {
                             return None
                         }
                     };
-                    value as f32
+                    value as f64
                 } else {
-                    mem_addr as f32
+                    mem_addr as f64
                 }
             }
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
@@ -1903,7 +1915,7 @@ impl Emu32 {
         return Some(value);
     }
 
-    pub fn set_operand_xmm_value(&mut self, ins:&Instruction, noperand:u32, value:f32) {
+    pub fn set_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, value:f64) {
 
         assert!(ins.op_count() > noperand);
 
@@ -1919,9 +1931,11 @@ impl Emu32 {
                         return;
                     }
                 };
-                
-                if !self.maps.write_dword(mem_addr as u32, value as u32) {
-                    self.exception();
+
+                let mut i:u32 = 0;
+                for b in value.to_le_bytes() {
+                    self.maps.write_byte(mem_addr as u32 + i, b);
+                    i += 1;
                 }
                 
             }
@@ -1947,6 +1961,9 @@ impl Emu32 {
                 let mem = info.used_memory()[0];
 
                 let size2:usize = match mem.memory_size() {
+                    MemorySize::Float16 => 16,
+                    MemorySize::Float32 => 32,
+                    MemorySize::Float64 => 64,
                     MemorySize::FpuEnv28 => 32,
                     MemorySize::UInt32 => 32,
                     MemorySize::UInt16 => 16,
@@ -4458,13 +4475,13 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 2);
 
-                        let value0 = self.get_operand_xmm_value(&ins, 0, true).expect("error getting xmm value0");
-                        let value1 = self.get_operand_xmm_value(&ins, 0, true).expect("error getting xmm value1");
+                        let value0 = self.get_operand_xmm_value64(&ins, 0, true).expect("error getting xmm value0");
+                        let value1 = self.get_operand_xmm_value64(&ins, 0, true).expect("error getting xmm value1");
 
-                        let result:u32 = value0 as u32 ^ value1 as u32;
+                        let result:u64 = value0 as u64 ^ value1 as u64;
                         self.flags.calc_flags(result as u32, 32);
 
-                        self.set_operand_xmm_value(&ins, 0, result as f32);
+                        self.set_operand_xmm_value64(&ins, 0, result as f64);
                     }
 
                     Mnemonic::Movlpd => {
@@ -4472,9 +4489,10 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let value1 = self.get_operand_xmm_value(&ins, 1, true).expect("error getting xmm value1");
+                        let value1 = self.get_operand_xmm_value64(&ins, 1, true).expect("error getting xmm value1");
 
-                        self.set_operand_xmm_value(&ins, 0, value1);
+                        //self.set_operand_value(&ins, 0, value1 as u32);
+                        self.set_operand_xmm_value64(&ins, 0, value1);
                     }
 
 
@@ -4493,8 +4511,7 @@ impl Emu32 {
                             _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
                         }
 
-                    }
-                    
+                    }                    
 
                     _ =>  { 
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);

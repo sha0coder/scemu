@@ -25,14 +25,14 @@ pub struct Regs32 {
     pub ebp: u32,
     pub esp: u32,
     pub eip: u32,
-    pub xmm0: f32,
-    pub xmm1: f32,
-    pub xmm2: f32,
-    pub xmm3: f32,
-    pub xmm4: f32,
-    pub xmm5: f32,
-    pub xmm6: f32,
-    pub xmm7: f32,
+    pub xmm0: f64,
+    pub xmm1: f64,
+    pub xmm2: f64,
+    pub xmm3: f64,
+    pub xmm4: f64,
+    pub xmm5: f64,
+    pub xmm6: f64,
+    pub xmm7: f64,
 }
 
 impl Regs32 {
@@ -241,7 +241,7 @@ impl Regs32 {
         return result;
     }
 
-    pub fn get_xmm_reg(&self, reg:Register) -> f32 {
+    pub fn get_xmm_reg(&self, reg:Register) -> f64 {
         let value = match reg {
             Register::XMM0 => self.xmm0,
             Register::XMM1 => self.xmm1,
@@ -256,7 +256,7 @@ impl Regs32 {
         return value;
     }
 
-    pub fn set_xmm_reg(&mut self, reg:Register, value:f32)  {
+    pub fn set_xmm_reg(&mut self, reg:Register, value:f64)  {
         match reg {
             Register::XMM0 => self.xmm0 = value,
             Register::XMM1 => self.xmm1 = value,
