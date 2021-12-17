@@ -8,6 +8,7 @@
 - in self.execption() put a message self.exception(msg)
 - improve seh command
 - better api implementations
+- change xmm to f128
 - winhttp
 - remove expect() on implemented instructions, just break;
 - stack_push and stack_pop assumes the stack is in the memory map stack
