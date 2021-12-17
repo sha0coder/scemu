@@ -2723,12 +2723,16 @@ impl Emu32 {
                                 None => break,
                             };
 
+
+
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.shl2p32(value0, value1),
                                 16 => self.flags.shl2p16(value0, value1),
                                 8  => self.flags.shl2p8(value0, value1),
                                 _  => panic!("weird size")
                             };
+
+                            //println!("0x{:x}: 0x{:x} SHL 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -4402,7 +4406,7 @@ impl Emu32 {
                         let sz = self.get_operand_sz(&ins, 0);
                         let result = self.shld(value0, value1, counter, sz as u32);
 
-                        println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
+                        //println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
