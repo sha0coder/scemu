@@ -509,6 +509,7 @@ impl Flags {
         self.f_cf = unsigned64 > 0xffffffff;
         let result  = (unsigned64 & 0xffffffff) as u32;
         self.calc_flags(result, 32);
+
         return result;
     }
 
