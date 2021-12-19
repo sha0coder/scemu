@@ -27,7 +27,7 @@ x86 32bits emulator, for securely emulating shellcodes
 	- metasploit encoders.
 	- cobalt strike.
 	- shellgen.
-	- guloader (not totally for now)
+	- guloader (not totally for now, but arrive further than the debugger)
 
 ## TODO
 	- more fpu
