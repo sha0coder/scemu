@@ -1559,7 +1559,7 @@ impl Emu32 {
         if self.veh > 0 {
             addr = self.veh;
 
-            self.stack_push(0x10f00);   
+            self.stack_push(0x10f00);
             self.stack_push(self.regs.eip); 
 
             self.veh_ctx = 0x10f08;
@@ -1568,7 +1568,6 @@ impl Emu32 {
             ctx.save(self.veh_ctx, &mut self.maps);
 
             self.set_eip(addr, false);
-
 
         } else {
 
@@ -1600,9 +1599,6 @@ impl Emu32 {
             }
 
         }
-
-
-        
     }
 
     pub fn disasemble(&mut self, addr:u32, amount:u32) {
