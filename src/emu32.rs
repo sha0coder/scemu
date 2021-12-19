@@ -396,13 +396,15 @@ impl Emu32 {
 
         let m10000 = self.maps.get_mem("10000");
         m10000.set_base(0x10000);
-        m10000.set_size(0xffff);
         m10000.load("m10000.bin");
+        m10000.set_size(0xffff);
+        
         
         let m20000 = self.maps.get_mem("20000");
         m20000.set_base(0x20000);
-        m20000.set_size(0xffff);
         m20000.load("m20000.bin");
+        m20000.set_size(0xffff);
+        
 
 
         // xloader initial state hack
@@ -414,8 +416,7 @@ impl Emu32 {
 
 
 
-        // test
-
+        // some tests
 
         assert!(self.get_bit(0xffffff00, 0) == 0);
         assert!(self.get_bit(0xffffffff, 5) == 1);
@@ -446,14 +447,17 @@ impl Emu32 {
 
         assert!(a == 0xffffff00);
 
-
-
         assert!(self.shrd(0x9fd88893, 0x1b, 0x6, 32) == 0x6e7f6222);
         assert!(self.shrd(0x6fdcb03, 0x0, 0x6, 32) == 0x1bf72c);
         assert!(self.shrd(0x91545f1d, 0x6fe2, 0x6, 32) == 0x8a45517c);
-
-
         assert!(self.shld(0x1b, 0xf1a7eb1d, 0xa, 32) == 0x6fc6);
+
+        if self.maps.mem_test() {
+            println!("memory test Ok.");
+        } else {
+            eprintln!("It doesn't pass the memory tests!!");
+            std::process::exit(1);
+        }
         
     }
 
@@ -483,9 +487,7 @@ impl Emu32 {
             let mem = match self.maps.get_mem_by_addr(self.regs.esp) {
                 Some(m) => m,
                 None =>  {
-                    println!("pushing stack outside maps esp: 0x{:x}", self.regs.esp);
-                    self.exception();
-                    return;
+                    panic!("pushing stack outside maps esp: 0x{:x}", self.regs.esp);
                 }
             };
             mem.write_dword(self.regs.esp, value);
