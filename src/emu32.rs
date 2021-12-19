@@ -482,8 +482,13 @@ impl Emu32 {
         } else {
             let mem = match self.maps.get_mem_by_addr(self.regs.esp) {
                 Some(m) => m,
-                None =>  panic!("pushing stack outside maps esp: 0x{:x}", self.regs.esp),
+                None =>  {
+                    println!("pushing stack outside maps esp: 0x{:x}", self.regs.esp);
+                    self.exception();
+                    return;
+                }
             };
+            mem.write_dword(self.regs.esp, value);
         }
     }
 
