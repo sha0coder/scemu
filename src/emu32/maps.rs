@@ -446,7 +446,7 @@ impl Maps {
     pub fn alloc(&self, sz:u32) -> Option<u32> {
         // super simple memory allocator
 
-        let mut addr:u32 = 0;
+        let mut addr:u32 = 100;
 
         //println!("ALLOCATOR sz:{}", sz);
         loop {

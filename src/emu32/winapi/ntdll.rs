@@ -47,9 +47,8 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
         None => panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "),
     };
 
-    println!("{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, alloc_addr, size, emu.colors.nc);
+    println!("{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}", emu.colors.light_red, emu.pos, alloc_addr, size, alloc_addr, emu.colors.nc);
 
-    //TODO: modify this, its allowing just one allocation
     let alloc = emu.maps.create_map(format!("valloc_{:x}", alloc_addr).as_str());
     alloc.set_base(alloc_addr);
     alloc.set_size(size);
