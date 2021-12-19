@@ -77,6 +77,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e8da70 => TlsGetValue(emu),
         0x75eff02b => EncodePointer(emu),
         0x75e8ba46 => Sleep(emu),
+        0x75e93939 => InitializeCriticalSectionAndSpinCount(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
@@ -98,6 +99,9 @@ fn GetProcAddress(emu:&mut emu32::Emu32) {
     let func = emu.maps.read_string(func_ptr).to_lowercase();
 
     //println!("looking for '{}'", func);
+
+    emu.stack_pop(false);
+    emu.stack_pop(false);
 
     // https://github.com/ssherei/asm/blob/master/get_api.asm
 
@@ -1133,4 +1137,16 @@ fn Sleep(emu:&mut emu32::Emu32) {
     println!("{}** {} kernel32!Sleep millis: {} {}", emu.colors.light_red, emu.pos, millis, emu.colors.nc);
 
     emu.stack_pop(false);
+}
+
+fn InitializeCriticalSectionAndSpinCount(emu:&mut emu32::Emu32) {
+    let crit_sect = emu.maps.read_dword(emu.regs.esp).expect("kernel32!InitializeCriticalSectionAndSpinCount cannot read crit_sect");
+    let spin_count = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!InitializeCriticalSectionAndSpinCount cannot read spin_count");
+
+    println!("{}** {} kernel32!InitializeCriticalSectionAndSpinCount crit_sect: 0x{:x} spin_count: {} {}", emu.colors.light_red, emu.pos, crit_sect, spin_count, emu.colors.nc);
+
+    emu.stack_pop(false);
+    emu.stack_pop(false);
+
+    emu.regs.eax = 1;
 }
