@@ -77,7 +77,7 @@ impl Emu32 {
 
     pub fn init_stack(&mut self) {
         let stack = self.maps.get_mem("stack");
-        stack.set_base(0x210000);    //0x22d000
+        stack.set_base(0x22d000); 
         stack.set_size(0x020000);
         self.regs.esp = 0x22e000;
         self.regs.ebp = 0x22f000;
@@ -89,7 +89,6 @@ impl Emu32 {
         assert!(self.regs.ebp < stack.get_bottom());
         assert!(stack.inside(self.regs.esp));
         assert!(stack.inside(self.regs.ebp));
-        //let q = (stack.size() as u32) / 4;
     }
 
     pub fn init(&mut self) {
@@ -171,13 +170,6 @@ impl Emu32 {
 
         self.init_stack();
 
-        let m10000 = self.maps.get_mem("10000");
-        m10000.set_base(0x10000);
-        m10000.set_size(0x10000);
-        
-        let m20000 = self.maps.get_mem("20000");
-        m20000.set_base(0x20000);
-        m20000.set_size(0x10000);
 
         let orig_path = std::env::current_dir().unwrap();
         std::env::set_current_dir(self.cfg.maps_folder.clone());
@@ -401,6 +393,16 @@ impl Emu32 {
         let msctf_text = self.maps.get_mem("msctf_text");
         msctf_text.set_base(0x75a31000);
         msctf_text.load("msctf_text.bin");
+
+        let m10000 = self.maps.get_mem("10000");
+        m10000.set_base(0x10000);
+        m10000.set_size(0xffff);
+        m10000.load("m10000.bin");
+        
+        let m20000 = self.maps.get_mem("20000");
+        m20000.set_base(0x20000);
+        m20000.set_size(0xffff);
+        m20000.load("m20000.bin");
 
 
         // xloader initial state hack
@@ -1089,63 +1091,6 @@ impl Emu32 {
         //TODO: care with overflow
         return (val >> rot) | (val << bits-rot);
     }
-/*
-    pub fn shld32(&mut self, value0:u32, value1:u32, counter:u16) -> u32 {
-        let mut storage1:u64 = value0 as u64;
-        let mut storage2:u64 = value1 as u64;
-
-        storage1 = storage1 << counter;
-        storage2 = storage2 << counter;
-
-        let new_bits = (storage2 & 0xffffffff00000000) >> 32;
-        storage1 += new_bits;
-
-        if storage1 > 0xffffffff {
-            self.flags.f_cf = true;
-        }
-
-        let result:u32 = (storage1 & 0xffffffff) as u32;
-        self.flags.calc_flags(result, 32);
-        return result;
-    }
-
-    pub fn shld16(&mut self, value0:u16, value1:u16, counter:u16) -> u32 {
-        let mut storage1:u32 = value0 as u32;
-        let mut storage2:u32 = value1 as u32;
-
-        storage1 = storage1 << counter;
-        storage2 = storage2 << counter;
-
-        let new_bits = (storage2 & 0xffff0000) >> 16;
-        storage1 += new_bits;
-
-        if storage1 > 0xffff {
-            self.flags.f_cf = true;
-        }
-
-        let result:u32 = (storage1 & 0xffff) as u32;
-        self.flags.calc_flags(result, 16);
-        return result;
-    }
-
-    pub fn shld8(&mut self, value0:u8, value1:u8, counter:u16) -> u32 {
-        let mut storage1:u16 = value0 as u16;
-        let mut storage2:u16 = value1 as u16;
-
-        storage1 = storage1 << counter;
-        storage2 = storage2 << counter;
-
-        let new_bits = (storage2 & 0xff00) >> 8;
-        storage1 += new_bits;
-
-        if storage1 > 0xff {
-            self.flags.f_cf = true;
-        }
-
-        let result:u32 = (storage1 & 0xff) as u32;
-        self.flags.calc_flags(result, 8);
-        return result;
-    }*/
 
 
     fn get_bit(&self, val:u32, count:u32) -> u32 {
@@ -3148,9 +3093,7 @@ impl Emu32 {
                     Mnemonic::Stosb => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                       
+                        }                       
 
                         self.maps.write_byte(self.regs.edi, self.regs.get_al() as u8);
 

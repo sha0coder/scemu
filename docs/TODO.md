@@ -4,12 +4,15 @@
 - md accept registers
 - md memory dump filter strings, replace by .
 - mr mw options can crash the console
+- fix instruction breakpoint 
 - more apis
 - in self.execption() put a message self.exception(msg)
 - improve seh command
 - better api implementations
 - change xmm to f128
 - winhttp
+- implement a basic decompiler in rust.
+- ranges like -c 0x111,0x222 
 - remove expect() on implemented instructions, just break;
 - stack_push and stack_pop assumes the stack is in the memory map stack
 - step over
@@ -24,8 +27,7 @@
 - intead of panic spawn console
 - set the code base addr
 - on every set_eip of a non branch dump stack to log file
-- implement scas & rep
-- implement imul
+- implement scas & rep on movz and others.
 - check pf flag bug
 - save state to disk and continue
 - command to exit the bucle or to see  next instruction
