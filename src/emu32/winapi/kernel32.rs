@@ -76,8 +76,10 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e8da88 => TlsSetValue(emu),
         0x75e8da70 => TlsGetValue(emu),
         0x75eff02b => EncodePointer(emu),
+        0x75efef55 => DecodePointer(emu),
         0x75e8ba46 => Sleep(emu),
         0x75e93939 => InitializeCriticalSectionAndSpinCount(emu),
+        0x75eff164 => HeapAlloc(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
@@ -1090,7 +1092,7 @@ fn TlsSetValue(emu:&mut emu32::Emu32) {
         None => 0,
     };
 
-    println!("{}** {} kernel32!TlsSetValue idx: {} val: {} {}", emu.colors.light_red, emu.pos, idx, val, emu.colors.nc);
+    println!("{}** {} kernel32!TlsSetValue idx: {} val: 0x{:x} {}", emu.colors.light_red, emu.pos, idx, val, emu.colors.nc);
 
     if emu.tls.len() > idx as usize {
         emu.tls[idx as usize] = val;
@@ -1118,16 +1120,24 @@ fn TlsGetValue(emu:&mut emu32::Emu32) {
         emu.regs.eax = emu.tls[idx as usize];
     }
 
-    println!("{}** {} kernel32!TlsGetValue idx: {} ={} {}", emu.colors.light_red, emu.pos, idx, emu.regs.eax, emu.colors.nc);
+    println!("{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}", emu.colors.light_red, emu.pos, idx, emu.regs.eax, emu.colors.nc);
 }
 
 fn EncodePointer(emu:&mut emu32::Emu32) {
-    let ptr = emu.maps.read_dword(emu.regs.esp).expect("kernel32!EncodePointer cannot read ptr");
+    let ptr = emu.maps.read_dword(emu.regs.esp).expect("kernel32!EncodePointer cannot read the pointer");
 
     println!("{}** {} kernel32!EncodePointer ptr: 0x{:x} {}", emu.colors.light_red, emu.pos, ptr, emu.colors.nc);
 
     emu.stack_pop(false);
+    emu.regs.eax = ptr;
+}
 
+fn DecodePointer(emu:&mut emu32::Emu32) {
+    let ptr = emu.maps.read_dword(emu.regs.esp).expect("kernel32!DecodePointer cannot read the pointer");
+
+    println!("{}** {} kernel32!DecodePointer ptr: 0x{:x} {}", emu.colors.light_red, emu.pos, ptr, emu.colors.nc);
+
+    emu.stack_pop(false);
     emu.regs.eax = ptr;
 }
 
@@ -1149,4 +1159,23 @@ fn InitializeCriticalSectionAndSpinCount(emu:&mut emu32::Emu32) {
     emu.stack_pop(false);
 
     emu.regs.eax = 1;
+}
+
+fn HeapAlloc(emu:&mut emu32::Emu32) {
+    let hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!HeapAlloc cannot read the handle");
+    let flags = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!HeapAlloc cannot read the flags");
+    let size = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!HeapAlloc cannot read the size");
+
+    emu.regs.eax = match emu.maps.alloc(size) {
+        Some(sz) => sz,
+        None => 0,
+    };
+
+    println!("{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}", emu.colors.light_red, 
+            emu.pos, flags, size, emu.regs.eax, emu.colors.nc);
+
+    for _ in 0..3 {
+        emu.stack_pop(false);
+    }
+
 }
