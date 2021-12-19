@@ -76,6 +76,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e8da88 => TlsSetValue(emu),
         0x75e8da70 => TlsGetValue(emu),
         0x75eff02b => EncodePointer(emu),
+        0x75e8ba46 => Sleep(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
@@ -1105,8 +1106,6 @@ fn TlsSetValue(emu:&mut emu32::Emu32) {
 fn TlsGetValue(emu:&mut emu32::Emu32) {
     let idx = emu.maps.read_dword(emu.regs.esp).expect("kernel32!TlsGetValue cannot read idx");
 
-    println!("{}** {} kernel32!TlsGetValue idx: {} {}", emu.colors.light_red, emu.pos, idx, emu.colors.nc);
-
     emu.stack_pop(false);
 
     if idx as usize > emu.tls.len() {
@@ -1114,6 +1113,8 @@ fn TlsGetValue(emu:&mut emu32::Emu32) {
     } else {
         emu.regs.eax = emu.tls[idx as usize];
     }
+
+    println!("{}** {} kernel32!TlsGetValue idx: {} ={} {}", emu.colors.light_red, emu.pos, idx, emu.regs.eax, emu.colors.nc);
 }
 
 fn EncodePointer(emu:&mut emu32::Emu32) {
@@ -1124,4 +1125,12 @@ fn EncodePointer(emu:&mut emu32::Emu32) {
     emu.stack_pop(false);
 
     emu.regs.eax = ptr;
+}
+
+fn Sleep(emu:&mut emu32::Emu32) {
+    let millis = emu.maps.read_dword(emu.regs.esp).expect("kernel32!Sleep cannot read millis");
+
+    println!("{}** {} kernel32!Sleep millis: {} {}", emu.colors.light_red, emu.pos, millis, emu.colors.nc);
+
+    emu.stack_pop(false);
 }

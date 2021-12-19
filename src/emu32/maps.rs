@@ -151,7 +151,7 @@ impl Maps {
         println!("--- maps ---");
         for k in self.maps.keys() {
             let map = self.maps.get(k).unwrap();
-            println!("{}\t0x{:x} - 0x{:x}", k, map.get_base(), map.get_bottom());
+            println!("{}\t0x{:x} - 0x{:x} ({})", k, map.get_base(), map.get_bottom(), map.size());
         }
         println!("memory usage: {} bytes", self.size());
         println!("---");
