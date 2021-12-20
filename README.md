@@ -36,8 +36,35 @@ x86 32bits emulator, for securely emulating shellcodes
 	- scripting?
 
 ## Usage
-![usage](pics/usage.png)
+```
+SCEMU 32bits emulator for Shellcodes 0.2.5
+@sha0coder
 
+USAGE:
+    scemu [FLAGS] [OPTIONS]
+
+FLAGS:
+    -e, --endpoint    perform communications with the endpoint, use tor or vpn!
+    -h, --help        Prints help information
+    -l, --loops       show loop interations, it is slow.
+    -m, --memory      trace all the memory accesses read and write.
+    -n, --nocolors    print without colors for redirectin to a file >out
+    -r, --regs        print the register values in every step.
+    -V, --version     Prints version information
+    -v, --verbose     -vv for view the assembly, -v only messages, without verbose only see the api calls and goes
+                      faster
+
+OPTIONS:
+    -b, --base <ADDRESS>            set base address for code
+    -c, --console <NUMBER>          select in which moment will spawn the console to inspect.
+    -C, --console_addr <ADDRESS>    spawn console on first eip = address
+    -e, --entry <ADDRESS>           entry point of the shellcode, by default starts from the beginning.
+    -f, --filename <FILE>           set the shellcode binary file.
+    -i, --inspect <DIRECTION>       monitor memory like: -i 'dword ptr [ebp + 0x24]
+    -M, --maps <PATH>               select the memory maps folder
+    -R, --reg <REGISTER>            trace a specific register in every step, value and content
+    -s, --string <ADDRESS>          monitor string on a specific address
+```
 
 ## Some use cases
 
