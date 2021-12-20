@@ -75,6 +75,8 @@ filename=>/etc/passwd
 =>
 ```
 
+To see the maps allocated by the shellcode use `ma` for memory allocations.
+
 Its possible to compute the md5sum of a memory map with command `md5`
 
 ## Memory read and write
@@ -140,3 +142,21 @@ There is a tool to walk the elements of a linked list which is command `ll`
 ## Dissasemble
 
 To dissasemble from specific addres use command `d`
+
+## SEH and VEH pointers 
+
+The command `seh` allow to see the stack pointer where is the SEH pointers.
+
+
+```
+=>seh
+0x1b002d
+=>mr
+memory argument=>dword ptr [0x1b0028]
+0x1b00a7
+=>mr 
+memory argument=>dword ptr [0x1b002c]
+0x3c0012
+```
+
+The `veh` return the vectorized exception pointer.
