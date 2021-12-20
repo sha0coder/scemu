@@ -93,7 +93,7 @@ fn main() {
                         .takes_value(true)
                         .value_name("ADDRESS"))
                     .arg(Arg::with_name("entry_point")
-                        .short("e")
+                        .short("a")
                         .long("entry")
                         .help("entry point of the shellcode, by default starts from the beginning.")
                         .takes_value(true)
