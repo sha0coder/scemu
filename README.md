@@ -58,7 +58,7 @@ OPTIONS:
     -b, --base <ADDRESS>            set base address for code
     -c, --console <NUMBER>          select in which moment will spawn the console to inspect.
     -C, --console_addr <ADDRESS>    spawn console on first eip = address
-    -e, --entry <ADDRESS>           entry point of the shellcode, by default starts from the beginning.
+    -a, --entry <ADDRESS>           entry point of the shellcode, by default starts from the beginning.
     -f, --filename <FILE>           set the shellcode binary file.
     -i, --inspect <DIRECTION>       monitor memory like: -i 'dword ptr [ebp + 0x24]
     -M, --maps <PATH>               select the memory maps folder
