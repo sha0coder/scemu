@@ -300,6 +300,9 @@ impl Regs32 {
             Register::SS => 0,
             Register::SP => 0, 
             Register::BP => 0,
+            Register::ES => 0,
+            Register::FS => 0,
+            Register::GS => 0,
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
@@ -334,6 +337,9 @@ impl Regs32 {
             Register::SP => { },
             Register::SS => { },
             Register::BP => { },
+            Register::ES => { },
+            Register::FS => { },
+            Register::GS => { },
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
     }

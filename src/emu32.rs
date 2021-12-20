@@ -757,7 +757,11 @@ impl Emu32 {
 
         let name = match self.maps.get_addr_name(addr) {
             Some(n) => n,
-            None => panic!("/!\\ setting eip to non mapped addr 0x{:x}", addr),
+            None => { 
+                eprintln!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
+                self.exception();
+                return;
+            }
         };
 
         if name == "code" || addr < 0x70000000 {
@@ -2058,7 +2062,7 @@ impl Emu32 {
                         None => 0,
                     };
 
-                    println!("\t{} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.cfg.inspect_seq, addr, value, value, self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
+                    println!("\t{} {} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.pos, self.cfg.inspect_seq, addr, value, value, self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
                 }
 
                 let mut info_factory = InstructionInfoFactory::new();
@@ -4450,6 +4454,82 @@ impl Emu32 {
                         //self.set_operand_value(&ins, 0, value1 as u32);
                         self.set_operand_xmm_value64(&ins, 0, value1);
                     }
+
+                    Mnemonic::Arpl => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.f_zf = value1 < value0;
+
+                        self.set_operand_value(&ins, 1, value0);
+                    }
+
+                    Mnemonic::Pushf => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let val:u16 = (self.flags.dump() & 0xffff) as u16;
+
+                        self.regs.esp -= 2;
+
+                        if !self.maps.write_word(self.regs.esp, val) {
+                            self.exception();
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Pushfd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let flags = self.flags.dump();
+                        self.stack_push(flags);
+                    }
+                    
+                    /*
+                    Mnemonic::Popf => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let flags:u16 = match self.maps.read_word(self.regs.esp) {
+                            Some(v) => v,
+                            None => {
+                                eprintln!("popf cannot read the stack");
+                                self.exception();
+                                break;
+                            }
+                        };
+
+                        let flags2:u32 = self.flags.dump() & 0xffff0000 + flags as u32;
+
+                        self.flags.load(flags2);
+
+                        self.regs.esp += 2;
+                    }
+
+                    Mnemonic::Popfd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let flags = self.stack_pop(true);
+                        self.flags.load(flags);
+                    }*/
+
 
 
                     ////   Ring0  ////

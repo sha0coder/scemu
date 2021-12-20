@@ -82,6 +82,10 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e93939 => InitializeCriticalSectionAndSpinCount(emu),
         0x75eff164 => HeapAlloc(emu),
         0x75e82351 => GetProcessAffinityMask(emu),
+        0x75e83ea8 => IsDebuggerPresent(emu),
+        0x75e93d01 => SetUnhandledExceptionFilter(emu),
+        0x75e9ed38 => UnhandledExceptionFilter(emu),
+        0x75e8cdcf => GetCurrentProcess(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
@@ -1205,5 +1209,34 @@ fn GetProcessAffinityMask(emu:&mut emu32::Emu32) {
     for _ in 0..3 {
         emu.stack_pop(false);
     }
+}
 
+fn IsDebuggerPresent(emu:&mut emu32::Emu32) {
+    println!("{}** {} kernel32!IsDebuggerPresent {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    emu.regs.eax = 0; // of course :p
+}
+
+fn SetUnhandledExceptionFilter(emu:&mut emu32::Emu32) {
+    let callback = emu.maps.read_dword(emu.regs.esp).expect("kernel32!SetUnhandledExceptionFilter cannot read the callback");
+
+    println!("{}** {} kernel32!SetUnhandledExceptionFilter  callback: 0x{:x} {}", emu.colors.light_red, emu.pos, callback, emu.colors.nc);
+
+    emu.regs.eax = emu.seh;
+    emu.seh = callback;
+
+    emu.stack_pop(false);
+}
+
+fn UnhandledExceptionFilter(emu:&mut emu32::Emu32) {
+    let exception_info = emu.maps.read_dword(emu.regs.esp).expect("kernel32!UnhandledExceptionFilter cannot read exception_info");
+    
+    println!("{}** {} kernel32!UnhandledExceptionFilter  exception_info: 0x{:x} {}", emu.colors.light_red, emu.pos, exception_info, emu.colors.nc);
+
+    emu.stack_pop(false);
+    emu.regs.eax =  constants::EXCEPTION_EXECUTE_HANDLER; // a debugger would had answered EXCEPTION_CONTINUE_SEARCH
+}
+
+fn GetCurrentProcess(emu:&mut emu32::Emu32) {
+    println!("{}** {} kernel32!GetCurrentProcess {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    emu.regs.eax = helper::handler_create();
 }
