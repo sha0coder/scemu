@@ -37,6 +37,8 @@ It's like a debugger, but with the difference that the code is not executed, it'
 
 More information about the console in [CONSOLE.md](CONSOLE.md)
 
+Also it's possible to spawn the console at specific address with `-C addr`
+
 ## Registers
 
 Its possible to display all the registers in every step with `-r` or `--regs` often used together with `-vv`.
@@ -137,3 +139,28 @@ The option `-e` or `--endpoint` perform communications with the command & contro
 Use VPN or Tor to protect your IP if the endpoing is not trusted.
 
 The endpoint mode is like a Man In The Middle proxy between the API calls and the C&C, it support socket communications in windows and linux and also wininet.
+
+## Entry Point and Base address
+
+By default the entrypoint is the first instruction in the binary blob provided with `-f shellcode.bin` but its possible to specify a different entry point with `-a addr`
+
+For avoiding having to rebase the IDA/Ghidra/Rdare to have a common base with this tool, its possible to set an address with `-b addr` but make sure this address is not already mapped.
+
+If you select a base you have to select also the entry point for exmaple `-b 0x4c000000 -e 0x4c000000`
+
+## Greppable output
+
+The tool can be used with grep to filter the output, for example for see only the calls or the branches.
+
+To analyze the logic of the algorithm you can use this filter:
+
+```bash
+target/release/scemu -f shellcode.bin -vv | egrep '(j|cmp|test)'
+```
+
+Or for correlating the ghidra/ida/radare functions with scemu use a call filter.
+
+```bash
+target/release/scemu -f shellcode.bin -vv | grep 'call'
+```
+
