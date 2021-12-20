@@ -15,6 +15,11 @@ impl Maps {
         }
     }
 
+    pub fn get_map_by_name(&self, name:&str) -> Option<&Mem32> {
+        let s = name.to_string();
+        return self.maps.get(&s);
+    }
+
     pub fn create_map(&mut self, name:&str) -> &mut Mem32 {
         let mem = Mem32::new();
         self.maps.insert(name.to_string(), mem);
@@ -441,6 +446,14 @@ impl Maps {
             }
         }
         return false;
+    }
+
+    pub fn show_allocs(&self) {
+        for (name, mem) in self.maps.iter() {
+            if name.starts_with("alloc_") {
+                println!("{} 0x{:x}-0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
+            } 
+        }
     }
 
     pub fn alloc(&self, sz:u32) -> Option<u32> {

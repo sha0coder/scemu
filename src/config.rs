@@ -17,6 +17,8 @@ pub struct Config {
     pub maps_folder: String,
     pub console2: bool,
     pub console_addr: u32,
+    pub entry_point: u32,
+    pub code_base_addr: u32,
 }
 
 impl Config {
@@ -39,6 +41,8 @@ impl Config {
             maps_folder: "".to_string(),
             console2: false,
             console_addr: 0,
+            entry_point: 0x3c0000,
+            code_base_addr: 0x3c0000,
         }
     }
 }
