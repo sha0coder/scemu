@@ -96,7 +96,7 @@ impl Emu32 {
         self.regs.clear();
         //self.regs.esp = 0x22f000;
         //self.regs.ebp = 0x00100f00;
-        self.regs.eip = 0x003c0000;
+        self.regs.eip = self.cfg.entry_point;
         //TODO: randomize initial register for avoid targeted anti-amulation
         self.regs.eax = 0;
         self.regs.ebx = 0x0022ee88;
@@ -174,7 +174,7 @@ impl Emu32 {
         let orig_path = std::env::current_dir().unwrap();
         std::env::set_current_dir(self.cfg.maps_folder.clone());
 
-        self.maps.get_mem("code").set_base(self.regs.eip);
+        self.maps.get_mem("code").set_base(self.cfg.code_base_addr);
         let kernel32 = self.maps.get_mem("kernel32");
         kernel32.set_base(0x75e40000);
         if !kernel32.load("kernel32.bin") {
@@ -1312,10 +1312,20 @@ impl Emu32 {
                             continue;
                         }
                     };
-                    match self.maps.get_addr_name(addr) {
-                        Some(name)  => println!("address at '{}' map", name),
-                        None => println!("address not found on any map"),
-                    }
+                    let name = match self.maps.get_addr_name(addr) {
+                        Some(n) => n,
+                        None => {
+                            println!("address not found on any map");
+                            continue;
+                        }
+                    };
+
+                    let mem = self.maps.get_mem(name.as_str());
+                    println!("map: {} 0x{:x}-0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
+
+                },
+                "ma" => {
+                    self.maps.show_allocs();
                 },
                 "md" => {
                     con.print("address");
@@ -4452,7 +4462,7 @@ impl Emu32 {
                         match self.regs.ecx {
                             0x176 => {
                                 self.regs.edx = 0;
-                                self.regs.eax = 0x3c0042;
+                                self.regs.eax = self.cfg.code_base_addr + 0x42;
                             },
                             _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.ecx),
                         }

@@ -2,7 +2,7 @@
 
 - clear breakpoint bug
 - md accept registers
-- md memory dump filter strings, replace by .
+- md memory check the string filter
 - mr mw options can crash the console
 - fix instruction breakpoint 
 - more apis
@@ -12,7 +12,6 @@
 - change xmm to f128
 - winhttp
 - implement a basic decompiler in rust.
-- ranges like -c 0x111,0x222 
 - remove expect() on implemented instructions, just break;
 - stack_push and stack_pop assumes the stack is in the memory map stack
 - step over

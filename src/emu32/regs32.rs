@@ -298,6 +298,8 @@ impl Regs32 {
             Register::DS => 0,
             Register::CS => 0,
             Register::SS => 0,
+            Register::SP => 0, 
+            Register::BP => 0,
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
@@ -329,7 +331,9 @@ impl Regs32 {
             Register::CL => self.set_cl(value),
             Register::DH => self.set_dh(value),
             Register::DL => self.set_dl(value),
+            Register::SP => { },
             Register::SS => { },
+            Register::BP => { },
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
     }

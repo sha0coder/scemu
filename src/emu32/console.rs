@@ -66,6 +66,7 @@ impl Console {
         println!("seh .................... view SEH");
         println!("veh .................... view vectored execption pointer");
         println!("m ...................... memory maps");
+        println!("ma ..................... memory allocs");
         println!("mc ..................... memory create map");
         println!("mn ..................... memory name of an address");
         println!("ml ..................... memory load file content to map");

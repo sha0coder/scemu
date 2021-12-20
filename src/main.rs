@@ -87,9 +87,21 @@ fn main() {
                         .help("perform communications with the endpoint, use tor or vpn!")
                         .takes_value(false))
                     .arg(Arg::with_name("console_addr")
-                        .short("a")
-                        .long("addr")
+                        .short("C")
+                        .long("console_addr")
                         .help("spawn console on first eip = address")
+                        .takes_value(true)
+                        .value_name("ADDRESS"))
+                    .arg(Arg::with_name("entry_point")
+                        .short("e")
+                        .long("entry")
+                        .help("entry point of the shellcode, by default starts from the beginning.")
+                        .takes_value(true)
+                        .value_name("ADDRESS"))
+                    .arg(Arg::with_name("code_base_address")
+                        .short("b")
+                        .long("base")
+                        .help("set base address for code")
                         .takes_value(true)
                         .value_name("ADDRESS"))
                     .get_matches();
@@ -142,7 +154,17 @@ fn main() {
     }
     if matches.is_present("console_addr") {
         cfg.console2 = true;
-        cfg.console_addr = u32::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -a").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.console_addr = u32::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
+    }
+    if matches.is_present("entry_point") {
+        cfg.entry_point = u32::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
+    }
+    if matches.is_present("code_base_address") {
+        cfg.code_base_addr = u32::from_str_radix(matches.value_of("entry_point").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
+        if !matches.is_present("entry_point") {
+            eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
+            std::process::exit(1);
+        }
     }
 
     let mut emu32 = Emu32::new();

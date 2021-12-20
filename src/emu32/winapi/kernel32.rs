@@ -75,11 +75,13 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
         0x75e935a1 => TlsAlloc(emu),
         0x75e8da88 => TlsSetValue(emu),
         0x75e8da70 => TlsGetValue(emu),
+        0x75e913b8 => TlsFree(emu),
         0x75eff02b => EncodePointer(emu),
         0x75efef55 => DecodePointer(emu),
         0x75e8ba46 => Sleep(emu),
         0x75e93939 => InitializeCriticalSectionAndSpinCount(emu),
         0x75eff164 => HeapAlloc(emu),
+        0x75e82351 => GetProcessAffinityMask(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
@@ -1083,21 +1085,25 @@ fn TlsAlloc(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1;
 }
 
+fn TlsFree(emu:&mut emu32::Emu32) {
+    let idx = emu.maps.read_dword(emu.regs.esp).expect("kernel32!TlsFree cannot read idx");
+
+    println!("{}** {} kernel32!TlsFree idx: {} {}", emu.colors.light_red, emu.pos, idx, emu.colors.nc);
+
+    emu.stack_pop(false);
+    emu.regs.eax = 1;
+}
+
 fn TlsSetValue(emu:&mut emu32::Emu32) {
     let idx = emu.maps.read_dword(emu.regs.esp).expect("kernel32!TlsSetValue cannot read idx");
-    let val_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!TlsSetValue cannot read val_ptr");
-
-    let val = match emu.maps.read_dword(val_ptr) {
-        Some(v) => v,
-        None => 0,
-    };
+    let val = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!TlsSetValue cannot read val_ptr");
 
     println!("{}** {} kernel32!TlsSetValue idx: {} val: 0x{:x} {}", emu.colors.light_red, emu.pos, idx, val, emu.colors.nc);
 
     if emu.tls.len() > idx as usize {
         emu.tls[idx as usize] = val;
     } else {
-        for _ in 0..idx+1 {
+        for _ in 0..=idx {
             emu.tls.push(0);
         }
         emu.tls[idx as usize] = val;
@@ -1171,8 +1177,30 @@ fn HeapAlloc(emu:&mut emu32::Emu32) {
         None => 0,
     };
 
+    let mem = emu.maps.create_map(format!("alloc_{:x}", emu.regs.eax).as_str());
+    mem.set_base(emu.regs.eax);
+    mem.set_size(size);
+    
     println!("{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}", emu.colors.light_red, 
             emu.pos, flags, size, emu.regs.eax, emu.colors.nc);
+
+    for _ in 0..3 {
+        emu.stack_pop(false);
+    }
+}
+
+fn GetProcessAffinityMask(emu:&mut emu32::Emu32) {
+    let hndl = emu.maps.read_dword(emu.regs.esp).expect("kernel32!GetProcessAffinityMask cannot read the handle");
+    let proc_affinity_mask_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("kernel32!GetProcessAffinityMask cannot read the  proc_affinity_mask_ptr");
+    let sys_affinity_mask_ptr = emu.maps.read_dword(emu.regs.esp+8).expect("kernel32!GetProcessAffinityMask cannot read the sys_affinity_mask_ptr");
+
+    emu.maps.write_dword(proc_affinity_mask_ptr, 0x1337);
+    emu.maps.write_dword(sys_affinity_mask_ptr, 0x1337);
+
+    println!("{}** {} kernel32!GetProcessAffinityMask {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+
+    emu.regs.eax = 1;
 
     for _ in 0..3 {
         emu.stack_pop(false);
