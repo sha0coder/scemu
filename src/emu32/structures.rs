@@ -16,7 +16,7 @@ impl ListEntry {
     }
 
     pub fn print(&self) {
-        println!("{:#?}", self);
+        println!("{:#x?}", self);
     }
 }
 
@@ -59,7 +59,7 @@ impl LdrDataTableEntry {
     }
 
     pub fn print(&self) {
-        println!("{:#?}", self);
+        println!("{:#x?}", self);
     }
 }
 
@@ -89,7 +89,7 @@ impl PebLdrData {
     }
 
     pub fn print(&self) {
-        println!("{:#?}", self);
+        println!("{:#x?}", self);
     }
 }
 
@@ -144,7 +144,7 @@ impl PEB {
     }
 
     pub fn print(&self) {
-        println!("{:#?}", self);
+        println!("{:#x?}", self);
     }
 }
 
