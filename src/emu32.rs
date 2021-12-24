@@ -1278,7 +1278,7 @@ impl Emu32 {
                     self.exp = self.pos+1;
                 },
 
-                "s" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.esp, self.regs.esp+48),
+                "s" => self.maps.dump_dwords(self.regs.esp),
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
                 "f" => self.flags.print(),

@@ -28,6 +28,7 @@ impl Console {
 
     pub fn cmd_hex(&self) -> Result<u32,ParseIntError> {
         let mut x = self.cmd();
+
         if x.ends_with("h") {
             x = x[0..x.len()-1].to_string();
         }
