@@ -751,7 +751,6 @@ impl Emu32 {
         return ret;
     }
 
-
     
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
@@ -1341,6 +1340,18 @@ impl Emu32 {
                         }
                     };
                     self.maps.dump(addr);
+                },
+                "mrd" => {
+                    con.print("address");
+                    let addr = match con.cmd_hex() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    self.maps.dump_dwords(addr);
+
                 },
                 "mds" => {
                     con.print("address");
