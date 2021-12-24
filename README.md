@@ -109,12 +109,110 @@ Metasploit shikata-ga-nai encoder that also starts with fpu:
 
 
 Displaying PEB structure:
-![msf encoded](pics/structures.png)
+```
+=>dt
+structure=>peb
+address=>0x7ffdf000
+PEB {
+    reserved1: [
+        0x0,
+        0x0,
+    ],
+    being_debugged: 0x0,
+    reserved2: 0x0,
+    reserved3: [
+        0xffffffff,
+        0x400000,
+    ],
+    ldr: 0x77647880,
+    process_parameters: 0x2c1118,
+    reserved4: [
+        0x0,
+        0x2c0000,
+        0x77647380,
+    ],
+    alt_thunk_list_ptr: 0x0,
+    reserved5: 0x0,
+    reserved6: 0x6,
+    reserved7: 0x773cd568,
+    reserved8: 0x0,
+    alt_thunk_list_ptr_32: 0x0,
+    reserved9: [
+        0x0,
+...
+```
 
 Displaying PEB_LDR_DATA structure:
-![msf encoded](pics/structures2.png)
+```
+=>dt
+structure=>PEB_LDR_DATA
+address=>0x77647880
+PebLdrData {
+    length: 0x30,
+    initializated: 0x1,
+    sshandle: 0x0,
+    in_load_order_module_list: ListEntry {
+        flink: 0x2c18b8,
+        blink: 0x2cff48,
+    },
+    in_memory_order_module_list: ListEntry {
+        flink: 0x2c18c0,
+        blink: 0x2cff50,
+    },
+    in_initialization_order_module_list: ListEntry {
+        flink: 0x2c1958,
+        blink: 0x2d00d0,
+    },
+    entry_in_progress: ListEntry {
+        flink: 0x0,
+        blink: 0x0,
+    },
+}
+=>
+```
 
 Displaying LDR_DATA_TABLE_ENTRY and first module name
-![msf encoded](pics/structure3.png)
+```
+=>dt
+structure=>LDR_DATA_TABLE_ENTRY
+address=>0x2c18c0
+LdrDataTableEntry {
+    reserved1: [
+        0x2c1950,
+        0x77647894,
+    ],
+    in_memory_order_module_links: ListEntry {
+        flink: 0x0,
+        blink: 0x0,
+    },
+    reserved2: [
+        0x0,
+        0x400000,
+    ],
+    dll_base: 0x4014e0,
+    entry_point: 0x1d000,
+    reserved3: 0x40003e,
+    full_dll_name: 0x2c1716,
+    reserved4: [
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+        0x0,
+    ],
+    reserved5: [
+        0x17440012,
+        0x4000002c,
+        0xffff0000,
+    ],
+    checksum: 0x1d6cffff,
+    reserved6: 0xa640002c,
+    time_date_stamp: 0xcdf27764,
+}
+=>
+```
 
 
