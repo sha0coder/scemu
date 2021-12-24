@@ -121,6 +121,9 @@ Also it's possible to dump to disk with `mdd` command.
 
 If you want to dump an ascii string `mds` and wide string with `mdw`
 
+The command `mrd` for memory read dword dumps a list of dwords.
+
+
 ## Search 
 
 You can search in specific map or in all the memory, `ss` search string in a map, and `sb` search a bunch of bytes hexa separated by hex
