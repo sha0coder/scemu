@@ -58,6 +58,7 @@ impl Console {
     pub fn help(&self) {
         println!("--- help ---");
         println!("q ...................... quit");
+        println!("cls .................... clear screen");
         println!("h ...................... help");
         println!("s ...................... stack");
         println!("v ...................... vars");

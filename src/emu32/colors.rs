@@ -18,6 +18,7 @@ pub struct Colors {
     pub light_cyan:String,
     pub white:String,
     pub nc:String, // no_color
+    pub clear_screen:String, 
 }
 
 impl Colors {
@@ -40,6 +41,7 @@ impl Colors {
             light_cyan:"\x1b[1;36m".to_string(),
             white:"\x1b[1;37m".to_string(),
             nc:"\x1b[0m".to_string(), // no_color
+            clear_screen:"\x1bc".to_string(),
         }
     }
 
