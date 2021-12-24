@@ -32,7 +32,8 @@ use context::Context;
 use breakpoint::Breakpoint;
 use crate::config::Config;
 
-use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, NasmFormatter, Mnemonic, OpKind, InstructionInfoFactory, Register, MemorySize};
+use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, IntelFormatter, Mnemonic, OpKind, 
+    InstructionInfoFactory, Register, MemorySize};
 
 pub struct Emu32 {
     regs: Regs32,
@@ -1631,9 +1632,9 @@ impl Emu32 {
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
         let mut decoder = Decoder::with_ip(32, &block, addr as u64, DecoderOptions::NONE);
-        let mut formatter = NasmFormatter::new();
+        let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
-        formatter.options_mut().set_first_operand_char_index(10);
+        formatter.options_mut().set_first_operand_char_index(6);
         let mut output = String::new();
         let mut instruction = Instruction::default();
         let mut count:u32 = 1;
@@ -1970,9 +1971,9 @@ impl Emu32 {
         let mut looped:Vec<u64> = Vec::new();
         let mut out = String::new();
         //let ins = Instruction::default();
-        let mut formatter = NasmFormatter::new();
+        let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
-        formatter.options_mut().set_first_operand_char_index(10);
+        formatter.options_mut().set_first_operand_char_index(6);
 
         self.pos = 0;
 
