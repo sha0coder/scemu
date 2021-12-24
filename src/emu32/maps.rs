@@ -216,12 +216,18 @@ impl Maps {
     pub fn dump_dwords(&self, addr:u32) {
         let mut value:u32;
         for i in 0..10 {
-            value = match self.read_dword(addr+i*4) {
+            let a = addr + i * 4;
+            value = match self.read_dword(a) {
                 Some(v) => v,
                 None => break,
             };
 
-            println!("0x{:x}: 0x{:x} {}", addr+i*4, value, self.read_string(value));
+            let name = match self.get_addr_name(value) {
+                Some(v) => v,
+                None => "".to_string(),
+            };
+
+            println!("0x{:x}: 0x{:x} ({}) '{}'", a, value, name, self.filter_replace_string(&self.read_string(value)));
         }
     }
 
@@ -559,7 +565,6 @@ impl Maps {
         return sanitized;
     }
 
-    #[deprecated]
     pub fn filter_replace_string(&self, s:&String) -> String {
         let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
         let sb = s.as_bytes();

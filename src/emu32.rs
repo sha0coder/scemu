@@ -1609,7 +1609,7 @@ impl Emu32 {
                 None => panic!("exception wihout correct SEH"),
             };
 
-            addr = match self.maps.read_dword(self.seh+4) {
+            addr = match self.maps.read_dword(self.seh + 4) {
                 Some(value) => value,
                 None => panic!("exception without correct SEH."),
             };
