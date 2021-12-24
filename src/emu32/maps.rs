@@ -209,7 +209,7 @@ impl Maps {
                 Err(n) => " -err- ".to_string(),
             };
             
-            println!("{}",self.filter_replace_string(&s));
+            println!("{}", s);
         }
     }
 
@@ -220,7 +220,8 @@ impl Maps {
                 Some(v) => v,
                 None => break,
             };
-            println!("0x{:x}: 0x{:x}", addr+i*4, value);
+
+            println!("0x{:x}: 0x{:x} {}", addr+i*4, value, self.read_string(value));
         }
     }
 
@@ -558,6 +559,7 @@ impl Maps {
         return sanitized;
     }
 
+    #[deprecated]
     pub fn filter_replace_string(&self, s:&String) -> String {
         let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
         let sb = s.as_bytes();
