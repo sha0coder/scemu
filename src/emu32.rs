@@ -1277,7 +1277,7 @@ impl Emu32 {
                     self.bp.clear_bp();
                     self.exp = self.pos+1;
                 },
-
+                "cls" => println!("{}", self.colors.clear_screen),
                 "s" => self.maps.dump_dwords(self.regs.esp),
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.ebp, self.regs.ebp+0x100),
                 "c" => return,
