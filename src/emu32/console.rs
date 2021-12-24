@@ -27,11 +27,27 @@ impl Console {
     }
 
     pub fn cmd_hex(&self) -> Result<u32,ParseIntError> {
-        return u32::from_str_radix(self.cmd().as_str().trim_start_matches("0x"), 16);
+        let mut x = self.cmd();
+        if x.ends_with("h") {
+            x = x[0..x.len()-1].to_string();
+        }
+        if x.starts_with("0x") {
+            x = x[2..x.len()].to_string();
+        }
+
+        return u32::from_str_radix(x.as_str(), 16);
     }
 
     pub fn cmd_hex64(&self) -> Result<u64,ParseIntError> {
-        return u64::from_str_radix(self.cmd().as_str().trim_start_matches("0x"), 16);
+        let mut x = self.cmd();
+        if x.ends_with("h") {
+            x = x[0..x.len()-1].to_string();
+        }
+        if x.starts_with("0x") {
+            x = x[2..x.len()].to_string();
+        }
+
+        return u64::from_str_radix(x.as_str(), 16);
     }
 
     pub fn cmd_num(&self) -> Result<u32,ParseIntError> {
