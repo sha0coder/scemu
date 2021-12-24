@@ -2,7 +2,7 @@ mod mem32;
 
 use mem32::Mem32;
 use std::collections::HashMap;
-
+use std::str;
 
 pub struct Maps {
     pub maps: HashMap<String,Mem32>,
@@ -185,7 +185,8 @@ impl Maps {
     pub fn dump(&self, addr:u32) {
         let mut count = 0;
         for _ in 0..8 {
-            let mut bytes:Vec<char> = Vec::new();
+            let mut bytes:Vec<u8> = Vec::new();
+            print!("0x{:x}: ", addr + count * 4);
             for _ in 0..4 {
                 let dw = match self.read_dword(addr + count*4) {
                     Some(v) => v,
@@ -195,16 +196,31 @@ impl Maps {
                     }
                 };
                 count += 1;
-                bytes.push(((dw&0xff) as u8) as char);
-                bytes.push((((dw&0xff00)>>8) as u8) as char);
-                bytes.push((((dw&0xff0000)>>16) as u8) as char);
-                bytes.push((((dw&0xff000000)>>24) as u8) as char);
+                bytes.push((dw&0xff) as u8);
+                bytes.push(((dw&0xff00)>>8) as u8);
+                bytes.push(((dw&0xff0000)>>16) as u8);
+                bytes.push(((dw&0xff000000)>>24) as u8);
                 print!("{:02x} {:02x} {:02x} {:02x}  ", dw&0xff, (dw&0xff00)>>8, (dw&0xff0000)>>16, (dw&0xff000000)>>24);
             }
-            //let s:String = String::from_iter(bytes);
-            //let s = str::from_utf8(&bytes).unwrap();
-            let s:String = bytes.into_iter().collect();
+
+            let pritable_bytes = self.filter_replace_bytes(&bytes);
+            let s:String = match str::from_utf8(&pritable_bytes) {
+                Ok(v) => v.to_string(),
+                Err(n) => " -err- ".to_string(),
+            };
+            
             println!("{}",self.filter_replace_string(&s));
+        }
+    }
+
+    pub fn dump_dwords(&self, addr:u32) {
+        let mut value:u32;
+        for i in 0..10 {
+            value = match self.read_dword(addr+i*4) {
+                Some(v) => v,
+                None => break,
+            };
+            println!("0x{:x}: 0x{:x}", addr+i*4, value);
         }
     }
 
@@ -520,8 +536,30 @@ impl Maps {
         *s = s[..new_len].to_string();
     }
 
+    pub fn filter_replace_bytes(&self, s:&Vec<u8>) -> Vec<u8> {
+        let mut sanitized:Vec<u8> = Vec::new();
+        let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
+        let mut p;
+
+        for i in 0..s.len() {
+            p = false;
+            for j in 0..valid.len() {
+                if valid[j] == s[i] {
+                    sanitized.push(s[i]);
+                    p = true;
+                    break;
+                }
+            }
+            if !p {
+                sanitized.push('.' as u8);
+            }
+        }
+
+        return sanitized;
+    }
+
     pub fn filter_replace_string(&self, s:&String) -> String {
-        let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \t".as_bytes();
+        let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
         let sb = s.as_bytes();
         let mut p;
         let mut dst:Vec<char> = Vec::new();
