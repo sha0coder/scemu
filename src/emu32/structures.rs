@@ -242,3 +242,36 @@ impl ExceptionPointers {
         println!("{:#x?}", self);
     }
 }
+
+/*
+ypedef struct _EH3_EXCEPTION_REGISTRATION {
+    struct _EH3_EXCEPTION_REGISTRATION *Next;
+    PVOID ExceptionHandler;
+    PSCOPETABLE_ENTRY ScopeTable;
+    DWORD TryLevel;
+   } EH3_EXCEPTION_REGISTRATION,
+ */
+
+#[derive(Debug)]
+pub struct Eh3ExceptionRegistration {
+    next: u32,
+    exception_handler: u32,
+    scope_table: PScopeTableEntry,
+    try_level: u32,
+}
+
+impl Eh3ExceptionRegistration {
+    pub fn load(addr:u32, maps:&Maps) -> Eh3ExceptionRegistration {
+        Eh3ExceptionRegistration {
+            next: maps.read_dword(addr).unwrap(),
+            exception_handler: maps.read_dword(addr + 4).unwrap(),
+            scope_table: PScopeTableEntry::load(addr + 8, &maps),
+            try_level: maps.read_dword(addr + 8 + PScopeTableEntry::size()).unwrap(),
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+   
