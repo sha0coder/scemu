@@ -216,3 +216,49 @@ LdrDataTableEntry {
 ```
 
 
+
+A malware is hiding something in an exception
+```
+3307726 0x4f9673: push  ebp
+3307727 0x4f9674: push  edx
+3307728 0x4f9675: push  eax
+3307729 0x4f9676: push  ecx
+3307730 0x4f9677: push  ecx
+3307731 0x4f9678: push  4F96F4h
+3307732 0x4f967d: push  dword ptr fs:[0]
+Reading SEH 0x0
+-------
+3307733 0x4f9684: mov   eax,[51068Ch]
+--- console ---
+=>
+```
+
+Let's inspect exception structures:
+```
+--- console ---
+=>r esp
+        esp: 0x22de98
+=>dt
+structure=>cppeh_record
+address=>0x22de98
+CppEhRecord {
+    old_esp: 0x0,
+    exc_ptr: 0x4f96f4,
+    next: 0xfffffffe,
+    exception_handler: 0xfffffffe,
+    scope_table: PScopeTableEntry {
+        enclosing_level: 0x278,
+        filter_func: 0x51068c,
+        handler_func: 0x288,
+    },
+    try_level: 0x288,
+}
+=>
+```
+
+And here we have the error routine 0x4f96f4 and the filter 0x51068c
+
+
+
+
+

@@ -1553,6 +1553,10 @@ impl Emu32 {
                             let s = structures::ListEntry::load(addr, &self.maps);
                             s.print();
                         }
+                        "cppeh_record" => {
+                            let s = structures::CppEhRecord::load(addr, &self.maps);
+                            s.print();
+                        }
 
                         _  => println!("unrecognized structure."),
                     }
@@ -1684,20 +1688,20 @@ impl Emu32 {
                         0x30 => {
                             let peb = self.maps.get_mem("peb");
                             if self.cfg.verbose >= 1 {
-                                println!("{} Reding PEB 0x{:x}", self.pos, peb.get_base());
+                                println!("{} Reading PEB 0x{:x}", self.pos, peb.get_base());
                             }
                             peb.get_base()
                         }
                         0x18 => {
                             let teb = self.maps.get_mem("teb");
                             if self.cfg.verbose >= 1 {
-                                println!("{} Reding TEB 0x{:x}", self.pos, teb.get_base());
+                                println!("{} Reading TEB 0x{:x}", self.pos, teb.get_base());
                             }
                             teb.get_base()
                         }
                         0x00 =>  {
                             if self.cfg.verbose >= 1 {
-                                println!("Reding SEH 0x{:x}", self.seh);
+                                println!("Reading SEH 0x{:x}", self.seh);
                             }
                             self.seh
                         }
