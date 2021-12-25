@@ -1,6 +1,8 @@
 use crate::emu32::maps::Maps;
 
 
+////// PEB / TEB //////
+
 #[derive(Debug)]
 pub struct ListEntry {
     flink: u32,
@@ -148,3 +150,95 @@ impl PEB {
     }
 }
 
+
+
+
+////// EXCEPTIONS //////
+
+
+/*
+ypedef struct _SCOPETABLE_ENTRY {
+ DWORD EnclosingLevel;
+ PVOID FilterFunc;
+ PVOID HandlerFunc;
+} SCOPETABLE_ENTRY, *PSCOPETABLE_ENTRY;
+*/
+
+
+#[derive(Debug)]
+pub struct PScopeTableEntry {
+    enclosing_level: u32,
+    filter_func: u32,
+    handler_func: u32,
+}
+
+impl PScopeTableEntry {
+    pub fn load(addr:u32, maps:&Maps) -> PScopeTableEntry {
+        PScopeTableEntry {
+            enclosing_level: maps.read_dword(addr).unwrap(),
+            filter_func: maps.read_dword(addr + 4).unwrap(),
+            handler_func: maps.read_dword(addr + 8).unwrap(),
+        }
+    }
+
+    pub fn size() -> u32 {
+        return 12;
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct CppEhRecord {
+    old_esp: u32,
+    exc_ptr: u32,
+    next: u32, // ptr to _EH3_EXCEPTION_REGISTRATION
+    exception_handler: u32, 
+    scope_table: PScopeTableEntry,
+    try_level: u32,
+}
+
+impl CppEhRecord {
+    pub fn load(addr:u32, maps:&Maps) -> CppEhRecord {
+        CppEhRecord{
+            old_esp: maps.read_dword(addr).unwrap(),
+            exc_ptr: maps.read_dword(addr + 4).unwrap(),
+            next: maps.read_dword(addr + 8).unwrap(),
+            exception_handler: maps.read_dword(addr + 12).unwrap(),
+            scope_table: PScopeTableEntry::load(addr + 16, &maps),
+            try_level: maps.read_dword(addr + 16 + PScopeTableEntry::size()).unwrap(),
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ExceptionPointers {
+    exception_record: u32,
+    context_record: u32,
+}
+
+impl ExceptionPointers {
+    pub fn load(addr:u32, maps:&Maps) -> ExceptionPointers {
+        ExceptionPointers {
+            exception_record: maps.read_dword(addr).unwrap(),
+            context_record: maps.read_dword(addr + 4).unwrap(),
+        }
+    }
+
+    pub fn size() -> u32 {
+        return 8;
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
