@@ -1561,6 +1561,10 @@ impl Emu32 {
                             let s = structures::ExceptionPointers::load(addr, &self.maps);
                             s.print();
                         }
+                        "eh3_exception_registgration" => {
+                            let s = structures::Eh3ExceptionRegistration::load(addr, &self.maps);
+                            s.print();
+                        }
 
                         _  => println!("unrecognized structure."),
                     }
