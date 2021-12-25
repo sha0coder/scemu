@@ -1557,6 +1557,10 @@ impl Emu32 {
                             let s = structures::CppEhRecord::load(addr, &self.maps);
                             s.print();
                         }
+                        "exception_pointers" => {
+                            let s = structures::ExceptionPointers::load(addr, &self.maps);
+                            s.print();
+                        }
 
                         _  => println!("unrecognized structure."),
                     }
