@@ -243,15 +243,6 @@ impl ExceptionPointers {
     }
 }
 
-/*
-ypedef struct _EH3_EXCEPTION_REGISTRATION {
-    struct _EH3_EXCEPTION_REGISTRATION *Next;
-    PVOID ExceptionHandler;
-    PSCOPETABLE_ENTRY ScopeTable;
-    DWORD TryLevel;
-   } EH3_EXCEPTION_REGISTRATION,
- */
-
 #[derive(Debug)]
 pub struct Eh3ExceptionRegistration {
     next: u32,
