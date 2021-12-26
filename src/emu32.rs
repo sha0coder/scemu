@@ -19,6 +19,7 @@ pub mod syscall;
 mod breakpoint;
 pub mod endpoint;
 mod structures;
+mod exception;
 
 use flags::Flags;
 use eflags::Eflags;
@@ -27,9 +28,9 @@ use maps::Maps;
 use regs32::Regs32;
 use console::Console;
 use colors::Colors;
-use context::Context;
 use breakpoint::Breakpoint;
 use crate::config::Config;
+
 
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, IntelFormatter, Mnemonic, OpKind, 
     InstructionInfoFactory, Register, MemorySize};
@@ -45,7 +46,7 @@ pub struct Emu32 {
     bp: Breakpoint,
     seh: u32,
     veh: u32,
-    veh_ctx: u32,
+    eh_ctx: u32,
     cfg: Config,
     colors: Colors,
     pos: u64,
@@ -66,7 +67,7 @@ impl Emu32 {
             bp: Breakpoint::new(),
             seh: 0,
             veh: 0,
-            veh_ctx: 0,
+            eh_ctx: 0,
             cfg: Config::new(),
             colors: Colors::new(),
             pos: 0,
@@ -1596,15 +1597,9 @@ impl Emu32 {
         if self.veh > 0 {
             addr = self.veh;
 
-            self.stack_push(0x10f00);
-            self.stack_push(self.regs.eip); 
-
-            self.veh_ctx = 0x10f08;
-            self.maps.write_dword(0x10f04, self.veh_ctx);
-            let ctx = Context::new(&self.regs);
-            ctx.save(self.veh_ctx, &mut self.maps);
-
+            exception::enter(self);
             self.set_eip(addr, false);
+
 
         } else {
 
@@ -1632,7 +1627,8 @@ impl Emu32 {
             let cmd = con.cmd();
             if cmd == "y" { 
                 self.seh = next;
-                self.set_eip(addr, false);    
+                exception::enter(self);
+                self.set_eip(addr, false);
             }
 
         }
@@ -2202,7 +2198,7 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let mut ret_addr = self.stack_pop(false); // return address
+                        let ret_addr = self.stack_pop(false); // return address
 
                         if ins.op_count() > 0 {
                             let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
@@ -2219,10 +2215,11 @@ impl Emu32 {
                             }
                         }
 
-                        if self.veh_ctx != 0 {
-                            ret_addr = self.maps.read_dword(self.veh_ctx + 0xb8).expect("cannot read from context saved eip"); //TODO: do ctx.load()
-                        } 
-
+                        if self.eh_ctx != 0 {
+                            exception::exit(self);
+                            break;
+                        }
+                       
                         self.set_eip(ret_addr, false);                        
                         break;
                     }
@@ -4521,7 +4518,38 @@ impl Emu32 {
                         let flags = self.flags.dump();
                         self.stack_push(flags);
                     }
+
+                    Mnemonic::Bound => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let val0_src = self.get_operand_value(&ins, 0, true);
+
+                    }
+
+                    Mnemonic::Lahf => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        self.regs.set_ah(self.flags.dump() & 0xff);
+                    }
+
+                    Mnemonic::Salc => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if self.flags.f_cf {
+                            self.regs.set_al(1);
+                        } else {
+                            self.regs.set_al(0);
+                        }
+                    }
                     
+
+
                     /*
                     Mnemonic::Popf => {
                         if !step {
@@ -4574,7 +4602,8 @@ impl Emu32 {
 
                     _ =>  { 
                         println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
-                        unimplemented!("unimplemented instruction");
+                        self.exception();
+                        //unimplemented!("unimplemented instruction");
                     },
                 }
 
