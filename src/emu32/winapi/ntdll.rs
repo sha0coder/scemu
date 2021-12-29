@@ -1,6 +1,8 @@
 use crate::emu32;
 use crate::emu32::winapi::helper;
 use crate::emu32::context::Context;
+use crate::emu32::structures;
+use crate::emu32::constants;
 
 
 pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
@@ -28,6 +30,7 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
             [in]      ULONG     Protect
             );
     */
+
     let addr_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("bad NtAllocateVirtualMemory address pointer parameter");
     let size_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("bad NtAllocateVirtualMemory size pointer parameter");
     let addr = emu.maps.read_dword(addr_ptr).expect("bad NtAllocateVirtualMemory address parameter");
@@ -90,7 +93,7 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll!NtQueryVirtualMemory: error reading handle");
     let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!NtQueryVirtualMemory: error reading address");
 
-    println!("{}** {} ntdll!NtQueryVirtualMemory {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    println!("{}** {} ntdll!NtQueryVirtualMemory addr: 0x{:x} {}", emu.colors.light_red, emu.pos, addr, emu.colors.nc);
 
     if handle != 0xffffffff {
         println!("\tusing handle of remote process {:x}", handle);
@@ -110,29 +113,21 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
         emu.regs.eax = emu32::constants::STATUS_INVALID_PARAMETER;
     }
 
-    /*
-    __kernel_entry NTSYSCALLAPI NTSTATUS NtQueryVirtualMemory(
-        [in]            HANDLE                   ProcessHandle,
-        [in, optional]  PVOID                    BaseAddress,
-        [in]            MEMORY_INFORMATION_CLASS MemoryInformationClass,
-        [out]           PVOID                    MemoryInformation,
-        [in]            SIZE_T                   MemoryInformationLength,
-        [out, optional] PSIZE_T                  ReturnLength
-    );
-    */
+    let base = emu.maps.get_addr_base(addr).unwrap_or(0);
 
-    
-    
-
-    if !emu.maps.write_spaced_bytes(out_meminfo_ptr, "00 00 01 00 00 00 01 00 04 00 00 00 00 00 01 00 00 10 00 00 04 00 00 00 00 00 04 00 00 00 00 00 00 00 00 00".to_string()) {
-        panic!("ntdll_NtQueryVirtualMemory: cannot write in out ptr 0x{:x} the meminfo struct", out_meminfo_ptr);
-    }
-
+    let mut mem_info = structures::MemoryBasicInformation::load(out_meminfo_ptr, &emu.maps);
+    mem_info.base_address = base; //addr & 0xfff;
+    mem_info.allocation_base = base; //  addr & 0xfff;
+    mem_info.allocation_protect = constants::PAGE_EXECUTE | constants::PAGE_READWRITE;
+    mem_info.state = constants::MEM_COMMIT;
+    mem_info.typ = constants::MEM_PRIVATE;
+    mem_info.save(out_meminfo_ptr, &mut emu.maps);
+   
     for _ in 0..6 {
         emu.stack_pop(false);
     }
 
-    emu.regs.eax = emu32::constants::STATUS_SUCCESS;
+    emu.regs.eax = constants::STATUS_SUCCESS;
 }
 
 

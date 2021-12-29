@@ -50,6 +50,20 @@ pub const ERROR_NO_MORE_FILES:u32 = 18;
 pub const CREATE_SUSPENDED:u32 = 0x00000004;
 pub const EXCEPTION_EXECUTE_HANDLER:u32 = 1;
 
+pub const PAGE_NOACCESS:u32 = 0x01;
+pub const PAGE_EXECUTE:u32 = 0x00;
+pub const PAGE_READONLY:u32 = 0x02;
+pub const PAGE_READWRITE:u32 = 0x04;
+pub const PAGE_GUARD:u32 = 0x100;
+pub const PAGE_NOCACHE:u32 = 0x200;
+pub const PAGE_WRITECOMBINE:u32 = 0x400;
+pub const MEM_COMMIT:u32 = 0x1000;
+pub const MEM_FREE:u32 = 0x10000;
+pub const MEM_RESERVE:u32 = 0x2000;
+pub const MEM_IMAGE:u32 = 0x1000000;
+pub const MEM_MAPPED:u32 = 0x40000;
+pub const MEM_PRIVATE:u32 = 0x20000;
+
 //// LINUX ////
 
 pub const ENOTSOCK:u32  =       -1i32 as u32;      /* not open sock */

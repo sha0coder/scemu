@@ -18,7 +18,7 @@ pub mod context;
 pub mod syscall;
 mod breakpoint;
 pub mod endpoint;
-mod structures;
+pub mod structures;
 mod exception;
 
 use flags::Flags;
@@ -1564,6 +1564,10 @@ impl Emu32 {
                         }
                         "eh3_exception_registgration" => {
                             let s = structures::Eh3ExceptionRegistration::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "memory_basic_information" => {
+                            let s = structures::MemoryBasicInformation::load(addr, &self.maps);
                             s.print();
                         }
 

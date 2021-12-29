@@ -258,7 +258,7 @@ impl Flags {
         self.f_zf = value1 == value2;
 
         self.f_sf = r < 0;
-        self.f_pf = ((r as u8) & 0xff) % 2 == 0;
+        self.f_pf = (r as u8) % 2 == 0;
         return (r as u8) as u32;
     }
 

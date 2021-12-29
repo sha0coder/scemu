@@ -17,7 +17,7 @@ impl Maps {
 
     pub fn get_map_by_name(&self, name:&str) -> Option<&Mem32> {
         let s = name.to_string();
-        return self.maps.get(&s);
+        self.maps.get(&s)
     }
 
     pub fn create_map(&mut self, name:&str) -> &mut Mem32 {
@@ -34,7 +34,7 @@ impl Maps {
             }
         }
         println!("writing on non mapped zone 0x{:x}", addr);
-        return false;
+        false
     }
 
     pub fn write_word(&mut self, addr:u32, value:u16) -> bool {
@@ -45,7 +45,7 @@ impl Maps {
             }
         }
         println!("writing on non mapped zone 0x{:x}", addr);
-        return false;
+        false
     }
 
     pub fn write_byte(&mut self, addr:u32, value:u8) -> bool {
@@ -56,7 +56,7 @@ impl Maps {
             }
         }
         println!("writing on non mapped zone 0x{:x}", addr);
-        return false;
+        false
     }
 
     pub fn read_dword(&self, addr:u32) -> Option<u32> {
@@ -65,7 +65,7 @@ impl Maps {
                 return Some(mem.read_dword(addr));
             }
         }
-        return None;
+        None
     }
 
     pub fn read_word(&self, addr:u32) -> Option<u16> {
@@ -74,7 +74,7 @@ impl Maps {
                 return Some(mem.read_word(addr));
             }
         }
-        return None;
+        None
     }
 
     pub fn read_byte(&self, addr:u32) -> Option<u8> {
@@ -83,7 +83,7 @@ impl Maps {
                 return Some(mem.read_byte(addr));
             }
         }
-        return None;
+        None
     }
 
     pub fn get_mem_ref(&self, name:&str) -> &Mem32 {
@@ -100,7 +100,7 @@ impl Maps {
                 return Some(mem);
             }
         }
-        return None;
+        None
     }
 
     pub fn memset(&mut self, addr:u32, b:u8, amount:usize)  {
@@ -120,7 +120,7 @@ impl Maps {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn write_string(&mut self, to:u32, from:&str) {
@@ -149,7 +149,7 @@ impl Maps {
             buff.push(b);
         }
 
-        return buff;
+        buff
     }
 
     pub fn print_maps(&self) {
@@ -162,7 +162,14 @@ impl Maps {
         println!("---");
     }
 
-
+    pub fn get_addr_base(&self, addr:u32) -> Option<u32> {
+        for (_, mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return Some(mem.get_base());
+            }
+        }
+        None
+    }
 
     pub fn is_mapped(&self, addr:u32) -> bool {
         for (_,mem) in self.maps.iter() {
@@ -170,7 +177,7 @@ impl Maps {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn get_addr_name(&self, addr:u32) -> Option<String> {
@@ -179,7 +186,7 @@ impl Maps {
                 return Some(name.to_string());
             }
         }
-        return None;
+        None
     }
 
     pub fn dump(&self, addr:u32) {
@@ -236,8 +243,7 @@ impl Maps {
             Some(v) => v,
             None => return &[0;0],
         };
-        let bytes = mem.read_bytes(addr, sz);
-        return bytes;
+        mem.read_bytes(addr, sz)
     }
 
     pub fn read_string_of_bytes(&mut self, addr:u32, sz:usize) -> String {
@@ -247,7 +253,7 @@ impl Maps {
             svec.push(format!("{:02x} ", bytes[i]));
         }
         let s:String = svec.into_iter().collect();
-        return s;
+        s
     }
 
 
@@ -272,7 +278,7 @@ impl Maps {
         }
 
         let s: String = bytes.into_iter().collect();
-        return s;
+        s
     }
 
     pub fn read_wide_string(&self, addr:u32) -> String {
@@ -295,7 +301,7 @@ impl Maps {
         }
 
         let s: String = bytes.into_iter().collect();
-        return s;
+        s
     }
 
     pub fn search_string(&self, kw:&String, map_name:&String) -> Option<Vec<u32>> {
@@ -322,7 +328,7 @@ impl Maps {
 
                 }
 
-                if found.len() > 0 {
+                if found.is_empty() {
                     return Some(found);
                 } else {
                     return None;
@@ -330,11 +336,11 @@ impl Maps {
             }
         }
         println!("map not found");
-        return None;
+        None
     }
 
     pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
-        let bs:Vec<&str> = sbs.split(" ").collect();
+        let bs:Vec<&str> = sbs.split(' ').collect();
         for i in 0..bs.len() {
             let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
             if !self.write_byte(addr, b) {
@@ -345,7 +351,7 @@ impl Maps {
     }
 
     pub fn spaced_bytes_to_bytes(&self, sbs:&str) -> Vec<u8> {
-        let bs:Vec<&str> = sbs.split(" ").collect();
+        let bs:Vec<&str> = sbs.split(' ').collect();
         let mut bytes:Vec<u8> = Vec::new();
         for i in 0..bs.len() {
             let b = match u8::from_str_radix(bs[i],16) {
@@ -357,12 +363,12 @@ impl Maps {
             };
             bytes.push(b);
         }
-        return bytes;
+        bytes
     }
 
     pub fn search_spaced_bytes(&self, sbs:&String, map_name:&String) -> bool {
         let bytes = self.spaced_bytes_to_bytes(sbs);
-        return self.search_bytes(bytes, map_name);
+        self.search_bytes(bytes, map_name)
     }
 
     pub fn search_space_bytes_in_all(&self, sbs:&str)  -> Vec<u32> {
@@ -396,7 +402,7 @@ impl Maps {
             }
         }
 
-        return found;
+        found
     }
 
     pub fn search_string_in_all(&self, kw:String) {
@@ -451,7 +457,7 @@ impl Maps {
             }
         }
         println!("map not found");
-        return false;
+        false
     }
 
     pub fn size(&self) -> usize {
@@ -459,7 +465,7 @@ impl Maps {
         for (_,mem) in self.maps.iter() {
             sz += mem.size();
         }
-        return sz;
+        sz
     }
 
     pub fn overlapps(&self, addr:u32, sz:u32) -> bool {
@@ -468,7 +474,7 @@ impl Maps {
                 return true;
             }
         }
-        return false;
+       false
     }
 
     pub fn show_allocs(&self) {
@@ -558,11 +564,11 @@ impl Maps {
                 }
             }
             if !p {
-                sanitized.push('.' as u8);
+                sanitized.push(b'.');
             }
         }
 
-        return sanitized;
+        sanitized
     }
 
     pub fn filter_replace_string(&self, s:&String) -> String {
@@ -614,7 +620,7 @@ impl Maps {
 
         }
 
-        return true;
+        true
     }
 
 }
