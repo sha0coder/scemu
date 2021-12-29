@@ -1,0 +1,7 @@
+language: rust
+script:
+  - cargo build --release
+os:
+  - linux
+  - osx
+  - windows
