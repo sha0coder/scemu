@@ -1970,7 +1970,7 @@ impl Emu32 {
             _  => unimplemented!("operand type {:?}", ins.op_kind(noperand)),
         };
 
-        return size;
+        size
     }
 
 
@@ -3195,6 +3195,85 @@ impl Emu32 {
                         self.flags.test(value0, value1, sz);
                     }
 
+                    Mnemonic::Cmpxchg => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if value0 == self.regs.eax {
+                            self.flags.f_zf = true;
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        } else {
+                            self.flags.f_zf = false;
+                            self.regs.eax = value1;
+                        }
+                    }
+
+                    Mnemonic::Cmpxchg8b => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if value0 as u8 == (self.regs.get_al() as u8) {
+                            self.flags.f_zf = true;
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        } else {
+                            self.flags.f_zf = false;
+                            self.regs.set_al(value1 & 0xff);
+                        }
+                    }
+
+
+                    Mnemonic::Cmpxchg16b => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if value0 as u16 == (self.regs.get_ax() as u16) {
+                            self.flags.f_zf = true;
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        } else {
+                            self.flags.f_zf = false;
+                            self.regs.set_ax(value1 & 0xffff);
+                        }
+                    }
+
                     Mnemonic::Cmp => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
@@ -4327,9 +4406,18 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let poped_value = self.maps.read_word(self.regs.esp).expect("cannot read the stack");
-                        self.regs.esp += 2;
+                        let flags:u16 = match self.maps.read_word(self.regs.esp) {
+                            Some(v) => v,
+                            None => {
+                                eprintln!("popf cannot read the stack");
+                                self.exception();
+                                break;
+                            }
+                        };
 
+                        let flags2:u32 = (self.flags.dump() & 0xffff0000) + (flags as u32);
+                        self.flags.load(flags2);
+                        self.regs.esp += 2;
                     }
 
                     Mnemonic::Popfd => {
@@ -4337,9 +4425,9 @@ impl Emu32 {
                             println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let poped_value = self.maps.read_dword(self.regs.esp).expect("cannot read the stack");
-                        self.regs.esp += 4;
 
+                        let flags = self.stack_pop(true);
+                        self.flags.load(flags);
                     }
 
                     Mnemonic::Sete => {
@@ -4540,6 +4628,7 @@ impl Emu32 {
                         self.regs.set_ah(self.flags.dump() & 0xff);
                     }
 
+
                     Mnemonic::Salc => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), out, self.colors.nc);
@@ -4551,40 +4640,6 @@ impl Emu32 {
                             self.regs.set_al(0);
                         }
                     }
-                    
-
-
-                    /*
-                    Mnemonic::Popf => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                        let flags:u16 = match self.maps.read_word(self.regs.esp) {
-                            Some(v) => v,
-                            None => {
-                                eprintln!("popf cannot read the stack");
-                                self.exception();
-                                break;
-                            }
-                        };
-
-                        let flags2:u32 = self.flags.dump() & 0xffff0000 + flags as u32;
-
-                        self.flags.load(flags2);
-
-                        self.regs.esp += 2;
-                    }
-
-                    Mnemonic::Popfd => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.blue, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                        let flags = self.stack_pop(true);
-                        self.flags.load(flags);
-                    }*/
-
 
 
                     ////   Ring0  ////
