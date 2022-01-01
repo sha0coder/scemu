@@ -126,15 +126,14 @@ impl Maps {
     pub fn write_string(&mut self, to:u32, from:&str) {
         let bs:Vec<u8> = from.bytes().collect();
 
-        for i in 0..bs.len() {
-            self.write_byte(to + i as u32, bs[i]);
+        for (i, bsi) in bs.iter().enumerate() {
+            self.write_byte(to + i as u32, *bsi);
         }
-
     }
 
     pub fn write_buffer(&mut self, to:u32, from:&[u8]) {
-        for i in 0..from.len() {
-            self.write_byte(to + i as u32, from[i]);
+        for (i,fromi) in from.iter().enumerate() {
+            self.write_byte(to + i as u32, *fromi);
         }
     }
 
@@ -259,14 +258,12 @@ impl Maps {
     pub fn read_string_of_bytes(&mut self, addr:u32, sz:usize) -> String {
         let mut svec:Vec<String> = Vec::new();
         let bytes = self.read_bytes(addr, sz);
-        for i in 0..bytes.len() {   
-            svec.push(format!("{:02x} ", bytes[i]));
+        for bs in bytes.iter() {   
+            svec.push(format!("{:02x} ", bs));
         }
         let s:String = svec.into_iter().collect();
         s
     }
-
-
 
     pub fn read_string(&self, addr:u32) -> String {
         let mut bytes:Vec<char> = Vec::new();
@@ -314,7 +311,7 @@ impl Maps {
         s
     }
 
-    pub fn search_string(&self, kw:&String, map_name:&String) -> Option<Vec<u32>> {
+    pub fn search_string(&self, kw:&str, map_name:&str) -> Option<Vec<u32>> {
         let mut found:Vec<u32> = Vec::new();
 
         for (name,mem) in self.maps.iter() {
@@ -323,9 +320,9 @@ impl Maps {
                     let bkw = kw.as_bytes();
                     let mut c = 0;
                     
-                    for i in 0..bkw.len() {
+                    for (i, bkwi) in bkw.iter().enumerate() {
                         let b = mem.read_byte(addr+(i as u32));
-                        if b == bkw[i] {
+                        if b == *bkwi {
                             c+=1;
                         } else {
                             break;
@@ -351,20 +348,20 @@ impl Maps {
 
     pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
         let bs:Vec<&str> = sbs.split(' ').collect();
-        for i in 0..bs.len() {
-            let b = u8::from_str_radix(bs[i],16).expect("bad num conversion");
+        for bsi in bs.iter() {
+            let b = u8::from_str_radix(bsi, 16).expect("bad num conversion");
             if !self.write_byte(addr, b) {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn spaced_bytes_to_bytes(&self, sbs:&str) -> Vec<u8> {
         let bs:Vec<&str> = sbs.split(' ').collect();
         let mut bytes:Vec<u8> = Vec::new();
-        for i in 0..bs.len() {
-            let b = match u8::from_str_radix(bs[i],16) {
+        for bsi in bs.iter() {
+            let b = match u8::from_str_radix(bsi,16) {
                 Ok(b) => b,
                 Err(_) => {
                     println!("bad hex bytes");
@@ -376,7 +373,7 @@ impl Maps {
         bytes
     }
 
-    pub fn search_spaced_bytes(&self, sbs:&String, map_name:&String) -> bool {
+    pub fn search_spaced_bytes(&self, sbs:&str, map_name:&str) -> bool {
         let bytes = self.spaced_bytes_to_bytes(sbs);
         self.search_bytes(bytes, map_name)
     }
@@ -390,14 +387,14 @@ impl Maps {
                 if addr < 0x70000000 {
                     
                     let mut c = 0;
-                    for i in 0..bytes.len() {
+                    for (i, bi) in bytes.iter().enumerate() {
                         let addri = addr + (i as u32);
                         if !mem.inside(addri) {
                             break;
                         }
 
                         let b = mem.read_byte(addri);
-                        if b == bytes[i] {
+                        if b == *bi {
                             c += 1;
                         } else {
                             break;
@@ -439,17 +436,17 @@ impl Maps {
         }
     }
    
-    pub fn search_bytes(&self, bkw:Vec<u8>, map_name:&String) -> bool {
+    pub fn search_bytes(&self, bkw:Vec<u8>, map_name:&str) -> bool {
         let mut found:bool = false;
 
         for (name,mem) in self.maps.iter() {
             if name == map_name {
                 for addr in mem.get_base()..mem.get_bottom() {
                     let mut c = 0;
-                    
-                    for i in 0..bkw.len() {
+                  
+                    for (i, bkwn) in bkw.iter().enumerate() {
                         let b = mem.read_byte(addr+(i as u32));
-                        if b == bkw[i] {
+                        if b == *bkwn {
                             c+=1;
                         } else {
                             break;
@@ -559,16 +556,16 @@ impl Maps {
         *s = s[..new_len].to_string();
     }
 
-    pub fn filter_replace_bytes(&self, s:&Vec<u8>) -> Vec<u8> {
+    pub fn filter_replace_bytes(&self, s:&[u8]) -> Vec<u8> {
         let mut sanitized:Vec<u8> = Vec::new();
         let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
         let mut p;
 
-        for i in 0..s.len() {
+        for si in s.iter() {
             p = false;
-            for j in 0..valid.len() {
-                if valid[j] == s[i] {
-                    sanitized.push(s[i]);
+            for validj in valid.iter() {
+                if validj == si {
+                    sanitized.push(*si);
                     p = true;
                     break;
                 }
@@ -581,7 +578,7 @@ impl Maps {
         sanitized
     }
 
-    pub fn filter_replace_string(&self, s:&String) -> String {
+    pub fn filter_replace_string(&self, s:&str) -> String {
         let valid = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".as_bytes();
         let sb = s.as_bytes();
         let mut p;
@@ -601,8 +598,8 @@ impl Maps {
             }
         }
 
-        let sdst: String = dst.into_iter().collect();
-        return sdst;
+        let sdst:String = dst.into_iter().collect();
+        sdst
     }
 
     pub fn mem_test(&self) -> bool {

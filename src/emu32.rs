@@ -513,21 +513,19 @@ impl Emu32 {
 
         let value = mem.read_dword(self.regs.esp);
         self.regs.esp += 4;
-        return value;
+        value
     }
  
     // this is not used on the emulation
     pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
-        let spl:Vec<&str> = operand.split("[").collect::<Vec<&str>>()[1].split("]").collect::<Vec<&str>>()[0].split(" ").collect();
+        let spl:Vec<&str> = operand.split('[').collect::<Vec<&str>>()[1].split(']').collect::<Vec<&str>>()[0].split(' ').collect();
 
         if operand.contains("fs:[") || operand.contains("gs:[") {
-            let mem = operand.split(":").collect::<Vec<&str>>()[1];
+            let mem = operand.split(':').collect::<Vec<&str>>()[1];
             let value = self.memory_operand_to_address(mem);
 
             /*
                 fs:[0x30]
-                fs:[ecx + 0x30]  ecx:0  <-- TODO: implement this
-
 
                 FS:[0x00] : Current SEH Frame
                 FS:[0x18] : TEB (Thread Environment Block)
@@ -565,8 +563,8 @@ impl Emu32 {
             let sign = spl[1];
 
             // weird case: [esi + eax*4]
-            if spl[2].contains("*") {
-                let spl2:Vec<&str> = spl[2].split("*").collect();
+            if spl[2].contains('*') {
+                let spl2:Vec<&str> = spl[2].split('*').collect();
                 if spl2.len() != 2 {
                     panic!("case ie [esi + eax*4] bad parsed the *  operand:{}", operand);
                 } 
@@ -587,8 +585,7 @@ impl Emu32 {
                     return reg1_val - (reg2_val * num);
                 }
 
-                panic!("weird situation");
-                
+               unimplemented!(); 
             }
     
             let reg = spl[0];
@@ -629,7 +626,7 @@ impl Emu32 {
 
         }
 
-        return 0
+        0
     }
 
     // this is not used on the emulation
@@ -749,7 +746,7 @@ impl Emu32 {
              _ => panic!("weird size: {}", operand)
         };
 
-        return ret;
+        ret
     }
 
     
@@ -787,8 +784,8 @@ impl Emu32 {
     //this is not used on the emulation
     pub fn is_reg(&self, operand:&str) -> bool {
         match operand {
-            "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => return true,
-            &_ => return false,
+            "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => true,
+            &_ => false,
         }
     }
 
@@ -910,7 +907,7 @@ impl Emu32 {
 
     fn div32(&mut self, value0:u32) {
         let mut value1:u64 = self.regs.edx as u64;
-        value1 = value1 << 32;
+        value1 <<= 32;
         value1 += self.regs.eax as u64;
         let value2:u64 = value0 as u64;
 
@@ -983,7 +980,7 @@ impl Emu32 {
 
     fn idiv32(&mut self, value0:u32) {
         let mut value1:u64 = self.regs.edx as u64;
-        value1 = value1 << 32;
+        value1 <<= 32;
         value1 += self.regs.eax as u64;
         let value2:u64 = value0 as u64;
         if value2 == 0 {
@@ -1005,16 +1002,11 @@ impl Emu32 {
                 panic!();
             }
         } else {
-            if (value1 as i64) > 0 && (resq as i32) < 0 {
-                println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
-            } else if (value1 as i64) < 0 && (resq as i32) > 0 { 
-                println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
+
+            if ((value1 as i64) > 0 && (resq as i32) < 0) || ((value1 as i64) < 0 && (resq as i32) > 0) {
+                    println!("/!\\ sign change exception on division");
+                    self.exception();
+                    self.force_break = true;
             }
         } 
     }
@@ -1042,17 +1034,11 @@ impl Emu32 {
                 panic!();
             }
         } else {
-            if (value1 as i32) > 0 && (resq as i16) < 0 {
+            if ((value1 as i32) > 0 && (resq as i16) < 0) || ((value1 as i32) < 0 && (resq as i16) > 0) {
                 println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
-            } else if (value1 as i32) < 0 && (resq as i16) > 0 { 
-                println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
-            }
+                self.exception();
+                self.force_break = true;
+            } 
         }
     }
 
@@ -1079,33 +1065,27 @@ impl Emu32 {
                 panic!();
             }
         } else {
-            if (value1 as i16) > 0 && (resq as i8) < 0 {
+            if ((value1 as i16) > 0 && (resq as i8) < 0) || ((value1 as i16) < 0 && (resq as i8) > 0) {
                 println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
-            } else if (value1 as i16) < 0 && (resq as i8) > 0 { 
-                println!("/!\\ sign change exception on division");
-                if self.break_on_alert {
-                    panic!();
-                }
-            }
+                self.exception();
+                self.force_break = true;
+            } 
         }
     }
 
 
     pub fn rotate_left(&self, val:u32, rot:u32, bits:u32) -> u32 {
-        return (val << rot) | (val >> bits-rot);
+        (val << rot) | (val >> (bits-rot))
     }
 
     pub fn rotate_right(&self, val:u32, rot:u32, bits:u32) -> u32 {
         //TODO: care with overflow
-        return (val >> rot) | (val << bits-rot);
+        (val >> rot) | (val << (bits-rot))
     }
 
 
     fn get_bit(&self, val:u32, count:u32) -> u32 {
-        return (val & (1 << count )) >> count;
+        (val & (1 << count )) >> count
     }
 
     fn set_bit(&self, val:&mut u32, count:u32, bit:u32)  {
@@ -1140,7 +1120,7 @@ impl Emu32 {
         }
 
         self.flags.calc_flags(storage0, size as u8);
-        return storage0;
+        storage0
     }
 
     pub fn shld(&mut self, value0:u32, value1:u32, counter:u16, size:u32) -> u32 {
@@ -1168,7 +1148,7 @@ impl Emu32 {
         }
 
         self.flags.calc_flags(storage0, size as u8);
-        return storage0;
+        storage0
     }
 
     pub fn spawn_console(&mut self) {
@@ -1642,7 +1622,7 @@ impl Emu32 {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
-        let mut decoder = Decoder::with_ip(32, &block, addr as u64, DecoderOptions::NONE);
+        let mut decoder = Decoder::with_ip(32, block, addr as u64, DecoderOptions::NONE);
         let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
         formatter.options_mut().set_first_operand_char_index(6);
@@ -1721,7 +1701,7 @@ impl Emu32 {
                 let value:u32;
                 if derref {
 
-                    let sz = self.get_operand_sz(&ins, noperand);
+                    let sz = self.get_operand_sz(ins, noperand);
 
                     value = match sz {
 
@@ -1764,7 +1744,7 @@ impl Emu32 {
 
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
-        return Some(value);
+        Some(value)
     }
 
     pub fn set_operand_value(&mut self, ins:&Instruction, noperand:u32, value:u32) -> bool {
@@ -1794,7 +1774,7 @@ impl Emu32 {
                 }).unwrap() as u32;
 
                 if write {
-                    let sz = self.get_operand_sz(&ins, noperand);
+                    let sz = self.get_operand_sz(ins, noperand);
 
                     match sz {
                         64 => {
@@ -1862,7 +1842,7 @@ impl Emu32 {
 
             _ => unimplemented!("unimplemented operand type"),
         };
-        return true;
+        true
     }
 
     pub fn get_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<f64> {
@@ -1897,7 +1877,7 @@ impl Emu32 {
             }
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
-        return Some(value);
+        Some(value)
     }
 
     pub fn set_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, value:f64) {
@@ -1917,10 +1897,8 @@ impl Emu32 {
                     }
                 };
 
-                let mut i:u32 = 0;
-                for b in value.to_le_bytes() {
-                    self.maps.write_byte(mem_addr as u32 + i, b);
-                    i += 1;
+                for (i,b) in value.to_le_bytes().iter().enumerate() {
+                    self.maps.write_byte(mem_addr as u32 + i as u32, *b);
                 }
                 
             }
@@ -1942,7 +1920,7 @@ impl Emu32 {
             OpKind::Register => self.regs.get_size(ins.op_register(noperand)),
             OpKind::Memory => {                
                 let mut info_factory = InstructionInfoFactory::new();
-                let info = info_factory.info(&ins);
+                let info = info_factory.info(ins);
                 let mem = info.used_memory()[0];
 
                 let size2:usize = match mem.memory_size() {
@@ -2076,16 +2054,12 @@ impl Emu32 {
                     }
                 }
 
-                //TODO: change this
                 if self.cfg.inspect {
                     let addr:u32 = self.memory_operand_to_address(self.cfg.inspect_seq.clone().as_str());
                     let bits = self.get_size(self.cfg.inspect_seq.clone().as_str());
-                    let value = match self.memory_read(self.cfg.inspect_seq.clone().as_str()) {
-                        Some(v) => v,
-                        None => 0,
-                    };
-
-                    println!("\t{} {} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.pos, self.cfg.inspect_seq, addr, value, value, self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
+                    let value = self.memory_read(self.cfg.inspect_seq.clone().as_str()).unwrap_or(0);
+                    println!("\t{} {} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.pos, self.cfg.inspect_seq, addr, value, value, 
+                        self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
                 }
 
                 let mut info_factory = InstructionInfoFactory::new();
@@ -2212,7 +2186,7 @@ impl Emu32 {
                                 panic!("weird ret argument!");
                             }
 
-                            arg = arg / 4;
+                            arg /= 4;
 
                             for _ in 0..arg {
                                 self.stack_pop(false);
@@ -2594,11 +2568,12 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.sal1p32(value0),
@@ -2614,10 +2589,6 @@ impl Emu32 {
 
                         } else { // 2 params
 
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let value1 = match self.get_operand_value(&ins, 1, true) {
                                 Some(v) => v,
@@ -2645,11 +2616,12 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.sar1p32(value0),
@@ -2664,11 +2636,6 @@ impl Emu32 {
 
 
                         } else { // 2 params
-
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let value1 = match self.get_operand_value(&ins, 1, true) {
                                 Some(v) => v,
@@ -2696,11 +2663,12 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.shl1p32(value0),
@@ -2716,17 +2684,10 @@ impl Emu32 {
 
                         } else { // 2 params
 
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
                             let value1 = match self.get_operand_value(&ins, 1, true) {
                                 Some(v) => v,
                                 None => break,
                             };
-
-
 
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.shl2p32(value0, value1),
@@ -2751,11 +2712,12 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
 
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
                         if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let result:u32 = match self.get_operand_sz(&ins, 0) {
                                 32 => self.flags.shr1p32(value0),
@@ -2770,11 +2732,6 @@ impl Emu32 {
 
 
                         } else { // 2 params
-
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
 
                             let value1 = match self.get_operand_value(&ins, 1, true) {
                                 Some(v) => v,
@@ -2960,7 +2917,7 @@ impl Emu32 {
                                 _ => unimplemented!("wrong size"),
                             }
 
-                        } if ins.op_count() == 2 { // 2 params
+                        } else if ins.op_count() == 2 { // 2 params
                             let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
                                 None => break,
@@ -3397,10 +3354,8 @@ impl Emu32 {
 
                             self.set_eip(addr, true);
                             break;
-                        } else {
-                            if !step {
-                                println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
-                            }
+                        } else if !step {
+                            println!("{}{} 0x{:x}: {} not taken {}", self.colors.orange, self.pos, ins.ip32(), out, self.colors.nc);
                         }
                     }
 
