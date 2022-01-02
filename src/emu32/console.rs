@@ -23,13 +23,13 @@ impl Console {
         std::io::stdin().read_line(&mut line).unwrap();
         line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
         line.truncate(line.len() - 1);
-        return line.to_lowercase();
+        line.to_lowercase()
     }
 
     pub fn cmd_hex(&self) -> Result<u32,ParseIntError> {
         let mut x = self.cmd();
 
-        if x.ends_with("h") {
+        if x.ends_with('h') {
             x = x[0..x.len()-1].to_string();
         }
         if x.starts_with("0x") {
@@ -41,7 +41,7 @@ impl Console {
 
     pub fn cmd_hex64(&self) -> Result<u64,ParseIntError> {
         let mut x = self.cmd();
-        if x.ends_with("h") {
+        if x.ends_with('h') {
             x = x[0..x.len()-1].to_string();
         }
         if x.starts_with("0x") {
@@ -52,7 +52,7 @@ impl Console {
     }
 
     pub fn cmd_num(&self) -> Result<u32,ParseIntError> {
-        return u32::from_str_radix(self.cmd().as_str(), 10);
+        self.cmd().as_str().parse::<u32>()
     }
 
     pub fn help(&self) {
@@ -105,7 +105,7 @@ impl Console {
         println!("dt ..................... dump structure");
         println!("enter .................. step into");
         //println!("o ...................... step over");
-        println!("");
+        println!();
         println!("---");
     }
 
