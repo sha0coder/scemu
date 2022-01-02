@@ -128,7 +128,7 @@ impl Emu32 {
         self.maps.create_map("reserved");
         self.maps.create_map("kuser_shared_data");
         self.maps.create_map("binary");
-        self.maps.create_map("reserved2");
+        //self.maps.create_map("reserved2");
         self.maps.create_map("ws2_32");
         self.maps.create_map("ws2_32_text");
         self.maps.create_map("wininet");

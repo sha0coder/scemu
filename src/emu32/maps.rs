@@ -222,7 +222,7 @@ impl Maps {
             let pritable_bytes = self.filter_replace_bytes(&bytes);
             let s:String = match str::from_utf8(&pritable_bytes) {
                 Ok(v) => v.to_string(),
-                Err(n) => " -err- ".to_string(),
+                Err(n) => " -utf8err- ".to_string(),
             };
             
             println!("{}", s);
@@ -487,7 +487,7 @@ impl Maps {
     pub fn show_allocs(&self) {
         for (name, mem) in self.maps.iter() {
             if name.starts_with("alloc_") {
-                println!("{} 0x{:x}-0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
+                println!("{} 0x{:x} - 0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
             } 
         }
     }
@@ -498,6 +498,7 @@ impl Maps {
         let mut addr:u32 = 100;
 
         //println!("ALLOCATOR sz:{}", sz);
+
         loop {
             addr += sz;
             //println!("trying 0x{:x}", addr);
@@ -506,15 +507,11 @@ impl Maps {
                 return None;
             }
 
-            //println!("step1");
-
             for (_,mem) in self.maps.iter() {
                 if addr >= mem.get_base() && addr <= mem.get_bottom() {
                     continue;
                 }
             }
-
-            //println!("step2");
 
             if !self.overlapps(addr, sz) {
                 return Some(addr);

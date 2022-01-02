@@ -88,7 +88,58 @@ Emulating basic windows shellcode based on LdrLoadDLl() that prints a message:
 ![msgbox](pics/msgbox.png)
 
 The console allow to view an edit the current state of the cpu:
-![console](pics/console_help.png)
+```
+--- console ---
+=>h
+--- help ---
+q ...................... quit
+cls .................... clear screen
+h ...................... help
+s ...................... stack
+v ...................... vars
+r ...................... register show all
+r reg .................. show reg
+rc ..................... register change
+f ...................... show all flags
+fc ..................... clear all flags
+fz ..................... toggle flag zero
+fs ..................... toggle flag sign
+c ...................... continue
+ba ..................... breakpoint on address
+bi ..................... breakpoint on instruction number
+bmr .................... breakpoint on read memory
+bmw .................... breakpoint on write memory
+bc ..................... clear breakpoint
+n ...................... next instruction
+eip .................... change eip
+push ................... push dword to the stack
+pop .................... pop dword from stack
+fpu .................... fpu view
+md5 .................... check the md5 of a memory map
+seh .................... view SEH
+veh .................... view vectored execption pointer
+m ...................... memory maps
+ma ..................... memory allocs
+mc ..................... memory create map
+mn ..................... memory name of an address
+ml ..................... memory load file content to map
+mr ..................... memory read, speficy ie: dword ptr [esi]
+mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af
+md ..................... memory dump
+mrd .................... memory read dwords
+mds .................... memory dump string
+mdw .................... memory dump wide string
+mdd .................... memory dump to disk
+mt ..................... memory test
+ss ..................... search string
+sb ..................... search bytes
+sba .................... search bytes in all the maps
+ssa .................... search string in all the maps
+ll ..................... linked list walk
+d ...................... dissasemble
+dt ..................... dump structure
+enter .................. step into
+```
 
 The cobalt strike api loader is the same that metasploit, emulating it:
 ![api loader](pics/metasploit_api_loader.png)
