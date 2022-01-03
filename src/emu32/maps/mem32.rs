@@ -28,22 +28,22 @@ impl Mem32 {
     }
 
     pub fn size(&self) -> usize {
-        return self.mem.len();
+        self.mem.len()
     }
 
     pub fn get_base(&self) -> u32 {
-        return self.base_addr;
+        self.base_addr
     }
 
     pub fn get_bottom(&self) -> u32 {
-        return self.bottom_addr;
+        self.bottom_addr
     }
 
     pub fn inside(&self, addr:u32) -> bool {
         if addr >= self.base_addr && addr < self.bottom_addr {
             return true;
         }
-        return false;
+        false
     }
 
     pub fn set_base(&mut self, base_addr:u32) {
@@ -96,13 +96,13 @@ impl Mem32 {
 
     pub fn read_word(&self, addr:u32) -> u16 {
         let idx = (addr - self.base_addr) as usize;
-        ((self.mem[idx] as u16)  << 0) + 
+        (self.mem[idx] as u16)   + 
         ((self.mem[idx+1] as u16) << 8)
     }
 
     pub fn read_dword(&self, addr:u32) -> u32 {
         let idx = (addr - self.base_addr) as usize;
-        ((self.mem[idx] as u32)   <<  0) +
+        (self.mem[idx] as u32)   +
         ((self.mem[idx+1] as u32) <<  8) +
         ((self.mem[idx+2] as u32) << 16) +
         ((self.mem[idx+3] as u32) << 24)
@@ -150,7 +150,7 @@ impl Mem32 {
     }
 
     pub fn md5(&self) -> md5::Digest {
-        return md5::compute(&self.mem);
+        md5::compute(&self.mem)
     }
 
     pub fn load(&mut self, filename: &str) -> bool {
@@ -165,7 +165,7 @@ impl Mem32 {
         reader.read_to_end(&mut self.mem).expect("cannot load map file");
 
         f.sync_all(); // thanks Alberto Segura
-        return true;
+        true
     }
 
     pub fn save(&self, addr:u32, size:usize, filename:String) {
