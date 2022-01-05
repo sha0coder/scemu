@@ -108,10 +108,31 @@ impl Mem32 {
         ((self.mem[idx+3] as u32) << 24)
     }
 
+
+    pub fn read_qword(&self, addr:u32) -> u64 {
+        let idx = (addr - self.base_addr) as usize;
+        let mut r:u64 = 0;
+
+        for i in 0..8 {
+            r += (self.mem[idx+i] as u64) << (8*i);
+        }
+
+        r
+    }
+
+    pub fn write_qword(&mut self, addr:u32, value:u64) {
+        let idx = (addr - self.base_addr) as usize;
+        
+        for i in 0..8 {
+            self.mem[idx+i] = (value & (0xff<<i)) as u8;
+        }
+    }
+
     pub fn write_byte(&mut self, addr:u32, value:u8) {
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx] = value;
     }
+
 
     pub fn write_word(&mut self, addr:u32, value:u16) {
         let idx = (addr - self.base_addr) as usize;
