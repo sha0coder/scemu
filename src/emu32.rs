@@ -1168,6 +1168,15 @@ impl Emu32 {
                 "r esp" => println!("\tesp: 0x{:x}", self.regs.esp),
                 "r ebp" => println!("\tebp: 0x{:x}", self.regs.ebp),
                 "r eip" => println!("\teip: 0x{:x}", self.regs.eip),
+                "r xmm0" => println!("\txmm0: 0x{:x}", self.regs.xmm0),
+                "r xmm1" => println!("\txmm1: 0x{:x}", self.regs.xmm1),
+                "r xmm2" => println!("\txmm2: 0x{:x}", self.regs.xmm2),
+                "r xmm3" => println!("\txmm3: 0x{:x}", self.regs.xmm3),
+                "r xmm4" => println!("\txmm4: 0x{:x}", self.regs.xmm4),
+                "r xmm5" => println!("\txmm5: 0x{:x}", self.regs.xmm5),
+                "r xmm6" => println!("\txmm6: 0x{:x}", self.regs.xmm6),
+                "r xmm7" => println!("\txmm7: 0x{:x}", self.regs.xmm7),
+
                 "rc" => {
                     con.print("register name");
                     let reg = con.cmd();
@@ -1641,6 +1650,7 @@ impl Emu32 {
         }
     }
 
+
     pub fn get_operand_value(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<u32> {
 
         assert!(ins.op_count() > noperand);
@@ -1845,11 +1855,11 @@ impl Emu32 {
         true
     }
 
-    pub fn get_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<f64> {
+    pub fn get_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<i128> {
 
         assert!(ins.op_count() > noperand);
 
-        let value:f64 = match ins.op_kind(noperand) {
+        let value:i128 = match ins.op_kind(noperand) {
             OpKind::Register => self.regs.get_xmm_reg(ins.op_register(noperand)),
             OpKind::Memory => {
                 let mem_addr = match ins.virtual_address(noperand, 0, |reg,idx,_sz| {
@@ -1863,16 +1873,16 @@ impl Emu32 {
                 };
 
                 if do_derref {
-                    let value:u32 = match self.maps.read_dword(mem_addr as u32) {
+                    let value:i128 = match self.maps.read_128bits_le(mem_addr as u32) {
                         Some(v) => v,
                         None => { 
                             self.exception(); 
                             return None
                         }
                     };
-                    value as f64
+                    value
                 } else {
-                    mem_addr as f64
+                    mem_addr as i128
                 }
             }
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
@@ -1880,7 +1890,7 @@ impl Emu32 {
         Some(value)
     }
 
-    pub fn set_operand_xmm_value64(&mut self, ins:&Instruction, noperand:u32, value:f64) {
+    pub fn set_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, value:i128) {
 
         assert!(ins.op_count() > noperand);
 
@@ -1907,6 +1917,11 @@ impl Emu32 {
     }
 
     fn get_operand_sz(&self, ins:&Instruction, noperand:u32) -> usize {
+        let reg:Register = ins.op_register(noperand);
+        if reg.is_xmm() {
+            return 128;
+        }
+
         let size:usize = match ins.op_kind(noperand) {
             OpKind::NearBranch32 => 32,
             OpKind::NearBranch16 => 16,
@@ -4495,6 +4510,24 @@ impl Emu32 {
 
                     //// SSE XMM //// 
                     
+                    // https://newbedev.com/128-bit-values-from-xmm-registers-to-general-purpose
+                    
+                    Mnemonic::Pxor => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        assert!(ins.op_count() == 2);
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
+
+                        let result:i128 = value0 ^ value1;
+                        self.flags.calc_flags(result as u32, 32);
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+                    
                     Mnemonic::Xorps => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
@@ -4502,25 +4535,100 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 2);
 
-                        let value0 = self.get_operand_xmm_value64(&ins, 0, true).expect("error getting xmm value0");
-                        let value1 = self.get_operand_xmm_value64(&ins, 0, true).expect("error getting xmm value1");
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
 
-                        let result:u64 = value0 as u64 ^ value1 as u64;
+                        let result:i128 = value0 ^ value1;
                         self.flags.calc_flags(result as u32, 32);
 
-                        self.set_operand_xmm_value64(&ins, 0, result as f64);
+                        self.set_operand_xmm_value_128(&ins, 0, result);
                     }
 
-                    Mnemonic::Movlpd => {
+                    Mnemonic::Movlpd | Mnemonic::Movlps => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
-                        let value1 = self.get_operand_xmm_value64(&ins, 1, true).expect("error getting xmm value1");
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
 
-                        //self.set_operand_value(&ins, 0, value1 as u32);
-                        self.set_operand_xmm_value64(&ins, 0, value1);
+                        if sz0 == 128 && sz1 == 128 {
+                           let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
+                           self.set_operand_xmm_value_128(&ins, 0, value1);
+
+                        } else if sz0 == 128 && sz1 == 32 {
+                            let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+
+                        } else if sz0 == 32 && sz1 == 128 {
+                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
+                            self.set_operand_value(&ins, 0, value1 as u32);
+
+                        } else if sz0 == 128 && sz1 == 64 {
+                            let addr = self.get_operand_value(&ins, 1, false).expect("error getting the address");
+                            let value1 = self.maps.read_qword(addr).expect("error getting qword");
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+
+                        } else if sz0 == 64 && sz1 == 128 {
+                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
+                            self.set_operand_value(&ins, 0, value1 as u32);
+
+                        } else {
+                            panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
+                        }
                     }
+
+                    Mnemonic::Cvtsi2sd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
+
+                        if sz0 == 128 && sz1 == 32 {
+                            let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+
+                        } else if sz0 == 32 && sz1 == 128 {
+                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1");
+                            self.set_operand_value(&ins, 0, value1 as u32);
+
+                        } else {
+                            panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
+                        }
+
+                    }
+
+                    Mnemonic::Movsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
+
+                        if sz0 == 128 && sz1 == 64 {
+                            let addr = self.get_operand_value(&ins, 1, false).expect("error getting address");
+                            let value1 = self.maps.read_qword(addr).expect("error getting qword");
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+                            
+                        } else if sz0 == 64 && sz1 == 128 {
+                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
+                            let addr = self.get_operand_value(&ins, 0, false).expect("error getting address");
+                            self.maps.write_qword(addr, value1 as u64); 
+
+                        } else {
+                            unreachable!("weird sz");    
+                        }
+
+                        println!("{} {}", sz0, sz1);
+
+                    }
+
+
+                    // end SSE
+
 
                     Mnemonic::Arpl => {
                         if !step {

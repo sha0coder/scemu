@@ -26,6 +26,19 @@ impl Maps {
         return self.maps.get_mut(name).expect("incorrect memory map name");
     }
 
+
+    pub fn write_qword(&mut self, addr:u32, value:u64) -> bool {
+        for (_,mem) in self.maps.iter_mut() {
+            if mem.inside(addr) {
+                mem.write_qword(addr, value);
+                return true;
+            }
+        }
+        println!("writing on non mapped zone 0x{:x}", addr);
+        false
+    }
+
+
     pub fn write_dword(&mut self, addr:u32, value:u32) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
@@ -57,6 +70,43 @@ impl Maps {
         }
         println!("writing on non mapped zone 0x{:x}", addr);
         false
+    }
+
+    pub fn read_128bits_be(&self, addr:u32) -> Option<i128> {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                let mut n:i128 = 0;
+                let bytes = mem.read_bytes(addr, 16);
+                for i in 0..16 {
+                   n |= (bytes[i] as i128) << (i*8);
+                }
+                return Some(n);
+            }
+        }
+        None
+    }
+
+    pub fn read_128bits_le(&self, addr:u32) -> Option<i128> {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                let mut n:i128 = 0;
+                let bytes = mem.read_bytes(addr, 16);
+                for i in (0..16).rev() {
+                   n |= (bytes[i] as i128) << (i*8);
+                }
+                return Some(n);
+            }
+        }
+        None
+    }
+
+    pub fn read_qword(&self, addr:u32) -> Option<u64> {
+        for (_,mem) in self.maps.iter() {
+            if mem.inside(addr) {
+                return Some(mem.read_qword(addr));
+            }
+        }
+        None
     }
 
     pub fn read_dword(&self, addr:u32) -> Option<u32> {
