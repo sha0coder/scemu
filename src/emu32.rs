@@ -212,8 +212,8 @@ impl Emu32 {
         msvcrt_text.load("msvcrt_text.bin");
 
         /*let reserved2 = self.maps.get_mem("reserved2");
-        reserved2.set_base(0x2c3000); //0x2c3018
-        reserved2.set_size(0xfd000);*/
+          reserved2.set_base(0x2c3000); //0x2c3018
+          reserved2.set_size(0xfd000);*/
 
         let reserved = self.maps.get_mem("reserved");
         reserved.set_base(0x2c0000);
@@ -286,7 +286,7 @@ impl Emu32 {
         let user32 = self.maps.get_mem("user32");
         user32.set_base(0x773b0000);
         user32.load("user32.bin");
-        
+
         let user32_text = self.maps.get_mem("user32_text");
         user32_text.set_base(0x773b1000);
         user32_text.load("user32_text.bin");
@@ -310,7 +310,7 @@ impl Emu32 {
         let advapi32 = self.maps.get_mem("advapi32");
         advapi32.set_base(0x776f0000);
         advapi32.load("advapi32.bin");
-        
+
         let advapi32_text = self.maps.get_mem("advapi32_text");
         advapi32_text.set_base(0x776f1000);
         advapi32_text.load("advapi32_text.bin");
@@ -399,13 +399,13 @@ impl Emu32 {
         m10000.set_base(0x10000);
         m10000.load("m10000.bin");
         m10000.set_size(0xffff);
-        
-        
+
+
         let m20000 = self.maps.get_mem("20000");
         m20000.set_base(0x20000);
         m20000.load("m20000.bin");
         m20000.set_size(0xffff);
-        
+
 
 
         // xloader initial state hack
@@ -459,7 +459,7 @@ impl Emu32 {
             eprintln!("It doesn't pass the memory tests!!");
             std::process::exit(1);
         }
-        
+
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -515,7 +515,7 @@ impl Emu32 {
         self.regs.esp += 4;
         value
     }
- 
+
     // this is not used on the emulation
     pub fn memory_operand_to_address(&mut self, operand:&str) -> u32 {
         let spl:Vec<&str> = operand.split('[').collect::<Vec<&str>>()[1].split(']').collect::<Vec<&str>>()[0].split(' ').collect();
@@ -525,15 +525,15 @@ impl Emu32 {
             let value = self.memory_operand_to_address(mem);
 
             /*
-                fs:[0x30]
+               fs:[0x30]
 
-                FS:[0x00] : Current SEH Frame
-                FS:[0x18] : TEB (Thread Environment Block)
-                FS:[0x20] : PID
-                FS:[0x24] : TID
-                FS:[0x30] : PEB (Process Environment Block)
-                FS:[0x34] : Last Error Value
-            */
+               FS:[0x00] : Current SEH Frame
+               FS:[0x18] : TEB (Thread Environment Block)
+               FS:[0x20] : PID
+               FS:[0x24] : TID
+               FS:[0x30] : PEB (Process Environment Block)
+               FS:[0x34] : Last Error Value
+               */
 
             //let inm = self.get_inmediate(spl[0]);
             if self.cfg.verbose >= 1 {
@@ -568,7 +568,7 @@ impl Emu32 {
                 if spl2.len() != 2 {
                     panic!("case ie [esi + eax*4] bad parsed the *  operand:{}", operand);
                 } 
-                
+
                 let reg1_val = self.regs.get_by_name(spl[0]);
                 let reg2_val = self.regs.get_by_name(spl2[0]);
                 let num = u32::from_str_radix(spl2[1].trim_start_matches("0x"),16).expect("bad num conversion");
@@ -585,9 +585,9 @@ impl Emu32 {
                     return reg1_val - (reg2_val * num);
                 }
 
-               unimplemented!(); 
+                unimplemented!(); 
             }
-    
+
             let reg = spl[0];
             let sign = spl[1];
             //println!("disp --> {}  operand:{}", spl[2], operand);
@@ -597,8 +597,8 @@ impl Emu32 {
             } else {
                 disp = u32::from_str_radix(spl[2].trim_start_matches("0x"),16).expect("bad disp");
             }
-            
-            
+
+
             if sign != "+" && sign != "-" {
                 panic!("weird sign {}", sign);
             }
@@ -611,7 +611,7 @@ impl Emu32 {
             }
 
         }
-        
+
         if spl.len() == 1 { //ie [eax]
             let reg = spl[0];
 
@@ -703,7 +703,7 @@ impl Emu32 {
                     None => return None,
                 }
             },
-             _ => panic!("weird size: {}", operand),
+            _ => panic!("weird size: {}", operand),
         };
 
     }
@@ -719,8 +719,8 @@ impl Emu32 {
         let addr:u32 = self.memory_operand_to_address(operand);
 
         /*if !self.maps.is_mapped(addr) {
-            panic!("writting in non mapped memory");
-        }*/
+          panic!("writting in non mapped memory");
+          }*/
 
         let name = match self.maps.get_addr_name(addr) {
             Some(n) => n,
@@ -742,14 +742,14 @@ impl Emu32 {
         let ret = match bits {
             32 => self.maps.write_dword(addr, value),
             16 => self.maps.write_word(addr, (value & 0x0000ffff) as u16),
-             8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
-             _ => panic!("weird size: {}", operand)
+            8 => self.maps.write_byte(addr, (value & 0x000000ff) as u8),
+            _ => panic!("weird size: {}", operand)
         };
 
         ret
     }
 
-    
+
     pub fn set_eip(&mut self, addr:u32, is_branch:bool) {
 
         let name = match self.maps.get_addr_name(addr) {
@@ -790,23 +790,23 @@ impl Emu32 {
     }
 
     /*
-    pub fn get_inmediate(&self, operand:&str) -> u32 {
-        
-        if operand.contains("0x") {
-            return u32::from_str_radix(operand.get(2..).unwrap(), 16).unwrap();
-        } else if operand.contains("-") {
-            let num = u32::from_str_radix(operand.get(1..).unwrap(), 16).unwrap();
-            return 0xffffffff - num + 1;
-        } else {
-            return u32::from_str_radix(operand, 16).unwrap();
-        }
-    }*/
+       pub fn get_inmediate(&self, operand:&str) -> u32 {
+
+       if operand.contains("0x") {
+       return u32::from_str_radix(operand.get(2..).unwrap(), 16).unwrap();
+       } else if operand.contains("-") {
+       let num = u32::from_str_radix(operand.get(1..).unwrap(), 16).unwrap();
+       return 0xffffffff - num + 1;
+       } else {
+       return u32::from_str_radix(operand, 16).unwrap();
+       }
+       }*/
 
     // this is not used on the emulation
     pub fn get_size(&self, operand:&str) -> u8 {
         if operand.contains("byte ptr") {
             return 8;
-           
+
         } else if operand.contains("dword ptr") {
             return 32;
 
@@ -815,7 +815,7 @@ impl Emu32 {
         } 
 
         let c:Vec<char> = operand.chars().collect();
-        
+
         if operand.len() == 3 {
             if c[0] == 'e' {
                 return 32;
@@ -952,7 +952,7 @@ impl Emu32 {
         if self.flags.f_of {
             println!("/!\\ int overflow on division");
         }
-        
+
     }
 
     fn div8(&mut self, value0:u32) {
@@ -1004,9 +1004,9 @@ impl Emu32 {
         } else {
 
             if ((value1 as i64) > 0 && (resq as i32) < 0) || ((value1 as i64) < 0 && (resq as i32) > 0) {
-                    println!("/!\\ sign change exception on division");
-                    self.exception();
-                    self.force_break = true;
+                println!("/!\\ sign change exception on division");
+                self.exception();
+                self.force_break = true;
             }
         } 
     }
@@ -1108,12 +1108,12 @@ impl Emu32 {
             println!("SHRD bad params.");
             return 0;
         }
-        
+
         for i in 0..=(size-1-counter as u32) {
             let bit = self.get_bit(storage0, i as u32 + counter as u32);
             self.set_bit(&mut storage0, i as u32, bit);
         }
-        
+
         for i in (size-counter as u32)..size {
             let bit = self.get_bit(value1, i as u32 + counter as u32 - 32);
             self.set_bit(&mut storage0, i as u32, bit);
@@ -1214,7 +1214,7 @@ impl Emu32 {
                     } else {
                         println!("cannot write there.");
                     }
-                    
+
                 },
                 "ba" => {
                     con.print("address");
@@ -1565,7 +1565,7 @@ impl Emu32 {
 
 
                 }
-              
+
                 _ => println!("command not found, type h"),
             }
         }
@@ -1674,7 +1674,7 @@ impl Emu32 {
                     if reg == Register::FS || reg == Register::GS {
                         derref = false;
                         fs = true;
-      
+
                         Some(0)
                     } else {
                         Some(self.regs.get_reg(reg) as u64)
@@ -1777,7 +1777,7 @@ impl Emu32 {
                             unimplemented!("set FS:[{}]", idx);
                         }
                         Some(0)
-                    
+
                     } else {
                         Some(self.regs.get_reg(reg) as u64)
                     }
@@ -1910,7 +1910,7 @@ impl Emu32 {
                 for (i,b) in value.to_le_bytes().iter().enumerate() {
                     self.maps.write_byte(mem_addr as u32 + i as u32, *b);
                 }
-                
+
             }
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
         };
@@ -1991,7 +1991,7 @@ impl Emu32 {
 
 
             for ins in decoder.iter() {
-  
+
                 let sz = ins.len();
                 let addr = ins.ip32() as u32;
                 let mut step = false;
@@ -2011,7 +2011,7 @@ impl Emu32 {
                         break;
                     }
                 }
-                
+
                 if self.cfg.loops {
                     // loop detector
                     looped.push(addr as u64);
@@ -2025,9 +2025,9 @@ impl Emu32 {
                         println!("    loop: {} interations", count);
                     }
                     /*
-                    if count > self.loop_limit {
-                        panic!("/!\\ iteration limit reached");
-                    }*/
+                       if count > self.loop_limit {
+                       panic!("/!\\ iteration limit reached");
+                       }*/
                     //TODO: if more than x addresses remove the bottom ones
                 }
 
@@ -2049,14 +2049,14 @@ impl Emu32 {
                         _ => panic!("invalid register."),
                     }
                 }
-                
+
                 if self.cfg.verbose < 2 {
                     step = true;
                 }
 
                 if self.cfg.trace_string {
                     let s = self.maps.read_string(self.cfg.string_addr);
-                    
+
                     if s.len() >= 2 && s.len() < 80 {
                         println!("\ttrace string -> 0x{:x}: '{}'", self.cfg.string_addr, s);
                     } else {
@@ -2084,7 +2084,7 @@ impl Emu32 {
                 // instructions implementation
 
                 match ins.mnemonic() {
-                    
+
                     Mnemonic::Jmp => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.yellow, self.pos, ins.ip32(), out, self.colors.nc);
@@ -2110,12 +2110,12 @@ impl Emu32 {
                         if ins.op_count() != 1 {
                             unimplemented!("weird variant of call");
                         }
-                        
+
                         let addr = match self.get_operand_value(&ins, 0, true) {
                             Some(a) => a,
                             None => break
                         };
-                        
+
                         self.stack_push(self.regs.eip + sz as u32);
                         self.set_eip(addr, false);
                         break;
@@ -2212,7 +2212,7 @@ impl Emu32 {
                             exception::exit(self);
                             break;
                         }
-                       
+
                         self.set_eip(ret_addr, false);                        
                         break;
                     }
@@ -2478,7 +2478,7 @@ impl Emu32 {
                         }
 
                         assert!(ins.op_count() == 1);
-                        
+
                         let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break,
@@ -2502,7 +2502,7 @@ impl Emu32 {
                         }
 
                         assert!(ins.op_count() == 1);
-                        
+
                         let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break,
@@ -2565,7 +2565,7 @@ impl Emu32 {
                         let result = value0 | value1;
 
                         //println!("0x{:x} or 0x{:x} = 0x{:x}", value0, value1, result);
-                        
+
 
                         self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
                         self.flags.f_of = false;
@@ -2799,7 +2799,7 @@ impl Emu32 {
                                 None => break,
                             };
 
-                            
+
                             result = self.rotate_right(value0, value1, sz as u32);
                         }
 
@@ -2840,7 +2840,7 @@ impl Emu32 {
                                 None => break,
                             };
 
-                            
+
                             result = self.rotate_left(value0, value1, sz as u32);
                         }
 
@@ -2919,7 +2919,7 @@ impl Emu32 {
                         assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
 
                         if ins.op_count() == 1 { // 1 param
-                            
+
                             let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
                                 None => break,
@@ -2987,7 +2987,7 @@ impl Emu32 {
 
                         assert!(ins.op_count() == 2);
 
-            
+
                         let value1 = match self.get_operand_value(&ins, 1, true) {
                             Some(v) => v,
                             None => break,
@@ -2997,9 +2997,9 @@ impl Emu32 {
                         let sz1 = self.get_operand_sz(&ins, 1);
 
                         assert!((sz0 == 16 && sz1 == 8) || 
-                                (sz0 == 32 && sz1 == 8) || 
-                                (sz0 == 32 && sz1 == 16));
-                        
+                            (sz0 == 32 && sz1 == 8) || 
+                            (sz0 == 32 && sz1 == 16));
+
 
                         let mut result:u32 = 0;
 
@@ -3036,28 +3036,28 @@ impl Emu32 {
                         let sz1 = self.get_operand_sz(&ins, 1);
 
                         assert!((sz0 == 16 && sz1 == 8) || 
-                                (sz0 == 32 && sz1 == 8) || 
-                                (sz0 == 32 && sz1 == 16));
-                        
+                            (sz0 == 32 && sz1 == 8) || 
+                            (sz0 == 32 && sz1 == 16));
+
 
                         let result:u32;
 
                         /*
-                        if sz0 == 16 && sz1 == 8 {
-                            value0 = value0 & 0x0000ff00;
-                            value1 = value1 & 0x000000ff;
-                            
-                        } else if sz0 == 32 && sz1 == 8 {
-                            value0 = value0 & 0xffffff00;
-                            value1 = value1 & 0x000000ff;
+                           if sz0 == 16 && sz1 == 8 {
+                           value0 = value0 & 0x0000ff00;
+                           value1 = value1 & 0x000000ff;
 
-                        } else if sz0 == 32 && sz1 == 16 {
-                            value0 = value0 & 0xffff0000;
-                            value1 = value1 & 0x0000ffff;
+                           } else if sz0 == 32 && sz1 == 8 {
+                           value0 = value0 & 0xffffff00;
+                           value1 = value1 & 0x000000ff;
 
-                        } else {
-                            unreachable!("impossible");
-                        }*/
+                           } else if sz0 == 32 && sz1 == 16 {
+                           value0 = value0 & 0xffff0000;
+                           value1 = value1 & 0x0000ffff;
+
+                           } else {
+                           unreachable!("impossible");
+                           }*/
 
                         result = value1;
 
@@ -3075,14 +3075,17 @@ impl Emu32 {
                         }
 
                         if ins.has_rep_prefix() {
-
                             loop {
-
-                                let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); //TODO: control this, exception or 
+                                let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); 
                                 self.maps.write_byte(self.regs.edi, val);
 
-                                self.regs.esi += 1;
-                                self.regs.edi += 1;
+                                if !self.flags.f_df {
+                                    self.regs.esi += 1;
+                                    self.regs.edi += 1;
+                                } else {
+                                    self.regs.esi -= 1;
+                                    self.regs.edi -= 1;
+                                }
 
                                 self.regs.ecx -= 1;
                                 if self.regs.ecx == 0 { 
@@ -3091,17 +3094,94 @@ impl Emu32 {
                             }
 
                         } else {
-
-                            let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); //TODO: control this, exception or 
+                            let val = self.maps.read_byte(self.regs.esi).expect("cannot read memory"); 
                             self.maps.write_byte(self.regs.edi, val);
+                            if !self.flags.f_df {
+                                self.regs.esi += 1;
+                                self.regs.edi += 1;
+                            } else {
+                                self.regs.esi -= 1;
+                                self.regs.edi -= 1;
+                            }
+                        }
+                    }
 
-                            self.regs.esi += 1;
-                            self.regs.edi += 1;
 
+                    Mnemonic::Movsw => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
 
+                        if ins.has_rep_prefix() {
+                            loop {
+                                let val = self.maps.read_word(self.regs.esi).expect("cannot read memory"); 
+                                self.maps.write_word(self.regs.edi, val);
 
+                                if !self.flags.f_df {
+                                    self.regs.esi += 2;
+                                    self.regs.edi += 2;
+                                } else {
+                                    self.regs.esi -= 2;
+                                    self.regs.edi -= 2;
+                                }
+
+                                self.regs.ecx -= 1;
+                                if self.regs.ecx == 0 { 
+                                    break 
+                                }
+                            }
+
+                        } else {
+                            let val = self.maps.read_word(self.regs.esi).expect("cannot read memory"); 
+                            self.maps.write_word(self.regs.edi, val);
+                            if !self.flags.f_df {
+                                self.regs.esi += 2;
+                                self.regs.edi += 2;
+                            } else {
+                                self.regs.esi -= 2;
+                                self.regs.edi -= 2;
+                            }
+                        }
                     }
+
+
+                    Mnemonic::Movsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.light_cyan, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        if ins.has_rep_prefix() {
+                            loop {
+                                let val = self.maps.read_dword(self.regs.esi).expect("cannot read memory"); 
+                                self.maps.write_dword(self.regs.edi, val);
+
+                                if !self.flags.f_df {
+                                    self.regs.esi += 4;
+                                    self.regs.edi += 4;
+                                } else {
+                                    self.regs.esi -= 4;
+                                    self.regs.edi -= 4;
+                                }
+
+                                self.regs.ecx -= 1;
+                                if self.regs.ecx == 0 { 
+                                    break 
+                                }
+                            }
+
+                        } else {
+                            let val = self.maps.read_dword(self.regs.esi).expect("cannot read memory"); 
+                            self.maps.write_dword(self.regs.edi, val);
+                            if !self.flags.f_df {
+                                self.regs.esi += 4;
+                                self.regs.edi += 4;
+                            } else {
+                                self.regs.esi -= 4;
+                                self.regs.edi -= 4;
+                            }
+                        }
+                    }
+
 
                     Mnemonic::Stosb => {
                         if !step {
@@ -4509,10 +4589,12 @@ impl Emu32 {
                     }
 
                     //// SSE XMM //// 
-                    
+                    // scalar: only gets the less significative part.
+                    // packed: compute all parts.
                     // https://newbedev.com/128-bit-values-from-xmm-registers-to-general-purpose
                     
-                    Mnemonic::Pxor => {
+
+                    Mnemonic::Pxor | Mnemonic::Xorps => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
@@ -4528,23 +4610,7 @@ impl Emu32 {
                         self.set_operand_xmm_value_128(&ins, 0, result);
                     }
                     
-                    Mnemonic::Xorps => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
-
-                        let result:i128 = value0 ^ value1;
-                        self.flags.calc_flags(result as u32, 32);
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Movlpd | Mnemonic::Movlps => {
+                    Mnemonic::Movlpd | Mnemonic::Movlps | Mnemonic::Cvtsi2sd | Mnemonic::Cvtsi2ss | Mnemonic::Movd => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
                         }
@@ -4577,55 +4643,6 @@ impl Emu32 {
                             panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
                         }
                     }
-
-                    Mnemonic::Cvtsi2sd => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        if sz0 == 128 && sz1 == 32 {
-                            let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
-
-                        } else if sz0 == 32 && sz1 == 128 {
-                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1");
-                            self.set_operand_value(&ins, 0, value1 as u32);
-
-                        } else {
-                            panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
-                        }
-
-                    }
-
-                    Mnemonic::Movsd => {
-                        if !step {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
-                        }
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        if sz0 == 128 && sz1 == 64 {
-                            let addr = self.get_operand_value(&ins, 1, false).expect("error getting address");
-                            let value1 = self.maps.read_qword(addr).expect("error getting qword");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
-                            
-                        } else if sz0 == 64 && sz1 == 128 {
-                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
-                            let addr = self.get_operand_value(&ins, 0, false).expect("error getting address");
-                            self.maps.write_qword(addr, value1 as u64); 
-
-                        } else {
-                            unreachable!("weird sz");    
-                        }
-
-                        println!("{} {}", sz0, sz1);
-
-                    }
-
 
                     // end SSE
 
