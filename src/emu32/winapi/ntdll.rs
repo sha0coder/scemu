@@ -41,7 +41,7 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
         None => println!("creating map on 0x{:x}", addr),
     }
 
-    if size <= 0 {
+    if size == 0 {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
