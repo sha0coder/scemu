@@ -1855,11 +1855,11 @@ impl Emu32 {
         true
     }
 
-    pub fn get_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<i128> {
+    pub fn get_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, do_derref:bool) -> Option<u128> {
 
         assert!(ins.op_count() > noperand);
 
-        let value:i128 = match ins.op_kind(noperand) {
+        let value:u128 = match ins.op_kind(noperand) {
             OpKind::Register => self.regs.get_xmm_reg(ins.op_register(noperand)),
             OpKind::Memory => {
                 let mem_addr = match ins.virtual_address(noperand, 0, |reg,idx,_sz| {
@@ -1873,7 +1873,7 @@ impl Emu32 {
                 };
 
                 if do_derref {
-                    let value:i128 = match self.maps.read_128bits_le(mem_addr as u32) {
+                    let value:u128 = match self.maps.read_128bits_le(mem_addr as u32) {
                         Some(v) => v,
                         None => { 
                             self.exception(); 
@@ -1882,7 +1882,7 @@ impl Emu32 {
                     };
                     value
                 } else {
-                    mem_addr as i128
+                    mem_addr as u128
                 }
             }
             _ => unimplemented!("unimplemented operand type {:?}", ins.op_kind(noperand)),
@@ -1890,7 +1890,7 @@ impl Emu32 {
         Some(value)
     }
 
-    pub fn set_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, value:i128) {
+    pub fn set_operand_xmm_value_128(&mut self, ins:&Instruction, noperand:u32, value:u128) {
 
         assert!(ins.op_count() > noperand);
 
@@ -4590,11 +4590,13 @@ impl Emu32 {
 
                     //// SSE XMM //// 
                     // scalar: only gets the less significative part.
+                    // scalar simple: only 32b less significative part.
+                    // scalar double: only 54b less significative part.
                     // packed: compute all parts.
-                    // https://newbedev.com/128-bit-values-from-xmm-registers-to-general-purpose
+                    // packed double: 
                     
 
-                    Mnemonic::Pxor | Mnemonic::Xorps => {
+                    Mnemonic::Pxor => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
                         }
@@ -4604,12 +4606,47 @@ impl Emu32 {
                         let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
                         let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
 
-                        let result:i128 = value0 ^ value1;
+                        let result:u128 = value0 ^ value1;
                         self.flags.calc_flags(result as u32, 32);
 
                         self.set_operand_xmm_value_128(&ins, 0, result);
                     }
-                    
+
+                    Mnemonic::Xorps => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff) ^ (value1 & 0xffffffff);
+                        let b:u128 = (value0 & 0xffffffff_00000000) ^ (value1 & 0xffffffff_00000000);
+                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000);
+                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                        let result:u128 = a | b | c | d;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Xorpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff_ffffffff) ^ (value1 & 0xffffffff_ffffffff);
+                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) ^ (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                        let result:u128 = a | b;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+                   
+                    // movlpd: packed double, movlps: packed simple, cvtsi2sd: int to scalar double 32b to 64b,
+                    // cvtsi2ss: int to scalar single copy 32b to 32b, movd: doubleword move
                     Mnemonic::Movlpd | Mnemonic::Movlps | Mnemonic::Cvtsi2sd | Mnemonic::Cvtsi2ss | Mnemonic::Movd => {
                         if !step {
                             println!("{}{} 0x{:x}: {}{}", self.colors.cyan, self.pos, ins.ip32(), out, self.colors.nc);
@@ -4624,7 +4661,7 @@ impl Emu32 {
 
                         } else if sz0 == 128 && sz1 == 32 {
                             let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
 
                         } else if sz0 == 32 && sz1 == 128 {
                             let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
@@ -4633,7 +4670,7 @@ impl Emu32 {
                         } else if sz0 == 128 && sz1 == 64 {
                             let addr = self.get_operand_value(&ins, 1, false).expect("error getting the address");
                             let value1 = self.maps.read_qword(addr).expect("error getting qword");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as i128);
+                            self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
 
                         } else if sz0 == 64 && sz1 == 128 {
                             let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
@@ -4642,6 +4679,209 @@ impl Emu32 {
                         } else {
                             panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
                         }
+                    }
+
+                    Mnemonic::Andpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u128 = value0 & value1;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Orpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u128 = value0 | value1;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Addps => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff) + (value1 & 0xffffffff);
+                        let b:u128 = (value0 & 0xffffffff_00000000) + (value1 & 0xffffffff_00000000);
+                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000);
+                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                        let result:u128 = a | b | c | d;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Addpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff_ffffffff) + (value1 & 0xffffffff_ffffffff);
+                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) + (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                        let result:u128 = a | b;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Addsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u64 = value0 as u64 + value1 as u64;
+                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
+                    }
+
+                    Mnemonic::Addss => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u32 = value0 as u32 + value1 as u32;
+                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
+                    }
+
+                    Mnemonic::Subps => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff) - (value1 & 0xffffffff);
+                        let b:u128 = (value0 & 0xffffffff_00000000) - (value1 & 0xffffffff_00000000);
+                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000);
+                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                        let result:u128 = a | b | c | d;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Subpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff_ffffffff) - (value1 & 0xffffffff_ffffffff);
+                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) - (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                        let result:u128 = a | b;
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Subsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u64 = value0 as u64 - value1 as u64;
+                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
+                    }
+
+                    Mnemonic::Subss => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u32 = value0 as u32 - value1 as u32;
+                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
+                    }
+
+                    Mnemonic::Mulpd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let left:u128 = ((value0 & 0xffffffffffffffff0000000000000000)>>64) * ((value1 & 0xffffffffffffffff0000000000000000)>>64);
+                        let right:u128 = (value0 & 0xffffffffffffffff) * (value1 & 0xffffffffffffffff);
+                        let result:u128 = left << 64 | right; 
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Mulps => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let a:u128 = (value0 & 0xffffffff) * (value1 & 0xffffffff);
+                        let b:u128 = (value0 & 0xffffffff00000000) * (value1 & 0xffffffff00000000);
+                        let c:u128 = (value0 & 0xffffffff0000000000000000) * (value1 & 0xffffffff0000000000000000);
+                        let d:u128 = (value0 & 0xffffffff000000000000000000000000) * (value1 & 0xffffffff000000000000000000000000);
+
+                        let result:u128 = a | b | c | d; 
+
+                        self.set_operand_xmm_value_128(&ins, 0, result);
+                    }
+
+                    Mnemonic::Mulsd => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u64 = value0 as u64 * value1 as u64;
+                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
+                    }
+
+                    Mnemonic::Mulss => {
+                        if !step {
+                            println!("{}{} 0x{:x}: {}{}", self.colors.green, self.pos, ins.ip32(), out, self.colors.nc);
+                        }
+
+                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                        let result:u32 = value0 as u32 * value1 as u32;
+                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                        self.set_operand_xmm_value_128(&ins, 0, r128);
                     }
 
                     // end SSE
