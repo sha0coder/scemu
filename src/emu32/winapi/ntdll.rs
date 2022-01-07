@@ -35,22 +35,29 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
     let size_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("bad NtAllocateVirtualMemory size pointer parameter");
     let addr = emu.maps.read_dword(addr_ptr).expect("bad NtAllocateVirtualMemory address parameter");
     let size = emu.maps.read_dword(size_ptr).expect("bad NtAllocateVirtualMemory size parameter");
+    let do_alloc:bool;
+    let alloc_addr:u32;
 
-    match emu.maps.get_addr_name(addr) {
-        Some(name) => panic!("address already mapped: {}", name),
-        None => println!("creating map on 0x{:x}", addr),
+    if addr == 0 {
+        do_alloc = true;
+    } else {
+        do_alloc = emu.maps.is_mapped(addr);
     }
 
     if size == 0 {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
-    let alloc_addr = match emu.maps.alloc(size) {
-        Some(a) => a,
-        None => panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "),
-    };
+    if do_alloc {
+        alloc_addr = match emu.maps.alloc(size) {
+            Some(a) => a,
+            None => panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory "),
+        };
+    } else { 
+        alloc_addr = addr;
+    }
 
-    println!("{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}", emu.colors.light_red, emu.pos, alloc_addr, size, alloc_addr, emu.colors.nc);
+    println!("{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}", emu.colors.light_red, emu.pos, addr, size, alloc_addr, emu.colors.nc);
 
     let alloc = emu.maps.create_map(format!("valloc_{:x}", alloc_addr).as_str());
     alloc.set_base(alloc_addr);
