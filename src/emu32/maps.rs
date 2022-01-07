@@ -72,13 +72,13 @@ impl Maps {
         false
     }
 
-    pub fn read_128bits_be(&self, addr:u32) -> Option<i128> {
+    pub fn read_128bits_be(&self, addr:u32) -> Option<u128> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                let mut n:i128 = 0;
+                let mut n:u128 = 0;
                 let bytes = mem.read_bytes(addr, 16);
                 for i in 0..16 {
-                   n |= (bytes[i] as i128) << (i*8);
+                   n |= (bytes[i] as u128) << (i*8);
                 }
                 return Some(n);
             }
@@ -86,13 +86,13 @@ impl Maps {
         None
     }
 
-    pub fn read_128bits_le(&self, addr:u32) -> Option<i128> {
+    pub fn read_128bits_le(&self, addr:u32) -> Option<u128> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
-                let mut n:i128 = 0;
+                let mut n:u128 = 0;
                 let bytes = mem.read_bytes(addr, 16);
                 for i in (0..16).rev() {
-                   n |= (bytes[i] as i128) << (i*8);
+                    n |= (bytes[i] as u128) << (i*8);
                 }
                 return Some(n);
             }
