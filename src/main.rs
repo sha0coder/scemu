@@ -7,10 +7,10 @@
 
 extern crate clap;
 
-mod emu32;
+mod emu;
 mod config;
 
-use emu32::Emu32;
+use emu::Emu;
 use config::Config;
 use clap::{Arg, App};
 
@@ -30,6 +30,11 @@ fn main() {
                         .long("verbose")
                         .multiple(true)
                         .help("-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster")
+                        .takes_value(false))
+                    .arg(Arg::with_name("64bits")
+                        .short("6")
+                        .long("64bits")
+                        .help("enable 64bits architecture emulation")
                         .takes_value(false))
                     .arg(Arg::with_name("memory")
                         .short("m")
@@ -143,13 +148,22 @@ fn main() {
         cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
     }
 
+    if matches.is_present("64bits") {
+        cfg.is_64 = true;
+    }
+
     if matches.is_present("maps") {
         cfg.maps_folder = matches.value_of("maps").expect("specify the maps folder").to_string();
     } else {
-        cfg.maps_folder = "maps/".to_string();
+        if cfg.is_64 {
+            cfg.maps_folder = "maps64/".to_string();
+        } else {
+            cfg.maps_folder = "maps32/".to_string();
+        }
     }
+
     if matches.is_present("endpoint") {
-        emu32::endpoint::warning();
+        emu::endpoint::warning();
         cfg.endpoint = true;
     }
     if matches.is_present("console_addr") {
@@ -167,11 +181,11 @@ fn main() {
         }
     }
 
-    let mut emu32 = Emu32::new();
+    let mut emu = Emu::new();
     
-    emu32.set_config(cfg);
-    emu32.init();
-    emu32.load_code(&filename.to_string());
+    emu.set_config(cfg);
+    emu.init();
+    emu.load_code(&filename.to_string());
 
-    emu32.run();
+    emu.run();
 }

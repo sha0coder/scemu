@@ -1,7 +1,7 @@
-use crate::emu32;
+use crate::emu;
 
 
-pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
+pub fn gateway(addr:u32, emu:&mut emu::Emu) {
     match addr {
         0x77733553 => StartServiceCtrlDispatcherA(emu),
         0x776fa965 => StartServiceCtrlDispatcherW(emu),
@@ -9,7 +9,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     }
 }
 
-fn StartServiceCtrlDispatcherA(emu:&mut emu32::Emu32) {
+fn StartServiceCtrlDispatcherA(emu:&mut emu::Emu) {
     let service_table_entry_ptr = emu.maps.read_dword(emu.regs.esp).expect("advapi32!StartServiceCtrlDispatcherA error reading service_table_entry pointer");
 
     let service_name = emu.maps.read_dword(service_table_entry_ptr).expect("advapi32!StartServiceCtrlDispatcherA error reading service_name");
@@ -19,7 +19,7 @@ fn StartServiceCtrlDispatcherA(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1;
 }
 
-fn StartServiceCtrlDispatcherW(emu:&mut emu32::Emu32) {
+fn StartServiceCtrlDispatcherW(emu:&mut emu::Emu) {
     let service_table_entry_ptr = emu.maps.read_dword(emu.regs.esp).expect("advapi32!StartServiceCtrlDispatcherW error reading service_table_entry pointer");
 
     emu.stack_pop(false);

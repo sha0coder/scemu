@@ -1,9 +1,8 @@
+use crate::emu::fpu::FPU;
+use crate::emu::regs32::Regs32;
+use crate::emu::maps::Maps;
 
-use crate::emu32::fpu::FPU;
-use crate::emu32::regs32::Regs32;
-use crate::emu32::maps::Maps;
-
-pub struct Context {
+pub struct Context32 {
     ctx_flags:u32,
     dr0:u32,
     dr1:u32,
@@ -30,9 +29,9 @@ pub struct Context {
     seg_ss:u32,
 }
 
-impl Context {
-    pub fn new(regs:&Regs32) -> Context {
-        Context {
+impl Context32 {
+    pub fn new(regs:&Regs32) -> Context32 {
+        Context32 {
             ctx_flags: 0,
             dr0: 0,
             dr1: 0,

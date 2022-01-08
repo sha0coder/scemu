@@ -1,11 +1,11 @@
-use crate::emu32;
-use crate::emu32::winapi::helper;
-use crate::emu32::context::Context;
-use crate::emu32::structures;
-use crate::emu32::constants;
+use crate::emu;
+use crate::emu::winapi::helper;
+use crate::emu::context32::Context32;
+use crate::emu::structures;
+use crate::emu::constants;
 
 
-pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
+pub fn gateway(addr:u32, emu:&mut emu::Emu) {
     match addr {
         0x775b52d8 => NtAllocateVirtualMemory(emu),
         0x775b5a18 => NtGetContextThread(emu),
@@ -19,7 +19,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
 }
 
 
-fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
+fn NtAllocateVirtualMemory(emu:&mut emu::Emu) {
     /*
         __kernel_entry NTSYSCALLAPI NTSTATUS NtAllocateVirtualMemory(
             [in]      HANDLE    ProcessHandle,
@@ -68,7 +68,7 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
     }
 
-    emu.regs.eax = emu32::constants::STATUS_SUCCESS;
+    emu.regs.eax = emu::constants::STATUS_SUCCESS;
 
     for _ in 0..6 {
         emu.stack_pop(false);
@@ -77,7 +77,7 @@ fn NtAllocateVirtualMemory(emu:&mut emu32::Emu32) {
 
 
 
-fn stricmp(emu:&mut emu32::Emu32) {
+fn stricmp(emu:&mut emu::Emu) {
     let str1ptr = emu.maps.read_dword(emu.regs.esp).expect("ntdll!stricmp: error reading string1");
     let str2ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!stricmp: error reading string2");
     let str1 = emu.maps.read_string(str1ptr);
@@ -96,7 +96,7 @@ fn stricmp(emu:&mut emu32::Emu32) {
     }
 }
 
-fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
+fn NtQueryVirtualMemory(emu:&mut emu::Emu) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll!NtQueryVirtualMemory: error reading handle");
     let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!NtQueryVirtualMemory: error reading address");
 
@@ -117,7 +117,7 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
         for _ in 0..6 {
             emu.stack_pop(false);
         }
-        emu.regs.eax = emu32::constants::STATUS_INVALID_PARAMETER;
+        emu.regs.eax = emu::constants::STATUS_INVALID_PARAMETER;
     }
 
     let base = emu.maps.get_addr_base(addr).unwrap_or(0);
@@ -138,7 +138,7 @@ fn NtQueryVirtualMemory(emu:&mut emu32::Emu32) {
 }
 
 
-fn LdrLoadDll(emu:&mut emu32::Emu32) {
+fn LdrLoadDll(emu:&mut emu::Emu) {
     let libaddr_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("LdrLoadDll: error reading lib ptr");
     let libname_ptr = emu.maps.read_dword(emu.regs.esp+20).expect("LdrLoadDll: error reading lib param");
 
@@ -149,10 +149,10 @@ fn LdrLoadDll(emu:&mut emu32::Emu32) {
     if libname == "user32.dll" {
         let user32 = emu.maps.create_map("user32");
         user32.set_base(0x773b0000);
-        user32.load("maps/user32.bin");
+        user32.load("maps32/user32.bin");
         let user32_text = emu.maps.create_map("user32_text");
         user32_text.set_base(0x773b1000);
-        user32_text.load("maps/user32_text.bin");
+        user32_text.load("maps32/user32_text.bin");
 
         if !emu.maps.write_dword(libaddr_ptr, 0x773b0000) {
             panic!("ntdll_LdrLoadDll: cannot write in addr param");
@@ -163,10 +163,10 @@ fn LdrLoadDll(emu:&mut emu32::Emu32) {
     for _ in 0..4 {
         emu.stack_pop(false);
     }
-    emu.regs.eax = emu32::constants::STATUS_SUCCESS;
+    emu.regs.eax = emu::constants::STATUS_SUCCESS;
 }
 
-fn RtlVectoredExceptionHandler(emu:&mut emu32::Emu32) {
+fn RtlVectoredExceptionHandler(emu:&mut emu::Emu) {
     let p1 = emu.maps.read_dword(emu.regs.esp).expect("ntdll_RtlVectoredExceptionHandler: error reading p1");
     let fptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr");
 
@@ -179,7 +179,7 @@ fn RtlVectoredExceptionHandler(emu:&mut emu32::Emu32) {
     emu.stack_pop(false);
 }
 
-fn NtGetContextThread(emu:&mut emu32::Emu32) {
+fn NtGetContextThread(emu:&mut emu::Emu) {
     let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll_NtGetContextThread: error reading stack");
     let ctx_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_NtGetContextThread: error reading context pointer");
     let ctx_ptr2 = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
@@ -206,7 +206,7 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
         panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
     }*/
 
-    let ctx = Context::new(&emu.regs);
+    let ctx = Context32::new(&emu.regs);
     ctx.save(ctx_ptr2, &mut emu.maps);
 
     emu.regs.eax = 0;
@@ -215,7 +215,7 @@ fn NtGetContextThread(emu:&mut emu32::Emu32) {
 
 }
 
-fn RtlExitUserThread(emu:&mut emu32::Emu32) {
+fn RtlExitUserThread(emu:&mut emu::Emu) {
     println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
     std::process::exit(1);
 }

@@ -14,8 +14,8 @@ pub mod colors;
 pub mod constants;
 mod winapi;
 mod fpu;
-pub mod context;
-pub mod syscall;
+pub mod context32;
+pub mod syscall32;
 mod breakpoint;
 pub mod endpoint;
 pub mod structures;
@@ -35,7 +35,7 @@ use crate::config::Config;
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, IntelFormatter, Mnemonic, OpKind, 
     InstructionInfoFactory, Register, MemorySize};
 
-pub struct Emu32 {
+pub struct Emu {
     regs: Regs32,
     flags: Flags,
     eflags: Eflags,
@@ -54,9 +54,9 @@ pub struct Emu32 {
     tls: Vec<u32>,
 }
 
-impl Emu32 {
-    pub fn new() -> Emu32 {
-        Emu32{
+impl Emu {
+    pub fn new() -> Emu {
+        Emu{
             regs: Regs32::new(),
             flags: Flags::new(),
             eflags: Eflags::new(),
@@ -4089,7 +4089,7 @@ impl Emu32 {
                         };
 
                         match interrupt {
-                            0x80 => syscall::gateway(self),
+                            0x80 => syscall32::gateway(self),
                             _ => unimplemented!("unknown interrupt {}", interrupt),
                         }
                     }

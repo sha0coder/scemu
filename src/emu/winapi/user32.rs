@@ -1,7 +1,7 @@
-use crate::emu32;
+use crate::emu;
 
 
-pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
+pub fn gateway(addr:u32, emu:&mut emu::Emu) {
     match addr {
         0x7740ea11 => MessageBoxA(emu),
         0x773c01a9 => GetDesktopWindow(emu),
@@ -9,7 +9,7 @@ pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
     }
 }
 
-fn MessageBoxA(emu:&mut emu32::Emu32) {
+fn MessageBoxA(emu:&mut emu::Emu) {
     let titleptr = emu.maps.read_dword(emu.regs.esp+8).expect("user32_MessageBoxA: error reading title");
     let msgptr = emu.maps.read_dword(emu.regs.esp+4).expect("user32_MessageBoxA: error reading message");
     let msg = emu.maps.read_string(msgptr);
@@ -23,7 +23,7 @@ fn MessageBoxA(emu:&mut emu32::Emu32) {
     }
 }
 
-fn GetDesktopWindow(emu:&mut emu32::Emu32) {
+fn GetDesktopWindow(emu:&mut emu::Emu) {
     println!("{}** {} user32!GetDesktopWindow {}", emu.colors.light_red, emu.pos, emu.colors.nc);
     //emu.regs.eax = 0x11223344; // current window handle
     emu.regs.eax = 0; // no windows handler is more stealthy

@@ -6,10 +6,10 @@ mod ws2_32;
 mod advapi32;
 pub mod helper;
 
-use crate::emu32;
+use crate::emu;
 
 
-pub fn gateway(addr:u32, name:String, emu:&mut emu32::Emu32) { //name:String, maps:&emu32::maps::Maps, regs:&emu32::regs32::Regs32) {
+pub fn gateway(addr:u32, name:String, emu:&mut emu::Emu) { //name:String, maps:&emu32::maps::Maps, regs:&emu32::regs32::Regs32) {
     match name.as_str() {
         "kernel32_text" => kernel32::gateway(addr, emu),
         "ntdll_text" => ntdll::gateway(addr, emu),
