@@ -1,5 +1,5 @@
 /*
-    Little endian generic 32bits memory
+    Little endian generic any bits memory
 */
 
 use std::io::BufReader;

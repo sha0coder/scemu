@@ -1,13 +1,13 @@
-use crate::emu32;
-use crate::emu32::constants;
-use crate::emu32::winapi::helper;
-use crate::emu32::endpoint;
+use crate::emu;
+use crate::emu::constants;
+use crate::emu::winapi::helper;
+use crate::emu::endpoint;
 
 //  /usr/include/asm/unistd_32.h
 
 //TODO: check if buff is mapped
 
-pub fn gateway(emu:&mut emu32::Emu32) {
+pub fn gateway(emu:&mut emu::Emu) {
 
     match emu.regs.eax {      
 

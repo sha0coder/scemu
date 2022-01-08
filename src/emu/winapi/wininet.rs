@@ -1,11 +1,11 @@
-use crate::emu32;
-use crate::emu32::winapi::helper;
-use crate::emu32::endpoint;
-use crate::emu32::constants;
+use crate::emu;
+use crate::emu::winapi::helper;
+use crate::emu::endpoint;
+use crate::emu::constants;
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
 
-pub fn gateway(addr:u32, emu:&mut emu32::Emu32) {
+pub fn gateway(addr:u32, emu:&mut emu::Emu) {
     match addr {
         0x7633f18e => InternetOpenA(emu),
         0x76339197 => InternetOpenW(emu),
@@ -29,7 +29,7 @@ lazy_static! {
 }
 
 
-pub fn InternetOpenA(emu:&mut emu32::Emu32) {
+pub fn InternetOpenA(emu:&mut emu::Emu) {
     let uagent_ptr = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetOpenA  cannot read uagent_ptr");
     let access = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetOpenA  cannot read access");
     let proxy_ptr = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetOpenA  cannot read proxy_ptr");
@@ -66,7 +66,7 @@ pub fn InternetOpenA(emu:&mut emu32::Emu32) {
     emu.regs.eax = helper::handler_create();
 }
 
-pub fn InternetOpenW(emu:&mut emu32::Emu32) {
+pub fn InternetOpenW(emu:&mut emu::Emu) {
     let uagent_ptr = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetOpenW  cannot read uagent_ptr");
     let access = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetOpenW  cannot read access");
     let proxy_ptr = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetOpenW  cannot read proxy_ptr");
@@ -102,7 +102,7 @@ pub fn InternetOpenW(emu:&mut emu32::Emu32) {
     emu.regs.eax = helper::handler_create(); // internet handle
 }
 
-pub fn InternetConnectA(emu:&mut emu32::Emu32) {
+pub fn InternetConnectA(emu:&mut emu::Emu) {
     let internet_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetConnectA cannot read hndl");
     let server_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetConnectA cannot read server_ptr");
     let port = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetConnectA cannot read port");
@@ -144,7 +144,7 @@ pub fn InternetConnectA(emu:&mut emu32::Emu32) {
     emu.regs.eax = helper::handler_create(); // connect handle
 }
 
-pub fn InternetConnectW(emu:&mut emu32::Emu32) {
+pub fn InternetConnectW(emu:&mut emu::Emu) {
     let internet_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetConnectW cannot read hndl");
     let server_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetConnectW cannot read server_ptr");
     let port = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetConnectW cannot read port");
@@ -186,7 +186,7 @@ pub fn InternetConnectW(emu:&mut emu32::Emu32) {
     emu.regs.eax = helper::handler_create(); // connect handle
 }
 
-fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
+fn HttpOpenRequestA(emu:&mut emu::Emu) {
     let conn_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!HttpOpenRequestA cannot read hndl");
     let method_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!HttpOpenRequestA cannot read method_ptr");
     let path_ptr = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!HttpOpenRequestA cannot read path_ptr");
@@ -253,7 +253,7 @@ fn HttpOpenRequestA(emu:&mut emu32::Emu32) {
 
 }
 
-fn HttpOpenRequestW(emu:&mut emu32::Emu32) {
+fn HttpOpenRequestW(emu:&mut emu::Emu) {
     let conn_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!HttpOpenRequestW cannot read hndl");
     let method_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!HttpOpenRequestW cannot read method_ptr");
     let path_ptr = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!HttpOpenRequestW cannot read path_ptr");
@@ -314,7 +314,7 @@ fn HttpOpenRequestW(emu:&mut emu32::Emu32) {
     emu.regs.eax = helper::handler_create(); // request handle
 }
 
-fn InternetSetOptionA(emu:&mut emu32::Emu32) {
+fn InternetSetOptionA(emu:&mut emu::Emu) {
     let inet_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetSetOptionA cannot read inet_hndl");
     let option = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetSetOptionA cannot read option"); 
     let buffer = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetSetOptionA cannot read buffer"); 
@@ -339,7 +339,7 @@ fn InternetSetOptionA(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1; // true 
 }
 
-fn InternetSetOptionW(emu:&mut emu32::Emu32) {
+fn InternetSetOptionW(emu:&mut emu::Emu) {
     let inet_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetSetOptionW cannot read inet_hndl");
     let option = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetSetOptionW cannot read option"); 
     let buffer = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetSetOptionW cannot read buffer"); 
@@ -364,7 +364,7 @@ fn InternetSetOptionW(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1; // true 
 }
 
-fn HttpSendRequestA(emu:&mut emu32::Emu32) {
+fn HttpSendRequestA(emu:&mut emu::Emu) {
     let req_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!HttpSendRequestA cannot read req_hndl");
     let hdrs_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!HttpSendRequestA cannot read hdrs_ptr");
     let hdrs_len = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!HttpSendRequestA cannot read hdrs_len");
@@ -392,7 +392,7 @@ fn HttpSendRequestA(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1; // true 
 }
 
-fn HttpSendRequestW(emu:&mut emu32::Emu32) {
+fn HttpSendRequestW(emu:&mut emu::Emu) {
     let req_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!HttpSendRequestW cannot read req_hndl");
     let hdrs_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!HttpSendRequestW cannot read hdrs_ptr");
     let hdrs_len = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!HttpSendRequestW cannot read hdrs_len");
@@ -420,7 +420,7 @@ fn HttpSendRequestW(emu:&mut emu32::Emu32) {
     emu.regs.eax = 1; // true 
 }
 
-fn InternetErrorDlg(emu:&mut emu32::Emu32) {
+fn InternetErrorDlg(emu:&mut emu::Emu) {
     let err = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetErrorDlg cannot read error");
 
     println!("{}** {} wininet!InternetErrorDlg err: {} {}", emu.colors.light_red, emu.pos, err, emu.colors.nc);
@@ -431,7 +431,7 @@ fn InternetErrorDlg(emu:&mut emu32::Emu32) {
     emu.regs.eax = 0;
 }
 
-fn InternetReadFile(emu:&mut emu32::Emu32) {
+fn InternetReadFile(emu:&mut emu::Emu) {
     let file_hndl = emu.maps.read_dword(emu.regs.esp).expect("wininet!InternetReadFile cannot read file_hndl");
     let buff_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("wininet!InternetReadFile cannot read buff_ptr");
     let bytes_to_read = emu.maps.read_dword(emu.regs.esp+8).expect("wininet!InternetReadFile cannot read bytes_to_read");

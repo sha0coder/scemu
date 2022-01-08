@@ -1,4 +1,4 @@
-use crate::emu32::maps::Maps;
+use crate::emu::maps::Maps;
 
 
 ////// PEB / TEB //////
