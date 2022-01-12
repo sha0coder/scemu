@@ -1,5 +1,5 @@
 use crate::emu::fpu::FPU;
-use crate::emu::regs32::Regs32;
+use crate::emu::regs64::Regs64;
 use crate::emu::maps::Maps;
 
 pub struct Context32 {
@@ -30,7 +30,7 @@ pub struct Context32 {
 }
 
 impl Context32 {
-    pub fn new(regs:&Regs32) -> Context32 {
+    pub fn new(regs:&Regs64) -> Context32 {
         Context32 {
             ctx_flags: 0,
             dr0: 0,
@@ -44,69 +44,69 @@ impl Context32 {
             seg_fd: 0,
             seg_es: 0,
             seg_ds: 0,
-            edi: regs.edi,
-            esi: regs.esi,
-            ebx: regs.ebx,
-            edx: regs.edx,
-            ecx: regs.ecx,
-            eax: regs.eax,
-            ebp: regs.ebp,
-            eip: regs.eip,
+            edi: regs.get_edi() as u32,
+            esi: regs.get_esi() as u32,
+            ebx: regs.get_ebx() as u32,
+            edx: regs.get_edx() as u32,
+            ecx: regs.get_ecx() as u32,
+            eax: regs.get_eax() as u32,
+            ebp: regs.get_ebp() as u32,
+            eip: regs.get_eip() as u32,
             seg_cs: 0,
             eflags: 0,
-            esp: regs.esp,
+            esp: regs.get_esp() as u32,
             seg_ss: 0,
         }
     }
 
     pub fn save(&self, addr:u32, maps:&mut Maps) {
-        maps.write_dword(addr+4, self.dr0);
-        maps.write_dword(addr+8, self.dr1);
-        maps.write_dword(addr+12, self.dr2);
-        maps.write_dword(addr+16, self.dr3);
-        maps.write_dword(addr+20, self.dr6);
-        maps.write_dword(addr+24, self.dr7);
+        maps.write_dword((addr+4) as u64, self.dr0);
+        maps.write_dword((addr+8) as u64, self.dr1);
+        maps.write_dword((addr+12) as u64, self.dr2);
+        maps.write_dword((addr+16) as u64, self.dr3);
+        maps.write_dword((addr+20) as u64, self.dr6);
+        maps.write_dword((addr+24) as u64, self.dr7);
 
-        maps.write_dword(addr+0x9c, self.edi);
-        maps.write_dword(addr+0xa0, self.esi);
-        maps.write_dword(addr+0xa4, self.ebx);
-        maps.write_dword(addr+0xa8, self.edx);
-        maps.write_dword(addr+0xac, self.ecx);
-        maps.write_dword(addr+0xb0, self.eax);
-        maps.write_dword(addr+0xb4, self.ebp);
-        maps.write_dword(addr+0xb8, self.eip);
-        maps.write_dword(addr+0xc4, self.esp);        
+        maps.write_dword((addr+0x9c) as u64, self.edi);
+        maps.write_dword((addr+0xa0) as u64, self.esi);
+        maps.write_dword((addr+0xa4) as u64, self.ebx);
+        maps.write_dword((addr+0xa8) as u64, self.edx);
+        maps.write_dword((addr+0xac) as u64, self.ecx);
+        maps.write_dword((addr+0xb0) as u64, self.eax);
+        maps.write_dword((addr+0xb4) as u64, self.ebp);
+        maps.write_dword((addr+0xb8) as u64, self.eip);
+        maps.write_dword((addr+0xc4) as u64, self.esp);        
     }
 
     pub fn load(&mut self, addr:u32, maps:&mut Maps) {
-        self.dr0 = maps.read_dword(addr+4).expect("cannot read dr0 from ctx");
-        self.dr1 = maps.read_dword(addr+8).expect("cannot read dr1 from ctx");
-        self.dr2 = maps.read_dword(addr+12).expect("cannot read dr2 from ctx");
-        self.dr3 = maps.read_dword(addr+16).expect("cannot read dr3 from ctx");
-        self.dr6 = maps.read_dword(addr+20).expect("cannot read dr6 from ctx");
-        self.dr7 = maps.read_dword(addr+24).expect("cannot read dr7 from ctx");
+        self.dr0 = maps.read_dword((addr+4) as u64).expect("cannot read dr0 from ctx");
+        self.dr1 = maps.read_dword((addr+8) as u64).expect("cannot read dr1 from ctx");
+        self.dr2 = maps.read_dword((addr+12) as u64).expect("cannot read dr2 from ctx");
+        self.dr3 = maps.read_dword((addr+16) as u64).expect("cannot read dr3 from ctx");
+        self.dr6 = maps.read_dword((addr+20) as u64).expect("cannot read dr6 from ctx");
+        self.dr7 = maps.read_dword((addr+24) as u64).expect("cannot read dr7 from ctx");
 
-        self.edi = maps.read_dword(addr+0x9c).expect("cannot read edi from ctx");
-        self.esi = maps.read_dword(addr+0xa0).expect("cannot read esi from ctx");
-        self.ebx = maps.read_dword(addr+0xa4).expect("cannot read ebx from ctx");
-        self.edx = maps.read_dword(addr+0xa8).expect("cannot read edx from ctx");
-        self.ecx = maps.read_dword(addr+0xac).expect("cannot read ecx from ctx");
-        self.eax = maps.read_dword(addr+0xb0).expect("cannot read eax from ctx");
-        self.ebp = maps.read_dword(addr+0xb4).expect("cannot read ebp from ctx");
-        self.eip = maps.read_dword(addr+0xb8).expect("cannot read eip from ctx");
-        self.esp = maps.read_dword(addr+0xc4).expect("cannot read esp from ctx");
+        self.edi = maps.read_dword((addr+0x9c) as u64).expect("cannot read edi from ctx");
+        self.esi = maps.read_dword((addr+0xa0) as u64).expect("cannot read esi from ctx");
+        self.ebx = maps.read_dword((addr+0xa4) as u64).expect("cannot read ebx from ctx");
+        self.edx = maps.read_dword((addr+0xa8) as u64).expect("cannot read edx from ctx");
+        self.ecx = maps.read_dword((addr+0xac) as u64).expect("cannot read ecx from ctx");
+        self.eax = maps.read_dword((addr+0xb0) as u64).expect("cannot read eax from ctx");
+        self.ebp = maps.read_dword((addr+0xb4) as u64).expect("cannot read ebp from ctx");
+        self.eip = maps.read_dword((addr+0xb8) as u64).expect("cannot read eip from ctx");
+        self.esp = maps.read_dword((addr+0xc4) as u64).expect("cannot read esp from ctx");
     }
 
-    pub fn sync(&self, regs:&mut Regs32) {
-        regs.eax = self.eax;
-        regs.ebx = self.ebx;
-        regs.ecx = self.ecx;
-        regs.edx = self.edx;
-        regs.esi = self.esi;
-        regs.edi = self.edi;
-        regs.esp = self.esp;
-        regs.ebp = self.ebp;
-        regs.eip = self.eip;
+    pub fn sync(&self, regs:&mut Regs64) {
+        regs.set_eax(self.eax as u64);
+        regs.set_ebx(self.ebx as u64);
+        regs.set_ecx(self.ecx as u64);
+        regs.set_edx(self.edx as u64);
+        regs.set_esi(self.esi as u64);
+        regs.set_edi(self.edi as u64);
+        regs.set_esp(self.esp as u64);
+        regs.set_ebp(self.ebp as u64);
+        regs.set_eip(self.eip as u64);
     }
 
 }

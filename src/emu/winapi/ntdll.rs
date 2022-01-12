@@ -31,12 +31,12 @@ fn NtAllocateVirtualMemory(emu:&mut emu::Emu) {
             );
     */
 
-    let addr_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("bad NtAllocateVirtualMemory address pointer parameter");
-    let size_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("bad NtAllocateVirtualMemory size pointer parameter");
-    let addr = emu.maps.read_dword(addr_ptr).expect("bad NtAllocateVirtualMemory address parameter");
-    let size = emu.maps.read_dword(size_ptr).expect("bad NtAllocateVirtualMemory size parameter");
+    let addr_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("bad NtAllocateVirtualMemory address pointer parameter") as u64;
+    let size_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("bad NtAllocateVirtualMemory size pointer parameter") as u64;
+    let addr = emu.maps.read_dword(addr_ptr).expect("bad NtAllocateVirtualMemory address parameter") as u64;
+    let size = emu.maps.read_dword(size_ptr).expect("bad NtAllocateVirtualMemory size parameter") as u64;
     let do_alloc:bool;
-    let alloc_addr:u32;
+    let alloc_addr:u64;
 
     if addr == 0 {
         do_alloc = true;
@@ -64,41 +64,41 @@ fn NtAllocateVirtualMemory(emu:&mut emu::Emu) {
     alloc.set_size(size);
     //alloc.set_bottom(alloc_addr + size);
 
-    if !emu.maps.write_dword(addr_ptr, alloc_addr) {
+    if !emu.maps.write_dword(addr_ptr, alloc_addr as u32) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
     }
 
-    emu.regs.eax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = emu::constants::STATUS_SUCCESS;
 
     for _ in 0..6 {
-        emu.stack_pop(false);
+        emu.stack_pop32(false);
     }
 }
 
 
 
 fn stricmp(emu:&mut emu::Emu) {
-    let str1ptr = emu.maps.read_dword(emu.regs.esp).expect("ntdll!stricmp: error reading string1");
-    let str2ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!stricmp: error reading string2");
+    let str1ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("ntdll!stricmp: error reading string1") as u64;
+    let str2ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ntdll!stricmp: error reading string2") as u64;
     let str1 = emu.maps.read_string(str1ptr);
     let str2 = emu.maps.read_string(str2ptr);
 
     println!("{}** {} ntdll!stricmp  '{}'=='{}'? {}", emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc);
 
     if str1 == str2 {
-        emu.regs.eax = 0;
+        emu.regs.rax = 0;
     } else {
-        emu.regs.eax = 1;
+        emu.regs.rax = 1;
     }
 
     for _ in 0..2 {
-        emu.stack_pop(false);
+        emu.stack_pop32(false);
     }
 }
 
 fn NtQueryVirtualMemory(emu:&mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll!NtQueryVirtualMemory: error reading handle");
-    let addr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll!NtQueryVirtualMemory: error reading address");
+    let handle = emu.maps.read_dword(emu.regs.get_esp()).expect("ntdll!NtQueryVirtualMemory: error reading handle") as u64;
+    let addr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ntdll!NtQueryVirtualMemory: error reading address") as u64;
 
     println!("{}** {} ntdll!NtQueryVirtualMemory addr: 0x{:x} {}", emu.colors.light_red, emu.pos, addr, emu.colors.nc);
 
@@ -110,37 +110,37 @@ fn NtQueryVirtualMemory(emu:&mut emu::Emu) {
         }
     }
 
-    let out_meminfo_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo");
+    let out_meminfo_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("ntdll_NtQueryVirtualMemory: error reading out pointer to meminfo") as u64;
 
     if !emu.maps.is_mapped(addr) {
         println!("/!\\ ntdll!NtQueryVirtualMemory: querying non maped addr: 0x{:x}", addr);
         for _ in 0..6 {
-            emu.stack_pop(false);
+            emu.stack_pop32(false);
         }
-        emu.regs.eax = emu::constants::STATUS_INVALID_PARAMETER;
+        emu.regs.rax = emu::constants::STATUS_INVALID_PARAMETER;
     }
 
     let base = emu.maps.get_addr_base(addr).unwrap_or(0);
 
     let mut mem_info = structures::MemoryBasicInformation::load(out_meminfo_ptr, &emu.maps);
-    mem_info.base_address = base; //addr & 0xfff;
-    mem_info.allocation_base = base; //  addr & 0xfff;
+    mem_info.base_address = base as u32; //addr & 0xfff;
+    mem_info.allocation_base = base as u32; //  addr & 0xfff;
     mem_info.allocation_protect = constants::PAGE_EXECUTE | constants::PAGE_READWRITE;
     mem_info.state = constants::MEM_COMMIT;
     mem_info.typ = constants::MEM_PRIVATE;
     mem_info.save(out_meminfo_ptr, &mut emu.maps);
    
     for _ in 0..6 {
-        emu.stack_pop(false);
+        emu.stack_pop32(false);
     }
 
-    emu.regs.eax = constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 
 fn LdrLoadDll(emu:&mut emu::Emu) {
-    let libaddr_ptr = emu.maps.read_dword(emu.regs.esp+12).expect("LdrLoadDll: error reading lib ptr");
-    let libname_ptr = emu.maps.read_dword(emu.regs.esp+20).expect("LdrLoadDll: error reading lib param");
+    let libaddr_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("LdrLoadDll: error reading lib ptr") as u64;
+    let libname_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("LdrLoadDll: error reading lib param") as u64;
 
     let libname = emu.maps.read_wide_string(libname_ptr);
     println!("{}** {} ntdll!LdrLoadDll   lib: {} {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
@@ -161,28 +161,28 @@ fn LdrLoadDll(emu:&mut emu::Emu) {
 
 
     for _ in 0..4 {
-        emu.stack_pop(false);
+        emu.stack_pop32(false);
     }
-    emu.regs.eax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = emu::constants::STATUS_SUCCESS;
 }
 
 fn RtlVectoredExceptionHandler(emu:&mut emu::Emu) {
-    let p1 = emu.maps.read_dword(emu.regs.esp).expect("ntdll_RtlVectoredExceptionHandler: error reading p1");
-    let fptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr");
+    let p1 = emu.maps.read_dword(emu.regs.get_esp()).expect("ntdll_RtlVectoredExceptionHandler: error reading p1") as u64;
+    let fptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr") as u64;
 
     println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback: 0x{:x} {}", emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc);
 
     emu.veh = fptr;
 
-    emu.regs.eax = 0x2c2878;
-    emu.stack_pop(false);
-    emu.stack_pop(false);
+    emu.regs.rax = 0x2c2878;
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
 }
 
 fn NtGetContextThread(emu:&mut emu::Emu) {
-    let handle = emu.maps.read_dword(emu.regs.esp).expect("ntdll_NtGetContextThread: error reading stack");
-    let ctx_ptr = emu.maps.read_dword(emu.regs.esp+4).expect("ntdll_NtGetContextThread: error reading context pointer");
-    let ctx_ptr2 = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr");
+    let handle = emu.maps.read_dword(emu.regs.get_esp()).expect("ntdll_NtGetContextThread: error reading stack") as u64;
+    let ctx_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ntdll_NtGetContextThread: error reading context pointer") as u64;
+    let ctx_ptr2 = emu.maps.read_dword(ctx_ptr).expect("ntdll_NtGetContextThread: error reading context ptr") as u64;
     
     println!("{}** {} ntdll_NtGetContextThread   ctx  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
@@ -207,11 +207,11 @@ fn NtGetContextThread(emu:&mut emu::Emu) {
     }*/
 
     let ctx = Context32::new(&emu.regs);
-    ctx.save(ctx_ptr2, &mut emu.maps);
+    ctx.save(ctx_ptr2 as u32, &mut emu.maps);
 
-    emu.regs.eax = 0;
-    emu.stack_pop(false);
-    emu.stack_pop(false);
+    emu.regs.rax = 0;
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
 
 }
 

@@ -10,16 +10,16 @@ pub struct Config {
     pub loops: bool,        // loop mode count the iterations for every instruction, its slow.
     pub nocolors: bool,     // to redirecting the output to a file is better to remove colors.
     pub trace_string: bool,
-    pub string_addr: u32,
+    pub string_addr: u64,
     pub inspect: bool,
     pub inspect_seq: String,
     pub endpoint: bool,
     pub maps_folder: String,
     pub console2: bool,
-    pub console_addr: u32,
-    pub entry_point: u32,
-    pub code_base_addr: u32,
-    pub is_64: bool,        // 64bits mode
+    pub console_addr: u64,
+    pub entry_point: u64,
+    pub code_base_addr: u64,
+    pub is_64bits: bool,        // 64bits mode
 }
 
 impl Config {
@@ -44,7 +44,7 @@ impl Config {
             console_addr: 0,
             entry_point: 0x3c0000,
             code_base_addr: 0x3c0000,
-            is_64: false,
+            is_64bits: false,
         }
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "scemu"
-version = "0.2.6"
+version = "0.3.0"
 authors = ["sha0coder <sha0@badchecksum.net>"]
 edition = "2018"
 
@@ -12,3 +12,4 @@ clap = "2.33.3"
 md5 = "0.7.0"
 lazy_static = "1.4.0"
 attohttpc = "0.18.0"
+rand = "0.8.4"

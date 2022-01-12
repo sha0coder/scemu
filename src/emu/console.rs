@@ -26,7 +26,7 @@ impl Console {
         line.to_lowercase()
     }
 
-    pub fn cmd_hex(&self) -> Result<u32,ParseIntError> {
+    pub fn cmd_hex32(&self) -> Result<u32,ParseIntError> {
         let mut x = self.cmd();
 
         if x.ends_with('h') {
@@ -51,9 +51,14 @@ impl Console {
         return u64::from_str_radix(x.as_str(), 16);
     }
 
-    pub fn cmd_num(&self) -> Result<u32,ParseIntError> {
-        self.cmd().as_str().parse::<u32>()
+    pub fn cmd_num(&self) -> Result<u64,ParseIntError> {
+        u64::from_str_radix(self.cmd().as_str(), 16)
     }
+
+/*
+    pub fn cmd_num<T>(&self) -> Result<T,ParseIntError> {
+        self.cmd().as_str().parse::<T>()
+    }*/
 
     pub fn help(&self) {
         println!("--- help ---");

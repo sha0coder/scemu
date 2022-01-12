@@ -5,7 +5,7 @@ pub struct FPU {
     tag:u16,
     stat:u16,
     ctrl:u16,
-    eip:u32,
+    ip:u64,
     err_off:u32,
     err_sel:u32,
     stack:Vec<f32>
@@ -18,18 +18,18 @@ impl FPU {
             tag: 0xffff,
             stat: 0,
             ctrl: 0x027f,
-            eip: 0,
+            ip: 0,
             err_off: 0,
             err_sel: 0,
             stack: Vec::new(),
         }
     }
 
-    pub fn set_eip(&mut self, eip:u32) {
-        self.eip = eip;
+    pub fn set_ip(&mut self, ip:u64) {
+        self.ip = ip;
     }
 
-    pub fn get_env(&self) -> Vec<u32> {
+    pub fn get_env32(&self) -> Vec<u32> {
         let mut r:Vec<u32> = Vec::new();
         let mut r1:u32 = self.tag as u32;
         r1 = r1 << 16;
@@ -37,7 +37,7 @@ impl FPU {
         r.push(r1);
         r.push(0xffff0000);
         r.push(0xffffffff);
-        r.push(self.eip);
+        r.push(self.ip as u32);
         return r;
     }
 
@@ -49,7 +49,7 @@ impl FPU {
 
         println!("stat: 0x{:x}", self.stat);
         println!("ctrl: 0x{:x}", self.ctrl);
-        println!("eip:  0x{:x}", self.eip);
+        println!("eip:  0x{:x}", self.ip);
 
         println!("--------");
     }

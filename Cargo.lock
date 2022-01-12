@@ -392,13 +392,14 @@ dependencies = [
 
 [[package]]
 name = "scemu"
-version = "0.2.6"
+version = "0.3.0"
 dependencies = [
  "attohttpc",
  "clap",
  "iced-x86",
  "lazy_static",
  "md5",
+ "rand",
 ]
 
 [[package]]

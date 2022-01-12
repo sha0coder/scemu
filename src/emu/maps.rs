@@ -1,33 +1,35 @@
-mod mem32;
+mod mem64;
 
-use mem32::Mem32;
+use mem64::Mem64;
 use std::collections::HashMap;
 use std::str;
 
 pub struct Maps {
-    pub maps: HashMap<String,Mem32>,
+    pub maps: HashMap<String,Mem64>,
+    pub is_64bits: bool,
 }
 
 impl Maps {
     pub fn new() -> Maps {
         Maps {
             maps: HashMap::new(),
+            is_64bits: false,
         }
     }
 
-    pub fn get_map_by_name(&self, name:&str) -> Option<&Mem32> {
+    pub fn get_map_by_name(&self, name:&str) -> Option<&Mem64> {
         let s = name.to_string();
         self.maps.get(&s)
     }
 
-    pub fn create_map(&mut self, name:&str) -> &mut Mem32 {
-        let mem = Mem32::new();
+    pub fn create_map(&mut self, name:&str) -> &mut Mem64 {
+        let mem = Mem64::new();
         self.maps.insert(name.to_string(), mem);
         return self.maps.get_mut(name).expect("incorrect memory map name");
     }
 
 
-    pub fn write_qword(&mut self, addr:u32, value:u64) -> bool {
+    pub fn write_qword(&mut self, addr:u64, value:u64) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_qword(addr, value);
@@ -39,7 +41,7 @@ impl Maps {
     }
 
 
-    pub fn write_dword(&mut self, addr:u32, value:u32) -> bool {
+    pub fn write_dword(&mut self, addr:u64, value:u32) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_dword(addr, value);
@@ -50,7 +52,7 @@ impl Maps {
         false
     }
 
-    pub fn write_word(&mut self, addr:u32, value:u16) -> bool {
+    pub fn write_word(&mut self, addr:u64, value:u16) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_word(addr, value);
@@ -61,7 +63,7 @@ impl Maps {
         false
     }
 
-    pub fn write_byte(&mut self, addr:u32, value:u8) -> bool {
+    pub fn write_byte(&mut self, addr:u64, value:u8) -> bool {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 mem.write_byte(addr, value);
@@ -72,7 +74,7 @@ impl Maps {
         false
     }
 
-    pub fn read_128bits_be(&self, addr:u32) -> Option<u128> {
+    pub fn read_128bits_be(&self, addr:u64) -> Option<u128> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 let mut n:u128 = 0;
@@ -86,7 +88,7 @@ impl Maps {
         None
     }
 
-    pub fn read_128bits_le(&self, addr:u32) -> Option<u128> {
+    pub fn read_128bits_le(&self, addr:u64) -> Option<u128> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 let mut n:u128 = 0;
@@ -100,7 +102,7 @@ impl Maps {
         None
     }
 
-    pub fn read_qword(&self, addr:u32) -> Option<u64> {
+    pub fn read_qword(&self, addr:u64) -> Option<u64> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(mem.read_qword(addr));
@@ -109,7 +111,7 @@ impl Maps {
         None
     }
 
-    pub fn read_dword(&self, addr:u32) -> Option<u32> {
+    pub fn read_dword(&self, addr:u64) -> Option<u32> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(mem.read_dword(addr));
@@ -118,7 +120,7 @@ impl Maps {
         None
     }
 
-    pub fn read_word(&self, addr:u32) -> Option<u16> {
+    pub fn read_word(&self, addr:u64) -> Option<u16> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(mem.read_word(addr));
@@ -127,7 +129,7 @@ impl Maps {
         None
     }
 
-    pub fn read_byte(&self, addr:u32) -> Option<u8> {
+    pub fn read_byte(&self, addr:u64) -> Option<u8> {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(mem.read_byte(addr));
@@ -136,15 +138,15 @@ impl Maps {
         None
     }
 
-    pub fn get_mem_ref(&self, name:&str) -> &Mem32 {
+    pub fn get_mem_ref(&self, name:&str) -> &Mem64 {
         return self.maps.get(&name.to_string()).expect("incorrect memory map name");
     }
 
-    pub fn get_mem(&mut self, name:&str) -> &mut Mem32 {
+    pub fn get_mem(&mut self, name:&str) -> &mut Mem64 {
         return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
     }
 
-    pub fn get_mem_by_addr(&mut self, addr:u32) -> Option<&mut Mem32> {
+    pub fn get_mem_by_addr(&mut self, addr:u64) -> Option<&mut Mem64> {
         for (_,mem) in self.maps.iter_mut() {
             if mem.inside(addr) {
                 return Some(mem);
@@ -153,45 +155,45 @@ impl Maps {
         None
     }
 
-    pub fn memset(&mut self, addr:u32, b:u8, amount:usize)  {
+    pub fn memset(&mut self, addr:u64, b:u8, amount:usize)  {
         for i in 0..amount {
-            self.write_byte(addr+i as u32, b);
+            self.write_byte(addr+i as u64, b);
         }
     }
 
-    pub fn memcpy(&mut self, to:u32, from:u32, size:usize) -> bool {
+    pub fn memcpy(&mut self, to:u64, from:u64, size:usize) -> bool {
         let mut b:u8;
         for i in 0..size {
-            b = match self.read_byte(from+i as u32) {
+            b = match self.read_byte(from+i as u64) {
                 Some(v) => v,
                 None => return false,
             };
-            if !self.write_byte(to+i as u32, b) {
+            if !self.write_byte(to+i as u64, b) {
                 return false;
             }
         }
         true
     }
 
-    pub fn write_string(&mut self, to:u32, from:&str) {
+    pub fn write_string(&mut self, to:u64, from:&str) {
         let bs:Vec<u8> = from.bytes().collect();
 
         for (i, bsi) in bs.iter().enumerate() {
-            self.write_byte(to + i as u32, *bsi);
+            self.write_byte(to + i as u64, *bsi);
         }
     }
 
-    pub fn write_buffer(&mut self, to:u32, from:&[u8]) {
+    pub fn write_buffer(&mut self, to:u64, from:&[u8]) {
         for (i,fromi) in from.iter().enumerate() {
-            self.write_byte(to + i as u32, *fromi);
+            self.write_byte(to + i as u64, *fromi);
         }
     }
 
-    pub fn read_buffer(&mut self, from:u32, sz:usize) -> Vec<u8> {
+    pub fn read_buffer(&mut self, from:u64, sz:usize) -> Vec<u8> {
         let mut buff:Vec<u8> = Vec::new();
 
         for i in 0..sz {
-            let b = match self.read_byte(from + i as u32) {
+            let b = match self.read_byte(from + i as u64) {
                 Some(v) => v,
                 None => { break; }
             };
@@ -221,7 +223,7 @@ impl Maps {
         println!("---");
     }
 
-    pub fn get_addr_base(&self, addr:u32) -> Option<u32> {
+    pub fn get_addr_base(&self, addr:u64) -> Option<u64> {
         for (_, mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(mem.get_base());
@@ -230,7 +232,7 @@ impl Maps {
         None
     }
 
-    pub fn is_mapped(&self, addr:u32) -> bool {
+    pub fn is_mapped(&self, addr:u64) -> bool {
         for (_,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return true;
@@ -239,7 +241,7 @@ impl Maps {
         false
     }
 
-    pub fn get_addr_name(&self, addr:u32) -> Option<String> {
+    pub fn get_addr_name(&self, addr:u64) -> Option<String> {
         for (name,mem) in self.maps.iter() {
             if mem.inside(addr) {
                 return Some(name.to_string());
@@ -248,7 +250,7 @@ impl Maps {
         None
     }
 
-    pub fn dump(&self, addr:u32) {
+    pub fn dump(&self, addr:u64) {
         let mut count = 0;
         for i in 0..8 {
             let mut bytes:Vec<u8> = Vec::new();
@@ -271,7 +273,7 @@ impl Maps {
     }
 
     #[deprecated]
-    pub fn dump2(&self, addr:u32) {
+    pub fn dump2(&self, addr:u64) {
         let mut count = 0;
         for _ in 0..8 {
             let mut bytes:Vec<u8> = Vec::new();
@@ -302,8 +304,9 @@ impl Maps {
         }
     }
 
-    pub fn dump_dwords(&self, addr:u32) {
+    pub fn dump_dwords(&self, addr:u64) {
         let mut value:u32;
+
         for i in 0..10 {
             let a = addr + i * 4;
             value = match self.read_dword(a) {
@@ -311,16 +314,20 @@ impl Maps {
                 None => break,
             };
 
-            let name = match self.get_addr_name(value) {
-                Some(v) => v,
-                None => "".to_string(),
-            };
+            if !self.is_64bits {
+                // only in 32bits make sense derreference dwords in memory
+                let name = match self.get_addr_name(value.into()) {
+                    Some(v) => v,
+                    None => "".to_string(),
+                };
 
-            println!("0x{:x}: 0x{:x} ({}) '{}'", a, value, name, self.filter_replace_string(&self.read_string(value)));
+                println!("0x{:x}: 0x{:x} ({}) '{}'", a, value, name, self.filter_replace_string(&self.read_string(value.into())));
+            }
+
         }
     }
 
-    pub fn read_bytes(&mut self, addr:u32, sz:usize) -> &[u8] {
+    pub fn read_bytes(&mut self, addr:u64, sz:usize) -> &[u8] {
         let mem = match self.get_mem_by_addr(addr) {
             Some(v) => v,
             None => return &[0;0],
@@ -328,7 +335,7 @@ impl Maps {
         mem.read_bytes(addr, sz)
     }
 
-    pub fn read_string_of_bytes(&mut self, addr:u32, sz:usize) -> String {
+    pub fn read_string_of_bytes(&mut self, addr:u64, sz:usize) -> String {
         let mut svec:Vec<String> = Vec::new();
         let bytes = self.read_bytes(addr, sz);
         for bs in bytes.iter() {   
@@ -338,10 +345,10 @@ impl Maps {
         s
     }
 
-    pub fn read_string(&self, addr:u32) -> String {
+    pub fn read_string(&self, addr:u64) -> String {
         let mut bytes:Vec<char> = Vec::new();
         let mut b:u8;
-        let mut i:u32 = 0;
+        let mut i:u64 = 0;
 
         loop {
             b = match self.read_byte(addr+i) {
@@ -361,10 +368,10 @@ impl Maps {
         s
     }
 
-    pub fn read_wide_string(&self, addr:u32) -> String {
+    pub fn read_wide_string(&self, addr:u64) -> String {
         let mut bytes:Vec<char> = Vec::new();
         let mut b:u8;
-        let mut i:u32 = 0;
+        let mut i:u64 = 0;
 
         loop {
             b = match self.read_byte(addr+i) {
@@ -384,8 +391,8 @@ impl Maps {
         s
     }
 
-    pub fn search_string(&self, kw:&str, map_name:&str) -> Option<Vec<u32>> {
-        let mut found:Vec<u32> = Vec::new();
+    pub fn search_string(&self, kw:&str, map_name:&str) -> Option<Vec<u64>> {
+        let mut found:Vec<u64> = Vec::new();
 
         for (name,mem) in self.maps.iter() {
             if name == map_name {
@@ -394,7 +401,7 @@ impl Maps {
                     let mut c = 0;
                     
                     for (i, bkwi) in bkw.iter().enumerate() {
-                        let b = mem.read_byte(addr+(i as u32));
+                        let b = mem.read_byte(addr+(i as u64));
                         if b == *bkwi {
                             c+=1;
                         } else {
@@ -419,7 +426,7 @@ impl Maps {
         None
     }
 
-    pub fn write_spaced_bytes(&mut self, addr:u32, sbs:String) -> bool {
+    pub fn write_spaced_bytes(&mut self, addr:u64, sbs:String) -> bool {
         let bs:Vec<&str> = sbs.split(' ').collect();
         for bsi in bs.iter() {
             let b = u8::from_str_radix(bsi, 16).expect("bad num conversion");
@@ -451,9 +458,9 @@ impl Maps {
         self.search_bytes(bytes, map_name)
     }
 
-    pub fn search_space_bytes_in_all(&self, sbs:&str)  -> Vec<u32> {
+    pub fn search_space_bytes_in_all(&self, sbs:&str) -> Vec<u64> {
         let bytes = self.spaced_bytes_to_bytes(sbs);
-        let mut found:Vec<u32> = Vec::new();
+        let mut found:Vec<u64> = Vec::new();
 
         for (name, mem) in self.maps.iter() {
             for addr in mem.get_base()..mem.get_bottom() {
@@ -461,7 +468,7 @@ impl Maps {
                     
                     let mut c = 0;
                     for (i, bi) in bytes.iter().enumerate() {
-                        let addri = addr + (i as u32);
+                        let addri = addr + (i as u64);
                         if !mem.inside(addri) {
                             break;
                         }
@@ -499,7 +506,11 @@ impl Maps {
             };
 
             for addr in results.iter() {
-                println!("found at 0x{:x} '{}'", addr, self.read_string(*addr));
+                if self.is_64bits {
+                    println!("found at 0x{:x} '{}'", addr, self.read_string(*addr));
+                } else {
+                    println!("found at 0x{:x} '{}'", *addr as u32, self.read_string(*addr));
+                }
                 found = true;
             }
         }
@@ -518,9 +529,9 @@ impl Maps {
                     let mut c = 0;
                   
                     for (i, bkwn) in bkw.iter().enumerate() {
-                        let b = mem.read_byte(addr+(i as u32));
+                        let b = mem.read_byte(addr+(i as u64));
                         if b == *bkwn {
-                            c+=1;
+                            c += 1;
                         } else {
                             break;
                         }
@@ -548,7 +559,7 @@ impl Maps {
         sz
     }
 
-    pub fn overlapps(&self, addr:u32, sz:u32) -> bool {
+    pub fn overlapps(&self, addr:u64, sz:u64) -> bool {
         for a in addr..addr+sz {
             if self.is_mapped(a) {
                 return true;
@@ -565,16 +576,13 @@ impl Maps {
         }
     }
 
-    pub fn alloc(&self, sz:u32) -> Option<u32> {
+    pub fn alloc(&self, sz:u64) -> Option<u64> {
         // super simple memory allocator
 
-        let mut addr:u32 = 100;
-
-        //println!("ALLOCATOR sz:{}", sz);
+        let mut addr:u64 = 100;
 
         loop {
             addr += sz;
-            //println!("trying 0x{:x}", addr);
             
             if addr >= 0x70000000 {
                 return None;
@@ -593,7 +601,7 @@ impl Maps {
         }
     }
 
-    pub fn save(&mut self, addr:u32, size:u32, filename:String) {
+    pub fn save(&mut self, addr:u64, size:u64, filename:String) {
         match self.get_mem_by_addr(addr) {
             Some(m) => {
                 m.save(addr, size as usize, filename);
@@ -673,7 +681,6 @@ impl Maps {
     }
 
     pub fn mem_test(&self) -> bool {
-
         for (name1, mem1) in self.maps.iter() {
             for (name2, mem2) in self.maps.iter() {
 
@@ -690,7 +697,7 @@ impl Maps {
                 }
             }
 
-            if (mem1.get_base() + (mem1.size() as u32)) != mem1.get_bottom() {
+            if (mem1.get_base() + (mem1.size() as u64)) != mem1.get_bottom() {
                 println!("/!\\ memory bottom dont match, mem: {}", name1);
                 return false;
             }

@@ -10,7 +10,7 @@ pub struct ListEntry {
 }
 
 impl ListEntry {
-    pub fn load(addr:u32, maps:&Maps) -> ListEntry {
+    pub fn load(addr:u64, maps:&Maps) -> ListEntry {
         ListEntry{
             flink: maps.read_dword(addr).unwrap(),
             blink: maps.read_dword(addr+4).unwrap(),
@@ -41,7 +41,7 @@ pub struct LdrDataTableEntry {
 
 
 impl LdrDataTableEntry {
-    pub fn load(addr:u32, maps:&Maps) -> LdrDataTableEntry {
+    pub fn load(addr:u64, maps:&Maps) -> LdrDataTableEntry {
         LdrDataTableEntry {
             reserved1: [maps.read_dword(addr).unwrap(), maps.read_dword(addr + 4).unwrap()],
             in_memory_order_module_links: ListEntry::load(addr + 8, &maps),
@@ -78,7 +78,7 @@ pub struct PebLdrData {
 }
 
 impl PebLdrData {
-    pub fn load(addr:u32, maps:&Maps) -> PebLdrData {
+    pub fn load(addr:u64, maps:&Maps) -> PebLdrData {
         PebLdrData {
             length: maps.read_dword(addr).unwrap(),
             initializated: maps.read_dword(addr + 4).unwrap(),
@@ -119,7 +119,7 @@ pub struct PEB {
 }
 
 impl PEB {
-    pub fn load(addr:u32, maps:&Maps) -> PEB {
+    pub fn load(addr:u64, maps:&Maps) -> PEB {
         PEB {
             reserved1: [0;2],
             being_debugged: maps.read_byte(addr + 2).unwrap(),
@@ -173,7 +173,7 @@ pub struct PScopeTableEntry {
 }
 
 impl PScopeTableEntry {
-    pub fn load(addr:u32, maps:&Maps) -> PScopeTableEntry {
+    pub fn load(addr:u64, maps:&Maps) -> PScopeTableEntry {
         PScopeTableEntry {
             enclosing_level: maps.read_dword(addr).unwrap(),
             filter_func: maps.read_dword(addr + 4).unwrap(),
@@ -181,7 +181,7 @@ impl PScopeTableEntry {
         }
     }
 
-    pub fn size() -> u32 {
+    pub fn size() -> u64 {
         return 12;
     }
 
@@ -203,7 +203,7 @@ pub struct CppEhRecord {
 }
 
 impl CppEhRecord {
-    pub fn load(addr:u32, maps:&Maps) -> CppEhRecord {
+    pub fn load(addr:u64, maps:&Maps) -> CppEhRecord {
         CppEhRecord{
             old_esp: maps.read_dword(addr).unwrap(),
             exc_ptr: maps.read_dword(addr + 4).unwrap(),
@@ -227,14 +227,14 @@ pub struct ExceptionPointers {
 }
 
 impl ExceptionPointers {
-    pub fn load(addr:u32, maps:&Maps) -> ExceptionPointers {
+    pub fn load(addr:u64, maps:&Maps) -> ExceptionPointers {
         ExceptionPointers {
             exception_record: maps.read_dword(addr).unwrap(),
             context_record: maps.read_dword(addr + 4).unwrap(),
         }
     }
 
-    pub fn size() -> u32 {
+    pub fn size() -> u64 {
         return 8;
     }
 
@@ -252,7 +252,7 @@ pub struct Eh3ExceptionRegistration {
 }
 
 impl Eh3ExceptionRegistration {
-    pub fn load(addr:u32, maps:&Maps) -> Eh3ExceptionRegistration {
+    pub fn load(addr:u64, maps:&Maps) -> Eh3ExceptionRegistration {
         Eh3ExceptionRegistration {
             next: maps.read_dword(addr).unwrap(),
             exception_handler: maps.read_dword(addr + 4).unwrap(),
@@ -280,7 +280,7 @@ pub struct MemoryBasicInformation {
 
 impl MemoryBasicInformation {
 
-    pub fn load(addr:u32, maps:&Maps) -> MemoryBasicInformation {
+    pub fn load(addr:u64, maps:&Maps) -> MemoryBasicInformation {
         MemoryBasicInformation {
             base_address: maps.read_dword(addr).unwrap(),
             allocation_base: maps.read_dword(addr + 4).unwrap(),
@@ -293,11 +293,11 @@ impl MemoryBasicInformation {
         }
     }
 
-    pub fn size() -> usize {
+    pub fn size() -> u64 {
         30
     }
 
-    pub fn save(&self, addr:u32, maps:&mut Maps) {
+    pub fn save(&self, addr:u64, maps:&mut Maps) {
        maps.write_dword(addr, self.base_address);
        maps.write_dword(addr + 4, self.allocation_base);
        maps.write_dword(addr + 8, self.allocation_protect);

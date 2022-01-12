@@ -17,7 +17,7 @@ use clap::{Arg, App};
 fn main() {
     let mut cfg = Config::new();
     let matches = App::new("SCEMU 32bits emulator for Shellcodes")
-                    .version("0.2.6")
+                    .version("0.3.0")
                     .author("@sha0coder")
                     .arg(Arg::with_name("filename")
                         .short("f")
@@ -140,7 +140,7 @@ fn main() {
 
     if matches.is_present("string") {
         cfg.trace_string = true;
-        cfg.string_addr = u32::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.string_addr = u64::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
     }
 
     if matches.is_present("inspect") {
@@ -149,13 +149,13 @@ fn main() {
     }
 
     if matches.is_present("64bits") {
-        cfg.is_64 = true;
+        cfg.is_64bits = true;
     }
 
     if matches.is_present("maps") {
         cfg.maps_folder = matches.value_of("maps").expect("specify the maps folder").to_string();
-    } else {
-        if cfg.is_64 {
+    } else {  // if maps is not selected, by default ...
+        if cfg.is_64bits {
             cfg.maps_folder = "maps64/".to_string();
         } else {
             cfg.maps_folder = "maps32/".to_string();
@@ -168,13 +168,13 @@ fn main() {
     }
     if matches.is_present("console_addr") {
         cfg.console2 = true;
-        cfg.console_addr = u32::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.console_addr = u64::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
     }
     if matches.is_present("entry_point") {
-        cfg.entry_point = u32::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.entry_point = u64::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
     }
     if matches.is_present("code_base_address") {
-        cfg.code_base_addr = u32::from_str_radix(matches.value_of("entry_point").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.code_base_addr = u64::from_str_radix(matches.value_of("entry_point").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
         if !matches.is_present("entry_point") {
             eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
             std::process::exit(1);
