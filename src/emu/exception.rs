@@ -2,8 +2,8 @@ use crate::emu;
 use crate::emu::context32::Context32;
 
 pub fn enter(emu: &mut emu::Emu) {
-    emu.stack_push(0x10f00);
-    emu.stack_push(emu.regs.eip); 
+    emu.stack_push32(0x10f00);
+    emu.stack_push32(emu.regs.get_eip() as u32); 
 
     emu.eh_ctx = 0x10f08;
     emu.maps.write_dword(0x10f04, emu.eh_ctx);

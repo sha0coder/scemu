@@ -9,7 +9,7 @@ use crate::emu::endpoint;
 
 pub fn gateway(emu:&mut emu::Emu) {
 
-    match emu.regs.eax {      
+    match emu.regs.get_eax() {      
 
         1 => {
             println!("{}** {} syscall exit()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
@@ -22,30 +22,30 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         3 => {
-            let fd = emu.regs.ebx;
-            let buff = emu.regs.ecx;
-            let sz = emu.regs.edx;
-            emu.regs.eax = buff;
+            let fd = emu.regs.rbx;
+            let buff = emu.regs.rcx;
+            let sz = emu.regs.rdx;
+            emu.regs.rax = buff;
             println!("{}** {} syscall read() fd: {} buf: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc);
         }
 
         4 => {
-            let fd = emu.regs.ebx;
-            let buff = emu.regs.ecx;
-            let sz = emu.regs.edx;
-            emu.regs.eax = sz;
+            let fd = emu.regs.rbx;
+            let buff = emu.regs.rcx;
+            let sz = emu.regs.rdx;
+            emu.regs.rax = sz;
             println!("{}** {} syscall write() fd: {} buf: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc);
         }
 
         5 => {
-            let file_path = emu.maps.read_string(emu.regs.ebx);
+            let file_path = emu.maps.read_string(emu.regs.rbx);
             let fd = helper::socket_create();
-            emu.regs.eax = fd;
+            emu.regs.rax = fd as u64;
             println!("{}** {} syscall open() file: {} fd:{} {}", emu.colors.light_red, emu.pos, file_path, fd, emu.colors.nc);
         }
 
         6 => {
-            let fd = emu.regs.ebx;
+            let fd = emu.regs.rbx;
             println!("{}** {} syscall close() fd: {}  {}", emu.colors.light_red, emu.pos, fd, emu.colors.nc);
             helper::socket_close(fd);
             endpoint::sock_close();
@@ -68,13 +68,13 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         11 => {
-            let cmd = emu.maps.read_string(emu.regs.ebx);
+            let cmd = emu.maps.read_string(emu.regs.rbx);
             println!("{}** {} syscall execve()  cmd: {} {}", emu.colors.light_red, emu.pos, cmd, emu.colors.nc);
-            emu.regs.eax = 0;
+            emu.regs.rax = 0;
         }
 
         12 => {
-            let path = emu.maps.read_string(emu.regs.ebx);
+            let path = emu.maps.read_string(emu.regs.rbx);
             println!("{}** {} syscall chdir() path: {} {}", emu.colors.light_red, emu.pos, path, emu.colors.nc);
         }
 
@@ -87,8 +87,8 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         15 => {
-            let file_path = emu.maps.read_string(emu.regs.ebx);
-            let perm = emu.regs.ecx;
+            let file_path = emu.maps.read_string(emu.regs.rbx);
+            let perm = emu.regs.rcx;
             println!("{}** {} syscall chmod() file: {} perm: {} {}", emu.colors.light_red, emu.pos, file_path, perm, emu.colors.nc);
         }
 
@@ -105,7 +105,7 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         19 => {
-            let fd = emu.regs.ebx;
+            let fd = emu.regs.rbx;
             println!("{}** {} syscall lseek()  fd: {} {}", emu.colors.light_red, emu.pos, fd, emu.colors.nc);
         }
 
@@ -178,8 +178,8 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         37 => {
-            let pid = emu.regs.ebx;
-            let sig = emu.regs.ecx;
+            let pid = emu.regs.rbx;
+            let sig = emu.regs.rcx;
             println!("{}** {} syscall kill() pid: {} sig: {} {}", emu.colors.light_red, emu.pos, pid, sig, emu.colors.nc);
         }
 
@@ -196,7 +196,7 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         41 => {
-            let fd = emu.regs.ebx;
+            let fd = emu.regs.rbx;
             println!("{}** {} syscall dup() fd: {} {}", emu.colors.light_red, emu.pos, fd, emu.colors.nc);
         }
 
@@ -285,8 +285,8 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         63 => {
-            let old_fd = emu.regs.ebx;
-            let new_fd = emu.regs.ecx;
+            let old_fd = emu.regs.rbx;
+            let new_fd = emu.regs.rcx;
             println!("{}** {} syscall dup2() oldfd: {} newfd: {} {}", emu.colors.light_red, emu.pos, old_fd, new_fd, emu.colors.nc);
         }
 
@@ -444,54 +444,54 @@ pub fn gateway(emu:&mut emu::Emu) {
 
         102 => {
 
-            match emu.regs.ebx {
+            match emu.regs.rbx as u32 {
 
                 constants::SYS_SOCKET => {
                     let sock = helper::socket_create();
-                    let fam = emu.maps.read_dword(emu.regs.esp).expect("socket() cannot read family");
-                    let typ = emu.maps.read_dword(emu.regs.esp+4).expect("socket() cannot ready type");
-                    let proto = emu.maps.read_dword(emu.regs.esp+8).expect("socket() cannot read proto");
+                    let fam = emu.maps.read_dword(emu.regs.get_esp()).expect("socket() cannot read family");
+                    let typ = emu.maps.read_dword(emu.regs.get_esp()+4).expect("socket() cannot ready type");
+                    let proto = emu.maps.read_dword(emu.regs.get_esp()+8).expect("socket() cannot read proto");
 
                     println!("{}** {} syscall socketcall socket()  fam: {} type: {} proto: {} sock: {} {}", emu.colors.light_red, emu.pos, fam, typ, proto, sock, emu.colors.nc);
-                    emu.regs.eax = sock;
+                    emu.regs.rax = sock;
                 }
 
                 constants::SYS_BIND => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("bind() cannot read sock");
-                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("bind() cannot read sockaddr");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("bind() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("bind() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("bind() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("bind() cannot read len");
 
-                    let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                    let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
-                    let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                    let fam:u16 = emu.maps.read_word(sockaddr as u64).expect("cannot read family id");
+                    let port:u16 = emu.maps.read_word((sockaddr + 2) as u64).expect("cannot read the port").to_be();
+                    let ip:u32 = emu.maps.read_dword((sockaddr + 4) as u64).expect("cannot read the ip");
                     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
 
                     println!("{}** {} syscall socketcall bind() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, sip, port , emu.colors.nc);
 
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                     } else {
-                        emu.regs.eax = 0;
+                        emu.regs.rax = 0;
                     }
                     
                 }
 
                 constants::SYS_CONNECT => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("connect() cannot read sock");
-                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("connect() cannot read sockaddr");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("connect() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("connect() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("connect() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("connect() cannot read len");
 
-                    let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                    let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
-                    let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                    let fam:u16 = emu.maps.read_word(sockaddr as u64).expect("cannot read family id");
+                    let port:u16 = emu.maps.read_word((sockaddr+2) as u64).expect("cannot read the port").to_be();
+                    let ip:u32 = emu.maps.read_dword((sockaddr+4) as u64).expect("cannot read the ip");
                     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
 
                     println!("{}** {} syscall socketcall connect() sock: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, fam, sip, port, emu.colors.nc);
                     
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                         return;
                     } 
                     
@@ -503,48 +503,48 @@ pub fn gateway(emu:&mut emu::Emu) {
                         }
                     }
                     
-                    emu.regs.eax = 0;            
+                    emu.regs.rax = 0;            
                 }
 
                 constants::SYS_LISTEN => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("listen() cannot read sock");
-                    let conns = emu.maps.read_dword(emu.regs.esp+4).expect("listen() cannot read num of conns");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("listen() cannot read sock");
+                    let conns = emu.maps.read_dword(emu.regs.get_esp()+4).expect("listen() cannot read num of conns");
 
                     println!("{}** {} syscall socketcall listen() sock: {} conns: {} {}", emu.colors.light_red, emu.pos, sock, conns, emu.colors.nc);
                     
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                     } else {
-                        emu.regs.eax = 0;
+                        emu.regs.rax = 0;
                     }
                 }
 
                 constants::SYS_ACCEPT => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("accept() cannot read sock");
-                    let sockaddr = emu.maps.read_dword(emu.regs.esp+4).expect("accept() cannot read sockaddr");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("accept() cannot read len");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("accept() cannot read sock");
+                    let sockaddr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("accept() cannot read sockaddr");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("accept() cannot read len");
                     let port:u16 = 8080;
                     let incoming_ip:u32 = 0x11223344;
 
-                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
-                        emu.maps.write_word(sockaddr, 0x0002);
-                        emu.maps.write_word(sockaddr+2, port.to_le());  //TODO: port should be the same than bind()
-                        emu.maps.write_dword(sockaddr+4, incoming_ip);
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr as u64) {
+                        emu.maps.write_word(sockaddr as u64, 0x0002);
+                        emu.maps.write_word((sockaddr+2) as u64, port.to_le());  //TODO: port should be the same than bind()
+                        emu.maps.write_dword((sockaddr+4) as u64, incoming_ip);
                     }
 
                     println!("{}** {} syscall socketcall accept() {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                     } else {
-                        emu.regs.eax = 0;
+                        emu.regs.rax = 0;
                     }
                 }
 
                 constants::SYS_GETSOCKNAME => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("getsockname() cannot read sock");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("getsockname() cannot read sock");
                     println!("{}** {} syscall socketcall getsockname() sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
                     todo!("implement this");
                 }
@@ -558,40 +558,40 @@ pub fn gateway(emu:&mut emu::Emu) {
                 }
 
                 constants::SYS_SEND => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("send() cannot read sock");
-                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("send() cannot read buff");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("send() cannot read len");
-                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("send() cannot read flags");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("send() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.get_esp()+4).expect("send() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("send() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.get_esp()+12).expect("send() cannot read flags");
 
                     println!("{}** {} syscall socketcall send() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
                     
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                         return;
                     } 
 
                     if emu.cfg.endpoint {
-                        let buffer = emu.maps.read_buffer(buf, len as usize);
+                        let buffer = emu.maps.read_buffer(buf as u64, len as usize);
                         let n = endpoint::sock_send(&buffer);
                         println!("\tsent {} bytes.", n);
-                        emu.regs.eax = n as u32;
+                        emu.regs.rax = n as u64;
                     } else {
-                        emu.regs.eax = len;
+                        emu.regs.rax = len as u64;
                     }
                 }
 
                 constants::SYS_RECV => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("recv() cannot read sock");
-                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("recv() cannot read buff");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("recv() cannot read len");
-                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("recv() cannot read flags");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("recv() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.get_esp()+4).expect("recv() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("recv() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.get_esp()+12).expect("recv() cannot read flags");
 
                     println!("{}** {} syscall socketcall recv() sock: {} buff: {} len: {}  {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
 
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                         return;
                     }
 
@@ -599,27 +599,27 @@ pub fn gateway(emu:&mut emu::Emu) {
 
                         let mut rbuff:Vec<u8> = vec![0;len as usize];
                         let n = endpoint::sock_recv(&mut rbuff);
-                        emu.maps.write_buffer(buf, &rbuff);
+                        emu.maps.write_buffer(buf as u64, &rbuff);
                         println!("\nreceived {} bytes from the endpoint.", n);
-                        emu.regs.eax = n as u32;
+                        emu.regs.rax = n as u64;
 
                     } else {
-                        emu.regs.eax = len; //TODO: avoid loops
+                        emu.regs.rax = len as u64; //TODO: avoid loops
                     }
                 }
 
                 constants::SYS_SENDTO => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("sendto() cannot read sock");
-                    let buf = emu.maps.read_dword(emu.regs.esp+4).expect("sendto() cannot read buff");
-                    let len = emu.maps.read_dword(emu.regs.esp+8).expect("sendto() cannot read len");
-                    let flags = emu.maps.read_dword(emu.regs.esp+12).expect("sendto() cannot read flags");
-                    let sockaddr = emu.maps.read_dword(emu.regs.esp+16).expect("sendto() cannot read sockaddr");
-                    let addrlen = emu.maps.read_dword(emu.regs.esp+20).expect("sendto() cannot read addrlen");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("sendto() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.get_esp()+4).expect("sendto() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("sendto() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.get_esp()+12).expect("sendto() cannot read flags");
+                    let sockaddr = emu.maps.read_dword(emu.regs.get_esp()+16).expect("sendto() cannot read sockaddr");
+                    let addrlen = emu.maps.read_dword(emu.regs.get_esp()+20).expect("sendto() cannot read addrlen");
 
-                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
-                        let fam:u16 = emu.maps.read_word(sockaddr).expect("cannot read family id");
-                        let port:u16 = emu.maps.read_word(sockaddr+2).expect("cannot read the port").to_be();
-                        let ip:u32 = emu.maps.read_dword(sockaddr+4).expect("cannot read the ip");
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr as u64) {
+                        let fam:u16 = emu.maps.read_word(sockaddr as u64).expect("cannot read family id");
+                        let port:u16 = emu.maps.read_word((sockaddr+2) as u64).expect("cannot read the port").to_be();
+                        let ip:u32 = emu.maps.read_dword((sockaddr+4) as u64).expect("cannot read the ip");
                         let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
 
                         println!("{}** {} syscall socketcall sendto() sock: {} buff: {} len: {} fam: {} {}:{} {}", emu.colors.light_red, emu.pos, sock, buf, len, fam, sip, port, emu.colors.nc);
@@ -627,39 +627,39 @@ pub fn gateway(emu:&mut emu::Emu) {
                         println!("{}** {} syscall socketcall sendto() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
                     }
 
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                     } else {
-                        emu.regs.eax = len; 
+                        emu.regs.rax = len as u64; 
                     }
 
                 }
 
                 constants::SYS_RECVFROM => {
-                    let sock = emu.maps.read_dword(emu.regs.esp).expect("recvfrom() cannot read sock");
-                    let buf = emu.maps.read_dword(emu.regs.esp+8).expect("recvfrom() cannot read buff");
-                    let len = emu.maps.read_dword(emu.regs.esp+12).expect("recvfrom() cannot read len");
-                    let flags = emu.maps.read_dword(emu.regs.esp+16).expect("recvfrom() cannot read flags");
-                    let sockaddr = emu.maps.read_dword(emu.regs.esp+20).expect("recvfrom() cannot read sockaddr");
-                    let addrlen = emu.maps.read_dword(emu.regs.esp+24).expect("recvfrom() cannot read sockaddr len");
+                    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("recvfrom() cannot read sock");
+                    let buf = emu.maps.read_dword(emu.regs.get_esp()+8).expect("recvfrom() cannot read buff");
+                    let len = emu.maps.read_dword(emu.regs.get_esp()+12).expect("recvfrom() cannot read len");
+                    let flags = emu.maps.read_dword(emu.regs.get_esp()+16).expect("recvfrom() cannot read flags");
+                    let sockaddr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("recvfrom() cannot read sockaddr");
+                    let addrlen = emu.maps.read_dword(emu.regs.get_esp()+24).expect("recvfrom() cannot read sockaddr len");
 
-                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr) {
+                    if sockaddr != 0 && emu.maps.is_mapped(sockaddr as u64) {
                         let port:u16 = 8080;
                         let incoming_ip:u32 = 0x11223344;
 
-                        emu.maps.write_word(sockaddr, 0x0002);
-                        emu.maps.write_word(sockaddr+2, port.to_le());  //TODO: port should be the same than bind()
-                        emu.maps.write_dword(sockaddr+4, incoming_ip);
+                        emu.maps.write_word(sockaddr as u64, 0x0002);
+                        emu.maps.write_word((sockaddr+2) as u64, port.to_le());  //TODO: port should be the same than bind()
+                        emu.maps.write_dword((sockaddr+4) as u64, incoming_ip);
                     } 
 
                     println!("{}** {} syscall socketcall recvfrom() sock: {} buff: {} len: {} {}", emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc);
 
-                    if !helper::socket_exist(sock) {
+                    if !helper::socket_exist(sock as u64) {
                         println!("\tbad socket/");
-                        emu.regs.eax = constants::ENOTSOCK;
+                        emu.regs.rax = constants::ENOTSOCK;
                     } else {
-                        emu.regs.eax = len; //TODO: avoid loops
+                        emu.regs.rax = len as u64; //TODO: avoid loops
                     }
                 }
 
@@ -696,7 +696,7 @@ pub fn gateway(emu:&mut emu::Emu) {
                     println!("{}** {} syscall socketcall sendmsg()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
                 }
 
-                _=> panic!("invalid socket call {} ", emu.regs.ebx),
+                _=> panic!("invalid socket call {} ", emu.regs.rbx),
             }
 
 
@@ -1156,10 +1156,10 @@ pub fn gateway(emu:&mut emu::Emu) {
         _ => {
 
             let data:Vec<String> = vec!["restart_syscall".to_string(), "exit".to_string(), "fork".to_string(), "read".to_string(), "write".to_string(), "open".to_string(), "close".to_string(), "waitpid".to_string(), "creat".to_string(), "link".to_string(), "unlink".to_string(), "execve".to_string(), "chdir".to_string(), "time".to_string(), "mknod".to_string(), "chmod".to_string(), "lchown".to_string(), "break".to_string(), "oldstat".to_string(), "lseek".to_string(), "getpid".to_string(), "mount".to_string(), "umount".to_string(), "setuid".to_string(), "getuid".to_string(), "stime".to_string(), "ptrace".to_string(), "alarm".to_string(), "oldfstat".to_string(), "pause".to_string(), "utime".to_string(), "stty".to_string(), "gtty".to_string(), "access".to_string(), "nice".to_string(), "ftime".to_string(), "sync".to_string(), "kill".to_string(), "rename".to_string(), "mkdir".to_string(), "rmdir".to_string(), "dup".to_string(), "pipe".to_string(), "times".to_string(), "prof".to_string(), "brk".to_string(), "setgid".to_string(), "getgid".to_string(), "signal".to_string(), "geteuid".to_string(), "getegid".to_string(), "acct".to_string(), "umount2".to_string(), "lock".to_string(), "ioctl".to_string(), "fcntl".to_string(), "mpx".to_string(), "setpgid".to_string(), "ulimit".to_string(), "oldolduname".to_string(), "umask".to_string(), "chroot".to_string(), "ustat".to_string(), "dup2".to_string(), "getppid".to_string(), "getpgrp".to_string(), "setsid".to_string(), "sigaction".to_string(), "sgetmask".to_string(), "ssetmask".to_string(), "setreuid".to_string(), "setregid".to_string(), "sigsuspend".to_string(), "sigpending".to_string(), "sethostname".to_string(), "setrlimit".to_string(), "getrlimit".to_string(), "getrusage".to_string(), "gettimeofday".to_string(), "settimeofday".to_string(), "getgroups".to_string(), "setgroups".to_string(), "select".to_string(), "symlink".to_string(), "oldlstat".to_string(), "readlink".to_string(), "uselib".to_string(), "swapon".to_string(), "reboot".to_string(), "readdir".to_string(), "mmap".to_string(), "munmap".to_string(), "truncate".to_string(), "ftruncate".to_string(), "fchmod".to_string(), "fchown".to_string(), "getpriority".to_string(), "setpriority".to_string(), "profil".to_string(), "statfs".to_string(), "fstatfs".to_string(), "ioperm".to_string(), "socketcall".to_string(), "syslog".to_string(), "setitimer".to_string(), "getitimer".to_string(), "stat".to_string(), "lstat".to_string(), "fstat".to_string(), "olduname".to_string(), "iopl".to_string(), "vhangup".to_string(), "idle".to_string(), "vm86old".to_string(), "wait4".to_string(), "swapoff".to_string(), "sysinfo".to_string(), "ipc".to_string(), "fsync".to_string(), "sigreturn".to_string(), "clone".to_string(), "setdomainname".to_string(), "uname".to_string(), "modify_ldt".to_string(), "adjtimex".to_string(), "mprotect".to_string(), "sigprocmask".to_string(), "create_module".to_string(), "init_module".to_string(), "delete_module".to_string(), "get_kernel_syms".to_string(), "quotactl".to_string(), "getpgid".to_string(), "fchdir".to_string(), "bdflush".to_string(), "sysfs".to_string(), "personality".to_string(), "afs_syscall".to_string(), "setfsuid".to_string(), "setfsgid".to_string(), "_llseek".to_string(), "getdents".to_string(), "_newselect".to_string(), "flock".to_string(), "msync".to_string(), "readv".to_string(), "writev".to_string(), "getsid".to_string(), "fdatasync".to_string(), "_sysctl".to_string(), "mlock".to_string(), "munlock".to_string(), "mlockall".to_string(), "munlockall".to_string(), "sched_setparam".to_string(), "sched_getparam".to_string(), "sched_setscheduler".to_string(), "sched_getscheduler".to_string(), "sched_yield".to_string(), "sched_get_priority_max".to_string(), "sched_get_priority_min".to_string(), "sched_rr_get_interval".to_string(), "nanosleep".to_string(), "mremap".to_string(), "setresuid".to_string(), "getresuid".to_string(), "vm86".to_string(), "query_module".to_string(), "poll".to_string(), "nfsservctl".to_string(), "setresgid".to_string(), "getresgid".to_string(), "prctl".to_string(), "rt_sigreturn".to_string(), "rt_sigaction".to_string(), "rt_sigprocmask".to_string(), "rt_sigpending".to_string(), "rt_sigtimedwait".to_string(), "rt_sigqueueinfo".to_string(), "rt_sigsuspend".to_string(), "pread64".to_string(), "pwrite64".to_string(), "chown".to_string(), "getcwd".to_string(), "capget".to_string(), "capset".to_string(), "sigaltstack".to_string(), "sendfile".to_string(), "getpmsg".to_string(), "putpmsg".to_string(), "vfork".to_string(), "ugetrlimit".to_string(), "mmap2".to_string(), "truncate64".to_string(), "ftruncate64".to_string(), "stat64".to_string(), "lstat64".to_string(), "fstat64".to_string(), "lchown32".to_string(), "getuid32".to_string(), "getgid32".to_string(), "geteuid32".to_string(), "getegid32".to_string(), "setreuid32".to_string(), "setregid32".to_string(), "getgroups32".to_string(), "setgroups32".to_string(), "fchown32".to_string(), "setresuid32".to_string(), "getresuid32".to_string(), "setresgid32".to_string(), "getresgid32".to_string(), "chown32".to_string(), "setuid32".to_string(), "setgid32".to_string(), "setfsuid32".to_string(), "setfsgid32".to_string(), "pivot_root".to_string(), "mincore".to_string(), "madvise".to_string(), "getdents64".to_string(), "fcntl64".to_string(), "gettid".to_string(), "readahead".to_string(), "setxattr".to_string(), "lsetxattr".to_string(), "fsetxattr".to_string(), "getxattr".to_string(), "lgetxattr".to_string(), "fgetxattr".to_string(), "listxattr".to_string(), "llistxattr".to_string(), "flistxattr".to_string(), "removexattr".to_string(), "lremovexattr".to_string(), "fremovexattr".to_string(), "tkill".to_string(), "sendfile64".to_string(), "futex".to_string(), "sched_setaffinity".to_string(), "sched_getaffinity".to_string(), "set_thread_area".to_string(), "get_thread_area".to_string(), "io_setup".to_string(), "io_destroy".to_string(), "io_getevents".to_string(), "io_submit".to_string(), "io_cancel".to_string(), "fadvise64".to_string(), "exit_group".to_string(), "lookup_dcookie".to_string(), "epoll_create".to_string(), "epoll_ctl".to_string(), "epoll_wait".to_string(), "remap_file_pages".to_string(), "set_tid_address".to_string(), "timer_create".to_string(), "timer_settime".to_string(), "timer_gettime".to_string(), "timer_getoverrun".to_string(), "timer_delete".to_string(), "clock_settime".to_string(), "clock_gettime".to_string(), "clock_getres".to_string(), "clock_nanosleep".to_string(), "statfs64".to_string(), "fstatfs64".to_string(), "tgkill".to_string(), "utimes".to_string(), "fadvise64_64".to_string(), "vserver".to_string(), "mbind".to_string(), "get_mempolicy".to_string(), "set_mempolicy".to_string(), "mq_open".to_string(), "mq_unlink".to_string(), "mq_timedsend".to_string(), "mq_timedreceive".to_string(), "mq_notify".to_string(), "mq_getsetattr".to_string(), "kexec_load".to_string(), "waitid".to_string(), "add_key".to_string(), "request_key".to_string(), "keyctl".to_string(), "ioprio_set".to_string(), "ioprio_get".to_string(), "inotify_init".to_string(), "inotify_add_watch".to_string(), "inotify_rm_watch".to_string(), "migrate_pages".to_string(), "openat".to_string(), "mkdirat".to_string(), "mknodat".to_string(), "fchownat".to_string(), "futimesat".to_string(), "fstatat64".to_string(), "unlinkat".to_string(), "renameat".to_string(), "linkat".to_string(), "symlinkat".to_string(), "readlinkat".to_string(), "fchmodat".to_string(), "faccessat".to_string(), "pselect6".to_string(), "ppoll".to_string(), "unshare".to_string(), "set_robust_list".to_string(), "get_robust_list".to_string(), "splice".to_string(), "sync_file_range".to_string(), "tee".to_string(), "vmsplice".to_string(), "move_pages".to_string(), "getcpu".to_string(), "epoll_pwait".to_string(), "utimensat".to_string(), "signalfd".to_string(), "timerfd_create".to_string(), "eventfd".to_string(), "fallocate".to_string(), "timerfd_settime".to_string(), "timerfd_gettime".to_string(), "signalfd4".to_string(), "eventfd2".to_string(), "epoll_create1".to_string(), "dup3".to_string(), "pipe2".to_string(), "inotify_init1".to_string(), "preadv".to_string(), "pwritev".to_string(), "rt_tgsigqueueinfo".to_string(), "perf_event_open".to_string(), "recvmmsg".to_string(), "fanotify_init".to_string(), "fanotify_mark".to_string(), "prlimit64".to_string(), "name_to_handle_at".to_string(), "open_by_handle_at".to_string(), "clock_adjtime".to_string(), "syncfs".to_string(), "sendmmsg".to_string(), "setns".to_string(), "process_vm_readv".to_string(), "process_vm_writev".to_string(), "kcmp".to_string(), "finit_module".to_string(), "sched_setattr".to_string(), "sched_getattr".to_string(), "renameat2".to_string(), "seccomp".to_string(), "getrandom".to_string(), "memfd_create".to_string(), "bpf".to_string(), "execveat".to_string(), "socket".to_string(), "socketpair".to_string(), "bind".to_string(), "connect".to_string(), "listen".to_string(), "accept4".to_string(), "getsockopt".to_string(), "setsockopt".to_string(), "getsockname".to_string(), "getpeername".to_string(), "sendto".to_string(), "sendmsg".to_string(), "recvfrom".to_string(), "recvmsg".to_string(), "shutdown".to_string(), "userfaultfd".to_string(), "membarrier".to_string(), "mlock2".to_string(), "copy_file_range".to_string(), "preadv2".to_string(), "pwritev2".to_string(), "pkey_mprotect".to_string(), "pkey_alloc".to_string(), "pkey_free".to_string(), "statx".to_string(), "arch_prctl".to_string(), "io_pgetevents".to_string(), "rseq".to_string(), "semget".to_string(), "semctl".to_string(), "shmget".to_string(), "shmctl".to_string(), "shmat".to_string(), "shmdt".to_string(), "msgget".to_string(), "msgsnd".to_string(), "msgrcv".to_string(), "msgctl".to_string(), "clock_gettime64".to_string(), "clock_settime64".to_string(), "clock_adjtime64".to_string(), "clock_getres_time64".to_string(), "clock_nanosleep_time64".to_string(), "timer_gettime64".to_string(), "timer_settime64".to_string(), "timerfd_gettime64".to_string(), "timerfd_settime64".to_string(), "utimensat_time64".to_string(), "pselect6_time64".to_string(), "ppoll_time64".to_string(), "io_pgetevents_time64".to_string(), "recvmmsg_time64".to_string(), "mq_timedsend_time64".to_string(), "mq_timedreceive_time64".to_string(), "semtimedop_time64".to_string(), "rt_sigtimedwait_time64".to_string(), "futex_time64".to_string(), "sched_rr_get_interval_time64".to_string(), "pidfd_send_signal".to_string(), "io_uring_setup".to_string(), "io_uring_enter".to_string(), "io_uring_register".to_string(), "open_tree".to_string(), "move_mount".to_string(), "fsopen".to_string(), "fsconfig".to_string(), "fsmount".to_string(), "fspick".to_string(), "pidfd_open".to_string(), "clone3".to_string(), "close_range".to_string(), "openat2".to_string(), "pidfd_getfd".to_string(), "faccessat2".to_string(), "process_madvise".to_string(), "epoll_pwait2".to_string(), "mount_setattr".to_string(), "quotactl_fd".to_string(), "landlock_create_ruleset".to_string(), "landlock_add_rule".to_string(), "landlock_restrict_self".to_string(), "memfd_secret".to_string(), "process_mrelease".to_string()];
-            if emu.regs.eax >= data.len() as u32 {
-                println!("{}** interrupt 0x80 bad eax value 0x{:x} {}", emu.colors.light_red, emu.regs.eax, emu.colors.nc);
+            if emu.regs.rax >= data.len() as u64 {
+                println!("{}** interrupt 0x80 bad rax value 0x{:x} {}", emu.colors.light_red, emu.regs.rax, emu.colors.nc);
             } else {
-                println!("{}** interrupt 0x80 function:{} {}", emu.colors.light_red, data[emu.regs.eax as usize], emu.colors.nc);
+                println!("{}** interrupt 0x80 function:{} {}", emu.colors.light_red, data[emu.regs.rax as usize], emu.colors.nc);
             }
         }
     }

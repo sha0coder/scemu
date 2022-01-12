@@ -1,8 +1,8 @@
 
 pub struct Breakpoint {
-    addr:u32,
-    mem_read_addr:u32,
-    mem_write_addr:u32,
+    addr:u64,
+    mem_read_addr:u64,
+    mem_write_addr:u64,
 }
 
 impl Breakpoint {
@@ -14,7 +14,7 @@ impl Breakpoint {
         }
     }
 
-    pub fn set_bp(&mut self, addr:u32) {
+    pub fn set_bp(&mut self, addr:u64) {
         self.addr = addr;
     }
 
@@ -24,23 +24,23 @@ impl Breakpoint {
         self.mem_write_addr = 0;
     }
 
-    pub fn set_mem_read(&mut self, addr:u32) {
+    pub fn set_mem_read(&mut self, addr:u64) {
         self.mem_read_addr = addr;
     }
 
-    pub fn set_mem_write(&mut self, addr:u32) {
+    pub fn set_mem_write(&mut self, addr:u64) {
         self.mem_write_addr = addr;
     }
 
-    pub fn get_bp(&self) -> u32 {
+    pub fn get_bp(&self) -> u64 {
         return self.addr;
     }
 
-    pub fn get_mem_read(&self) -> u32 {
+    pub fn get_mem_read(&self) -> u64 {
         return self.mem_read_addr;
     }
 
-    pub fn get_mem_write(&self) -> u32 {
+    pub fn get_mem_write(&self) -> u64 {
         return self.mem_write_addr;
     }
 }
