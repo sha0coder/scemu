@@ -232,6 +232,19 @@ impl Regs64 {
         self.rip = rand::random::<u64>();
     }
 
+    pub fn sanitize32(&mut self) {
+        let mask:u64 = 0x00000000ffffffff;
+        self.rax &= mask;
+        self.rbx &= mask;
+        self.rcx &= mask;
+        self.rdx &= mask;
+        self.rsi &= mask;
+        self.rdi &= mask;
+        self.rbp &= mask;
+        self.rsp &= mask;
+        self.rip &= mask;
+    }
+
     pub fn print<const B:usize>(&self) {
         println!("regs:");
 

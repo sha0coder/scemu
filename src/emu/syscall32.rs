@@ -9,7 +9,13 @@ use crate::emu::endpoint;
 
 pub fn gateway(emu:&mut emu::Emu) {
 
+    emu.regs.sanitize32();
+
     match emu.regs.get_eax() {      
+
+        0 => {
+            println!("{}** {} syscall restart_syscall {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+        }
 
         1 => {
             println!("{}** {} syscall exit()  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
@@ -285,8 +291,8 @@ pub fn gateway(emu:&mut emu::Emu) {
         }
 
         63 => {
-            let old_fd = emu.regs.rbx;
-            let new_fd = emu.regs.rcx;
+            let old_fd = emu.regs.get_ebx();
+            let new_fd = emu.regs.get_ecx();
             println!("{}** {} syscall dup2() oldfd: {} newfd: {} {}", emu.colors.light_red, emu.pos, old_fd, new_fd, emu.colors.nc);
         }
 

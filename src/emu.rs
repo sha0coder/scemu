@@ -17,6 +17,7 @@ mod winapi;
 mod fpu;
 pub mod context32;
 pub mod syscall32;
+pub mod syscall64;
 mod breakpoint;
 pub mod endpoint;
 pub mod structures;
@@ -117,33 +118,62 @@ impl Emu {
         }
     }
 
-    pub fn init_stack(&mut self) {
+    pub fn init_stack32(&mut self) {
         let stack = self.maps.get_mem("stack");
 
-        if self.cfg.is_64bits {
-        } else {
-            stack.set_base(0x22d000); 
-            stack.set_size(0x020000);
-            self.regs.set_esp(0x22e000);
-            self.regs.set_ebp(0x22f000);
+        stack.set_base(0x22d000); 
+        stack.set_size(0x020000);
+        self.regs.set_esp(0x22e000);
+        self.regs.set_ebp(0x22f000);
 
-            assert!(self.regs.get_esp() < self.regs.get_ebp());
-            assert!(self.regs.get_esp() > stack.get_base());
-            assert!(self.regs.get_esp() < stack.get_bottom());
-            assert!(self.regs.get_ebp() > stack.get_base());
-            assert!(self.regs.get_ebp() < stack.get_bottom());
-            assert!(stack.inside(self.regs.get_esp()));
-            assert!(stack.inside(self.regs.get_ebp()));
-        }
+        assert!(self.regs.get_esp() < self.regs.get_ebp());
+        assert!(self.regs.get_esp() > stack.get_base());
+        assert!(self.regs.get_esp() < stack.get_bottom());
+        assert!(self.regs.get_ebp() > stack.get_base());
+        assert!(self.regs.get_ebp() < stack.get_bottom());
+        assert!(stack.inside(self.regs.get_esp()));
+        assert!(stack.inside(self.regs.get_ebp()));
+    }
 
+    pub fn init_stack64(&mut self) {
+        let stack = self.maps.get_mem("stack");
+
+        self.regs.rsp = 0x22e000;
+        self.regs.rbp = 0x22f000;
+        stack.set_base(0x22a000);
+        stack.set_size(0x6000);
+
+        assert!(self.regs.rsp < self.regs.rbp);
+        assert!(self.regs.rsp > stack.get_base());
+        assert!(self.regs.rsp < stack.get_bottom());
+        assert!(self.regs.rbp > stack.get_base());
+        assert!(self.regs.rbp < stack.get_bottom());
+        assert!(stack.inside(self.regs.rsp));
+        assert!(stack.inside(self.regs.rbp));
     }
 
     pub fn init(&mut self) {
+        
         println!("initializing regs");
         self.regs.clear::<64>();
         self.regs.rand();
-        self.regs.set_eip(self.cfg.entry_point);
 
+        if self.cfg.is_64bits {
+            self.regs.rip = self.cfg.entry_point;
+            self.init_mem64();
+            self.init_stack64();
+       
+        } else { // 32bits
+            self.regs.sanitize32();
+            self.regs.set_eip(self.cfg.entry_point);
+            self.init_mem32();
+            self.init_stack32();
+        }
+
+        self.init_tests();
+    }
+
+    pub fn init_mem32(&mut self) {
         println!("loading memory maps");
         self.maps.create_map("10000");
         self.maps.create_map("20000");
@@ -205,8 +235,6 @@ impl Emu {
 
 
         //self.maps.write_byte(0x2c3000, 0x61); // metasploit trick
-
-        self.init_stack();
 
 
         let orig_path = std::env::current_dir().unwrap();
@@ -452,7 +480,9 @@ impl Emu {
 
         std::env::set_current_dir(orig_path);
 
+    }
 
+    pub fn init_tests(&mut self) {
 
         // some tests
         assert!(get_bit!(0xffffff00u32, 0) == 0);
@@ -489,12 +519,57 @@ impl Emu {
         assert!(self.shrd(0x91545f1d, 0x6fe2, 0x6, 32) == 0x8a45517c);
         assert!(self.shld(0x1b, 0xf1a7eb1d, 0xa, 32) == 0x6fc6);
 
+
         if self.maps.mem_test() {
             println!("memory test Ok.");
         } else {
             eprintln!("It doesn't pass the memory tests!!");
+            self.spawn_console();
             std::process::exit(1);
         }
+    }
+
+    pub fn init_mem64(&mut self) {
+        println!("loading memory maps");
+
+        let orig_path = std::env::current_dir().unwrap();
+        std::env::set_current_dir(self.cfg.maps_folder.clone());
+
+
+        self.maps.create_map("10000");
+        self.maps.create_map("20000");
+        self.maps.create_map("exe").load_at("exe.bin", 0x400000);
+        self.maps.create_map("code").set_base(self.cfg.code_base_addr);
+        self.maps.create_map("stack");
+        self.maps.create_map("peb").load_at("peb.bin", 0x7fffffdf000);
+        self.maps.create_map("teb").load_at("teb.bin", 0x7fffffdd000);
+        self.maps.create_map("ntdll_pe").load_at("ntdll_pe.bin", 0x76fd0000);
+        self.maps.create_map("ntdll_text").load_at("ntdll_text.bin", 0x76fd1000);
+        self.maps.create_map("ntdll_rt").load_at("ntdll_rt.bin", 0x770d2000);
+        self.maps.create_map("ntdll_rdata").load_at("ntdll_rdata.bin", 0x770d3000);
+        self.maps.create_map("ntdll_data").load_at("ntdll_data.bin", 0x77102000);
+        self.maps.create_map("kernel32_pe").load_at("kernel32_pe.bin", 0x76db0000);
+        self.maps.create_map("kernel32_text").load_at("kernel32_text.bin", 0x76db1000);
+        self.maps.create_map("kernel32_data").load_at("kernel32_data.bin", 0x76eba000);
+        self.maps.create_map("kernelbase_pe").load_at("kernelbase_pe.bin", 0x7fefd010000);
+        self.maps.create_map("kernelbase_text").load_at("kernelbase_text.bin", 0x7fefd011000);
+        self.maps.create_map("kernelbase_data").load_at("kernelbase_data.bin", 0x7fefd070000);
+        self.maps.create_map("msvcrt_pe").load_at("msvcrt_pe.bin", 0x7fefef00000);
+        self.maps.create_map("msvcrt_text").load_at("msvcrt_text.bin", 0x7fefef01000);        
+
+
+
+        
+        let m10000 = self.maps.get_mem("10000");
+        m10000.set_base(0x10000);
+        m10000.set_size(0x10000);
+
+        let m20000 = self.maps.get_mem("20000");
+        m20000.set_base(0x20000);
+        m20000.set_size(0x10000);
+
+
+        std::env::set_current_dir(orig_path);
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -507,7 +582,7 @@ impl Emu {
         }
     }
 
-    pub fn load_code(&mut self, filename: &String) {
+    pub fn load_code(&mut self, filename: &str) {
         if !self.maps.get_mem("code").load(filename) {
             println!("shellcode not found, select the file with -f");
             std::process::exit(1);
@@ -526,7 +601,7 @@ impl Emu {
                     panic!("pushing stack outside maps esp: 0x{:x}", self.regs.get_esp());
                 }
             };
-            mem.write_dword(self.regs.get_esp().into(), value);
+            mem.write_dword(self.regs.get_esp(), value);
         }
     }
 
@@ -730,6 +805,21 @@ impl Emu {
         }
 
         match bits {
+            64 => {
+                match self.maps.read_qword(addr) {
+                    Some(v) => {
+                        if self.cfg.trace_mem {
+                            let name = match self.maps.get_addr_name(addr) {
+                                Some(n) => n,
+                                None => "not mapped".to_string(),
+                            };
+                            println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
+                        }
+                        return Some(v);
+                    }
+                    None => return None,
+                }
+            }
             32 => {
                 match self.maps.read_dword(addr) {
                     Some(v) => {
@@ -755,7 +845,7 @@ impl Emu {
                             };
                             println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
                         }
-                        return Some((v as u64) & 0xffff);
+                        return Some(v.into());
                     },
                     None => return None,
                 }
@@ -770,7 +860,7 @@ impl Emu {
                             };
                             println!("mem trace read -> '{}' 0x{:x}: 0x{:x}  map:'{}'", operand, addr, v, name);
                         }
-                        return Some((v as u64) & 0xff);
+                        return Some(v.into());
                     },
                     None => return None,
                 }
@@ -823,7 +913,27 @@ impl Emu {
     }
 
     pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
-        todo!("implement set_rip for 64bits");
+
+        let name = match self.maps.get_addr_name(addr) {
+            Some(n) => n,
+            None => {
+                eprintln!("/!\\ setting rip to non mapped addr 0x{:x}", addr);
+                self.exception();
+                return;
+            }
+        };
+
+        if addr < 0x70000000 {
+            self.regs.rip = addr;
+        } else {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ changing EIP to {} ", name);
+            }
+            let retaddr = self.stack_pop64(false);
+            todo!("64bits gatway");
+            //self.regs.rax = retaddr;
+        }
+
     }
 
     pub fn set_eip(&mut self, addr:u64, is_branch:bool) {
@@ -1216,7 +1326,7 @@ impl Emu {
             set_bit!(storage0, i as u32, bit);
         }
 
-        self.flags.calc_flags(storage0, size as u8);
+        self.flags.calc_flags(storage0, size);
         storage0
     }
 
@@ -1244,7 +1354,7 @@ impl Emu {
             set_bit!(storage0, i, bit);
         }
 
-        self.flags.calc_flags(storage0, size as u8);
+        self.flags.calc_flags(storage0, size);
         storage0
     }
 
@@ -1256,8 +1366,11 @@ impl Emu {
                 "q" => std::process::exit(1),
                 "h" => con.help(),
                 "r" => {
-                    self.featured_regs32();
-                    self.featured_regs64();
+                    if self.cfg.is_64bits {
+                        self.featured_regs64();
+                    } else {
+                        self.featured_regs32();
+                    }
                 },
                 "r rax" => self.regs.show_rax(&self.maps, 0),
                 "r rbx" => self.regs.show_rbx(&self.maps, 0),
@@ -1428,7 +1541,11 @@ impl Emu {
                     };
 
                     let mem = self.maps.get_mem(name.as_str());
-                    println!("map: {} 0x{:x}-0x{:x} ({})", name, to32!(mem.get_base()), to32!(mem.get_bottom()), mem.size());
+                    if self.cfg.is_64bits { 
+                        println!("map: {} 0x{:x}-0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
+                    } else { 
+                        println!("map: {} 0x{:x}-0x{:x} ({})", name, to32!(mem.get_base()), to32!(mem.get_bottom()), mem.size());
+                    }
 
                 },
                 "ma" => {
@@ -1466,7 +1583,11 @@ impl Emu {
                             continue;
                         }
                     };
-                    println!("0x{:x}: '{}'", addr, self.maps.read_string(addr));
+                    if self.cfg.is_64bits {
+                        println!("0x{:x}: '{}'", addr, self.maps.read_string(addr));
+                    } else {
+                        println!("0x{:x}: '{}'", to32!(addr), self.maps.read_string(addr));
+                    }
                 },
                 "mdw" => {
                     con.print("address");
@@ -1477,7 +1598,11 @@ impl Emu {
                             continue;
                         }
                     };
-                    println!("0x{:x}: '{}'", addr, self.maps.read_wide_string(addr));
+                    if self.cfg.is_64bits {
+                        println!("0x{:x}: '{}'", addr, self.maps.read_wide_string(addr));
+                    } else {
+                        println!("0x{:x}: '{}'", to32!(addr), self.maps.read_wide_string(addr));
+                    }
                 },
                 "mdd" => {
                     con.print("address");
@@ -1596,8 +1721,14 @@ impl Emu {
                     con.print("spaced bytes");
                     let sbs = con.cmd();
                     let results = self.maps.search_space_bytes_in_all(&sbs);
-                    for addr in results.iter() {
-                        println!("found at 0x{:x}", addr);
+                    if self.cfg.is_64bits {
+                        for addr in results.iter() {
+                            println!("found at 0x{:x}", addr);
+                        }
+                    } else {
+                        for addr in results.iter() {
+                            println!("found at 0x{:x}", to32!(addr));
+                        }
                     }
                 },
                 "ssa" => {
@@ -1814,6 +1945,7 @@ impl Emu {
             OpKind::Immediate8 => ins.immediate8().into(),
             OpKind::Immediate16 => ins.immediate16().into(),
             OpKind::Immediate32 => ins.immediate32().into(),
+            OpKind::Immediate32to64 => ins.immediate32to64() as u64,
             OpKind::Immediate8to32 => ins.immediate8to32() as u64,
             OpKind::Immediate8to16 => ins.immediate8to16() as u64,
             OpKind::Register => self.regs.get_reg(ins.op_register(noperand)),
@@ -2085,6 +2217,7 @@ impl Emu {
             OpKind::Immediate64 => 64,
             OpKind::Immediate8to32 => 32,
             OpKind::Immediate8to16 => 16,
+            OpKind::Immediate32to64 => 64,
             OpKind::Register => self.regs.get_size(ins.op_register(noperand)),
             OpKind::Memory => {                
                 let mut info_factory = InstructionInfoFactory::new();
@@ -2096,9 +2229,11 @@ impl Emu {
                     MemorySize::Float32 => 32,
                     MemorySize::Float64 => 64,
                     MemorySize::FpuEnv28 => 32,
+                    MemorySize::UInt64 => 64,
                     MemorySize::UInt32 => 32,
                     MemorySize::UInt16 => 16,
                     MemorySize::UInt8 => 8,
+                    MemorySize::Int64 => 64,
                     MemorySize::Int32 => 32,
                     MemorySize::Int16 => 16,
                     MemorySize::Int8 => 8,
@@ -2118,31 +2253,19 @@ impl Emu {
 
     pub fn show_instruction(&self, color:&str, ins:&Instruction) {
         if !self.step {
-            if self.cfg.is_64bits {
-                println!("{}{} 0x{:x}: {}{}", color, self.pos, ins.ip(), self.out, self.colors.nc);
-            } else {
-                println!("{}{} 0x{:x}: {}{}", color, self.pos, ins.ip32(), self.out, self.colors.nc);
-            }
+            println!("{}{} 0x{:x}: {}{}", color, self.pos, ins.ip(), self.out, self.colors.nc);
         }
     }
 
     pub fn show_instruction_taken(&self, color:&str, ins:&Instruction) {
         if !self.step {
-            if self.cfg.is_64bits {
-                println!("{}{} 0x{:x}: {} taken {}", color, self.pos, ins.ip(), self.out, self.colors.nc);
-            } else {
-                println!("{}{} 0x{:x}: {} taken {}", color, self.pos, ins.ip32(), self.out, self.colors.nc);
-            }
+            println!("{}{} 0x{:x}: {} taken {}", color, self.pos, ins.ip(), self.out, self.colors.nc);
         }
     }
 
     pub fn show_instruction_not_taken(&self, color:&str, ins:&Instruction) {
-        if !self.step {
-            if self.cfg.is_64bits {
-                println!("{}{} 0x{:x}: {} not taken {}", color, self.pos, ins.ip(), self.out, self.colors.nc);
-            } else {
-                println!("{}{} 0x{:x}: {} not taken {}", color, self.pos, ins.ip32(), self.out, self.colors.nc);
-            }
+        if !self.step { // optimization: show always ins.ip()
+            println!("{}{} 0x{:x}: {} not taken {}", color, self.pos, ins.ip(), self.out, self.colors.nc);
         }
     }
 
@@ -2159,11 +2282,11 @@ impl Emu {
         self.pos = 0;
 
         loop {
-            let code = match self.maps.get_mem_by_addr(self.regs.get_eip()) {
+            let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
-                None => panic!("redirecting code flow to non maped address 0x{:x}", self.regs.get_eip()),
+                None => panic!("redirecting code flow to non maped address 0x{:x}", self.regs.rip),
             };
-            let block = code.read_from(self.regs.get_eip()).to_vec();
+            let block = code.read_from(self.regs.rip).to_vec();
             let mut decoder; 
 
             if self.cfg.is_64bits {
@@ -2186,7 +2309,7 @@ impl Emu {
                     self.cfg.console2 = false;
                     self.step = true;
                     println!("-------");
-                    println!("{} 0x{:x}: {}", self.pos, ins.ip32(), self.out);
+                    println!("{} 0x{:x}: {}", self.pos, ins.ip(), self.out);
                     self.spawn_console();
                     if self.force_break {
                         self.force_break = false;
@@ -2214,13 +2337,28 @@ impl Emu {
                 }
 
                 if self.cfg.trace_regs {
-                    println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x} ebp: 0x{:x}", 
-                        self.regs.get_eax() as u32, self.regs.get_ebx() as u32, self.regs.get_ecx() as u32, 
-                        self.regs.get_edx() as u32, self.regs.get_esi() as u32, self.regs.get_edi() as u32, self.regs.get_ebp() as u32);
+                    if self.cfg.is_64bits {
+                        println!("\trax: 0x{:x} rbx: 0x{:x} rcx: 0x{:x} rdx: 0x{:x} rsi: 0x{:x} rdi: 0x{:x} rbp: 0x{:x}", 
+                            self.regs.rax, self.regs.rbx, self.regs.rcx, 
+                            self.regs.rdx, self.regs.rsi, self.regs.rdi, self.regs.rbp);
+                    } else {
+                        println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x} ebp: 0x{:x}", 
+                            self.regs.get_eax() as u32, self.regs.get_ebx() as u32, self.regs.get_ecx() as u32, 
+                            self.regs.get_edx() as u32, self.regs.get_esi() as u32, self.regs.get_edi() as u32, self.regs.get_ebp() as u32);
+                    }
                 }
 
                 if self.cfg.trace_reg {
                     match self.cfg.reg_name.as_str() {
+                        "rax" => self.regs.show_rax(&self.maps, self.pos),
+                        "rbx" => self.regs.show_rbx(&self.maps, self.pos),
+                        "rcx" => self.regs.show_rcx(&self.maps, self.pos),
+                        "rdx" => self.regs.show_rdx(&self.maps, self.pos),
+                        "rsi" => self.regs.show_rsi(&self.maps, self.pos),
+                        "rdi" => self.regs.show_rdi(&self.maps, self.pos),
+                        "rbp" => println!("\t{} rbp: 0x{:}", self.pos, self.regs.rbp),
+                        "rsp" => println!("\t{} rsp: 0x{:}", self.pos, self.regs.rsp),
+                        "rip" => println!("\t{} rip: 0x{:}", self.pos, self.regs.rip),
                         "eax" => self.regs.show_eax(&self.maps, self.pos),
                         "ebx" => self.regs.show_ebx(&self.maps, self.pos),
                         "ecx" => self.regs.show_ecx(&self.maps, self.pos),
@@ -2242,13 +2380,13 @@ impl Emu {
                     let s = self.maps.read_string(self.cfg.string_addr);
 
                     if s.len() >= 2 && s.len() < 80 {
-                        println!("\ttrace string -> 0x{:x}: '{}'", self.cfg.string_addr as u32, s);
+                        println!("\ttrace string -> 0x{:x}: '{}'", self.cfg.string_addr, s);
                     } else {
                         let w = self.maps.read_wide_string(self.cfg.string_addr);
                         if w.len() < 80 {
-                            println!("\ttrace wide string -> 0x{:x}: '{}'", self.cfg.string_addr as u32, w);
+                            println!("\ttrace wide string -> 0x{:x}: '{}'", self.cfg.string_addr, w);
                         } else {
-                            println!("\ttrace wide string -> 0x{:x}: ''", self.cfg.string_addr as u32);
+                            println!("\ttrace wide string -> 0x{:x}: ''", self.cfg.string_addr);
                         }
                     }
                 }
@@ -2257,7 +2395,7 @@ impl Emu {
                     let addr:u64 = self.memory_operand_to_address(self.cfg.inspect_seq.clone().as_str());
                     let bits = self.get_size(self.cfg.inspect_seq.clone().as_str());
                     let value = self.memory_read(self.cfg.inspect_seq.clone().as_str()).unwrap_or(0);
-                    println!("\t{} {} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.pos, self.cfg.inspect_seq, addr as u32, value, value, 
+                    println!("\t{} {} (0x{:x}): 0x{:x} {} '{}' {{{}}}", self.pos, self.cfg.inspect_seq, addr, value, value, 
                         self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
                 }
 
@@ -2280,7 +2418,12 @@ impl Emu {
                             Some(a) => a,
                             None => break
                         };
-                        self.set_eip(addr, false);
+
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
                         break;
                     }
 
@@ -2296,8 +2439,14 @@ impl Emu {
                             None => break
                         };
 
-                        self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
-                        self.set_eip(addr, false);
+                        if self.cfg.is_64bits {
+                            self.stack_push64(self.regs.rip + sz as u64);
+                            self.set_rip(addr, false);
+                        } else {
+                            self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
+                            self.set_eip(addr, false);
+                        }
+
                         break;
                     }
 
@@ -2308,14 +2457,26 @@ impl Emu {
                             Some(v) => v,
                             None => break
                         };
-                        self.stack_push32(to32!(value));
+
+                        if self.cfg.is_64bits {
+                            self.stack_push64(value);
+                        } else {
+                            self.stack_push32(to32!(value));
+                        }
                     }
 
                     Mnemonic::Pop => {
                         self.show_instruction(&self.colors.blue, &ins);
 
-                        let value = self.stack_pop32(true);
-                        if !self.set_operand_value(&ins, 0, value as u64) {
+                        let value:u64;
+
+                        if self.cfg.is_64bits { 
+                            value = self.stack_pop64(true);
+                        } else {
+                            value = self.stack_pop32(true) as u64;
+                        }
+
+                        if !self.set_operand_value(&ins, 0, value) {
                             break;
                         }
                     }
@@ -2358,6 +2519,12 @@ impl Emu {
                         self.regs.set_eax(poped);
                     }
 
+                    Mnemonic::Cdqe => {
+                        self.show_instruction(&self.colors.blue, &ins);
+
+                        self.regs.rax = self.regs.get_eax() as u32 as i32 as i64 as u64; // sign extend
+                    }
+
                     Mnemonic::Cdq => {
                         self.show_instruction(&self.colors.blue, &ins);
 
@@ -2382,8 +2549,14 @@ impl Emu {
 
                             arg /= 4;
 
-                            for _ in 0..arg {
-                                self.stack_pop32(false);
+                            if self.cfg.is_64bits { 
+                                for _ in 0..arg {
+                                    self.stack_pop64(false);
+                                }
+                            } else {
+                                for _ in 0..arg {
+                                    self.stack_pop32(false);
+                                }
                             }
                         }
 
@@ -2392,7 +2565,12 @@ impl Emu {
                             break;
                         }
 
-                        self.set_eip(ret_addr, false);                        
+                        if self.cfg.is_64bits {
+                            self.set_rip(ret_addr, false);                        
+                        } else {
+                            self.set_eip(ret_addr, false);                        
+                        }
+
                         break;
                     }
 
@@ -2452,7 +2630,7 @@ impl Emu {
                         let sz = self.get_operand_sz(&ins, 0);
                         let result = value0 ^ value1;
 
-                        self.flags.calc_flags(result, sz as u8);
+                        self.flags.calc_flags(result, sz);
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
@@ -2480,7 +2658,7 @@ impl Emu {
                             32 => res = self.flags.add32(value0, value1),
                             16 => res = self.flags.add16(value0, value1),
                             8  => res = self.flags.add8(value0, value1),
-                            _  => panic!("weird size")
+                            _  => unreachable!("weird size")
                         }
 
                         if !self.set_operand_value(&ins, 0, res) {
@@ -2517,7 +2695,7 @@ impl Emu {
                             32 => res = self.flags.add32(value0, value1 + cf),
                             16 => res = self.flags.add16(value0, value1 + cf),
                             8  => res = self.flags.add8(value0, value1 + cf),
-                            _  => panic!("weird size")
+                            _  => unreachable!("weird size")
                         }
 
                         if !self.set_operand_value(&ins, 0, res) {
@@ -2672,10 +2850,22 @@ impl Emu {
                             None => break,
                         };
 
-                        let mut ival = value0 as i32;
-                        ival = !ival;
+                        let val:u64;
 
-                        if !self.set_operand_value(&ins, 0, ival as u64) {
+                        /*let mut ival = value0 as i32;
+                        ival = !ival;*/
+
+                        if self.cfg.is_64bits {
+                            let mut ival = value0 as i64;
+                            ival = !ival;
+                            val = ival as u64;
+                        } else {
+                            let mut ival = value0 as u32 as i32;
+                            ival = !ival;
+                            val = ival as u32 as u64;
+                        }
+
+                        if !self.set_operand_value(&ins, 0, val) {
                             break;
                         }
                     }
@@ -2697,14 +2887,13 @@ impl Emu {
 
                         let result = value0 & value1;
 
-                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0));
                         self.flags.f_of = false;
                         self.flags.f_cf = false;
 
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
                         }
-
                     }
 
                     Mnemonic::Or => {
@@ -2726,7 +2915,7 @@ impl Emu {
 
                         //println!("0x{:x} or 0x{:x} = 0x{:x}", value0, value1, result);
 
-                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0) as u8);
+                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0));
                         self.flags.f_of = false;
                         self.flags.f_cf = false;
 
@@ -3628,6 +3817,51 @@ impl Emu {
 
                     }
 
+                    Mnemonic::Cmpsq => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        let value0:u64;
+                        let value1:u64;
+
+                        if self.cfg.is_64bits {
+                            value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
+                            value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
+                        } else { // 32bits
+                            value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
+                            value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
+                        }
+
+                        self.flags.sub64(value0, value1);
+
+                        if !self.step {
+                            if value0 > value1 {
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            } else if value0 < value1 {
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            } else {
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+      
+                    }
+
                     Mnemonic::Cmpsd => {
                         self.show_instruction(&self.colors.orange, &ins);
 
@@ -3637,9 +3871,26 @@ impl Emu {
                         if self.cfg.is_64bits {
                             value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
                             value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
                         } else { // 32bits
                             value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
                             value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
                         }
 
                         self.flags.sub32(value0 as u64, value1 as u64);
@@ -3665,9 +3916,26 @@ impl Emu {
                         if self.cfg.is_64bits {
                             value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
                             value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
                         } else { // 32bits
                             value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
                             value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
                         }
 
                         self.flags.sub16(value0 as u64, value1 as u64);
@@ -3692,9 +3960,26 @@ impl Emu {
                         if self.cfg.is_64bits {
                             value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
                             value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
                         } else { // 32bits
                             value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
                             value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
                         }
 
                         self.flags.sub8(value0 as u64, value1 as u64);
@@ -4260,7 +4545,11 @@ impl Emu {
                             }
                 
                             if self.regs.get_cx() > 0 {
-                                self.set_eip(addr, false);
+                                if self.cfg.is_64bits {
+                                    self.set_rip(addr, false);
+                                } else {
+                                    self.set_eip(addr, false);
+                                }
                                 break;
                             }
                         }
@@ -4295,7 +4584,11 @@ impl Emu {
                             }
                             
                             if self.regs.get_ecx() > 0 && self.flags.f_zf {
-                                self.set_eip(addr, false);
+                                if self.cfg.is_64bits {
+                                    self.set_rip(addr, false);
+                                } else {
+                                    self.set_eip(addr, false);
+                                }
                                 break;
                             }
                         } else {
@@ -4306,7 +4599,11 @@ impl Emu {
                             }
                             
                             if self.regs.get_cx() > 0 && self.flags.f_zf  {
-                                self.set_eip(addr, false);
+                                if self.cfg.is_64bits {
+                                    self.set_rip(addr, false);
+                                } else {
+                                    self.set_eip(addr, false);
+                                }
                                 break;
                             }
                         }
@@ -4342,7 +4639,11 @@ impl Emu {
                             }
                             
                             if self.regs.get_ecx() > 0 && !self.flags.f_zf {
-                                self.set_eip(addr, false);
+                                if self.cfg.is_64bits {
+                                    self.set_rip(addr, false);
+                                } else {
+                                    self.set_eip(addr, false);
+                                }
                                 break;
                             }
 
@@ -4354,7 +4655,11 @@ impl Emu {
                             }
                             
                             if self.regs.get_cx() > 0 && !self.flags.f_zf  {
-                                self.set_eip(addr, false);
+                                if self.cfg.is_64bits {
+                                    self.set_rip(addr, false);
+                                } else {
+                                    self.set_eip(addr, false);
+                                }
                                 break;
                             }
                         }
@@ -4400,8 +4705,14 @@ impl Emu {
 
                         match interrupt {
                             0x80 => syscall32::gateway(self),
-                            _ => unimplemented!("unknown interrupt {}", interrupt),
+                            _ => unimplemented!("interrupt {}", interrupt),
                         }
+                    }
+
+                    Mnemonic::Syscall => {
+                        self.show_instruction(&self.colors.red, &ins);
+
+                        syscall64::gateway(self);
                     }
 
                     Mnemonic::Std => {
@@ -4426,9 +4737,9 @@ impl Emu {
 
                             self.regs.rax = val;
                             if self.flags.f_df {
-                                self.regs.rsi -= 4; 
+                                self.regs.rsi -= 8; 
                             } else {
-                                self.regs.rsi += 4;
+                                self.regs.rsi += 8;
                             }
 
                         } else {
@@ -4564,8 +4875,14 @@ impl Emu {
                         };
 
                         if self.cfg.is_64bits {
-                            todo!("fpu for 64bits")
+                            let env = self.fpu.get_env64();
+
+                            for i in 0..4 {
+                                self.maps.write_qword(addr+(i*4), env[i as usize]);
+                            }
+
                         } else {
+
                             let env = self.fpu.get_env32();
                             for i in 0..4 {
                                 self.maps.write_dword(addr+(i*4), env[i as usize]);
@@ -4810,12 +5127,8 @@ impl Emu {
                     Mnemonic::Popfd => {
                         self.show_instruction(&self.colors.blue, &ins);
                         
-                        if self.cfg.is_64bits {
-                            todo!("popfd 64bits");
-                        } else {
-                            let flags = self.stack_pop32(true);
-                            self.flags.load(flags);
-                        }
+                        let flags = self.stack_pop32(true);
+                        self.flags.load(flags);
                     }
 
                     Mnemonic::Sete => {
@@ -4914,7 +5227,7 @@ impl Emu {
 
 
                     Mnemonic::Sysenter => {
-                        println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), self.out, self.colors.nc);
+                        println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip(), self.out, self.colors.nc);
                         return;
                     }
 

@@ -1,4 +1,5 @@
 target/
-shellcodes/
+shellcodes32/
+shellcodes64/
 x
 *.swp

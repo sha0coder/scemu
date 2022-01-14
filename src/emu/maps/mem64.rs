@@ -173,6 +173,11 @@ impl Mem64 {
         md5::compute(&self.mem)
     }
 
+    pub fn load_at(&mut self, filename: &str, base_addr:u64) {
+        self.set_base(base_addr);
+        self.load(filename);
+    }
+
     pub fn load(&mut self, filename: &str) -> bool {
         let f = match File::open(&filename) {
             Ok(f) => f,
