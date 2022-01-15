@@ -121,7 +121,7 @@ Also it's possible to dump to disk with `mdd` command.
 
 If you want to dump an ascii string `mds` and wide string with `mdw`
 
-The command `mrd` for memory read dword dumps a list of dwords.
+The command `mrd` for memory read dword dumps a list of dwords. And `mrq` for read a list of qwords.
 
 
 ## Search 

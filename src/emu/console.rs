@@ -97,6 +97,7 @@ impl Console {
         println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
         println!("md ..................... memory dump");
         println!("mrd .................... memory read dwords");
+        println!("mrq .................... memory read qwords");
         println!("mds .................... memory dump string");
         println!("mdw .................... memory dump wide string");
         println!("mdd .................... memory dump to disk");

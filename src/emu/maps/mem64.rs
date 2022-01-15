@@ -9,6 +9,7 @@ use std::io::Write;
 use md5;
 
 pub struct Mem64 {
+    mem_name: String,
     base_addr: u64,
     bottom_addr: u64,
     pub mem: Vec<u8>, 
@@ -17,10 +18,15 @@ pub struct Mem64 {
 impl Mem64 {
     pub fn new() -> Mem64 {
         Mem64 {
+            mem_name: "".to_string(),
             base_addr: 0,
             bottom_addr: 0,
             mem: Vec::new(),
         }
+    }
+
+    pub fn set_name(&mut self, name:&str) {
+        self.mem_name = name.to_string();
     }
 
     pub fn alloc(&mut self, amount:usize) {
@@ -124,7 +130,7 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         
         for i in 0..8 {
-            self.mem[idx+i] = (value & (0xff<<(i*8))) as u8;
+            self.mem[idx+i] = ((value & (0xff<<(i*8))) >>(i*8)) as u8;
         }
     }
 
@@ -173,9 +179,11 @@ impl Mem64 {
         md5::compute(&self.mem)
     }
 
-    pub fn load_at(&mut self, filename: &str, base_addr:u64) {
+    pub fn load_at(&mut self, base_addr:u64) {
         self.set_base(base_addr);
-        self.load(filename);
+        let mut name:String = String::from(&self.mem_name);
+        name.push_str(".bin");
+        self.load(name.as_str());
     }
 
     pub fn load(&mut self, filename: &str) -> bool {

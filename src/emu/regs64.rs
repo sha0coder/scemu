@@ -909,6 +909,39 @@ impl Regs64 {
         self.show_reg64(maps, "rdi", self.rdi, pos);
     }
 
+    pub fn show_r8(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r8", self.r8, pos);
+    }
+
+    pub fn show_r9(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r9", self.r9, pos);
+    }
+
+    pub fn show_r10(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r10", self.r10, pos);
+    }
+
+    pub fn show_r11(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r11", self.r11, pos);
+    }
+
+    pub fn show_r12(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r12", self.r12, pos);
+    }
+
+    pub fn show_r13(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r13", self.r13, pos);
+    }
+
+    pub fn show_r14(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r14", self.r14, pos);
+    }
+
+    pub fn show_r15(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r15", self.r15, pos);
+    }
+
+
     pub fn is_reg(&self, reg:&str) -> bool {
         match reg {
             "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => true,
