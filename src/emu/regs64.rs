@@ -53,7 +53,10 @@ macro_rules! get_reg8h {
         return ($reg & 0x000000000000ff00) >> 8;
     )
 }
+
+
 //  https://wiki.osdev.org/CPU_Registers_x86-64
+
 pub struct Regs64 {
     pub dr0: u64, // bp
     pub dr1: u64, // bp
@@ -552,6 +555,14 @@ impl Regs64 {
             Register::RSP => self.rsp,
             Register::RBP => self.rbp,
             Register::RIP => self.rip,
+            Register::R8 => self.r8,
+            Register::R9 => self.r9,
+            Register::R10 => self.r10,
+            Register::R11 => self.r11,
+            Register::R12 => self.r12,
+            Register::R13 => self.r13,
+            Register::R14 => self.r14,
+            Register::R15 => self.r15,
             Register::EAX => self.get_eax(),
             Register::EBX => self.get_ebx(),
             Register::ECX => self.get_ecx(),
@@ -600,6 +611,14 @@ impl Regs64 {
             Register::RSP => self.rsp = value,
             Register::RBP => self.rbp = value,
             Register::RIP => self.rip = value,
+            Register::R8 => self.r8 = value,
+            Register::R9 => self.r9 = value,
+            Register::R10 => self.r10 = value,
+            Register::R11 => self.r11 = value,
+            Register::R12 => self.r12 = value,
+            Register::R13 => self.r13 = value,
+            Register::R14 => self.r14 = value,
+            Register::R15 => self.r15 = value,
             Register::EAX => self.set_eax(value),
             Register::EBX => self.set_ebx(value),
             Register::ECX => self.set_ecx(value),
@@ -644,6 +663,14 @@ impl Regs64 {
             Register::RSP => 64,
             Register::RBP => 64,
             Register::RIP => 64,
+            Register::R8 => 64,
+            Register::R9 => 64,
+            Register::R10 => 64,
+            Register::R11 => 64,
+            Register::R12 => 64,
+            Register::R13 => 64,
+            Register::R14 => 64,
+            Register::R15 => 64,
             Register::EAX => 32,
             Register::EBX => 32,
             Register::ECX => 32,

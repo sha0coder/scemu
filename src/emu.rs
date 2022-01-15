@@ -540,8 +540,8 @@ impl Emu {
         self.maps.create_map("20000");
         self.maps.create_map("520000").load_at("m520000.bin", 0x520000);
         self.maps.create_map("53b000").load_at("m53b000.bin", 0x53b000);
-        
-        self.maps.create_map("exe").load_at("exe.bin", 0x400000);
+
+        self.maps.create_map("exe_pe").load_at("exe_pe.bin", 0x400000);
         self.maps.create_map("code").set_base(self.cfg.code_base_addr);
         self.maps.create_map("stack");
         self.maps.create_map("peb").load_at("peb.bin", 0x7fffffdf000);
@@ -1498,7 +1498,14 @@ impl Emu {
                     self.exp = self.pos+1;
                 },
                 "cls" => println!("{}", self.colors.clear_screen),
-                "s" => self.maps.dump_dwords(self.regs.get_esp()),
+                "s" => {
+                    if self.cfg.is_64bits {
+                        self.maps.dump_qwords(self.regs.rsp);
+                    } else {
+                        self.maps.dump_dwords(self.regs.get_esp());
+                    }
+                    
+                }
                 "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100),
                 "c" => return,
                 "f" => self.flags.print(),
@@ -1575,7 +1582,17 @@ impl Emu {
                         }
                     };
                     self.maps.dump_dwords(addr);
-
+                },
+                "mrq" => {
+                    con.print("address");
+                    let addr = match con.cmd_hex64() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value.");
+                            continue;
+                        }
+                    };
+                    self.maps.dump_qwords(addr);
                 },
                 "mds" => {
                     con.print("address");
@@ -3680,7 +3697,6 @@ impl Emu {
                     Mnemonic::Stosb => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
                         
-                        
                         if self.cfg.is_64bits {
                             self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
                             if self.flags.f_df {
@@ -3745,15 +3761,14 @@ impl Emu {
                     Mnemonic::Stosq => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
 
-                        if self.cfg.is_64bits {
-                            self.maps.write_qword(self.regs.rdi, self.regs.rax);
+                        self.maps.write_qword(self.regs.rdi, self.regs.rax);
 
-                            if self.flags.f_df {
-                                self.regs.rdi -= 8;
-                            } else {
-                                self.regs.rdi += 8;
-                            }
+                        if self.flags.f_df {
+                            self.regs.rdi -= 8;
+                        } else {
+                            self.regs.rdi += 8;
                         }
+                        
                     }
 
                     Mnemonic::Scasb => {
@@ -3764,12 +3779,20 @@ impl Emu {
                             None => break,
                         };
 
-                        self.flags.sub8(value0, self.regs.get_al());
+                        self.flags.sub8(self.regs.get_al(), value0);
 
-                        if self.flags.f_df {                       
-                            self.regs.set_di(self.regs.get_di() - 1);
-                        } else {
-                            self.regs.set_di(self.regs.get_di() + 1);
+                        if self.cfg.is_64bits {
+                            if self.flags.f_df {                       
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rdi += 1;
+                            }
+                        } else { // 32bits
+                            if self.flags.f_df {
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
                         }
                     }
 
@@ -3781,12 +3804,20 @@ impl Emu {
                             None => break,
                         };
 
-                        self.flags.sub16(value0, self.regs.get_ax());
+                        self.flags.sub16(self.regs.get_ax(), value0);
 
-                        if self.flags.f_df {                       
-                            self.regs.set_di(self.regs.get_di() - 1);
-                        } else {
-                            self.regs.set_di(self.regs.get_di() + 1);
+                        if self.cfg.is_64bits {
+                            if self.flags.f_df {                       
+                                self.regs.rdi -= 2;
+                            } else {
+                                self.regs.rdi += 2;
+                            }
+                        } else { // 32bits
+                            if self.flags.f_df {
+                                self.regs.set_edi(self.regs.get_edi() - 2);
+                            } else {
+                                self.regs.set_edi(self.regs.get_edi() + 2);
+                            }
                         }
                     }
 
@@ -3798,12 +3829,20 @@ impl Emu {
                             None => break,
                         };
 
-                        self.flags.sub32(value0, self.regs.get_eax());
+                        self.flags.sub32(self.regs.get_eax(), value0);
 
-                        if self.flags.f_df {                       
-                            self.regs.set_edi(self.regs.get_edi() - 1);
-                        } else {
-                            self.regs.set_edi(self.regs.get_edi() + 1);
+                        if self.cfg.is_64bits {
+                            if self.flags.f_df {                       
+                                self.regs.rdi -= 4;
+                            } else {
+                                self.regs.rdi += 4;
+                            }
+                        } else { // 32bits
+                            if self.flags.f_df {
+                                self.regs.set_edi(self.regs.get_edi() - 4);
+                            } else {
+                                self.regs.set_edi(self.regs.get_edi() + 4);
+                            }
                         }
                     }
 
@@ -3815,12 +3854,12 @@ impl Emu {
                             None => break,
                         };
 
-                        self.flags.sub64(value0, self.regs.rax);
+                        self.flags.sub64(self.regs.rax, value0);
 
                         if self.flags.f_df {                       
-                            self.regs.rdi -= 1;
+                            self.regs.rdi -= 8;
                         } else {
-                            self.regs.rdi += 1;
+                            self.regs.rdi += 8;
                         }
                     }
 
@@ -4879,7 +4918,7 @@ impl Emu {
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_qword(self.regs.rsi) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsq: memory read error"),
                             };
 
                             self.regs.rax = val;
@@ -4901,7 +4940,7 @@ impl Emu {
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_dword(self.regs.rsi) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsd: memory read error"),
                             };
 
                             self.regs.set_eax(val as u64);
@@ -4967,7 +5006,7 @@ impl Emu {
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_byte(self.regs.rsi) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsb: memory read error"),
                             };
 
                             self.regs.set_al(val as u64);
@@ -4981,7 +5020,7 @@ impl Emu {
 
                             let val = match self.maps.read_byte(self.regs.get_esi()) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsb: memory read error"),
                             };
 
                             self.regs.set_al(val as u64);

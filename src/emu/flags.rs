@@ -273,6 +273,9 @@ impl Flags {
     pub fn sub32(&mut self, value1:u64, value2:u64) -> u64 {
         let r:i32;
 
+        let val1 = value1 & 0xffffffff;
+        let val2 = value2 & 0xffffffff;
+
         self.check_carry_sub_dword(value1, value2);
         r = self.check_overflow_sub_dword(value1, value2);
         self.f_zf = value1 == value2;
@@ -286,9 +289,12 @@ impl Flags {
     pub fn sub16(&mut self, value1:u64, value2:u64) -> u64 {
         let r:i16;
 
-        self.check_carry_sub_word(value1, value2);
-        r = self.check_overflow_sub_word(value1, value2);
-        self.f_zf = value1 == value2;
+        let val1 = value1 & 0xffff;
+        let val2 = value2 & 0xffff;
+
+        self.check_carry_sub_word(val1, val2);
+        r = self.check_overflow_sub_word(val1, val2);
+        self.f_zf = val1 == val2;
 
         self.f_sf = r < 0;
         self.f_pf = ((r as u16) & 0xff) % 2 == 0;
@@ -299,9 +305,12 @@ impl Flags {
     pub fn sub8(&mut self, value1:u64, value2:u64) -> u64 {
         let r:i8;
 
-        self.check_carry_sub_byte(value1, value2);
-        r = self.check_overflow_sub_byte(value1, value2);
-        self.f_zf = value1 == value2;
+        let val1:u64 = value1 & 0xff;
+        let val2:u64 = value2 & 0xff;
+   
+        self.check_carry_sub_byte(val1, val2);
+        r = self.check_overflow_sub_byte(val1, val2);
+        self.f_zf = val1 == val2;
 
         self.f_sf = r < 0;
         self.f_pf = (r as u8) % 2 == 0;
