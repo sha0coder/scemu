@@ -160,6 +160,7 @@ impl Emu {
 
         if self.cfg.is_64bits {
             self.regs.rip = self.cfg.entry_point;
+            self.maps.is_64bits = true;
             self.init_mem64();
             self.init_stack64();
        
@@ -535,39 +536,75 @@ impl Emu {
         let orig_path = std::env::current_dir().unwrap();
         std::env::set_current_dir(self.cfg.maps_folder.clone());
 
-
-        self.maps.create_map("10000");
-        self.maps.create_map("20000");
-        self.maps.create_map("520000").load_at("m520000.bin", 0x520000);
-        self.maps.create_map("53b000").load_at("m53b000.bin", 0x53b000);
-
-        self.maps.create_map("exe_pe").load_at("exe_pe.bin", 0x400000);
+        self.maps.create_map("m10000");
+        self.maps.create_map("m20000");
+        self.maps.create_map("m520000").load_at(0x520000);
+        self.maps.create_map("m53b000").load_at(0x53b000);
+        self.maps.create_map("exe_pe").load_at(0x400000);
         self.maps.create_map("code").set_base(self.cfg.code_base_addr);
         self.maps.create_map("stack");
-        self.maps.create_map("peb").load_at("peb.bin", 0x7fffffdf000);
-        self.maps.create_map("teb").load_at("teb.bin", 0x7fffffdd000);
-        self.maps.create_map("ntdll_pe").load_at("ntdll_pe.bin", 0x76fd0000);
-        self.maps.create_map("ntdll_text").load_at("ntdll_text.bin", 0x76fd1000);
-        self.maps.create_map("ntdll_rt").load_at("ntdll_rt.bin", 0x770d2000);
-        self.maps.create_map("ntdll_rdata").load_at("ntdll_rdata.bin", 0x770d3000);
-        self.maps.create_map("ntdll_data").load_at("ntdll_data.bin", 0x77102000);
-        self.maps.create_map("kernel32_pe").load_at("kernel32_pe.bin", 0x76db0000);
-        self.maps.create_map("kernel32_text").load_at("kernel32_text.bin", 0x76db1000);
-        self.maps.create_map("kernel32_data").load_at("kernel32_data.bin", 0x76eba000);
-        self.maps.create_map("kernelbase_pe").load_at("kernelbase_pe.bin", 0x7fefd010000);
-        self.maps.create_map("kernelbase_text").load_at("kernelbase_text.bin", 0x7fefd011000);
-        self.maps.create_map("kernelbase_data").load_at("kernelbase_data.bin", 0x7fefd070000);
-        self.maps.create_map("msvcrt_pe").load_at("msvcrt_pe.bin", 0x7fefef00000);
-        self.maps.create_map("msvcrt_text").load_at("msvcrt_text.bin", 0x7fefef01000);        
+        self.maps.create_map("peb").load_at(0x7fffffdf000);
+        self.maps.create_map("teb").load_at(0x7fffffdd000);
+        self.maps.create_map("ntdll_pe").load_at(0x76fd0000);
+        self.maps.create_map("ntdll_text").load_at(0x76fd1000);
+        self.maps.create_map("ntdll_rt").load_at(0x770d2000);
+        self.maps.create_map("ntdll_rdata").load_at(0x770d3000);
+        self.maps.create_map("ntdll_data").load_at(0x77102000);
+        self.maps.create_map("kernel32_pe").load_at(0x76db0000);
+        self.maps.create_map("kernel32_text").load_at(0x76db1000);
+        self.maps.create_map("kernel32_data").load_at(0x76eba000);
+        self.maps.create_map("kernelbase_pe").load_at(0x7fefd010000);
+        self.maps.create_map("kernelbase_text").load_at(0x7fefd011000);
+        self.maps.create_map("kernelbase_data").load_at(0x7fefd070000);
+        self.maps.create_map("msvcrt_pe").load_at(0x7fefef00000);
+        self.maps.create_map("msvcrt_text").load_at(0x7fefef01000);
+        self.maps.create_map("user32_pe").load_at(0x76ed0000);
+        self.maps.create_map("user32_text").load_at(0x76ed1000);
+        self.maps.create_map("msasn1_pe").load_at(0x7fefcfc0000);
+        self.maps.create_map("msasn1_text").load_at(0x7fefcfc1000);
+        self.maps.create_map("crypt32_pe").load_at(0x7fefd0c0000);
+        self.maps.create_map("crypt32_text").load_at(0x7fefd0c1000);
+        self.maps.create_map("msctf_pe").load_at(0x7fefd2f0000);
+        self.maps.create_map("msctf_text").load_at(0x7fefd2f1000);
+        self.maps.create_map("iertutil_pe").load_at(0x7fefd400000);
+        self.maps.create_map("iertutil_text").load_at(0x7fefd401000);
+        self.maps.create_map("ole32_pe").load_at(0x7fefd660000);
+        self.maps.create_map("ole32_text").load_at(0x7fefd661000);
+        self.maps.create_map("lpk_pe").load_at(0x7fefd870000);
+        self.maps.create_map("lpk_text").load_at(0x7fefd871000);
+        self.maps.create_map("wininet_pe").load_at(0x6fefd880000);
+        self.maps.create_map("wininet_text").load_at(0x6fefd881000);
+        self.maps.create_map("gdi32_pe").load_at(0x7fefd9b0000);
+        self.maps.create_map("gdi32_text").load_at(0x7fefd9b1000);
+        self.maps.create_map("imm32_pe").load_at(0x7fefe990000);
+        self.maps.create_map("imm32_text").load_at(0x7fefe991000);
+        self.maps.create_map("usp10_pe").load_at(0x7fefe9c0000);
+        self.maps.create_map("usp10_text").load_at(0x7fefe9c1000);
+        self.maps.create_map("sechost_pe").load_at(0x7fefea90000);
+        self.maps.create_map("sechost_text").load_at(0x7fefea91000);
+        self.maps.create_map("rpcrt4_pe").load_at(0x7fefeab0000);
+        self.maps.create_map("rpcrt4_text").load_at(0x7fefeab1000);
+        self.maps.create_map("nsi_pe").load_at(0x7fefebe0000);
+        self.maps.create_map("nsi_text").load_at(0x7fefebe1000);
+        self.maps.create_map("urlmon_pe").load_at(0x7fefed30000);
+        self.maps.create_map("urlmon_text").load_at(0x7fefed31000);
+        self.maps.create_map("ws2_32_pe").load_at(0x7fefeeb0000);
+        self.maps.create_map("ws2_32_text").load_at(0x7fefeeb1000);
+        self.maps.create_map("msvcrt_pe").load_at(0x7fefef00000);
+        self.maps.create_map("msvcrt_text").load_at(0xfefef01000);
+        self.maps.create_map("advapi32_pe").load_at(0xfefefa0000);
+        self.maps.create_map("advapi32_text").load_at(0x7fefefa1000);
+        self.maps.create_map("oleaut32_pe").load_at(0x7feff180000);
+        self.maps.create_map("oleaut32_text").load_at(0x7feff181000);
+        self.maps.create_map("shlwapi_pe").load_at(0x7feff260000);
+        self.maps.create_map("shlwapi_text").load_at(0x7feff261000);
 
 
-
-        
-        let m10000 = self.maps.get_mem("10000");
+        let m10000 = self.maps.get_mem("m10000");
         m10000.set_base(0x10000);
         m10000.set_size(0x10000);
 
-        let m20000 = self.maps.get_mem("20000");
+        let m20000 = self.maps.get_mem("m20000");
         m20000.set_base(0x20000);
         m20000.set_size(0x10000);
 
@@ -1500,13 +1537,19 @@ impl Emu {
                 "cls" => println!("{}", self.colors.clear_screen),
                 "s" => {
                     if self.cfg.is_64bits {
-                        self.maps.dump_qwords(self.regs.rsp);
+                        self.maps.dump_qwords(self.regs.rsp, 10);
                     } else {
-                        self.maps.dump_dwords(self.regs.get_esp());
+                        self.maps.dump_dwords(self.regs.get_esp(), 10);
                     }
-                    
                 }
-                "v" => self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100),
+                "v" => {
+                    if self.cfg.is_64bits {
+                        self.maps.dump_qwords(self.regs.rbp-0x100, 100);
+                    } else {
+                        self.maps.dump_dwords(self.regs.get_ebp()-0x100, 100);
+                    }
+                    self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
+                }
                 "c" => return,
                 "f" => self.flags.print(),
                 "fc" => self.flags.clear(),
@@ -1581,7 +1624,7 @@ impl Emu {
                             continue;
                         }
                     };
-                    self.maps.dump_dwords(addr);
+                    self.maps.dump_dwords(addr, 10);
                 },
                 "mrq" => {
                     con.print("address");
@@ -1592,7 +1635,7 @@ impl Emu {
                             continue;
                         }
                     };
-                    self.maps.dump_qwords(addr);
+                    self.maps.dump_qwords(addr, 10);
                 },
                 "mds" => {
                     con.print("address");
@@ -1878,6 +1921,15 @@ impl Emu {
         println!("\trsp: 0x{:x}", self.regs.rsp);
         println!("\trbp: 0x{:x}", self.regs.rbp);
         println!("\trip: 0x{:x}", self.regs.rip);
+        self.regs.show_r8(&self.maps, 0);
+        self.regs.show_r9(&self.maps, 0);
+        self.regs.show_r10(&self.maps, 0);
+        self.regs.show_r11(&self.maps, 0);
+        self.regs.show_r12(&self.maps, 0);
+        self.regs.show_r13(&self.maps, 0);
+        self.regs.show_r14(&self.maps, 0);
+        self.regs.show_r15(&self.maps, 0);
+
     }
 
     fn exception(&mut self) {

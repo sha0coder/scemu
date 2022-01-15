@@ -23,7 +23,8 @@ impl Maps {
     }
 
     pub fn create_map(&mut self, name:&str) -> &mut Mem64 {
-        let mem = Mem64::new();
+        let mut mem = Mem64::new();
+        mem.set_name(name);
         self.maps.insert(name.to_string(), mem);
         return self.maps.get_mut(name).expect("incorrect memory map name");
     }
@@ -304,10 +305,10 @@ impl Maps {
         }
     }
 
-    pub fn dump_qwords(&self, addr:u64) {
+    pub fn dump_qwords(&self, addr:u64, n:u64) {
         let mut value:u64;
 
-        for i in 0..10 {
+        for i in 0..n {
             let a = addr + i * 8;
             value = match self.read_qword(a) {
                 Some(v) => v,
@@ -324,10 +325,10 @@ impl Maps {
         }
     }
 
-    pub fn dump_dwords(&self, addr:u64) {
+    pub fn dump_dwords(&self, addr:u64, n:u64) {
         let mut value:u32;
 
-        for i in 0..10 {
+        for i in 0..n {
             let a = addr + i * 4;
             value = match self.read_dword(a) {
                 Some(v) => v,

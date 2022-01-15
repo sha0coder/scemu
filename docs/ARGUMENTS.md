@@ -39,6 +39,10 @@ More information about the console in [CONSOLE.md](CONSOLE.md)
 
 Also it's possible to spawn the console at specific address with `-C addr`
 
+## 64bits
+
+The 64bits engine is not 100% ready, but you can emulate some instructions, use the `-6` or `--64bits` to emulate 64bits shellcodes.
+
 ## Registers
 
 Its possible to display all the registers in every step with `-r` or `--regs` often used together with `-vv`.
