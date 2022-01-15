@@ -538,6 +538,9 @@ impl Emu {
 
         self.maps.create_map("10000");
         self.maps.create_map("20000");
+        self.maps.create_map("520000").load_at("m520000.bin", 0x520000);
+        self.maps.create_map("53b000").load_at("m53b000.bin", 0x53b000);
+        
         self.maps.create_map("exe").load_at("exe.bin", 0x400000);
         self.maps.create_map("code").set_base(self.cfg.code_base_addr);
         self.maps.create_map("stack");
@@ -1945,6 +1948,7 @@ impl Emu {
             OpKind::Immediate8 => ins.immediate8().into(),
             OpKind::Immediate16 => ins.immediate16().into(),
             OpKind::Immediate32 => ins.immediate32().into(),
+            OpKind::Immediate8to64 => ins.immediate8to64() as u64,
             OpKind::Immediate32to64 => ins.immediate32to64() as u64,
             OpKind::Immediate8to32 => ins.immediate8to32() as u64,
             OpKind::Immediate8to16 => ins.immediate8to16() as u64,
@@ -1952,11 +1956,18 @@ impl Emu {
             OpKind::Memory => {
                 let mut derref = do_derref;
                 let mut fs = false;
+                let mut gs = false;
+
 
                 let mut mem_addr = ins.virtual_address(noperand, 0, |reg,idx,_sz| {
-                    if reg == Register::FS || reg == Register::GS {
+                    if reg == Register::FS {
                         derref = false;
                         fs = true;
+
+                        Some(0)
+                    } else if reg == Register::GS {
+                        derref = false;
+                        gs = true;
 
                         Some(0)
                     } else {
@@ -1973,6 +1984,24 @@ impl Emu {
                             }
                             peb.get_base()
                         }
+                        0x20 => {
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading PID 0x{:x}", self.pos, 10);
+                            }
+                            10
+                        }
+                        0x24 => {
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading TID 0x{:x}", self.pos, 101);
+                            }
+                            101
+                        }
+                        0x34 => {
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading last error value 0", self.pos);
+                            }
+                            0
+                        }
                         0x18 => {
                             let teb = self.maps.get_mem("teb");
                             if self.cfg.verbose >= 1 {
@@ -1987,6 +2016,41 @@ impl Emu {
                             self.seh
                         }
                         _ => unimplemented!("fs:[{}]", mem_addr),
+                    };
+                    mem_addr = value;
+                }
+                if gs {
+                    let value:u64 = match mem_addr {
+                        0x60 => {
+                            let peb = self.maps.get_mem("peb");
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading PEB 0x{:x}", self.pos, peb.get_base());
+                            }
+                            peb.get_base()
+                        }
+                        0x30 => {
+                            let teb = self.maps.get_mem("teb");
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading TEB 0x{:x}", self.pos, teb.get_base());
+                            }
+                            teb.get_base()
+                        }
+                        0x40 => {
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading PID 0x{:x}", self.pos, 10);
+                            }
+                            10
+                        }
+                        0x48 => {
+                            if self.cfg.verbose >= 1 {
+                                println!("{} Reading TID 0x{:x}", self.pos, 101);
+                            }
+                            101
+                        }
+                        0x14 => {
+                            unimplemented!("GS:[14]  get stack canary")
+                        }
+                        _ => unimplemented!("gs:[{}]", mem_addr),
                     };
                     mem_addr = value;
                 }
@@ -2218,6 +2282,7 @@ impl Emu {
             OpKind::Immediate8to32 => 32,
             OpKind::Immediate8to16 => 16,
             OpKind::Immediate32to64 => 64,
+            OpKind::Immediate8to64 => 64,   //TODO: this could be 8
             OpKind::Register => self.regs.get_size(ins.op_register(noperand)),
             OpKind::Memory => {                
                 let mut info_factory = InstructionInfoFactory::new();
@@ -3677,6 +3742,88 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Stosq => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        if self.cfg.is_64bits {
+                            self.maps.write_qword(self.regs.rdi, self.regs.rax);
+
+                            if self.flags.f_df {
+                                self.regs.rdi -= 8;
+                            } else {
+                                self.regs.rdi += 8;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Scasb => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.sub8(value0, self.regs.get_al());
+
+                        if self.flags.f_df {                       
+                            self.regs.set_di(self.regs.get_di() - 1);
+                        } else {
+                            self.regs.set_di(self.regs.get_di() + 1);
+                        }
+                    }
+
+                    Mnemonic::Scasw => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.sub16(value0, self.regs.get_ax());
+
+                        if self.flags.f_df {                       
+                            self.regs.set_di(self.regs.get_di() - 1);
+                        } else {
+                            self.regs.set_di(self.regs.get_di() + 1);
+                        }
+                    }
+
+                    Mnemonic::Scasd => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.sub32(value0, self.regs.get_eax());
+
+                        if self.flags.f_df {                       
+                            self.regs.set_edi(self.regs.get_edi() - 1);
+                        } else {
+                            self.regs.set_edi(self.regs.get_edi() + 1);
+                        }
+                    }
+
+                    Mnemonic::Scasq => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.sub64(value0, self.regs.rax);
+
+                        if self.flags.f_df {                       
+                            self.regs.rdi -= 1;
+                        } else {
+                            self.regs.rdi += 1;
+                        }
+                    }
+
                     Mnemonic::Test => {
                         self.show_instruction(&self.colors.orange, &ins);
 
@@ -4787,7 +4934,7 @@ impl Emu {
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_word(self.regs.rsi) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsw: memory read error 0x{:x}", self.regs.rsi),
                             };
 
                             self.regs.set_ax(val as u64);
