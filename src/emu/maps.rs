@@ -304,6 +304,26 @@ impl Maps {
         }
     }
 
+    pub fn dump_qwords(&self, addr:u64) {
+        let mut value:u64;
+
+        for i in 0..10 {
+            let a = addr + i * 8;
+            value = match self.read_qword(a) {
+                Some(v) => v,
+                None => break,
+            };
+
+            let name = match self.get_addr_name(value.into()) {
+                Some(v) => v,
+                None => "".to_string(),
+            };
+
+            println!("0x{:x}: 0x{:x} ({}) '{}'", a, value, name, self.filter_replace_string(&self.read_string(value.into())));
+
+        }
+    }
+
     pub fn dump_dwords(&self, addr:u64) {
         let mut value:u32;
 
@@ -322,6 +342,8 @@ impl Maps {
                 };
 
                 println!("0x{:x}: 0x{:x} ({}) '{}'", a, value, name, self.filter_replace_string(&self.read_string(value.into())));
+            } else {
+                println!("0x{:x}: 0x{:x}", a, value);
             }
 
         }

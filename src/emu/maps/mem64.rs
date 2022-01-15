@@ -124,7 +124,7 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         
         for i in 0..8 {
-            self.mem[idx+i] = (value & (0xff<<i)) as u8;
+            self.mem[idx+i] = (value & (0xff<<(i*8))) as u8;
         }
     }
 
