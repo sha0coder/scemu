@@ -711,6 +711,14 @@ impl Regs64 {
             "rbp" => return self.rbp,
             "rsp" => return self.rsp,
             "rip" => return self.rip,
+            "r8" => return self.r8,
+            "r9" => return self.r9,
+            "r10" => return self.r10,
+            "r11" => return self.r11,
+            "r12" => return self.r12,
+            "r13" => return self.r13,
+            "r14" => return self.r14,
+            "r15" => return self.r15,
             "eax" => return self.get_eax(),
             "ebx" => return self.get_ebx(),
             "ecx" => return self.get_ecx(),
@@ -749,6 +757,14 @@ impl Regs64 {
             "rbp" => self.rbp = value,
             "rsp" => self.rsp = value,
             "rip" => self.rip = value,
+            "r8" => self.r8 = value,
+            "r9" => self.r9 = value,
+            "r10" => self.r10 = value,
+            "r11" => self.r11 = value,
+            "r12" => self.r12 = value,
+            "r13" => self.r13 = value,
+            "r14" => self.r14 = value,
+            "r15" => self.r15 = value,
             "eax" => self.set_eax(value),
             "ebx" => self.set_ebx(value),
             "ecx" => self.set_ecx(value),
@@ -944,7 +960,7 @@ impl Regs64 {
 
     pub fn is_reg(&self, reg:&str) -> bool {
         match reg {
-            "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => true,
+            "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"r8"|"r9"|"r10"|"r11"|"r12"|"eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => true,
             &_ => false,
         }
     }

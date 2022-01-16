@@ -3019,13 +3019,35 @@ impl Emu {
                             None => break,
                         };
 
-                        let result = value0 & value1;
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let result1:u64;
+                        let result2:u64;
 
-                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0));
+                        match sz {
+                            8 => {
+                                result1 = (value0 & 0xff) & (value1 & 0xff);
+                                result2 = (value0 & 0xffffffffffffff00) + result1;
+                            }
+                            16 => {
+                                result1 = (value0 & 0xffff) & (value1 & 0xffff);
+                                result2 = (value0 & 0xffffffffffff0000) + result1;
+                            }
+                            32 => {
+                                result1 = (value0 & 0xffffffff) & (value1 & 0xffffffff);
+                                result2 = (value0 & 0xffffffff00000000) + result1;
+                            }
+                            64 => { 
+                                result1 = value0 & value1;
+                                result2 = result1;
+                            }
+                            _ => unreachable!(""),
+                        }
+
+                        self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
                         self.flags.f_of = false;
                         self.flags.f_cf = false;
 
-                        if !self.set_operand_value(&ins, 0, result) {
+                        if !self.set_operand_value(&ins, 0, result2) {
                             break;
                         }
                     }
@@ -3034,6 +3056,7 @@ impl Emu {
                         self.show_instruction(&self.colors.green, &ins);
 
                         assert!(ins.op_count() == 2);
+                        assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
 
                         let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
@@ -3045,15 +3068,35 @@ impl Emu {
                             None => break,
                         };
 
-                        let result = value0 | value1;
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let result1:u64;
+                        let result2:u64;
 
-                        //println!("0x{:x} or 0x{:x} = 0x{:x}", value0, value1, result);
+                        match sz {
+                            8 => {
+                                result1 = (value0 & 0xff) | (value1 & 0xff);
+                                result2 = (value0 & 0xffffffffffffff00) + result1;
+                            }
+                            16 => {
+                                result1 = (value0 & 0xffff) | (value1 & 0xffff);
+                                result2 = (value0 & 0xffffffffffff0000) + result1;
+                            }
+                            32 => {
+                                result1 = (value0 & 0xffffffff) | (value1 & 0xffffffff);
+                                result2 = (value0 & 0xffffffff00000000) + result1;
+                            }
+                            64 => { 
+                                result1 = value0 | value1;
+                                result2 = result1;
+                            }
+                            _ => unreachable!(""),
+                        }
 
-                        self.flags.calc_flags(result, self.get_operand_sz(&ins, 0));
+                        self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
                         self.flags.f_of = false;
                         self.flags.f_cf = false;
 
-                        if !self.set_operand_value(&ins, 0, result) {
+                        if !self.set_operand_value(&ins, 0, result2) {
                             break;
                         }
                     }
@@ -3826,8 +3869,8 @@ impl Emu {
                     Mnemonic::Scasb => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
 
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
+                        let value0:u64 = match self.maps.read_byte(self.regs.rdi) {
+                            Some(value) => value.into(),
                             None => break,
                         };
 
@@ -5006,7 +5049,7 @@ impl Emu {
 
                             let val = match self.maps.read_dword(self.regs.get_esi()) {
                                 Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
+                                None => panic!("lodsd: memory read error"),
                             };
 
                             self.regs.set_eax(val as u64);
@@ -5020,7 +5063,7 @@ impl Emu {
 
                     Mnemonic::Lodsw => {
                         self.show_instruction(&self.colors.cyan, &ins);
-                        //TODO: crash if arrive to zero or max value
+                        //TODO: crash if rsi arrive to zero or max value
                         
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_word(self.regs.rsi) {
