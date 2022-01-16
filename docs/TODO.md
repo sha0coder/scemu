@@ -1,5 +1,6 @@
 # TODO
 
+- list breakpoints
 - clear breakpoint bug
 - md accept registers
 - md memory check the string filter
