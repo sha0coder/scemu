@@ -16,8 +16,8 @@ use clap::{Arg, App};
 
 fn main() {
     let mut cfg = Config::new();
-    let matches = App::new("SCEMU 32bits emulator for Shellcodes")
-                    .version("0.3.0")
+    let matches = App::new("SCEMU emulator for Shellcodes")
+                    .version("0.3.1")
                     .author("@sha0coder")
                     .arg(Arg::with_name("filename")
                         .short("f")
@@ -55,7 +55,7 @@ fn main() {
                     .arg(Arg::with_name("register")
                         .short("R")
                         .long("reg")
-                        .value_name("REGISTER")
+                        .value_name("REGISTER1,REGISTER2")
                         .help("trace a specific register in every step, value and content")
                         .takes_value(true))
                     .arg(Arg::with_name("console")
@@ -127,7 +127,11 @@ fn main() {
 
     if matches.is_present("register") {
         cfg.trace_reg = true;
-        cfg.reg_name = matches.value_of("register").expect("select the 32bit register example: eax").to_string();
+        let regs:String = matches.value_of("register").expect("select the register example: eax,ebx").to_string();
+        let a:Vec<&str> = regs.split(',').collect();
+        for x in a.iter() {
+            cfg.reg_names.push(x.to_string());
+        }
     }
 
     if matches.is_present("console") {

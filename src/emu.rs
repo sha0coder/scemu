@@ -536,8 +536,8 @@ impl Emu {
         let orig_path = std::env::current_dir().unwrap();
         std::env::set_current_dir(self.cfg.maps_folder.clone());
 
-        self.maps.create_map("m10000");
-        self.maps.create_map("m20000");
+        self.maps.create_map("m10000").load_at(0x10000);
+        self.maps.create_map("m20000").load_at(0x20000);
         self.maps.create_map("m520000").load_at(0x520000);
         self.maps.create_map("m53b000").load_at(0x53b000);
         self.maps.create_map("exe_pe").load_at(0x400000);
@@ -552,6 +552,7 @@ impl Emu {
         self.maps.create_map("ntdll_data").load_at(0x77102000);
         self.maps.create_map("kernel32_pe").load_at(0x76db0000);
         self.maps.create_map("kernel32_text").load_at(0x76db1000);
+        self.maps.create_map("kernel32_rdata").load_at(0x76e4c000);
         self.maps.create_map("kernel32_data").load_at(0x76eba000);
         self.maps.create_map("kernelbase_pe").load_at(0x7fefd010000);
         self.maps.create_map("kernelbase_text").load_at(0x7fefd011000);
@@ -599,14 +600,15 @@ impl Emu {
         self.maps.create_map("shlwapi_pe").load_at(0x7feff260000);
         self.maps.create_map("shlwapi_text").load_at(0x7feff261000);
 
-
+        /*
         let m10000 = self.maps.get_mem("m10000");
         m10000.set_base(0x10000);
         m10000.set_size(0x10000);
 
         let m20000 = self.maps.get_mem("m20000");
-        m20000.set_base(0x20000);
+        m20000.set_base(0x20000);zs
         m20000.set_size(0x10000);
+        */
 
 
         std::env::set_current_dir(orig_path);
@@ -2483,26 +2485,36 @@ impl Emu {
                 }
 
                 if self.cfg.trace_reg {
-                    match self.cfg.reg_name.as_str() {
-                        "rax" => self.regs.show_rax(&self.maps, self.pos),
-                        "rbx" => self.regs.show_rbx(&self.maps, self.pos),
-                        "rcx" => self.regs.show_rcx(&self.maps, self.pos),
-                        "rdx" => self.regs.show_rdx(&self.maps, self.pos),
-                        "rsi" => self.regs.show_rsi(&self.maps, self.pos),
-                        "rdi" => self.regs.show_rdi(&self.maps, self.pos),
-                        "rbp" => println!("\t{} rbp: 0x{:}", self.pos, self.regs.rbp),
-                        "rsp" => println!("\t{} rsp: 0x{:}", self.pos, self.regs.rsp),
-                        "rip" => println!("\t{} rip: 0x{:}", self.pos, self.regs.rip),
-                        "eax" => self.regs.show_eax(&self.maps, self.pos),
-                        "ebx" => self.regs.show_ebx(&self.maps, self.pos),
-                        "ecx" => self.regs.show_ecx(&self.maps, self.pos),
-                        "edx" => self.regs.show_edx(&self.maps, self.pos),
-                        "esi" => self.regs.show_esi(&self.maps, self.pos),
-                        "edi" => self.regs.show_edi(&self.maps, self.pos),
-                        "esp" => println!("\t{} esp: 0x{:}", self.pos, self.regs.get_esp() as u32),
-                        "ebp" => println!("\t{} ebp: 0x{:}", self.pos, self.regs.get_ebp() as u32),
-                        "eip" => println!("\t{} eip: 0x{:}", self.pos, self.regs.get_eip() as u32),
-                        _ => panic!("invalid register."),
+                    for reg in self.cfg.reg_names.iter() {
+                        match reg.as_str() {
+                            "rax" => self.regs.show_rax(&self.maps, self.pos),
+                            "rbx" => self.regs.show_rbx(&self.maps, self.pos),
+                            "rcx" => self.regs.show_rcx(&self.maps, self.pos),
+                            "rdx" => self.regs.show_rdx(&self.maps, self.pos),
+                            "rsi" => self.regs.show_rsi(&self.maps, self.pos),
+                            "rdi" => self.regs.show_rdi(&self.maps, self.pos),
+                            "rbp" => println!("\t{} rbp: 0x{:}", self.pos, self.regs.rbp),
+                            "rsp" => println!("\t{} rsp: 0x{:}", self.pos, self.regs.rsp),
+                            "rip" => println!("\t{} rip: 0x{:}", self.pos, self.regs.rip),
+                            "r8" => self.regs.show_r8(&self.maps, self.pos),
+                            "r9" => self.regs.show_r9(&self.maps, self.pos),
+                            "r10" => self.regs.show_r10(&self.maps, self.pos),
+                            "r11" => self.regs.show_r11(&self.maps, self.pos),
+                            "r12" => self.regs.show_r12(&self.maps, self.pos),
+                            "r13" => self.regs.show_r13(&self.maps, self.pos),
+                            "r14" => self.regs.show_r14(&self.maps, self.pos),
+                            "r15" => self.regs.show_r15(&self.maps, self.pos),
+                            "eax" => self.regs.show_eax(&self.maps, self.pos),
+                            "ebx" => self.regs.show_ebx(&self.maps, self.pos),
+                            "ecx" => self.regs.show_ecx(&self.maps, self.pos),
+                            "edx" => self.regs.show_edx(&self.maps, self.pos),
+                            "esi" => self.regs.show_esi(&self.maps, self.pos),
+                            "edi" => self.regs.show_edi(&self.maps, self.pos),
+                            "esp" => println!("\t{} esp: 0x{:}", self.pos, self.regs.get_esp() as u32),
+                            "ebp" => println!("\t{} ebp: 0x{:}", self.pos, self.regs.get_ebp() as u32),
+                            "eip" => println!("\t{} eip: 0x{:}", self.pos, self.regs.get_eip() as u32),
+                            _ => panic!("invalid register."),
+                        }
                     }
                 }
 
@@ -2592,6 +2604,8 @@ impl Emu {
                             None => break
                         };
 
+                        //println!("\tpushing -> 0x{:x}", value);
+
                         if self.cfg.is_64bits {
                             self.stack_push64(value);
                         } else {
@@ -2609,6 +2623,8 @@ impl Emu {
                         } else {
                             value = self.stack_pop32(true) as u64;
                         }
+
+                        //println!("\tpoping -> 0x{:x}", value);
 
                         if !self.set_operand_value(&ins, 0, value) {
                             break;
@@ -2845,7 +2861,7 @@ impl Emu {
 
                         let cf:u64;
                         if self.flags.f_cf {
-                            cf = 1
+                            cf = 1;
                         } else {
                             cf = 0;
                         }
@@ -4101,44 +4117,96 @@ impl Emu {
                     Mnemonic::Cmpsq => {
                         self.show_instruction(&self.colors.orange, &ins);
 
-                        let value0:u64;
-                        let value1:u64;
+                        let mut value0:u64;
+                        let mut value1:u64;
 
-                        if self.cfg.is_64bits {
-                            value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
-                            value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+                   
+                        if ins.has_rep_prefix() {
+                            loop {
+                                if self.cfg.is_64bits {
+                                    value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
+                                    value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.rsi -= 8;
+                                        self.regs.rdi -= 8;
+                                    } else {
+                                        self.regs.rsi += 8;
+                                        self.regs.rdi += 8;
+                                    }
+    
+                                } else { // 32bits
+                                    value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
+                                    value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.set_esi(self.regs.get_esi() - 8);
+                                        self.regs.set_edi(self.regs.get_edi() - 8);
+                                    } else {
+                                        self.regs.set_esi(self.regs.get_esi() + 8);
+                                        self.regs.set_edi(self.regs.get_edi() + 8);
+                                    }
+                                }
+    
+                                self.flags.sub64(value0, value1);
+    
+                                if !self.step {
+                                    if value0 > value1 {
+                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                        break;
+                                    } else if value0 < value1 {
+                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                        break;
+                                    } else {
+                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                    }
+                                }
 
-                            if self.flags.f_df {
-                                self.regs.rsi -= 1;
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rsi += 1;
-                                self.regs.rdi += 1;
+                                self.regs.rcx -= 1;
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }
                             }
 
-                        } else { // 32bits
-                            value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
-                            value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+                        } else { // not rep
 
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 1);
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 1);
-                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            if self.cfg.is_64bits {
+                                value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
+                                value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.rsi -= 8;
+                                    self.regs.rdi -= 8;
+                                } else {
+                                    self.regs.rsi += 8;
+                                    self.regs.rdi += 8;
+                                }
+
+                            } else { // 32bits
+                                value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
+                                value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.set_esi(self.regs.get_esi() - 8);
+                                    self.regs.set_edi(self.regs.get_edi() - 8);
+                                } else {
+                                    self.regs.set_esi(self.regs.get_esi() + 8);
+                                    self.regs.set_edi(self.regs.get_edi() + 8);
+                                }
                             }
-                        }
 
-                        self.flags.sub64(value0, value1);
+                            self.flags.sub64(value0, value1);
 
-                        if !self.step {
-                            if value0 > value1 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                            } else if value0 < value1 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            if !self.step {
+                                if value0 > value1 {
+                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                } else if value0 < value1 {
+                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                } else {
+                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                }
                             }
+
                         }
       
                     }
@@ -4146,43 +4214,94 @@ impl Emu {
                     Mnemonic::Cmpsd => {
                         self.show_instruction(&self.colors.orange, &ins);
 
-                        let value0:u32;
-                        let value1:u32;
+                        let mut value0:u32;
+                        let mut value1:u32;
 
-                        if self.cfg.is_64bits {
-                            value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
-                            value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+                        if ins.has_rep_prefix() {
+                            loop {
 
-                            if self.flags.f_df {
-                                self.regs.rsi -= 1;
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rsi += 1;
-                                self.regs.rdi += 1;
+                                if self.cfg.is_64bits {
+                                    value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
+                                    value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.rsi -= 4;
+                                        self.regs.rdi -= 4;
+                                    } else {
+                                        self.regs.rsi += 4;
+                                        self.regs.rdi += 4;
+                                    }
+    
+                                } else { // 32bits
+                                    value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
+                                    value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.set_esi(self.regs.get_esi() - 4);
+                                        self.regs.set_edi(self.regs.get_edi() - 4);
+                                    } else {
+                                        self.regs.set_esi(self.regs.get_esi() + 4);
+                                        self.regs.set_edi(self.regs.get_edi() + 4);
+                                    }
+                                }
+    
+                                self.flags.sub32(value0 as u64, value1 as u64);
+    
+                                if !self.step {
+                                    if value0 > value1 {
+                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                        break;
+                                    } else if value0 < value1 {
+                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                        break;
+                                    } else {
+                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                    }
+                                }
+
+                                self.regs.rcx -= 1;
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }
                             }
 
-                        } else { // 32bits
-                            value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
-                            value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+                        } else { // no rep
 
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 1);
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 1);
-                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            if self.cfg.is_64bits {
+                                value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
+                                value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.rsi -= 4;
+                                    self.regs.rdi -= 4;
+                                } else {
+                                    self.regs.rsi += 4;
+                                    self.regs.rdi += 4;
+                                }
+
+                            } else { // 32bits
+                                value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
+                                value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.set_esi(self.regs.get_esi() - 4);
+                                    self.regs.set_edi(self.regs.get_edi() - 4);
+                                } else {
+                                    self.regs.set_esi(self.regs.get_esi() + 4);
+                                    self.regs.set_edi(self.regs.get_edi() + 4);
+                                }
                             }
-                        }
 
-                        self.flags.sub32(value0 as u64, value1 as u64);
+                            self.flags.sub32(value0 as u64, value1 as u64);
 
-                        if !self.step {
-                            if value0 > value1 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                            } else if value0 < value1 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            if !self.step {
+                                if value0 > value1 {
+                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                } else if value0 < value1 {
+                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                } else {
+                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                }
                             }
                         }
       
@@ -4191,87 +4310,192 @@ impl Emu {
                     Mnemonic::Cmpsw => {
                         self.show_instruction(&self.colors.orange, &ins);
 
-                        let value0:u16;
-                        let value1:u16;
+                        let mut value0:u16;
+                        let mut value1:u16;
 
-                        if self.cfg.is_64bits {
-                            value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
-                            value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+                        if ins.has_rep_prefix() {
+                            loop {
+                                if self.cfg.is_64bits {
+                                    value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
+                                    value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.rsi -= 1;
+                                        self.regs.rdi -= 1;
+                                    } else {
+                                        self.regs.rsi += 1;
+                                        self.regs.rdi += 1;
+                                    }
+    
+                                } else { // 32bits
+                                    value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
+                                    value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.set_esi(self.regs.get_esi() - 2);
+                                        self.regs.set_edi(self.regs.get_edi() - 2);
+                                    } else {
+                                        self.regs.set_esi(self.regs.get_esi() + 2);
+                                        self.regs.set_edi(self.regs.get_edi() + 2);
+                                    }
+                                }
+    
+                                self.flags.sub16(value0 as u64, value1 as u64);
+    
+                                if !self.step {
+                                    if value0 > value1 {
+                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                        break;
+                                    } else if value0 < value1 {
+                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                        break;
+                                    } else {
+                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                    }
+                                }
 
-                            if self.flags.f_df {
-                                self.regs.rsi -= 1;
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rsi += 1;
-                                self.regs.rdi += 1;
+                                self.regs.rcx -= 1;
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }
                             }
 
-                        } else { // 32bits
-                            value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
-                            value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
 
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 1);
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 1);
-                                self.regs.set_edi(self.regs.get_edi() + 1);
+                        } else {  // no rep
+
+                            if self.cfg.is_64bits {
+                                value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
+                                value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.rsi -= 1;
+                                    self.regs.rdi -= 1;
+                                } else {
+                                    self.regs.rsi += 1;
+                                    self.regs.rdi += 1;
+                                }
+
+                            } else { // 32bits
+                                value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
+                                value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.set_esi(self.regs.get_esi() - 2);
+                                    self.regs.set_edi(self.regs.get_edi() - 2);
+                                } else {
+                                    self.regs.set_esi(self.regs.get_esi() + 2);
+                                    self.regs.set_edi(self.regs.get_edi() + 2);
+                                }
                             }
-                        }
 
-                        self.flags.sub16(value0 as u64, value1 as u64);
+                            self.flags.sub16(value0 as u64, value1 as u64);
 
-                        if !self.step {
-                            if value0 > value1 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                            } else if value0 < value1 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                            }
+                            if !self.step {
+                                if value0 > value1 {
+                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                } else if value0 < value1 {
+                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                } else {
+                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                }
+                            }   
                         }
                     }
 
                     Mnemonic::Cmpsb => {
                         self.show_instruction(&self.colors.orange, &ins);
 
-                        let value0:u8;
-                        let value1:u8;
+                        let mut value0:u8;
+                        let mut value1:u8;
 
-                        if self.cfg.is_64bits {
-                            value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
-                            value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
-
-                            if self.flags.f_df {
-                                self.regs.rsi -= 1;
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rsi += 1;
-                                self.regs.rdi += 1;
+                        if ins.has_rep_prefix() {
+                            
+                            loop {
+                                if self.cfg.is_64bits {
+                                    value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
+                                    value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.rsi -= 1;
+                                        self.regs.rdi -= 1;
+                                    } else {
+                                        self.regs.rsi += 1;
+                                        self.regs.rdi += 1;
+                                    }
+    
+                                } else { // 32bits
+                                    value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
+                                    value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+    
+                                    if self.flags.f_df {
+                                        self.regs.set_esi(self.regs.get_esi() - 1);
+                                        self.regs.set_edi(self.regs.get_edi() - 1);
+                                    } else {
+                                        self.regs.set_esi(self.regs.get_esi() + 1);
+                                        self.regs.set_edi(self.regs.get_edi() + 1);
+                                    }
+                                }
+    
+                                self.flags.sub8(value0 as u64, value1 as u64);
+    
+                                if !self.step {
+                                    if value0 > value1 {
+                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                        assert!(self.flags.f_zf == false);
+                                        break;
+                                    } else if value0 < value1 {
+                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                        assert!(self.flags.f_zf == false);
+                                        break;
+                                    } else {
+                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1); 
+                                        assert!(self.flags.f_zf == true);
+                                    }
+                                }
+                                
+                                self.regs.rcx -= 1;
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }
                             }
 
-                        } else { // 32bits
-                            value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
-                            value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+                        } else { // no rep
 
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 1);
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 1);
-                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            if self.cfg.is_64bits {
+                                value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
+                                value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.rsi -= 1;
+                                    self.regs.rdi -= 1;
+                                } else {
+                                    self.regs.rsi += 1;
+                                    self.regs.rdi += 1;
+                                }
+
+                            } else { // 32bits
+                                value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
+                                value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+
+                                if self.flags.f_df {
+                                    self.regs.set_esi(self.regs.get_esi() - 1);
+                                    self.regs.set_edi(self.regs.get_edi() - 1);
+                                } else {
+                                    self.regs.set_esi(self.regs.get_esi() + 1);
+                                    self.regs.set_edi(self.regs.get_edi() + 1);
+                                }
                             }
-                        }
 
-                        self.flags.sub8(value0 as u64, value1 as u64);
+                            self.flags.sub8(value0 as u64, value1 as u64);
 
-                        if !self.step {
-                            if value0 > value1 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                            } else if value0 < value1 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            if !self.step {
+                                if value0 > value1 {
+                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                } else if value0 < value1 {
+                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                } else {
+                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                }
                             }
                         }
                     }
