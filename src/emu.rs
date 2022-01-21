@@ -485,6 +485,15 @@ impl Emu {
 
     pub fn init_tests(&mut self) {
 
+        let mem = self.maps.create_map("test");
+        mem.set_base(0);
+        mem.set_size(1024);
+        mem.write_qword(0, 0x1122334455667788);
+        assert!(mem.read_qword(0) == 0x1122334455667788);
+        self.maps.free("test");
+
+
+
         // some tests
         assert!(get_bit!(0xffffff00u32, 0) == 0);
         assert!(get_bit!(0xffffffffu32, 5) == 1);
@@ -685,13 +694,15 @@ impl Emu {
     }
 
     pub fn stack_pop64(&mut self, pop_instruction:bool) -> u64 {
+        
         let stack = self.maps.get_mem("stack");
         if stack.inside(self.regs.rsp) {
+            println!("POP64");
             let value = stack.read_qword(self.regs.rsp);
             if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value.into()) {
                 println!("/!\\ poping a code address 0x{:x}", value);
             }
-            self.regs.rsp += 4;
+            self.regs.rsp += 8;
             return value;
         }
 
@@ -701,7 +712,7 @@ impl Emu {
         };
 
         let value = mem.read_qword(self.regs.rsp);
-        self.regs.rsp += 4;
+        self.regs.rsp += 8;
         value
     }
 
@@ -2426,6 +2437,13 @@ impl Emu {
         }
     }
 
+    pub fn show_instruction_pushpop(&self, color:&str, ins:&Instruction, value:u64) {
+        if !self.step {
+            println!("{}{} 0x{:x}: {} -> 0x{:x} {}", color, self.pos, ins.ip(), self.out, value, self.colors.nc);
+        }
+    }
+
+
     pub fn show_instruction_taken(&self, color:&str, ins:&Instruction) {
         if !self.step {
             println!("{}{} 0x{:x}: {} taken {}", color, self.pos, ins.ip(), self.out, self.colors.nc);
@@ -2630,14 +2648,14 @@ impl Emu {
                     }
 
                     Mnemonic::Push => {
-                        self.show_instruction(&self.colors.blue, &ins);
+                        
 
                         let value = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break
                         };
 
-                        //println!("\tpushing -> 0x{:x}", value);
+                        self.show_instruction_pushpop(&self.colors.blue, &ins, value);
 
                         if self.cfg.is_64bits {
                             self.stack_push64(value);
@@ -2647,7 +2665,7 @@ impl Emu {
                     }
 
                     Mnemonic::Pop => {
-                        self.show_instruction(&self.colors.blue, &ins);
+                        
 
                         let value:u64;
 
@@ -2657,7 +2675,7 @@ impl Emu {
                             value = self.stack_pop32(true) as u64;
                         }
 
-                        //println!("\tpoping -> 0x{:x}", value);
+                        self.show_instruction_pushpop(&self.colors.blue, &ins, value);
 
                         if !self.set_operand_value(&ins, 0, value) {
                             break;
@@ -4939,6 +4957,26 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Jrcxz => {
+                        if self.regs.rcx == 0 {
+                            self.show_instruction_taken(&self.colors.orange, &ins);
+                            let addr =  match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if self.cfg.is_64bits {
+                                self.set_rip(addr, true);
+                            } else {
+                                self.set_eip(addr, true);
+                            }
+                            break;
+
+                        } else {
+                            self.show_instruction_not_taken(&self.colors.orange, &ins);
+                        }
+                    }
+
                     Mnemonic::Int3 => {
                         self.show_instruction(&self.colors.red, &ins);
                         println!("/!\\ int 3 sigtrap!!!!");
@@ -6116,8 +6154,7 @@ impl Emu {
                         } else {
                             println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), self.out, self.colors.nc);
                         }
-                        self.exception();
-                        //unimplemented!("unimplemented instruction");
+                        unimplemented!("unimplemented instruction");
                     },
 
                 } // end mnemonics
