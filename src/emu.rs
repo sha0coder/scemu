@@ -1432,6 +1432,38 @@ impl Emu {
                 "r esp" => println!("\tesp: 0x{:x}", self.regs.get_esp() as u32),
                 "r ebp" => println!("\tebp: 0x{:x}", self.regs.get_ebp() as u32),
                 "r eip" => println!("\teip: 0x{:x}", self.regs.get_eip() as u32),
+                "r r8" => self.regs.show_r8(&self.maps, 0),
+                "r r9" => self.regs.show_r9(&self.maps, 0),
+                "r r10" => self.regs.show_r10(&self.maps, 0),
+                "r r11" => self.regs.show_r11(&self.maps, 0),
+                "r r12" => self.regs.show_r12(&self.maps, 0),
+                "r r13" => self.regs.show_r13(&self.maps, 0),
+                "r r14" => self.regs.show_r14(&self.maps, 0),
+                "r r15" => self.regs.show_r15(&self.maps, 0),
+                "r r8d" => self.regs.show_r8d(&self.maps, 0),
+                "r r9d" => self.regs.show_r9d(&self.maps, 0),
+                "r r10d" => self.regs.show_r10d(&self.maps, 0),
+                "r r11d" => self.regs.show_r11d(&self.maps, 0),
+                "r r12d" => self.regs.show_r12d(&self.maps, 0),
+                "r r13d" => self.regs.show_r13d(&self.maps, 0),
+                "r r14d" => self.regs.show_r14d(&self.maps, 0),
+                "r r15d" => self.regs.show_r15d(&self.maps, 0),
+                "r r8w" => self.regs.show_r8w(&self.maps, 0),
+                "r r9w" => self.regs.show_r9w(&self.maps, 0),
+                "r r10w" => self.regs.show_r10w(&self.maps, 0),
+                "r r11w" => self.regs.show_r11w(&self.maps, 0),
+                "r r12w" => self.regs.show_r12w(&self.maps, 0),
+                "r r13w" => self.regs.show_r13w(&self.maps, 0),
+                "r r14w" => self.regs.show_r14w(&self.maps, 0),
+                "r r15w" => self.regs.show_r15w(&self.maps, 0),
+                "r r8l" => self.regs.show_r8l(&self.maps, 0),
+                "r r9l" => self.regs.show_r9l(&self.maps, 0),
+                "r r10l" => self.regs.show_r10l(&self.maps, 0),
+                "r r11l" => self.regs.show_r11l(&self.maps, 0),
+                "r r12l" => self.regs.show_r12l(&self.maps, 0),
+                "r r13l" => self.regs.show_r13l(&self.maps, 0),
+                "r r14l" => self.regs.show_r14l(&self.maps, 0),
+                "r r15l" => self.regs.show_r15l(&self.maps, 0),
                 "r xmm0" => println!("\txmm0: 0x{:x}", self.regs.xmm0),
                 "r xmm1" => println!("\txmm1: 0x{:x}", self.regs.xmm1),
                 "r xmm2" => println!("\txmm2: 0x{:x}", self.regs.xmm2),
@@ -1485,6 +1517,9 @@ impl Emu {
                     }
 
                 },
+                "b" => {
+                    self.bp.show();
+                }
                 "ba" => {
                     con.print("address");
                     let addr = match con.cmd_hex64() {
@@ -1496,7 +1531,6 @@ impl Emu {
                     };
                     self.bp.set_bp(addr);
                 },
-
                 "bmr" => {
                     con.print("address");
                     let addr = match con.cmd_hex64() {
@@ -1508,7 +1542,6 @@ impl Emu {
                     };
                     self.bp.set_mem_read(addr);
                 },
-
                 "bmw" => {
                     con.print("address");
                     let addr = match con.cmd_hex64() {
@@ -1520,7 +1553,6 @@ impl Emu {
                     };
                     self.bp.set_mem_write(addr);
                 },
-
                 "bi" => {
                     con.print("instruction number");
                     let num = match con.cmd_hex64() {
@@ -1530,6 +1562,7 @@ impl Emu {
                             continue;
                         }
                     };
+                    self.bp.set_instruction(num);
                     self.exp = num;
                 },
                 "bc" => {
@@ -2766,6 +2799,7 @@ impl Emu {
                         self.show_instruction(&self.colors.green, &ins);
 
                         assert!(ins.op_count() == 2);
+                        assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
 
                         let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
@@ -2802,14 +2836,13 @@ impl Emu {
                             None => break,
                         };
 
-                        let res:u64;
-                        match self.get_operand_sz(&ins, 1) {
-                            64 => res = self.flags.add64(value0, value1),
-                            32 => res = self.flags.add32(value0, value1),
-                            16 => res = self.flags.add16(value0, value1),
-                            8  => res = self.flags.add8(value0, value1),
+                        let res:u64 = match self.get_operand_sz(&ins, 1) {
+                            64 => self.flags.add64(value0, value1),
+                            32 => self.flags.add32(value0, value1),
+                            16 => self.flags.add16(value0, value1),
+                            8  => self.flags.add8(value0, value1),
                             _  => unreachable!("weird size")
-                        }
+                        };
 
                         if !self.set_operand_value(&ins, 0, res) {
                             break;
@@ -4914,7 +4947,7 @@ impl Emu {
                     }
 
                     Mnemonic::Nop => {
-                        self.show_instruction(&self.colors.light_gray, &ins);
+                        self.show_instruction(&self.colors.light_purple, &ins);
                     }
 
                     Mnemonic::Mfence|Mnemonic::Lfence|Mnemonic::Sfence => {

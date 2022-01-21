@@ -37,11 +37,20 @@ Press `f` to show all the flags, and `fc` for clearing all the flags. Its possib
 
 ## Breakpoints
 
-Its only possible to set one breakpoint, but there are several types.
+Its only possible to set one breakpoint of each type, but there are several types.
 
 type `bc` to clear the breakpoing, `ba` to set a breakpoint on address and `bi` to set a breapoing on an emulation moment id.
 
 Its also possible to set a memory breakpoint on read `bmr` and write `bmw` 
+
+The command `b` list the breakponts:
+```
+=>b
+break on address: 0x3c00e4
+break on instruction: 0
+break on memory read: 0x0
+break on memory write: 0x0
+```
 
 ## Stack and Variables
 

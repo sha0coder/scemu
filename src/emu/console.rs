@@ -75,10 +75,12 @@ impl Console {
         println!("fz ..................... toggle flag zero");
         println!("fs ..................... toggle flag sign");
         println!("c ...................... continue");
+        println!("b ...................... breakpoint list");
         println!("ba ..................... breakpoint on address");
         println!("bi ..................... breakpoint on instruction number");
         println!("bmr .................... breakpoint on read memory");
         println!("bmw .................... breakpoint on write memory");
+        println!("bmx .................... breakpoint on execute memory");
         println!("bc ..................... clear breakpoint");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");

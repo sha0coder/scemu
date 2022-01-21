@@ -128,10 +128,7 @@ fn main() {
     if matches.is_present("register") {
         cfg.trace_reg = true;
         let regs:String = matches.value_of("register").expect("select the register example: eax,ebx").to_string();
-        let a:Vec<&str> = regs.split(',').collect();
-        for x in a.iter() {
-            cfg.reg_names.push(x.to_string());
-        }
+        cfg.reg_names = regs.split(',').into_iter().map(|x| x.to_string()).collect();
     }
 
     if matches.is_present("console") {
