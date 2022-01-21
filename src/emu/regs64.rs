@@ -290,7 +290,9 @@ impl Regs64 {
         println!("  xmm5: {}", self.xmm5);
         println!("  xmm6: {}", self.xmm6);
         println!("  xmm7: {}", self.xmm7);
-    }
+    }   
+
+    // get 16 bits
 
     pub fn get_ax(&self) -> u64 {
         get_reg16!(self.rax);
@@ -328,6 +330,42 @@ impl Regs64 {
         get_reg16!(self.rip);
     }
 
+    pub fn get_r8w(&self) -> u64 {
+        get_reg16!(self.r8);
+    }
+
+    pub fn get_r9w(&self) -> u64 {
+        get_reg16!(self.r9);
+    }
+
+    pub fn get_r10w(&self) -> u64 {
+        get_reg16!(self.r10);
+    }
+
+    pub fn get_r11w(&self) -> u64 {
+        get_reg16!(self.r11);
+    }
+
+    pub fn get_r12w(&self) -> u64 {
+        get_reg16!(self.r12);
+    }
+
+    pub fn get_r13w(&self) -> u64 {
+        get_reg16!(self.r13);
+    }
+
+    pub fn get_r14w(&self) -> u64 {
+        get_reg16!(self.r14);
+    }
+
+    pub fn get_r15w(&self) -> u64 {
+        get_reg16!(self.r15);
+    }
+
+
+
+    // get 8bits
+
     pub fn get_ah(&self) -> u64 {
         get_reg8h!(self.rax);
     }
@@ -359,6 +397,72 @@ impl Regs64 {
     pub fn get_dl(&self) -> u64 {
         get_reg8l!(self.rdx);
     }
+
+    pub fn get_r8l(&self) -> u64 {
+        get_reg8l!(self.r8);
+    }
+
+    pub fn get_r9l(&self) -> u64 {
+        get_reg8l!(self.r9);
+    }
+
+    pub fn get_r10l(&self) -> u64 {
+        get_reg8l!(self.r10);
+    }
+
+    pub fn get_r11l(&self) -> u64 {
+        get_reg8l!(self.r11);
+    }
+
+    pub fn get_r12l(&self) -> u64 {
+        get_reg8l!(self.r12);
+    }
+
+    pub fn get_r13l(&self) -> u64 {
+        get_reg8l!(self.r13);
+    }
+
+    pub fn get_r14l(&self) -> u64 {
+        get_reg8l!(self.r14);
+    }
+
+    pub fn get_r15l(&self) -> u64 {
+        get_reg8l!(self.r15);
+    }
+
+    pub fn get_r8h(&self) -> u64 {
+        get_reg8h!(self.r8);
+    }
+
+    pub fn get_r9h(&self) -> u64 {
+        get_reg8h!(self.r9);
+    }
+
+    pub fn get_r10h(&self) -> u64 {
+        get_reg8h!(self.r10);
+    }
+
+    pub fn get_r11h(&self) -> u64 {
+        get_reg8h!(self.r11);
+    }
+
+    pub fn get_r12h(&self) -> u64 {
+        get_reg8h!(self.r12);
+    }
+
+    pub fn get_r13h(&self) -> u64 {
+        get_reg8h!(self.r13);
+    }
+
+    pub fn get_r14h(&self) -> u64 {
+        get_reg8h!(self.r14);
+    }
+
+    pub fn get_r15h(&self) -> u64 {
+        get_reg8h!(self.r15);
+    }
+
+    // get 32bits
 
     pub fn get_eax(&self) -> u64 {
         get_reg32!(self.rax);
@@ -396,6 +500,40 @@ impl Regs64 {
         get_reg32!(self.rip);
     }
 
+    pub fn get_r8d(&self) -> u64 {
+        get_reg32!(self.r8);
+    }
+
+    pub fn get_r9d(&self) -> u64 {
+        get_reg32!(self.r9);
+    }
+
+    pub fn get_r10d(&self) -> u64 {
+        get_reg32!(self.r10);
+    }
+
+    pub fn get_r11d(&self) -> u64 {
+        get_reg32!(self.r11);
+    }
+
+    pub fn get_r12d(&self) -> u64 {
+        get_reg32!(self.r12);
+    }
+
+    pub fn get_r13d(&self) -> u64 {
+        get_reg32!(self.r13);
+    }
+
+    pub fn get_r14d(&self) -> u64 {
+        get_reg32!(self.r14);
+    }
+
+    pub fn get_r15d(&self) -> u64 {
+        get_reg32!(self.r15);
+    }
+
+    // set 16bits
+
     pub fn set_ax(&mut self, val:u64) {
         set_reg16!(self.rax, val);
     }
@@ -431,6 +569,40 @@ impl Regs64 {
     pub fn set_ip(&mut self, val:u64) {
         set_reg16!(self.rip, val);
     }
+
+    pub fn set_r8w(&mut self, val:u64) {
+        set_reg16!(self.r8, val);
+    }
+
+    pub fn set_r9w(&mut self, val:u64) {
+        set_reg16!(self.r9, val);
+    }
+
+    pub fn set_r10w(&mut self, val:u64) {
+        set_reg16!(self.r10, val);
+    }
+
+    pub fn set_r11w(&mut self, val:u64) {
+        set_reg16!(self.r11, val);
+    }
+
+    pub fn set_r12w(&mut self, val:u64) {
+        set_reg16!(self.r12, val);
+    }
+
+    pub fn set_r13w(&mut self, val:u64) {
+        set_reg16!(self.r13, val);
+    }
+
+    pub fn set_r14w(&mut self, val:u64) {
+        set_reg16!(self.r14, val);
+    }
+
+    pub fn set_r15w(&mut self, val:u64) {
+        set_reg16!(self.r15, val);
+    }
+
+    // set 32bits
 
     pub fn set_eax(&mut self, val:u64) {
         set_reg32!(self.rax, val);
@@ -468,6 +640,41 @@ impl Regs64 {
         set_reg32!(self.rip, val);
     }
 
+    pub fn set_r8d(&mut self, val:u64) {
+        set_reg32!(self.r8, val);
+    }
+
+    pub fn set_r9d(&mut self, val:u64) {
+        set_reg32!(self.r9, val);
+    }
+
+    pub fn set_r10d(&mut self, val:u64) {
+        set_reg32!(self.r10, val);
+    }
+
+    pub fn set_r11d(&mut self, val:u64) {
+        set_reg32!(self.r11, val);
+    }
+
+    pub fn set_r12d(&mut self, val:u64) {
+        set_reg32!(self.r12, val);
+    }
+
+    pub fn set_r13d(&mut self, val:u64) {
+        set_reg32!(self.r13, val);
+    }
+
+    pub fn set_r14d(&mut self, val:u64) {
+        set_reg32!(self.r14, val);
+    }
+
+    pub fn set_r15d(&mut self, val:u64) {
+        set_reg32!(self.r15, val);
+    }
+
+
+    // set 8bits
+
     pub fn set_ah(&mut self, val:u64) {
         set_reg8h!(self.rax, val);
     }
@@ -499,6 +706,72 @@ impl Regs64 {
     pub fn set_dl(&mut self, val:u64) {
         set_reg8l!(self.rdx, val);
     }
+
+    pub fn set_r8l(&mut self, val:u64) {
+        set_reg8l!(self.r8, val);
+    }
+
+    pub fn set_r9l(&mut self, val:u64) {
+        set_reg8l!(self.r9, val);
+    }
+
+    pub fn set_r10l(&mut self, val:u64) {
+        set_reg8l!(self.r10, val);
+    }
+
+    pub fn set_r11l(&mut self, val:u64) {
+        set_reg8l!(self.r11, val);
+    }
+
+    pub fn set_r12l(&mut self, val:u64) {
+        set_reg8l!(self.r12, val);
+    }
+
+    pub fn set_r13l(&mut self, val:u64) {
+        set_reg8l!(self.r13, val);
+    }
+
+    pub fn set_r14l(&mut self, val:u64) {
+        set_reg8l!(self.r14, val);
+    }
+
+    pub fn set_r15l(&mut self, val:u64) {
+        set_reg8l!(self.r15, val);
+    }
+
+    pub fn set_r8h(&mut self, val:u64) {
+        set_reg8h!(self.r8, val);
+    }
+
+    pub fn set_r9h(&mut self, val:u64) {
+        set_reg8h!(self.r9, val);
+    }
+
+    pub fn set_r10h(&mut self, val:u64) {
+        set_reg8h!(self.r10, val);
+    }
+
+    pub fn set_r11h(&mut self, val:u64) {
+        set_reg8h!(self.r11, val);
+    }
+
+    pub fn set_r12h(&mut self, val:u64) {
+        set_reg8h!(self.r12, val);
+    }
+
+    pub fn set_r13h(&mut self, val:u64) {
+        set_reg8h!(self.r13, val);
+    }
+
+    pub fn set_r14h(&mut self, val:u64) {
+        set_reg8h!(self.r14, val);
+    }
+
+    pub fn set_r15h(&mut self, val:u64) {
+        set_reg8h!(self.r15, val);
+    }
+
+    // xmm 
 
     pub fn is_xmm(&self, reg:Register) -> bool {
         let result = match reg {
@@ -544,8 +817,11 @@ impl Regs64 {
         };
     }
 
+
+
     pub fn get_reg(&self, reg:Register) -> u64 {
         let value = match reg {
+            // 64bits
             Register::RAX => self.rax,
             Register::RBX => self.rbx,
             Register::RCX => self.rcx,
@@ -563,6 +839,7 @@ impl Regs64 {
             Register::R13 => self.r13,
             Register::R14 => self.r14,
             Register::R15 => self.r15,
+            // 32bits
             Register::EAX => self.get_eax(),
             Register::EBX => self.get_ebx(),
             Register::ECX => self.get_ecx(),
@@ -572,12 +849,32 @@ impl Regs64 {
             Register::ESP => self.get_esp(),
             Register::EBP => self.get_ebp(),
             Register::EIP => self.get_eip(),
+            Register::R8D => self.get_r8d(),
+            Register::R9D => self.get_r9d(),
+            Register::R10D => self.get_r10d(),
+            Register::R11D => self.get_r11d(),
+            Register::R12D => self.get_r12d(),
+            Register::R13D => self.get_r13d(),
+            Register::R14D => self.get_r14d(),
+            Register::R15D => self.get_r15d(),
+            // 16bits
             Register::AX => self.get_ax(),
             Register::BX => self.get_bx(),
             Register::CX => self.get_cx(),
             Register::DX => self.get_dx(),
             Register::SI => self.get_si(),
             Register::DI => self.get_di(),
+            Register::BP => self.get_bp(),
+            Register::SP => self.get_sp(),
+            Register::R8W => self.get_r8w(),
+            Register::R9W => self.get_r9w(),
+            Register::R10W => self.get_r10w(),
+            Register::R11W => self.get_r11w(),
+            Register::R12W => self.get_r12w(),
+            Register::R13W => self.get_r13w(),
+            Register::R14W => self.get_r14w(),
+            Register::R15W => self.get_r15w(),
+            // 8bits
             Register::AH => self.get_ah(),
             Register::AL => self.get_al(),
             Register::BH => self.get_bh(),
@@ -586,11 +883,18 @@ impl Regs64 {
             Register::CL => self.get_cl(),
             Register::DH => self.get_dh(),
             Register::DL => self.get_dl(),
+            Register::R8L => self.get_r8l(),
+            Register::R9L => self.get_r9l(),
+            Register::R10L => self.get_r10l(),
+            Register::R11L => self.get_r11l(),
+            Register::R12L => self.get_r12l(),
+            Register::R13L => self.get_r13l(),
+            Register::R14L => self.get_r14l(),
+            Register::R15L => self.get_r15l(),
+            // segmets
             Register::DS => 0,
             Register::CS => 0,
             Register::SS => 0,
-            Register::SP => 0, 
-            Register::BP => 0,
             Register::ES => 0,
             Register::FS => 0,
             Register::GS => 0,
@@ -602,6 +906,7 @@ impl Regs64 {
 
     pub fn set_reg(&mut self, reg:Register, value:u64) {
         match reg {
+            // 64bits
             Register::RAX => self.rax = value,
             Register::RBX => self.rbx = value,
             Register::RCX => self.rcx = value,
@@ -619,6 +924,7 @@ impl Regs64 {
             Register::R13 => self.r13 = value,
             Register::R14 => self.r14 = value,
             Register::R15 => self.r15 = value,
+            // 32bits
             Register::EAX => self.set_eax(value),
             Register::EBX => self.set_ebx(value),
             Register::ECX => self.set_ecx(value),
@@ -628,12 +934,32 @@ impl Regs64 {
             Register::ESP => self.set_esp(value),
             Register::EBP => self.set_ebp(value),
             Register::EIP => self.set_eip(value),
+            Register::R8D => self.set_r8d(value),
+            Register::R9D => self.set_r9d(value),
+            Register::R10D => self.set_r10d(value),
+            Register::R11D => self.set_r11d(value),
+            Register::R12D => self.set_r12d(value),
+            Register::R13D => self.set_r13d(value),
+            Register::R14D => self.set_r14d(value),
+            Register::R15D => self.set_r15d(value),
+            // 16bits
             Register::AX => self.set_ax(value),
             Register::BX => self.set_bx(value),
             Register::CX => self.set_cx(value),
             Register::DX => self.set_dx(value),
             Register::SI => self.set_si(value),
             Register::DI => self.set_di(value),
+            Register::SP => self.set_sp(value),
+            Register::BP => self.set_bp(value),
+            Register::R8W => self.set_r8w(value),
+            Register::R9W => self.set_r9w(value),
+            Register::R10W => self.set_r10w(value),
+            Register::R11W => self.set_r11w(value),
+            Register::R12W => self.set_r12w(value),
+            Register::R13W => self.set_r13w(value),
+            Register::R14W => self.set_r14w(value),
+            Register::R15W => self.set_r15w(value),
+            // 8bits
             Register::AH => self.set_ah(value),
             Register::AL => self.set_al(value),
             Register::BH => self.set_bh(value),
@@ -642,9 +968,16 @@ impl Regs64 {
             Register::CL => self.set_cl(value),
             Register::DH => self.set_dh(value),
             Register::DL => self.set_dl(value),
-            Register::SP => { },
+            Register::R8L => self.set_r8l(value),
+            Register::R9L => self.set_r9l(value),
+            Register::R10L => self.set_r10l(value),
+            Register::R11L => self.set_r11l(value),
+            Register::R12L => self.set_r12l(value),
+            Register::R13L => self.set_r13l(value),
+            Register::R14L => self.set_r14l(value),
+            Register::R15L => self.set_r15l(value),
+            // segments
             Register::SS => { },
-            Register::BP => { },
             Register::ES => { },
             Register::FS => { },
             Register::GS => { },
@@ -680,12 +1013,30 @@ impl Regs64 {
             Register::ESP => 32,
             Register::EBP => 32,
             Register::EIP => 32,
+            Register::R8D => 32,
+            Register::R9D => 32,
+            Register::R10D => 32,
+            Register::R11D => 32,
+            Register::R12D => 32,
+            Register::R13D => 32,
+            Register::R14D => 32,
+            Register::R15D => 32,
             Register::AX => 16,
             Register::BX => 16,
             Register::CX => 16,
             Register::DX => 16,
+            Register::BP => 16,
+            Register::SP => 16,
             Register::SI => 16,
             Register::DI => 16,
+            Register::R8W => 16,
+            Register::R9W => 16,
+            Register::R10W => 16,
+            Register::R11W => 16,
+            Register::R12W => 16,
+            Register::R13W => 16,
+            Register::R14W => 16,
+            Register::R15W => 16,
             Register::AH => 8,
             Register::AL => 8,
             Register::BH => 8,
@@ -694,6 +1045,14 @@ impl Regs64 {
             Register::CL => 8,
             Register::DH => 8,
             Register::DL => 8,
+            Register::R8L => 8,
+            Register::R9L => 8,
+            Register::R10L => 8,
+            Register::R11L => 8,
+            Register::R12L => 8,
+            Register::R13L => 8,
+            Register::R14L => 8,
+            Register::R15L => 8,
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
@@ -702,6 +1061,7 @@ impl Regs64 {
 
     pub fn get_by_name(&self, reg_name:&str) -> u64 {
         match reg_name {
+            // 64bits
             "rax" => return self.rax,
             "rbx" => return self.rbx,
             "rcx" => return self.rcx,
@@ -719,6 +1079,7 @@ impl Regs64 {
             "r13" => return self.r13,
             "r14" => return self.r14,
             "r15" => return self.r15,
+            // 32bits
             "eax" => return self.get_eax(),
             "ebx" => return self.get_ebx(),
             "ecx" => return self.get_ecx(),
@@ -728,12 +1089,32 @@ impl Regs64 {
             "ebp" => return self.get_ebp(),
             "esp" => return self.get_esp(),
             "eip" => return self.get_eip(),
+            "r8d" => return self.get_r8d(),
+            "r9d" => return self.get_r9d(),
+            "r10d" => return self.get_r10d(),
+            "r11d" => return self.get_r11d(),
+            "r12d" => return self.get_r12d(),
+            "r13d" => return self.get_r13d(),
+            "r14d" => return self.get_r14d(),
+            "r15d" => return self.get_r15d(),
+            // 16bits
             "ax" => return self.get_ax(),
             "bx" => return self.get_bx(),
             "cx" => return self.get_cx(),
             "dx" => return self.get_dx(),
             "si" => return self.get_si(),
             "di" => return self.get_di(),
+            "bp" => return self.get_bp(),
+            "sp" => return self.get_sp(),
+            "r8w" => return self.get_r8w(),
+            "r9w" => return self.get_r9w(),
+            "r10w" => return self.get_r10w(),
+            "r11w" => return self.get_r11w(),
+            "r12w" => return self.get_r12w(),
+            "r13w" => return self.get_r13w(),
+            "r14w" => return self.get_r14w(),
+            "r15w" => return self.get_r15w(),
+            // 8bits
             "ah" => return self.get_ah(),
             "al" => return self.get_al(),
             "bh" => return self.get_bh(),
@@ -742,12 +1123,21 @@ impl Regs64 {
             "cl" => return self.get_cl(),
             "dh" => return self.get_dh(),
             "dl" => return self.get_dl(),
-            &_ => panic!("weird register name parsed {}", reg_name),
+            "r8l" => return self.get_r8l(),
+            "r9l" => return self.get_r9l(),
+            "r10l" => return self.get_r10l(),
+            "r11l" => return self.get_r11l(),
+            "r12l" => return self.get_r12l(),
+            "r13l" => return self.get_r13l(),
+            "r14l" => return self.get_r14l(),
+            "r15l" => return self.get_r15l(),
+            &_ => unimplemented!("weird register name parsed {}", reg_name),
         }
     }
 
     pub fn set_by_name(&mut self, reg_name:&str, value:u64) {
         match reg_name {
+            // 64bits
             "rax" => self.rax = value,
             "rbx" => self.rbx = value,
             "rcx" => self.rcx = value,
@@ -765,6 +1155,7 @@ impl Regs64 {
             "r13" => self.r13 = value,
             "r14" => self.r14 = value,
             "r15" => self.r15 = value,
+            // 32bits
             "eax" => self.set_eax(value),
             "ebx" => self.set_ebx(value),
             "ecx" => self.set_ecx(value),
@@ -774,12 +1165,32 @@ impl Regs64 {
             "ebp" => self.set_ebp(value),
             "esp" => self.set_esp(value),
             "eip" => self.set_eip(value),
+            "r8d" => self.set_r8d(value),
+            "r9d" => self.set_r9d(value),
+            "r10d" => self.set_r10d(value),
+            "r11d" => self.set_r11d(value),
+            "r12d" => self.set_r12d(value),
+            "r13d" => self.set_r13d(value),
+            "r14d" => self.set_r14d(value),
+            "r15d" => self.set_r15d(value),
+            // 16bits
             "ax" => self.set_ax(value),
             "bx" => self.set_bx(value),
             "cx" => self.set_cx(value),
             "dx" => self.set_dx(value),
             "di" => self.set_di(value),
             "si" => self.set_si(value),
+            "bp" => self.set_bp(value),
+            "sp" => self.set_sp(value),
+            "r8w" => self.set_r8w(value),
+            "r9w" => self.set_r9w(value),
+            "r10w" => self.set_r10w(value),
+            "r11w" => self.set_r11w(value),
+            "r12w" => self.set_r12w(value),
+            "r13w" => self.set_r13w(value),
+            "r14w" => self.set_r14w(value),
+            "r15w" => self.set_r15w(value),
+            // 8bits
             "ah" => self.set_ah(value),
             "al" => self.set_al(value),
             "bh" => self.set_bh(value),
@@ -788,6 +1199,14 @@ impl Regs64 {
             "cl" => self.set_cl(value),
             "dh" => self.set_dh(value),
             "dl" => self.set_dl(value),
+            "r8l" => self.set_r8l(value),
+            "r9l" => self.set_r9l(value),
+            "r10l" => self.set_r10l(value),
+            "r11l" => self.set_r11l(value),
+            "r12l" => self.set_r12l(value),
+            "r13l" => self.set_r13l(value),
+            "r14l" => self.set_r14l(value),
+            "r15l" => self.set_r15l(value),
             &_ => panic!("weird register name parsed {}", reg_name),
         }
     }
@@ -957,10 +1376,109 @@ impl Regs64 {
         self.show_reg64(maps, "r15", self.r15, pos);
     }
 
+    pub fn show_r8d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r8d", self.get_r8d(), pos);
+    }
+
+    pub fn show_r9d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r9d", self.get_r9d(), pos);
+    }
+
+    pub fn show_r10d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r10d", self.get_r10d(), pos);
+    }
+
+    pub fn show_r11d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r11d", self.get_r11d(), pos);
+    }
+
+    pub fn show_r12d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r12d", self.get_r12d(), pos);
+    }
+
+    pub fn show_r13d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r13d", self.get_r13d(), pos);
+    }
+
+    pub fn show_r14d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r14d", self.get_r14d(), pos);
+    }
+
+    pub fn show_r15d(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r15d", self.get_r15d(), pos);
+    }
+
+    pub fn show_r8w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r8w", self.get_r8w(), pos);
+    }
+
+    pub fn show_r9w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r9w", self.get_r9w(), pos);
+    }
+
+    pub fn show_r10w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r10w", self.get_r10w(), pos);
+    }
+
+    pub fn show_r11w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r11w", self.get_r11w(), pos);
+    }
+
+    pub fn show_r12w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r12w", self.get_r12w(), pos);
+    }
+
+    pub fn show_r13w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r13w", self.get_r13w(), pos);
+    }
+
+    pub fn show_r14w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r14w", self.get_r14w(), pos);
+    }
+
+    pub fn show_r15w(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r15w", self.get_r15w(), pos);
+    }
+
+    pub fn show_r8l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r8l", self.get_r8l(), pos);
+    }
+
+    pub fn show_r9l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r9l", self.get_r9l(), pos);
+    }
+
+    pub fn show_r10l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r10l", self.get_r10l(), pos);
+    }
+
+    pub fn show_r11l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r11l", self.get_r11l(), pos);
+    }
+
+    pub fn show_r12l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r12l", self.get_r12l(), pos);
+    }
+
+    pub fn show_r13l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r13l", self.get_r13l(), pos);
+    }
+
+    pub fn show_r14l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r14l", self.get_r14l(), pos);
+    }
+
+    pub fn show_r15l(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "r15l", self.get_r15l(), pos);
+    }
+
 
     pub fn is_reg(&self, reg:&str) -> bool {
         match reg {
-            "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"r8"|"r9"|"r10"|"r11"|"r12"|"eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"ax"|"bx"|"cx"|"dx"|"si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh" => true,
+            "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"r8"|"r9"|"r10"|"r11"|"r12"|
+            "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"r8d"|"r9d"|"r10d"|"r11d"|"r12d"|
+            "ax"|"bx"|"cx"|"dx"|"bp"|"sp"|"r8w"|"r9w"|"r10w"|"r11w"|"r12w"|
+            "si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh"|"r8l"|"r9l"|"r10l"|"r11l"|"r12l" => true,
             &_ => false,
         }
     }
