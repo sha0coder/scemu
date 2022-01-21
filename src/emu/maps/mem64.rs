@@ -128,7 +128,6 @@ impl Mem64 {
 
     pub fn write_qword(&mut self, addr:u64, value:u64) {
         let idx = (addr - self.base_addr) as usize;
-        
         for i in 0..8 {
             self.mem[idx+i] = ((value & (0xff<<(i*8))) >>(i*8)) as u8;
         }

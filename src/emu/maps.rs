@@ -599,6 +599,10 @@ impl Maps {
         }
     }
 
+    pub fn free(&mut self, name:&str) {
+        self.maps.remove(name);
+    }
+
     pub fn alloc(&self, sz:u64) -> Option<u64> {
         // super simple memory allocator
 
