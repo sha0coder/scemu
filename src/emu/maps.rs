@@ -144,7 +144,11 @@ impl Maps {
     }
 
     pub fn get_mem(&mut self, name:&str) -> &mut Mem64 {
-        return self.maps.get_mut(&name.to_string()).expect("incorrect memory map name");
+        let mem = self.maps.get_mut(&name.to_string()).or_else(|| {
+            panic!("incorrect memory map name {}", name);
+        }).unwrap();
+
+        return mem;
     }
 
     pub fn get_mem_by_addr(&mut self, addr:u64) -> Option<&mut Mem64> {

@@ -13,7 +13,8 @@ pub mod regs64;
 mod console;
 pub mod colors;
 pub mod constants;
-mod winapi;
+mod winapi32;
+mod winapi64;
 mod fpu;
 pub mod context32;
 pub mod syscall32;
@@ -641,6 +642,11 @@ impl Emu {
     }
 
     pub fn stack_push32(&mut self, value:u32) {
+        if self.cfg.stack_trace {
+            println!("--- stack push32 ---");
+            self.maps.dump_dwords(self.regs.get_esp(), 5);
+        }
+
         self.regs.set_esp(self.regs.get_esp() - 4);
         let stack = self.maps.get_mem("stack");
         if stack.inside(self.regs.get_esp()) {
@@ -657,6 +663,12 @@ impl Emu {
     }
 
     pub fn stack_push64(&mut self, value:u64) {
+        if self.cfg.stack_trace { 
+            println!("--- stack push64  ---");
+            self.maps.dump_qwords(self.regs.rsp, 5);
+        }
+
+
         self.regs.rsp -= 8;
         let stack = self.maps.get_mem("stack");
         if stack.inside(self.regs.rsp) {
@@ -673,6 +685,11 @@ impl Emu {
     }
 
     pub fn stack_pop32(&mut self, pop_instruction:bool) -> u32 {
+        if self.cfg.stack_trace {   
+            println!("--- stack pop32 ---");
+            self.maps.dump_dwords(self.regs.get_esp(), 5);
+        }
+        
         let stack = self.maps.get_mem("stack");
         if stack.inside(self.regs.get_esp()) {
             let value = stack.read_dword(self.regs.get_esp());
@@ -694,10 +711,13 @@ impl Emu {
     }
 
     pub fn stack_pop64(&mut self, pop_instruction:bool) -> u64 {
-        
+        if self.cfg.stack_trace {
+            println!("--- stack pop64 ---");
+            self.maps.dump_qwords(self.regs.rsp, 5);
+        }
+
         let stack = self.maps.get_mem("stack");
         if stack.inside(self.regs.rsp) {
-            println!("POP64");
             let value = stack.read_qword(self.regs.rsp);
             if self.cfg.verbose >= 1 && pop_instruction && self.maps.get_mem("code").inside(value.into()) {
                 println!("/!\\ poping a code address 0x{:x}", value);
@@ -966,7 +986,6 @@ impl Emu {
     }
 
     pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
-
         let name = match self.maps.get_addr_name(addr) {
             Some(n) => n,
             None => {
@@ -983,7 +1002,9 @@ impl Emu {
                 println!("/!\\ changing EIP to {} ", name);
             }
             let retaddr = self.stack_pop64(false);
-            todo!("64bits gatway");
+            winapi64::gateway(addr, name, self);
+
+            self.regs.rip = retaddr;
             //self.regs.rax = retaddr;
         }
 
@@ -1009,7 +1030,7 @@ impl Emu {
 
             let retaddr = self.stack_pop32(false);
 
-            winapi::gateway(to32!(addr), name, self);
+            winapi32::gateway(to32!(addr), name, self);
 
             self.regs.set_eip(retaddr.into());
         }
@@ -2737,24 +2758,39 @@ impl Emu {
 
                     Mnemonic::Ret => {
                         self.show_instruction(&self.colors.yellow, &ins);
+                        let ret_addr:u64;
 
-                        let ret_addr = self.stack_pop32(false) as u64; // return address
+                        if self.cfg.is_64bits {
+                            ret_addr = self.stack_pop64(false); // return address
+                        } else {
+                            ret_addr = self.stack_pop32(false) as u64; // return address
+                        }
+                        
 
                         if ins.op_count() > 0 {
                             let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
                             // apply stack compensation of ret operand
 
-                            if arg % 4 != 0 {
-                                panic!("weird ret argument!");
-                            }
+                            if self.cfg.is_64bits {
 
-                            arg /= 4;
+                                if arg % 8 != 0 {
+                                    panic!("weird ret argument!");
+                                }
+    
+                                arg /= 8;
 
-                            if self.cfg.is_64bits { 
                                 for _ in 0..arg {
                                     self.stack_pop64(false);
                                 }
+
                             } else {
+
+                                if arg % 4 != 0 {
+                                    panic!("weird ret argument!");
+                                }
+    
+                                arg /= 4;
+
                                 for _ in 0..arg {
                                     self.stack_pop32(false);
                                 }

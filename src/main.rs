@@ -109,6 +109,11 @@ fn main() {
                         .help("set base address for code")
                         .takes_value(true)
                         .value_name("ADDRESS"))
+                    .arg(Arg::with_name("stack_trace")
+                        .short("p")
+                        .long("stack")
+                        .help("trace stack on push/pop")
+                        .takes_value(false))
                     .get_matches();
 
 
@@ -180,6 +185,9 @@ fn main() {
             eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
             std::process::exit(1);
         }
+    }
+    if matches.is_present("stack_trace") {
+        cfg.stack_trace = true;
     }
 
     let mut emu = Emu::new();
