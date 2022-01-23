@@ -1,19 +1,19 @@
 use crate::emu;
-use crate::emu::winapi::helper;
+use crate::emu::winapi32::helper;
 use crate::emu::context32::Context32;
 use crate::emu::structures;
 use crate::emu::constants;
 
 
-pub fn gateway(addr:u32, emu:&mut emu::Emu) {
+pub fn gateway(addr:u64, emu:&mut emu::Emu) {
     match addr {
-        0x775b52d8 => NtAllocateVirtualMemory(emu),
+        /*0x775b52d8 => NtAllocateVirtualMemory(emu),
         0x775b5a18 => NtGetContextThread(emu),
         0x7757f774 => RtlVectoredExceptionHandler(emu),
         0x775d22b8 => LdrLoadDll(emu),
         0x775b6258 => NtQueryVirtualMemory(emu),
         0x775d531f => stricmp(emu),
-        0x7759f611 => RtlExitUserThread(emu),
+        0x7759f611 => RtlExitUserThread(emu),*/
         _ => panic!("calling unimplemented ntdll API 0x{:x}", addr),
     }
 }

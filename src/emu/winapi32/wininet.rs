@@ -1,5 +1,5 @@
 use crate::emu;
-use crate::emu::winapi::helper;
+use crate::emu::winapi32::helper;
 use crate::emu::endpoint;
 use crate::emu::constants;
 use lazy_static::lazy_static; 

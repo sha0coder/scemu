@@ -150,6 +150,210 @@ impl PEB {
     }
 }
 
+// 64bits
+// https://bytepointer.com/resources/tebpeb64.htm
+
+#[derive(Debug)]
+pub struct PEB64 {
+    inheritet_addr_space: u8,
+    read_img_file_exec_options: u8,
+    being_debugged: u8,
+    system_dependent_01: u8,
+    dummy_align: u32, 
+    mutant: u64, 
+    image_base_addr: u64,
+    ldr: u64,
+    process_parameters: u64,
+    subsystem_data: u64,
+    process_heap: u64,
+    fast_peb_lock: u64,
+    system_dependent_02: u64, 
+    system_dependent_03: u64,
+    system_dependent_04: u64,
+    kernel_callback_table: u64,
+    system_reserved: u32,
+    system_dependent_05: u32,
+    system_dependent_06: u64,
+    tls_expansion_counter: u64,
+    tls_bitmap: u64,
+    tls_bitmap_bits: [u32; 2],
+    read_only_shared_memory_base: u64,
+    system_dependent_07: u64,
+    read_only_static_server_data: u64,
+    ansi_code_page_data: u64,
+    oem_code_page_data: u64,
+    unicode_case_table_data: u64,
+    number_of_processors: u32,
+    nt_global_flag: u32,
+    critical_section_timeout: u64,
+    heap_segment_reserve: u64,
+    heap_segment_commit: u64,
+    heap_decommit_total_free_threshold: u64,
+    heap_decommit_free_block_threshold: u64,
+    number_of_heaps: u32,
+    max_number_of_heaps: u32,
+    process_heaps: u64,
+    gdi_share_handle_table: u64,
+    process_starter_helper: u64,
+    gdi_dc_attribute_list: u64,
+    loader_lock: u64,
+    os_major_version: u32,
+    os_minor_version: u32,
+    os_build_number: u16,
+    oscsd_version: u16,
+    os_platform_id: u32,
+    image_subsystem: u32,
+    image_subsystem_major_version: u32,
+    image_subsystem_minor_version: u64,
+    active_process_afinity_mask: u64,
+    gdi_handle_buffer: [u64; 30],
+    post_process_init_routine: u64,
+    tls_expansion_bitmap: u64,
+    tls_expansion_bitmap_bits: [u32; 32],
+    session_id: u64,
+    app_compat_flags: u64,
+    app_compat_flags_user: u64,
+    p_shim_data: u64,
+    app_compat_info: u64,
+    csd_version: [u64; 2],
+    activate_context_data: u64,
+    process_assembly_storage_map: u64,
+    system_default_activation_context_data: u64,
+    system_assembly_storage_map: u64,
+    minimum_stack_commit: u64
+}
+
+
+impl PEB64 {
+    pub fn load(addr:u64, maps:&Maps) -> PEB64 {
+        PEB64 {
+            inheritet_addr_space: maps.read_byte(addr).unwrap(),
+            read_img_file_exec_options: maps.read_byte(addr+0x1).unwrap(),
+            being_debugged: maps.read_byte(addr+0x2).unwrap(),
+            system_dependent_01: maps.read_byte(addr+0x3).unwrap(),
+            dummy_align: 0,
+            mutant: maps.read_qword(addr+0x8).unwrap(),
+            image_base_addr:  maps.read_qword(addr+0x10).unwrap(),
+            ldr: maps.read_qword(addr+0x18).unwrap(),
+            process_parameters: maps.read_qword(addr+0x20).unwrap(),
+            subsystem_data: maps.read_qword(addr+0x28).unwrap(),
+            process_heap: maps.read_qword(addr+0x30).unwrap(),
+            fast_peb_lock: maps.read_qword(addr+0x38).unwrap(),
+            system_dependent_02: maps.read_qword(addr+0x40).unwrap(),
+            system_dependent_03: maps.read_qword(addr+0x48).unwrap(),
+            system_dependent_04: maps.read_qword(addr+0x50).unwrap(),
+            kernel_callback_table: maps.read_qword(addr+0x58).unwrap(),
+            system_reserved: maps.read_dword(addr+0x60).unwrap(),
+            system_dependent_05: maps.read_dword(addr+0x64).unwrap(),
+            system_dependent_06: maps.read_qword(addr+0x68).unwrap(),
+            tls_expansion_counter: maps.read_qword(addr+0x70).unwrap(),
+            tls_bitmap: maps.read_qword(addr+0x78).unwrap(),
+            tls_bitmap_bits: [maps.read_dword(addr+0x80).unwrap(), maps.read_dword(addr+0x84).unwrap()],
+            read_only_shared_memory_base: maps.read_qword(addr+0x88).unwrap(),
+            system_dependent_07: maps.read_qword(addr+0x90).unwrap(),
+            read_only_static_server_data: maps.read_qword(addr+0x98).unwrap(),
+            ansi_code_page_data: maps.read_qword(addr+0xa0).unwrap(),
+            oem_code_page_data: maps.read_qword(addr+0xa8).unwrap(),
+            unicode_case_table_data: maps.read_qword(addr+0xb0).unwrap(),
+            number_of_processors: maps.read_dword(addr+0xb8).unwrap(),
+            nt_global_flag: maps.read_dword(addr+0xbc).unwrap(),
+            critical_section_timeout: maps.read_qword(addr+0xc0).unwrap(),
+            heap_segment_reserve: maps.read_qword(addr+0xc8).unwrap(),
+            heap_segment_commit: maps.read_qword(addr+0xd0).unwrap(),
+            heap_decommit_total_free_threshold: maps.read_qword(addr+0xd8).unwrap(),
+            heap_decommit_free_block_threshold: maps.read_qword(addr+0xd8).unwrap(),
+            number_of_heaps: maps.read_dword(addr+0xe8).unwrap(),
+            max_number_of_heaps: maps.read_dword(addr+0xec).unwrap(),
+            process_heaps: maps.read_qword(addr+0xf0).unwrap(),
+            gdi_share_handle_table: maps.read_qword(addr+0xf8).unwrap(),
+            process_starter_helper: maps.read_qword(addr+0x100).unwrap(),
+            gdi_dc_attribute_list: maps.read_qword(addr+0x108).unwrap(),
+            loader_lock: maps.read_qword(addr+0x110).unwrap(),
+            os_major_version: maps.read_dword(addr+0x118).unwrap(),
+            os_minor_version: maps.read_dword(addr+0x11c).unwrap(),
+            os_build_number: maps.read_word(addr+0x120).unwrap(),
+            oscsd_version: maps.read_word(addr+0x122).unwrap(),
+            os_platform_id: maps.read_dword(addr+0x124).unwrap(),
+            image_subsystem: maps.read_dword(addr+0x128).unwrap(),
+            image_subsystem_major_version: maps.read_dword(addr+0x12c).unwrap(),
+            image_subsystem_minor_version: maps.read_qword(addr+0x130).unwrap(),
+            active_process_afinity_mask: maps.read_qword(addr+0x138).unwrap(),
+            gdi_handle_buffer: [0; 30],
+            post_process_init_routine: maps.read_qword(addr+0x230).unwrap(),
+            tls_expansion_bitmap: maps.read_qword(addr+0x238).unwrap(),
+            tls_expansion_bitmap_bits: [0; 32],
+            session_id: maps.read_qword(addr+0x2c0).unwrap(),
+            app_compat_flags: maps.read_qword(addr+0x2c8).unwrap(),
+            app_compat_flags_user: maps.read_qword(addr+0x2d0).unwrap(),
+            p_shim_data: maps.read_qword(addr+0x2d8).unwrap(),
+            app_compat_info: maps.read_qword(addr+0x2e0).unwrap(),
+            csd_version: [maps.read_qword(addr+0x2e8).unwrap(), maps.read_qword(addr+0x2f0).unwrap()],
+            activate_context_data: maps.read_qword(addr+0x2f8).unwrap(),
+            process_assembly_storage_map: maps.read_qword(addr+0x300).unwrap(),
+            system_default_activation_context_data: maps.read_qword(addr+0x308).unwrap(),
+            system_assembly_storage_map: maps.read_qword(addr+0x310).unwrap(),
+            minimum_stack_commit: maps.read_qword(addr+0x318).unwrap()
+        }   
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+#[derive(Debug)]
+pub struct TEB64 {
+    nt_tib: [u8; 56],
+    environment_pointer: u64,
+    process_id: u64,
+    thread_id: u64,
+    active_rpc_handle: u64,
+    thread_local_storage_pointer: u64,
+    process_environment_block: u64,        // PEB64
+    last_error_value: u32,
+    count_of_owned_critical_sections: u32,
+    csr_client_thread: u64,
+    win32_thread_info: u64,
+    user32_reserved: [u32; 26],
+    user_reserved: [u32; 6],
+    wow32_reserved: u64,
+    current_locale: u32,
+    fp_software_status_register: u32,
+    system_reserved1: [u64; 54],
+    exception_code: u32,
+    activation_context_stack_pointer: u64
+}
+
+impl TEB64 {
+    pub fn load(addr:u64, maps:&Maps) -> TEB64 {
+        TEB64{
+            nt_tib: [0; 56],
+            environment_pointer: maps.read_qword(addr + 0x38).unwrap(),
+            process_id: maps.read_qword(addr + 0x40).unwrap(),
+            thread_id: maps.read_qword(addr + 0x48).unwrap(),
+            active_rpc_handle: maps.read_qword(addr + 0x50).unwrap(),
+            thread_local_storage_pointer: maps.read_qword(addr + 0x58).unwrap(),
+            process_environment_block: maps.read_qword(addr + 0x60).unwrap(),
+            last_error_value: maps.read_dword(addr + 0x68).unwrap(),
+            count_of_owned_critical_sections: maps.read_dword(addr + 0x6c).unwrap(),
+            csr_client_thread: maps.read_qword(addr + 0x70).unwrap(),
+            win32_thread_info: maps.read_qword(addr + 0x78).unwrap(),
+            user32_reserved: [0; 26],
+            user_reserved: [0; 6],
+            wow32_reserved: maps.read_qword(addr + 0x100).unwrap(),
+            current_locale: maps.read_dword(addr + 0x108).unwrap(),
+            fp_software_status_register: maps.read_dword(addr + 0x10c).unwrap(),
+            system_reserved1: [0; 54],
+            exception_code: maps.read_dword(addr + 0x2c0).unwrap(),
+            activation_context_stack_pointer: maps.read_qword(addr + 0x2c8).unwrap()
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
 
 
 
