@@ -43,34 +43,66 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
     println!("looking for '{}'", func);
 
-    // https://github.com/ssherei/asm/blob/master/get_api.asm
-
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_qword(peb_base + 0x18);
+    //println!("ldr: 0x{:x}", ldr);
     let mut flink = emu.maps.read_qword(ldr + 0x10).expect("kernel32!GetProcAddress error reading flink");
-    println!("flink: 0x{:x}", flink);
+    //println!("flink: 0x{:x}", flink);
 
     loop { // walk modules
 
-        let mod_name_ptr = emu.maps.read_qword(flink + 0x30).expect("kernel32!GetProcAddress error reading mod_name_ptr");
-        let mod_base = emu.maps.read_qword(flink + 0x58).expect("kernel32!GetProcAddress error reading mod_addr");
+        let mod_name_ptr = emu.maps.read_qword(flink + 0x60).expect("kernel32!GetProcAddress error reading mod_name_ptr");
+        let mod_path_ptr = emu.maps.read_qword(flink + 0x50).expect("kernel32!GetProcAddress error reading mod_name_ptr");
+        //println!("mod_name_ptr: 0x{:x}", mod_name_ptr);
+
+        let mod_base = emu.maps.read_qword(flink + 0x30).expect("kernel32!GetProcAddress error reading mod_addr");
+        //println!("mod_base: 0x{:x}", mod_base);
+
         let mod_name = emu.maps.read_wide_string(mod_name_ptr);
+        //println!("mod_name: {}", mod_name);
+    
 
-        println!("mod_name: {}", mod_name);
-
-        let pe_hdr = match emu.maps.read_dword(mod_base + 0x3c) { //.expect("kernel32!GetProcAddress error reading pe_hdr");
+        let pe_hdr_off = match emu.maps.read_dword(mod_base + 0x3c) { 
             Some(hdr) => hdr as u64,
             None => { emu.regs.rax = 0; return; }
         };
-        let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr + 0x78).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
+
+        // pe_hdr correct
+
+        
+        let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr_off + 0x88).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
+        //println!("({:x}) {:x} =  {:x} + pehdr:{:x} + {:x}", export_table_rva, mod_base + pe_hdr_off + 0x78, mod_base, pe_hdr_off, 0x78);
+
         if export_table_rva == 0 {
-            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            println!("getting new flink: 0x{:x}", flink);
             continue;
         }
 
         let export_table = export_table_rva + mod_base;
+        //println!("export_table: 0x{:x}", export_table);
+
+       
+
+        if !emu.maps.is_mapped(export_table) {
+            flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            println!("getting new flink: 0x{:x}", flink);
+            continue;
+        }
+
+
         let mut num_of_funcs = emu.maps.read_dword(export_table + 0x18).expect("kernel32!GetProcAddress error reading the num_of_funcs") as u64;
+ 
+        //println!("num_of_funcs:  0x{:x} -> 0x{:x}", export_table + 0x18, num_of_funcs);
+
+
+        if num_of_funcs == 0 {
+            flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            println!("getting new flink: 0x{:x}", flink);
+            continue;
+        }
+        
 
         let func_name_tbl_rva = emu.maps.read_dword(export_table + 0x20).expect("kernel32!GetProcAddress  error reading func_name_tbl_rva") as u64;
         let func_name_tbl = func_name_tbl_rva + mod_base;
@@ -87,7 +119,7 @@ fn GetProcAddress(emu:&mut emu::Emu) {
             let func_name_va = func_name_rva + mod_base;
             let func_name = emu.maps.read_string(func_name_va).to_lowercase();
 
-            println!("func_name: {}", func_name);
+            //println!("func_name: {}", func_name);
             
             if func_name == func { 
                 let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
