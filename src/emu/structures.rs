@@ -354,8 +354,49 @@ impl TEB64 {
     }
 }
 
+#[derive(Debug)]
+pub struct LdrDataTableEntry64 { 
+    in_load_order_links: u64,  
+    in_memory_order_links: u64,
+    in_initialization_order_links: u64,
+    dll_base: u64,
+    entry_point: u64,
+    size_of_image: u64,
+    full_dll_name1: u64,
+    full_dll_name2: u64,
+    base_dll_name1: u64,
+    base_dll_name2: u64,
+    flags: u32,
+    load_count: u16,
+    tls_index: u16,
+    hash_links: u64
+}
 
+impl LdrDataTableEntry64 {
+    pub fn load(addr:u64, maps:&Maps) -> LdrDataTableEntry64 {
+        LdrDataTableEntry64{
+            in_load_order_links: maps.read_qword(addr).unwrap(),
+            in_memory_order_links: maps.read_qword(addr + 0x10).unwrap(),
+            in_initialization_order_links: maps.read_qword(addr + 0x20).unwrap(),
+            dll_base: maps.read_qword(addr + 0x30).unwrap(),
+            entry_point: maps.read_qword(addr + 0x38).unwrap(),
+            size_of_image: maps.read_qword(addr + 0x40).unwrap(),
+            full_dll_name1: maps.read_qword(addr + 0x48).unwrap(),
+            full_dll_name2: maps.read_qword(addr + 0x50).unwrap(),
+            base_dll_name1: maps.read_qword(addr + 0x58).unwrap(),
+            base_dll_name2: maps.read_qword(addr + 0x60).unwrap(),
+            flags: maps.read_dword(addr + 0x68).unwrap(),
+            load_count: maps.read_word(addr + 0x6c).unwrap(),
+            tls_index: maps.read_word(addr + 0x6e).unwrap(),
+            hash_links: maps.read_qword(addr + 0x70).unwrap()
+        }
+    }
 
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+
+}
 
 ////// EXCEPTIONS //////
 

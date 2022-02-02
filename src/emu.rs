@@ -610,15 +610,10 @@ impl Emu {
         self.maps.create_map("shlwapi_pe").load_at(0x7feff260000);
         self.maps.create_map("shlwapi_text").load_at(0x7feff261000);
 
-        /*
-        let m10000 = self.maps.get_mem("m10000");
-        m10000.set_base(0x10000);
-        m10000.set_size(0x10000);
 
-        let m20000 = self.maps.get_mem("m20000");
-        m20000.set_base(0x20000);zs
-        m20000.set_size(0x10000);
-        */
+        // peb64 patch for being_debugged: 0
+        let peb = self.maps.get_mem("peb");
+        peb.write_byte(peb.get_base() + 2, 0);
 
 
         std::env::set_current_dir(orig_path);
@@ -1952,6 +1947,18 @@ impl Emu {
                         }
                         "memory_basic_information" => {
                             let s = structures::MemoryBasicInformation::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "peb64" => {
+                            let s = structures::PEB64::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "teb64" => {
+                            let s = structures::TEB64::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "ldrdatatableentry64" => {
+                            let s = structures::LdrDataTableEntry64::load(addr, &self.maps);
                             s.print();
                         }
 
