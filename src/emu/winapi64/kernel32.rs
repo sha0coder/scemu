@@ -1,5 +1,7 @@
 use crate::emu;
-/*use crate::emu::winapi32::helper;
+use crate::emu::winapi32::helper;
+
+/*
 use crate::emu::context32;
 use crate::emu::constants;
 use crate::emu::console;
@@ -13,13 +15,17 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
     match addr {
         0x76dc7070 => LoadLibraryA(emu),
         0x76dd3690 => GetProcAddress(emu),
+        0x76db21e0 => CreateToolhelp32Snapshot(emu),
+        0x76e0fdb0 => Process32First(emu),
+        0x76e0fcc0 => Process32Next(emu),
+        0x76db40a0 => LStrCmpI(emu),
+        0x76dfc5d0 => AreFileApiIsAnsi(emu),
+        0x76e3e420 => BeginUpdateResourceA(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
 
-
-
-pub fn LoadLibraryA(emu:&mut emu::Emu) {
+fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.regs.rcx;
     let dll = emu.maps.read_string(dllptr);
 
@@ -76,7 +82,7 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
         if export_table_rva == 0 {
             flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            println!("getting new flink: 0x{:x}", flink);
+            //println!("getting new flink: 0x{:x}", flink);
             continue;
         }
 
@@ -146,3 +152,90 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     } 
 }
 
+fn CreateToolhelp32Snapshot(emu:&mut emu::Emu) {
+    let flags = emu.regs.rcx;
+    let pid = emu.regs.rdx;
+
+    println!("{}** {} kernel32!CreateToolhelp32Snapshot flags: {:x} pid: {} {}", emu.colors.light_red, emu.pos, flags, pid, emu.colors.nc);
+    emu.regs.rax = helper::handler_create();
+}
+
+fn Process32First(emu:&mut emu::Emu) {
+    let handle = emu.regs.rcx;
+    let lppe = emu.regs.rdx;
+
+    println!("{}** {} kernel32!Process32First hndl: {:x} lppe: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
+
+    if !helper::handler_exist(handle) {
+        emu.regs.rax = 0;
+        return;
+    }
+
+    emu.maps.write_string(lppe +  36, "smss.exe\x00");
+
+/*
+
+            typedef struct tagPROCESSENTRY32 {
+            DWORD     dwSize;                +0
+            DWORD     cntUsage;              +4
+            DWORD     th32ProcessID;         +8
+            ULONG_PTR th32DefaultHeapID;    +12
+            DWORD     th32ModuleID;         +16
+            DWORD     cntThreads;           +20
+            DWORD     th32ParentProcessID;  +24
+            LONG      pcPriClassBase;       +28
+            DWORD     dwFlags;              +32
+            CHAR      szExeFile[MAX_PATH];  +36
+            } PROCESSENTRY32;
+*/
+
+    emu.regs.rax = 1;
+}
+
+fn Process32Next(emu:&mut emu::Emu) {
+    let handle = emu.regs.rcx;
+    let lppe = emu.regs.rdx;
+
+    println!("{}** {} kernel32!Process32Next hndl: {:x} lppe: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
+
+    if !helper::handler_exist(handle) {
+        emu.regs.rax = 0;
+        return;
+    }
+
+
+    emu.regs.rax = 0; // trigger exit loop
+}
+
+fn LStrCmpI(emu:&mut emu::Emu) {
+    let sptr1 = emu.regs.rcx;
+    let sptr2 = emu.regs.rdx;
+
+    let s1 = emu.maps.read_string(sptr1);
+    let s2 = emu.maps.read_string(sptr2);
+
+    if s1 == s2 {
+        println!("{}** {} kernel32!lstrcmpi `{}` == `{}` {}", emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc);
+        emu.regs.rax = 0;
+
+    } else {
+        println!("{}** {} kernel32!lstrcmpi `{}` != `{}` {}", emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc);
+        emu.regs.rax = 1;
+    }
+}
+
+fn AreFileApiIsAnsi(emu:&mut emu::Emu) {
+    println!("{}** {} kernel32!AreFileApiIsAnsi {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    emu.regs.rax = 1;
+}
+
+fn BeginUpdateResourceA(emu:&mut emu::Emu) {
+    let pFileName = emu.regs.rcx;
+    let bDeleteExistingResources = emu.regs.rdx;
+ 
+    let filename = emu.maps.read_string(pFileName);
+
+    println!("{}** {} kernel32!BeginUpdateResourceA `{}` {} {}", emu.colors.light_red, emu.pos, filename, bDeleteExistingResources, emu.colors.nc);
+
+    emu.regs.rax = helper::handler_create();
+}
