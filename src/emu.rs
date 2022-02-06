@@ -4244,7 +4244,7 @@ impl Emu {
     
                                 self.flags.sub64(value0, value1);
     
-                                if !self.step {
+                                //if !self.step { 
                                     if value0 > value1 {
                                         println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
                                         break;
@@ -4254,7 +4254,7 @@ impl Emu {
                                     } else {
                                         println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
                                     }
-                                }
+                                //}
 
                                 self.regs.rcx -= 1;
                                 if self.regs.rcx == 0 {
@@ -4341,7 +4341,7 @@ impl Emu {
     
                                 self.flags.sub32(value0 as u64, value1 as u64);
     
-                                if !self.step {
+                                //if !self.step {
                                     if value0 > value1 {
                                         println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
                                         break;
@@ -4351,7 +4351,7 @@ impl Emu {
                                     } else {
                                         println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
                                     }
-                                }
+                                //}
 
                                 self.regs.rcx -= 1;
                                 if self.regs.rcx == 0 {
@@ -4436,7 +4436,7 @@ impl Emu {
     
                                 self.flags.sub16(value0 as u64, value1 as u64);
     
-                                if !self.step {
+                                //if !self.step {
                                     if value0 > value1 {
                                         println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
                                         break;
@@ -4446,7 +4446,7 @@ impl Emu {
                                     } else {
                                         println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
                                     }
-                                }
+                                //}
 
                                 self.regs.rcx -= 1;
                                 if self.regs.rcx == 0 {
@@ -4532,7 +4532,7 @@ impl Emu {
     
                                 self.flags.sub8(value0 as u64, value1 as u64);
     
-                                if !self.step {
+                                //if !self.step {
                                     if value0 > value1 {
                                         println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
                                         assert!(self.flags.f_zf == false);
@@ -4545,7 +4545,7 @@ impl Emu {
                                         println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1); 
                                         assert!(self.flags.f_zf == true);
                                     }
-                                }
+                                //}
                                 
                                 self.regs.rcx -= 1;
                                 if self.regs.rcx == 0 {
