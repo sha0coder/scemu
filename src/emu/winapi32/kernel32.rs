@@ -299,7 +299,7 @@ fn VirtualAllocEx(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
-    let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAllocEx out of memory");
     let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
     alloc.set_base(base);
     alloc.set_size(size);

@@ -21,6 +21,9 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76db40a0 => LStrCmpI(emu),
         0x76dfc5d0 => AreFileApiIsAnsi(emu),
         0x76e3e420 => BeginUpdateResourceA(emu),
+        0x76dccad0 => OpenProcess(emu),
+        0x76dfbbd0 => VirtualAllocEx(emu),
+        0x76dfbad0 => WriteProcessMemory(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
@@ -205,7 +208,6 @@ fn Process32Next(emu:&mut emu::Emu) {
         return;
     }
 
-
     emu.regs.rax = 0; // trigger exit loop
 }
 
@@ -241,3 +243,58 @@ fn BeginUpdateResourceA(emu:&mut emu::Emu) {
 
     emu.regs.rax = helper::handler_create();
 }
+
+fn OpenProcess(emu:&mut emu::Emu) {
+    let access = emu.regs.rcx;
+    let inherit = emu.regs.rdx;
+    let pid = emu.regs.r8;
+
+    println!("{}** {} kernel32!OpenProcess pid: {} {}", emu.colors.light_red, emu.pos, pid, emu.colors.nc);
+
+    emu.regs.rax = helper::handler_create();
+}
+
+fn VirtualAllocEx(emu:&mut emu::Emu) {
+    let proc_hndl = emu.regs.rcx;
+    let addr = emu.regs.rdx;
+    let size = emu.regs.r8;
+    let alloc_type = emu.regs.r9;
+    let protect = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!VirtualAllocEx cannot  read_qword protect");
+
+    println!("{}** {} kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
+
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAllocEx out of memory");
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
+    alloc.set_base(base);
+    alloc.set_size(size);
+    
+    emu.regs.rax = base;
+    emu.stack_pop64(false);
+}
+
+fn WriteProcessMemory(emu:&mut emu::Emu) {
+    let proc_hndl = emu.regs.rcx;
+    let addr = emu.regs.rdx;
+    let buff = emu.regs.r8;
+    let size = emu.regs.r9;
+    let written_ptr = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!WriteProcessMemory cannot read written_ptr");
+
+    println!("{}** {} kernel32!WriteProcessMemory hproc: 0x{:x} from: 0x{:x } to: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, proc_hndl, buff, addr, size, emu.colors.nc);
+
+    if emu.maps.memcpy(buff, addr, size as usize) {
+        emu.regs.rax = 1;
+        println!("{}\twritten succesfully{}", emu.colors.light_red, emu.colors.nc);
+        if !emu.maps.write_qword(written_ptr, size) {
+            println!("kernel32!WriteProcessMemory cannot write on written_ptr");
+        }
+    } else {
+        emu.regs.rax = 0;
+        println!("{}\tcouldnt write the bytes{}", emu.colors.light_red, emu.colors.nc);
+        if !emu.maps.write_qword(written_ptr,  0) {
+            println!("kernel32!WriteProcessMemory cannot write on written_ptr");
+        }
+    }
+
+    emu.stack_pop64(false);
+}
+
