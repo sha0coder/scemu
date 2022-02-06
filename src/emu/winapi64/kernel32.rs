@@ -171,7 +171,7 @@ fn Process32First(emu:&mut emu::Emu) {
         return;
     }
 
-    emu.maps.write_string(lppe +  36, "smss.exe\x00");
+    emu.maps.write_string(lppe +  44, "smss.exe\x00");
 
 /*
 
@@ -197,6 +197,8 @@ fn Process32Next(emu:&mut emu::Emu) {
     let lppe = emu.regs.rdx;
 
     println!("{}** {} kernel32!Process32Next hndl: {:x} lppe: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
+
+    emu.maps.write_string(lppe +  44, "explorer.exe\x00");
 
     if !helper::handler_exist(handle) {
         emu.regs.rax = 0;

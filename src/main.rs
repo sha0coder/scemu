@@ -17,7 +17,7 @@ use clap::{Arg, App};
 fn main() {
     let mut cfg = Config::new();
     let matches = App::new("SCEMU emulator for Shellcodes")
-                    .version("0.3.1")
+                    .version("0.3.2")
                     .author("@sha0coder")
                     .arg(Arg::with_name("filename")
                         .short("f")
