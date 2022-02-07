@@ -1,9 +1,9 @@
 use crate::emu;
 use crate::emu::winapi32::helper;
+use crate::emu::constants;
 
 /*
 use crate::emu::context32;
-use crate::emu::constants;
 use crate::emu::console;
 
 use lazy_static::lazy_static; 
@@ -24,6 +24,9 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dccad0 => OpenProcess(emu),
         0x76dfbbd0 => VirtualAllocEx(emu),
         0x76dfbad0 => WriteProcessMemory(emu),
+        0x76dfaa70 => Thread32First(emu),
+        0x76dfa980 => Thread32Next(emu),
+        0x76dcc560 => OpenThread(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
@@ -259,11 +262,12 @@ fn VirtualAllocEx(emu:&mut emu::Emu) {
     let addr = emu.regs.rdx;
     let size = emu.regs.r8;
     let alloc_type = emu.regs.r9;
-    let protect = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!VirtualAllocEx cannot  read_qword protect");
-
-    println!("{}** {} kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
+    let protect = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!VirtualAllocEx cannot read_qword protect");
 
     let base = emu.maps.alloc(size).expect("kernel32!VirtualAllocEx out of memory");
+
+    println!("{}** {} kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} = 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, size, base, emu.colors.nc);
+
     let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
     alloc.set_base(base);
     alloc.set_size(size);
@@ -281,16 +285,17 @@ fn WriteProcessMemory(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!WriteProcessMemory hproc: 0x{:x} from: 0x{:x } to: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, proc_hndl, buff, addr, size, emu.colors.nc);
 
+
     if emu.maps.memcpy(buff, addr, size as usize) {
         emu.regs.rax = 1;
         println!("{}\twritten succesfully{}", emu.colors.light_red, emu.colors.nc);
-        if !emu.maps.write_qword(written_ptr, size) {
+        if written_ptr != 0 && !emu.maps.write_qword(written_ptr, size) {
             println!("kernel32!WriteProcessMemory cannot write on written_ptr");
         }
     } else {
         emu.regs.rax = 0;
-        println!("{}\tcouldnt write the bytes{}", emu.colors.light_red, emu.colors.nc);
-        if !emu.maps.write_qword(written_ptr,  0) {
+        println!("{}\tcouldnt write all the bytes{}", emu.colors.light_red, emu.colors.nc);
+        if written_ptr != 0 && !emu.maps.write_qword(written_ptr,  0) {
             println!("kernel32!WriteProcessMemory cannot write on written_ptr");
         }
     }
@@ -298,3 +303,31 @@ fn WriteProcessMemory(emu:&mut emu::Emu) {
     emu.stack_pop64(false);
 }
 
+fn Thread32First(emu:&mut emu::Emu) {
+    let hndl = emu.regs.rcx;
+    let entry = emu.regs.rdx;
+  
+    println!("{}** {} kernel32!Thread32First {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = 1;
+    //emu.regs.rax = constants::ERROR_NO_MORE_FILES;
+}
+
+fn Thread32Next(emu:&mut emu::Emu) {
+    let hndl = emu.regs.rcx;
+    let entry = emu.regs.rdx;
+  
+    println!("{}** {} kernel32!Thread32Next {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = constants::ERROR_NO_MORE_FILES;
+}
+
+fn OpenThread(emu:&mut emu::Emu) {
+    let access = emu.regs.rcx;
+    let inherit = emu.regs.rdx;
+    let tid = emu.regs.r8;
+
+    println!("{}** {} kernel32!OpenThread tid: {} {}", emu.colors.light_red, emu.pos, tid, emu.colors.nc);
+
+    emu.regs.rax = helper::handler_create();
+}
