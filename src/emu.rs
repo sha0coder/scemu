@@ -3606,6 +3606,23 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Movsxd => {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        assert!(ins.op_count() == 2);
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let result:u64 = value1 as u32 as i32 as i64 as u64;
+
+                        if !self.set_operand_value(&ins, 0, result) {
+                            break;
+                        }
+                    }
+
                     Mnemonic::Movsx => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
 

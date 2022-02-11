@@ -1,12 +1,15 @@
 use crate::emu;
-use crate::emu::winapi32::helper;
+/*use crate::emu::winapi32::helper;
 use crate::emu::context32::Context32;
-use crate::emu::structures;
+use crate::emu::structures;*/
 use crate::emu::constants;
 
 
 pub fn gateway(addr:u64, emu:&mut emu::Emu) {
     match addr {
+        0x77021760 =>  ZwQueueApcThread(emu),
+
+
         /*0x775b52d8 => NtAllocateVirtualMemory(emu),
         0x775b5a18 => NtGetContextThread(emu),
         0x7757f774 => RtlVectoredExceptionHandler(emu),
@@ -18,7 +21,7 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
     }
 }
 
-
+/*
 fn NtAllocateVirtualMemory(emu:&mut emu::Emu) {
     /*
         __kernel_entry NTSYSCALLAPI NTSTATUS NtAllocateVirtualMemory(
@@ -213,10 +216,23 @@ fn NtGetContextThread(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-}
+}*/
 
 fn RtlExitUserThread(emu:&mut emu::Emu) {
     println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
     std::process::exit(1);
 }
 
+fn ZwQueueApcThread(emu:&mut emu::Emu) {
+    let thread_handle = emu.regs.rcx;
+    let apc_routine = emu.regs.rdx;
+    let apc_ctx = emu.regs.r8;
+    let arg1 = emu.regs.r9;
+    let arg2 = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!ZwQueueApcThread cannot read arg2");
+
+    println!("{}** {} ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {} {}", emu.colors.light_red, emu.pos,
+        thread_handle, apc_routine, apc_ctx, arg1, arg2, emu.colors.nc);
+
+    emu.stack_pop64(false);
+    emu.regs.rax = constants::STATUS_SUCCESS;
+}
