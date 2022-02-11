@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::emu::winapi32::helper;
-use crate::emu::constants;
+//use crate::emu::constants;
 
 /*
 use crate::emu::context32;
@@ -22,6 +22,7 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dfc5d0 => AreFileApiIsAnsi(emu),
         0x76e3e420 => BeginUpdateResourceA(emu),
         0x76dccad0 => OpenProcess(emu),
+        0x76dc67a0 => VirtualAlloc(emu),
         0x76dfbbd0 => VirtualAllocEx(emu),
         0x76dfbad0 => WriteProcessMemory(emu),
         0x76dfaa70 => Thread32First(emu),
@@ -257,6 +258,24 @@ fn OpenProcess(emu:&mut emu::Emu) {
     emu.regs.rax = helper::handler_create();
 }
 
+fn VirtualAlloc(emu:&mut emu::Emu) {
+    let addr = emu.regs.rcx;
+    let size = emu.regs.rdx;
+    let typ = emu.regs.r8;
+    let prot = emu.regs.r9;
+
+
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
+
+    println!("{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}", emu.colors.light_red, emu.pos, addr, size, base, emu.colors.nc);
+
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
+    alloc.set_base(base);
+    alloc.set_size(size);
+    
+    emu.regs.rax = base;
+}
+
 fn VirtualAllocEx(emu:&mut emu::Emu) {
     let proc_hndl = emu.regs.rcx;
     let addr = emu.regs.rdx;
@@ -319,7 +338,7 @@ fn Thread32Next(emu:&mut emu::Emu) {
   
     println!("{}** {} kernel32!Thread32Next {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    emu.regs.rax = constants::ERROR_NO_MORE_FILES;
+    emu.regs.rax = 0;//constants::ERROR_NO_MORE_FILES;
 }
 
 fn OpenThread(emu:&mut emu::Emu) {
