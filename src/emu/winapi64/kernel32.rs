@@ -28,6 +28,10 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dfaa70 => Thread32First(emu),
         0x76dfa980 => Thread32Next(emu),
         0x76dcc560 => OpenThread(emu),
+        0x76dc3f40 => GetSystemTimeAsFileTime(emu),
+        0x76dc3ee0 => GetCurrentThreadId(emu),
+        0x76dc5a50 => GetCurrentProcessId(emu),
+        0x76dc6500 => QueryPerformanceCounter(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
@@ -349,4 +353,34 @@ fn OpenThread(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!OpenThread tid: {} {}", emu.colors.light_red, emu.pos, tid, emu.colors.nc);
 
     emu.regs.rax = helper::handler_create();
+}
+
+fn GetSystemTimeAsFileTime(emu:&mut emu::Emu) {
+    let sys_time_ptr = emu.regs.rcx;
+
+    println!("{}** {} kernel32!GetSystemTimeAsFileTime {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = 1;
+}
+
+fn GetCurrentThreadId(emu:&mut emu::Emu) {
+    println!("{}** {} kernel32!GetCurrentThreadId {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = 0x111; //TODO: track pids and tids
+}
+
+fn GetCurrentProcessId(emu:&mut emu::Emu) {
+    println!("{}** {} kernel32!GetCurrentProcessId {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = 0x123; 
+}
+
+fn QueryPerformanceCounter(emu:&mut emu::Emu) {
+    let counter_ptr = emu.regs.rcx;
+
+    emu.maps.write_dword(counter_ptr, 0x1);
+
+    println!("{}** {} kernel32!QueryPerformanceCounter {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = 1;
 }

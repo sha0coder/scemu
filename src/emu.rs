@@ -3916,6 +3916,140 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Cmova => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_cf && !self.flags.f_zf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovae => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_cf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovb => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_cf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovbe => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_cf || self.flags.f_zf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmove => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_zf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovg => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovge => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf == self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovl => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf != self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovle => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
 
                     Mnemonic::Stosb => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
