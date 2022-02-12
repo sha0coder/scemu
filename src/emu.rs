@@ -601,6 +601,7 @@ impl Emu {
         self.maps.create_map("urlmon_text").load_at(0x7fefed31000);
         self.maps.create_map("ws2_32_pe").load_at(0x7fefeeb0000);
         self.maps.create_map("ws2_32_text").load_at(0x7fefeeb1000);
+        self.maps.create_map("ws2_32_rdata").load_at(0x7fefeee1000);
         self.maps.create_map("msvcrt_pe").load_at(0x7fefef00000);
         self.maps.create_map("msvcrt_text").load_at(0xfefef01000);
         self.maps.create_map("advapi32_pe").load_at(0xfefefa0000);
