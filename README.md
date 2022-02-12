@@ -13,7 +13,7 @@ x86 32bits emulator, for securely emulating shellcodes
 - memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
-- 105 instructions implemented.
+- 174 instructions implemented.
 - 112 winapi implemented of 5 dlls.
 - all linux syscalls.
 - SEH chains.
