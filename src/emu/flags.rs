@@ -208,9 +208,9 @@ impl Flags {
         self.f_zf = unsigned == 0;
         self.f_pf = (unsigned & 0xff) % 2 == 0;
         self.f_of = (value1 as i64) > 0 && (unsigned as i64) < 0;
-        self.f_cf = unsigned > 0xffffffff;
+        self.f_cf = unsigned > 0xffffffffffffffff;
 
-        (unsigned & 0xffffffff) as u64
+        (unsigned & 0xffffffffffffffff) as u64
     }
 
     pub fn add32(&mut self, value1:u64, value2:u64) -> u64 {
