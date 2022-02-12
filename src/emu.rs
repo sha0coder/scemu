@@ -4051,6 +4051,232 @@ impl Emu {
                         }
                     }
 
+
+                    Mnemonic::Seta  => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_cf && !self.flags.f_zf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setae  => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_cf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setb => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_cf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setbe => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_cf || self.flags.f_zf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Sete => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_zf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setg => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setge => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf == self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setl => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf != self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setle => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_zf ||  self.flags.f_sf != self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setne => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_zf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }   
+
+                    Mnemonic::Setno => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setnp => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_pf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setns => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_sf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Seto => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_of {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Setp => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_pf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Sets => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf {
+                            if !self.set_operand_value(&ins, 0, 1) {
+                                break;
+                            }
+                        } else  {
+                            if !self.set_operand_value(&ins, 0, 0) {
+                                break;
+                            }
+                        }
+                    }
+
+
                     Mnemonic::Stosb => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
                         
@@ -5918,14 +6144,6 @@ impl Emu {
                         
                         let flags = self.stack_pop32(true);
                         self.flags.load(flags);
-                    }
-
-                    Mnemonic::Sete => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_zf {
-                            self.set_operand_value(&ins, 0, 1);
-                        }
                     }
 
                     Mnemonic::Daa => {

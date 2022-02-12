@@ -32,6 +32,7 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dc3ee0 => GetCurrentThreadId(emu),
         0x76dc5a50 => GetCurrentProcessId(emu),
         0x76dc6500 => QueryPerformanceCounter(emu),
+        0x76dd3050 => GetProcessHeap(emu),
         _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
     }
 }
@@ -383,4 +384,11 @@ fn QueryPerformanceCounter(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!QueryPerformanceCounter {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
     emu.regs.rax = 1;
+}
+
+fn GetProcessHeap(emu:&mut emu::Emu) {
+
+    println!("{}** {} kernel32!GetProcessHeap {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.regs.rax = helper::handler_create();
 }
