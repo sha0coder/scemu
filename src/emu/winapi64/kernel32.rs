@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::emu::winapi32::helper;
-//use crate::emu::constants;
+use crate::emu::constants;
 
 /*
 use crate::emu::context32;
@@ -269,7 +269,6 @@ fn VirtualAlloc(emu:&mut emu::Emu) {
     let typ = emu.regs.r8;
     let prot = emu.regs.r9;
 
-
     let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
 
     println!("{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}", emu.colors.light_red, emu.pos, addr, size, base, emu.colors.nc);
@@ -343,7 +342,7 @@ fn Thread32Next(emu:&mut emu::Emu) {
   
     println!("{}** {} kernel32!Thread32Next {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    emu.regs.rax = 0;//constants::ERROR_NO_MORE_FILES;
+    emu.regs.rax = constants::ERROR_NO_MORE_FILES;
 }
 
 fn OpenThread(emu:&mut emu::Emu) {

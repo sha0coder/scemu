@@ -566,9 +566,11 @@ impl Emu {
         self.maps.create_map("kernel32_data").load_at(0x76eba000);
         self.maps.create_map("kernelbase_pe").load_at(0x7fefd010000);
         self.maps.create_map("kernelbase_text").load_at(0x7fefd011000);
+        self.maps.create_map("kernelbase_rdata").load_at(0x7fefd05a000);
         self.maps.create_map("kernelbase_data").load_at(0x7fefd070000);
         self.maps.create_map("msvcrt_pe").load_at(0x7fefef00000);
         self.maps.create_map("msvcrt_text").load_at(0x7fefef01000);
+        self.maps.create_map("msvcrt_rdata").load_at(0x7fefef7a000);
         self.maps.create_map("user32_pe").load_at(0x76ed0000);
         self.maps.create_map("user32_text").load_at(0x76ed1000);
         self.maps.create_map("msasn1_pe").load_at(0x7fefcfc0000);
@@ -673,7 +675,7 @@ impl Emu {
             let mem = match self.maps.get_mem_by_addr(self.regs.rsp) {
                 Some(m) => m,
                 None =>  {
-                    panic!("pushing stack outside maps esp: 0x{:x}", self.regs.get_esp());
+                    panic!("pushing stack outside maps rsp: 0x{:x}", self.regs.get_esp());
                 }
             };
             mem.write_qword(self.regs.rsp, value);
