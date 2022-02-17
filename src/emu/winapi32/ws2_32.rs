@@ -374,7 +374,7 @@ fn WsaAccept(emu:&mut emu::Emu) {
 
     println!("{}** {} ws2_32!WsaAccept  connections: {} callback: {} {}", emu.colors.light_red, emu.pos, bytes, callback, emu.colors.nc);
 
-    for _ in 0..4 {
+    for _ in 0..5 {
         emu.stack_pop32(false);
     }
 
