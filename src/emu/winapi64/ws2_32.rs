@@ -8,6 +8,11 @@ use std::sync::Mutex;
 
 pub fn gateway(addr:u64, emu:&mut emu::Emu)  {
     match addr {
+        0x7fefeeb4980 => WsaStartup(emu),
+        0x7fefeeb2010 => WsaSocketA(emu),
+        0x7fefeeb45c0 => connect(emu),
+        0x7fefeebdf40 => recv(emu),
+
         /*0x77483ab2 => WsaStartup(emu),
         0x7748c82a => WsaSocketA(emu),
         0x77483eb8 => socket(emu),
@@ -47,16 +52,13 @@ fn WsaStartup(emu:&mut emu::Emu) {
 
     println!("{}** {} ws2_32!WsaStartup {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    for _ in 0..2 {
-        emu.stack_pop32(false);
-    }
     emu.regs.rax = 0;
 }
 
 fn WsaSocketA(emu:&mut emu::Emu) {
     println!("{}** {} ws2_32!WsaSocketA {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    for _ in 0..6 {
+    for _ in 0..2 {
         emu.stack_pop32(false);
     }
 
@@ -112,8 +114,8 @@ fn inet_addr(emu:&mut emu::Emu) {
 }
 
 fn connect(emu:&mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("ws2_32!connect: error reading sock") as u64;
-    let sockaddr_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ws2_32!connect: error reading sockaddr ptr") as u64;
+    let sock = emu.regs.rcx;
+    let sockaddr_ptr = emu.regs.rdx;
     //let sockaddr = emu.maps.read_bytes(sockaddr_ptr, 8);
     let family:u16 = emu.maps.read_word(sockaddr_ptr).expect("ws2_32!connect: error reading family");
     let port:u16 = emu.maps.read_word(sockaddr_ptr+2).expect("ws2_32!connect: error reading port").to_be();
@@ -121,10 +123,6 @@ fn connect(emu:&mut emu::Emu) {
 
     let sip = format!("{}.{}.{}.{}", ip&0xff, (ip&0xff00)>>8, (ip&0xff0000)>>16, (ip&0xff000000)>>24);
     println!("{}** {} ws2_32!connect  family: {} {}:{} {}", emu.colors.light_red, emu.pos, family, sip, port,  emu.colors.nc);
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
-    }
 
     if emu.cfg.endpoint {  
         if endpoint::sock_connect(sip.as_str(), port) {
@@ -145,16 +143,12 @@ fn connect(emu:&mut emu::Emu) {
 }
 
 fn recv(emu:&mut emu::Emu) {
-    let sock = emu.maps.read_dword(emu.regs.get_esp()).expect("ws2_32!recv: error reading sock") as u64;
-    let buff = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ws2_32!recv: error reading buff") as u64;
-    let mut len = emu.maps.read_dword(emu.regs.get_esp()+8).expect("ws2_32!recv: error reading len") as u64; 
-    let flags = emu.maps.read_dword(emu.regs.get_esp()+12).expect("ws2_32!recv: error reading flags") as u64;
+    let sock = emu.regs.rcx;
+    let buff = emu.regs.rdx;
+    let mut len = emu.regs.r8;
+    let flags = emu.regs.r9;
 
     println!("{}** {} ws2_32!recv   buff: 0x{:x} sz: {} {}", emu.colors.light_red, emu.pos, buff, len, emu.colors.nc);
-
-    for _ in 0..4 {
-        emu.stack_pop32(false);
-    }
 
     if !helper::socket_exist(sock) {
         println!("\tinvalid socket.");
