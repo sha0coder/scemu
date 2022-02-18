@@ -180,7 +180,7 @@ fn main() {
         cfg.entry_point = u64::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
     }
     if matches.is_present("code_base_address") {
-        cfg.code_base_addr = u64::from_str_radix(matches.value_of("entry_point").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
+        cfg.code_base_addr = u64::from_str_radix(matches.value_of("code_base_address").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
         if !matches.is_present("entry_point") {
             eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
             std::process::exit(1);
