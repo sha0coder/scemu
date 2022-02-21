@@ -5863,6 +5863,22 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Cbw => {
+                        self.show_instruction(&self.colors.green, &ins);
+
+                        let sigextend = self.regs.get_al() as u8 as i8 as i16 as u16;
+                        self.regs.set_ax(sigextend as u64);
+                    }
+
+                    Mnemonic::Cwde => {
+                        self.show_instruction(&self.colors.green, &ins);
+
+                        let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
+                        self.regs.set_eax(sigextend as u64);
+                    }
+
+        
+
                     ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
                      
                     Mnemonic::Ffree => {
