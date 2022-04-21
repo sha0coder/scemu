@@ -2494,9 +2494,13 @@ impl Emu {
 
     ///  RUN ENGINE ///
 
-    pub fn run(&mut self) {        
-        println!(" ----- emulation -----");
+    pub fn run(&mut self) {     
         let mut looped:Vec<u64> = Vec::new();
+        let mut prev_addr:u64 = 0;
+        let mut repeat_counter:u32 = 0;
+
+        println!(" ----- emulation -----");
+        
         //let ins = Instruction::default();
         let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
@@ -2543,6 +2547,19 @@ impl Emu {
                         break;
                     }
                 }
+
+                // detect one instruction infinit loops
+                // TODO: use opcode EB FB or nemonic 
+                if addr == prev_addr {
+                    repeat_counter += 1;
+                }
+                prev_addr = addr;
+                if repeat_counter == 1024 {
+                    println!("infinit loop!");
+                    return;
+                }
+
+
 
                 if self.cfg.loops {
                     // loop detector
