@@ -2548,14 +2548,13 @@ impl Emu {
                     }
                 }
 
-                // detect one instruction infinit loops
-                // TODO: use opcode EB FB or nemonic 
+                // prevent infinit loop
                 if addr == prev_addr {
                     repeat_counter += 1;
                 }
                 prev_addr = addr;
-                if repeat_counter == 1024 {
-                    println!("infinit loop!");
+                if repeat_counter == 100 {
+                    println!("infinit loop!  opcode: {}", ins.op_code().op_code_string());
                     return;
                 }
 
