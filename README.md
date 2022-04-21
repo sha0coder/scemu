@@ -37,7 +37,7 @@ x86 32/64bits emulator, for securely emulating shellcodes
 
 ## Usage
 ```
-SCEMU 32bits emulator for Shellcodes 0.2.5
+SCEMU 32bits and 64bits emulator for Shellcodes 0.2.5
 @sha0coder
 
 USAGE:
