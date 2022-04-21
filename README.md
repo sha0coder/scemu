@@ -31,9 +31,9 @@ x86 32/64bits emulator, for securely emulating shellcodes
 
 ## TODO
 	- more fpu
-	- mmx
-	- 64 bits
+	- more mmx
 	- scripting?
+    - support more complex shellcodes
 
 ## Usage
 ```
