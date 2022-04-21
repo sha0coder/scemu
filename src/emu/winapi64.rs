@@ -4,6 +4,8 @@ mod user32;
 mod wininet;
 mod ws2_32;
 mod advapi32;
+mod winhttp;
+mod dnsapi;
 
 
 use crate::emu;
@@ -17,6 +19,8 @@ pub fn gateway(addr:u64, name:String, emu:&mut emu::Emu) { //name:String, maps:&
         "ws2_32_text" => ws2_32::gateway(addr, emu),
         "wininet_text" => wininet::gateway(addr, emu),
         "advapi32_text" => advapi32::gateway(addr, emu),
+        "winhttp_text" => winhttp::gateway(addr, emu),
+        "dnsapi_text" => dnsapi::gateway(addr, emu),
         _ => panic!("/!\\ trying to execute on {} at 0x{:x}", name, addr),
     }
 }

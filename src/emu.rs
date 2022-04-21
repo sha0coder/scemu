@@ -612,7 +612,12 @@ impl Emu {
         self.maps.create_map("oleaut32_text").load_at(0x7feff181000);
         self.maps.create_map("shlwapi_pe").load_at(0x7feff260000);
         self.maps.create_map("shlwapi_text").load_at(0x7feff261000);
-
+        self.maps.create_map("winhttp_pe").load_at(0x7fef9760000);
+        self.maps.create_map("winhttp_text").load_at(0x7fef9761000);
+        self.maps.create_map("dnsapi_pe").load_at(0x7fefc5f0000);
+        self.maps.create_map("dnsapi_text").load_at(0x7fefc5f1000);
+        self.maps.create_map("iphlpapi_pe").load_at(0x7fefc1b0000);
+        self.maps.create_map("iphlpapi_text").load_at(0x7fefc1b1000);
 
         // peb64 patch for being_debugged: 0
         let peb = self.maps.get_mem("peb");
@@ -2502,7 +2507,11 @@ impl Emu {
         loop {
             let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
-                None => panic!("redirecting code flow to non maped address 0x{:x}", self.regs.rip),
+                None => {
+                    println!("redirecting code flow to non maped address 0x{:x}", self.regs.rip);
+                    self.spawn_console();
+                    return;
+                }
             };
             let block = code.read_from(self.regs.rip).to_vec();
             let mut decoder; 
