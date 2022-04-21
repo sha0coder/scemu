@@ -181,13 +181,19 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
     let dll = emu.maps.read_string(dllptr);
 
-    match dll.to_lowercase().as_str() {
-        "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll").get_base(),
-        "ws2_32"|"ws2_32.dll" => emu.regs.rax = emu.maps.get_mem("ws2_32").get_base(),
-        "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
-        "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
-        "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
-        _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll),
+    if dll.len() == 0 {
+        emu.regs.rax = 0;
+
+    } else {
+
+        match dll.to_lowercase().as_str() {
+            "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll").get_base(),
+            "ws2_32"|"ws2_32.dll" => emu.regs.rax = emu.maps.get_mem("ws2_32").get_base(),
+            "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
+            "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
+            "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
+            _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr),
+        }
     }
 
     println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, emu.regs.get_eax() as u32, emu.colors.nc);

@@ -47,6 +47,9 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet_pe").get_base(),
         "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32_pe").get_base(),
         "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32_pe").get_base(),
+        "winhttp"|"winhttp.dll" => emu.regs.rax = emu.maps.get_mem("winhttp_pe").get_base(),
+        "dnsapi"|"dnsapi.dll" => emu.regs.rax = emu.maps.get_mem("dnsapi_pe").get_base(),
+        "iphlpapi"|"iphlpapi.dll" => emu.regs.rax = emu.maps.get_mem("iphlpapi_pe").get_base(),
         _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll),
     }
 
