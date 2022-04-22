@@ -389,8 +389,8 @@ fn QueryPerformanceCounter(emu:&mut emu::Emu) {
 }
 
 fn GetProcessHeap(emu:&mut emu::Emu) {
-
-    println!("{}** {} kernel32!GetProcessHeap {}", emu.colors.light_red, emu.pos, emu.colors.nc);
-
     emu.regs.rax = helper::handler_create();
+
+    println!("{}** {} kernel32!GetProcessHeap ={} {}", emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc);
+
 }
