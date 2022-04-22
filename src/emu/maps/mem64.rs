@@ -202,7 +202,7 @@ impl Mem64 {
         let idx = (addr - self.base_addr) as usize;
         let sz2 = idx as usize + size;
         if sz2 > self.mem.len() {
-            println!("size too big");
+            println!("size too big, map size is {}  sz2:{}", self.mem.len(), sz2);
             return;
         }
 
