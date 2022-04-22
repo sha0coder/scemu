@@ -998,7 +998,7 @@ impl Emu {
             }
         };
 
-        if addr < 0x70000000 {
+        if addr < 0x70000000 || name == "code" {
             self.regs.rip = addr;
         } else {
             if self.cfg.verbose >= 1 {
