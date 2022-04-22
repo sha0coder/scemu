@@ -52,7 +52,7 @@ impl Console {
     }
 
     pub fn cmd_num(&self) -> Result<u64,ParseIntError> {
-        u64::from_str_radix(self.cmd().as_str(), 16)
+        u64::from_str_radix(self.cmd().as_str(), 10)
     }
 
 /*
