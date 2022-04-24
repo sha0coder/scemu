@@ -597,7 +597,7 @@ impl Maps {
 
     pub fn show_allocs(&self) {
         for (name, mem) in self.maps.iter() {
-            if name.starts_with("alloc_") {
+            if name.starts_with("alloc_") || name.starts_with("valloc_") {
                 println!("{} 0x{:x} - 0x{:x} ({})", name, mem.get_base(), mem.get_bottom(), mem.size());
             } 
         }
