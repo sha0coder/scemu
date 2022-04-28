@@ -6628,7 +6628,10 @@ impl Emu {
                         } else {
                             println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), self.out, self.colors.nc);
                         }
-                        unimplemented!("unimplemented instruction");
+                        
+                        println!("unimplemented or invalid instruction.");
+                        self.spawn_console();
+                        //unimplemented!("unimplemented instruction");
                     },
 
                 } // end mnemonics

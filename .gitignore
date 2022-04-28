@@ -3,3 +3,4 @@ shellcodes32/
 shellcodes64/
 x
 *.swp
+*.idb
