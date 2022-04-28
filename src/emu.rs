@@ -658,7 +658,9 @@ impl Emu {
             let mem = match self.maps.get_mem_by_addr(self.regs.get_esp()) {
                 Some(m) => m,
                 None =>  {
-                    panic!("pushing stack outside maps esp: 0x{:x}", self.regs.get_esp());
+                    println!("/!\\ pushing stack outside maps esp: 0x{:x}", self.regs.get_esp());
+                    self.spawn_console();
+                    return;
                 }
             };
             mem.write_dword(self.regs.get_esp(), value);
@@ -680,7 +682,9 @@ impl Emu {
             let mem = match self.maps.get_mem_by_addr(self.regs.rsp) {
                 Some(m) => m,
                 None =>  {
-                    panic!("pushing stack outside maps rsp: 0x{:x}", self.regs.get_esp());
+                    println!("pushing stack outside maps rsp: 0x{:x}", self.regs.get_esp());
+                    self.spawn_console();
+                    return;
                 }
             };
             mem.write_qword(self.regs.rsp, value);
@@ -2215,22 +2219,38 @@ impl Emu {
 
                         64 => match self.maps.read_qword(mem_addr) {
                             Some(v) => v,
-                            None => { self.exception(); return None; }
+                            None => { 
+                                println!("/!\\ error dereferencing qword on 0x{:x}", mem_addr);
+                                self.exception(); 
+                                return None; 
+                            }
                         }
 
                         32 => match self.maps.read_dword(mem_addr) {
                             Some(v) => v.into(),
-                            None =>  { self.exception(); return None; }
+                            None =>  { 
+                                println!("/!\\ error dereferencing dword on 0x{:x}", mem_addr);
+                                self.exception(); 
+                                return None; 
+                            }
                         }
 
                         16 => match self.maps.read_word(mem_addr) {
                             Some(v) => v.into(),
-                            None =>  { self.exception(); return None; }
+                            None =>  { 
+                                println!("/!\\ error dereferencing word on 0x{:x}", mem_addr);
+                                self.exception(); 
+                                return None; 
+                            }
                         }
 
                         8 => match self.maps.read_byte(mem_addr) {
                             Some(v) => v.into(),
-                            None =>  { self.exception(); return None; }
+                            None =>  { 
+                                println!("/!\\ error dereferencing byte on 0x{:x}", mem_addr);
+                                self.exception(); 
+                                return None; 
+                            }
                         }
 
                         _ => unimplemented!("weird size")
@@ -2292,28 +2312,28 @@ impl Emu {
                     match sz {
                         64 => {
                             if !self.maps.write_qword(mem_addr, value) {
-                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                println!("/!\\ exception dereferencing bad address. 0x{:x}", mem_addr);
                                 self.exception();
                                 return false;
                             }
                         }
                         32 => {
                             if !self.maps.write_dword(mem_addr, to32!(value)) {
-                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                println!("/!\\ exception dereferencing bad address. 0x{:x}", mem_addr);
                                 self.exception();
                                 return false;
                             }
                         }
                         16  => {
                             if !self.maps.write_word(mem_addr, value as u16) {
-                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                println!("/!\\ exception dereferencing bad address. 0x{:x}", mem_addr);
                                 self.exception();
                                 return false;
                             }
                         }
                         8  => {
                             if !self.maps.write_byte(mem_addr, value as u8) {
-                                println!("exception dereferencing bad address. 0x{:x}", mem_addr);
+                                println!("/!\\ exception dereferencing bad address. 0x{:x}", mem_addr);
                                 self.exception();
                                 return false;
                             }
@@ -2365,6 +2385,7 @@ impl Emu {
                 }) {
                     Some(addr) => addr,
                     None => {
+                        println!("/!\\ xmm exception reading operand");
                         self.exception();
                         return None
                     }
@@ -2374,6 +2395,7 @@ impl Emu {
                     let value:u128 = match self.maps.read_128bits_le(mem_addr) {
                         Some(v) => v,
                         None => { 
+                            println!("/!\\ exception reading xmm operand at 0x{:x} ", mem_addr);
                             self.exception(); 
                             return None
                         }
@@ -2400,6 +2422,7 @@ impl Emu {
                 }) {
                     Some(addr) => addr,
                     None => {
+                        println!("/!\\ exception setting xmm operand.");
                         self.exception();
                         return;
                     }
@@ -2696,6 +2719,7 @@ impl Emu {
                             self.stack_push64(self.regs.rip + sz as u64);
                             self.set_rip(addr, false);
                         } else {
+                            println!("tmp from call instruction");
                             self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
                             self.set_eip(addr, false);
                         }
@@ -2716,6 +2740,7 @@ impl Emu {
                         if self.cfg.is_64bits {
                             self.stack_push64(value);
                         } else {
+                            println!("tmp from push instruction");
                             self.stack_push32(to32!(value));
                         }
                     }
@@ -6570,6 +6595,7 @@ impl Emu {
                         self.regs.rsp -= 2;
 
                         if !self.maps.write_word(self.regs.rsp, val) {
+                            println!("/!\\ exception writing word at rsp 0x{:x}", self.regs.rsp);
                             self.exception();
                             break;
                         }
