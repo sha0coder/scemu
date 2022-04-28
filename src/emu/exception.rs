@@ -12,7 +12,6 @@ pub fn enter(emu: &mut emu::Emu) {
 }
 
 pub fn exit(emu: &mut emu::Emu) {
-
     let mut ctx = Context32::new(&emu.regs);
     ctx.load(emu.eh_ctx, &mut emu.maps);
     ctx.sync(&mut emu.regs);
