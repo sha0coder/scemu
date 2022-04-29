@@ -395,8 +395,46 @@ impl LdrDataTableEntry64 {
     pub fn print(&self) {
         println!("{:#x?}", self);
     }
+}
+
+
+#[derive(Debug)]
+pub struct ImageExportDirectory {
+    characteristics: u32,
+    time_date_stamp: u32,
+    minor_version: u16,
+    name: u32,
+    base: u32,
+    number_of_functions: u32,
+    number_of_names: u32,
+    address_of_functions: u32,
+    address_of_names: u32,
+    address_of_ordinals: u32
+}
+
+impl ImageExportDirectory {
+    pub fn load(addr:u64, maps:&Maps) -> ImageExportDirectory {
+        ImageExportDirectory {
+            characteristics: maps.read_dword(addr).unwrap(),
+            time_date_stamp: maps.read_dword(addr+4).unwrap(),
+            minor_version: maps.read_word(addr+8).unwrap(),
+            name: maps.read_dword(addr+10).unwrap(),
+            base: maps.read_dword(addr+14).unwrap(),
+            number_of_functions: maps.read_dword(addr+18).unwrap(),
+            number_of_names: maps.read_dword(addr+22).unwrap(),
+            address_of_functions: maps.read_dword(addr+26).unwrap(),
+            address_of_names: maps.read_dword(addr+30).unwrap(),
+            address_of_ordinals: maps.read_dword(addr+34).unwrap()
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
 
 }
+
+
 
 ////// EXCEPTIONS //////
 

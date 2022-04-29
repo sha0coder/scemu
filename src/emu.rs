@@ -1002,6 +1002,7 @@ impl Emu {
             }
         };
 
+
         if addr < 0x70000000 || name == "code" {
             self.regs.rip = addr;
         } else {
