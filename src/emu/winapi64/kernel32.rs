@@ -57,6 +57,7 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
 }
 
 fn GetProcAddress(emu:&mut emu::Emu) {
+    let dbg = true;
     let hndl = emu.regs.rcx;
     let func_ptr = emu.regs.rdx;
 
@@ -67,21 +68,31 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_qword(peb_base + 0x18);
-    //println!("ldr: 0x{:x}", ldr);
+    if dbg {
+        println!("ldr: 0x{:x}", ldr);
+    }
     let mut flink = emu.maps.read_qword(ldr + 0x10).expect("kernel32!GetProcAddress error reading flink");
-    //println!("flink: 0x{:x}", flink);
+    if dbg {
+        println!("flink: 0x{:x}", flink);
+    }
 
     loop { // walk modules
 
         let mod_name_ptr = emu.maps.read_qword(flink + 0x60).expect("kernel32!GetProcAddress error reading mod_name_ptr");
         let mod_path_ptr = emu.maps.read_qword(flink + 0x50).expect("kernel32!GetProcAddress error reading mod_name_ptr");
-        //println!("mod_name_ptr: 0x{:x}", mod_name_ptr);
+        if dbg {
+            println!("mod_name_ptr: 0x{:x}", mod_name_ptr);
+        }
 
         let mod_base = emu.maps.read_qword(flink + 0x30).expect("kernel32!GetProcAddress error reading mod_addr");
-        //println!("mod_base: 0x{:x}", mod_base);
+        if dbg {
+            println!("mod_base: 0x{:x}", mod_base);
+        }
 
         let mod_name = emu.maps.read_wide_string(mod_name_ptr);
-        //println!("mod_name: {}", mod_name);
+        if dbg {
+            println!("mod_name: {}", mod_name);
+        }
     
 
         let pe_hdr_off = match emu.maps.read_dword(mod_base + 0x3c) { 
@@ -89,20 +100,30 @@ fn GetProcAddress(emu:&mut emu::Emu) {
             None => { emu.regs.rax = 0; return; }
         };
 
+        if dbg {
+            println!("pe_hdr_off: 0x{:x}", pe_hdr_off);
+        }
+
         // pe_hdr correct
 
         
         let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr_off + 0x88).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
-        //println!("({:x}) {:x} =  {:x} + pehdr:{:x} + {:x}", export_table_rva, mod_base + pe_hdr_off + 0x78, mod_base, pe_hdr_off, 0x78);
+        if dbg {
+            println!("({:x}) {:x} =  {:x} + pehdr:{:x} + {:x}", export_table_rva, mod_base + pe_hdr_off + 0x78, mod_base, pe_hdr_off, 0x78);
+        }
 
         if export_table_rva == 0 {
             flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            //println!("getting new flink: 0x{:x}", flink);
+            if dbg {
+                println!("getting new flink: 0x{:x}", flink);
+            }
             continue;
         }
 
         let export_table = export_table_rva + mod_base;
-        //println!("export_table: 0x{:x}", export_table);
+        if dbg {
+            println!("export_table: 0x{:x}", export_table);
+        }
 
        
 
@@ -114,8 +135,10 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
 
         let mut num_of_funcs = emu.maps.read_dword(export_table + 0x18).expect("kernel32!GetProcAddress error reading the num_of_funcs") as u64;
- 
-        //println!("num_of_funcs:  0x{:x} -> 0x{:x}", export_table + 0x18, num_of_funcs);
+
+        if dbg {
+            println!("num_of_funcs:  0x{:x} -> 0x{:x}", export_table + 0x18, num_of_funcs);
+        }
 
 
         if num_of_funcs == 0 {
