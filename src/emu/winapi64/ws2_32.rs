@@ -345,9 +345,11 @@ fn GetSockName(emu:&mut emu::Emu) {
     let sockaddr_ptr = emu.regs.rdx;
     let namelen_ptr = emu.regs.r8;
 
-    //emu.write_dword(namelen_ptr, 0);
+    emu.maps.write_dword(sockaddr_ptr, 0);
+    emu.maps.write_dword(namelen_ptr, 4);
 
     println!("{}** {} ws2_32!GetSockName sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
 
 
+    emu.regs.rax = 0;
 }

@@ -1,11 +1,11 @@
 use crate::emu;
 use crate::emu::winapi32::helper;
 use crate::emu::constants;
+use crate::emu::console;
+
 
 /*
 use crate::emu::context32;
-use crate::emu::console;
-
 use lazy_static::lazy_static; 
 use std::sync::Mutex;*/
 
@@ -35,6 +35,7 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dd3050 => GetProcessHeap(emu),
         0x76e5a504 => HeapAlloc(emu),
         0x76dc1120 => CreateEventA(emu),
+        0x76dc6580 => CreateThread(emu),
         _ => panic!("calling unimplemented kernel32 64bits API 0x{:x}", addr),
     }
 }
@@ -451,5 +452,43 @@ fn CreateEventA(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!CreateEventA attr: 0x{:x} manual_reset: {} init_state: {} name: {} {}", 
         emu.colors.light_red, emu.pos, attributes, bManualReset, bInitialState, name, emu.colors.nc);
     
+    emu.regs.rax = helper::handler_create();
+}
+
+fn CreateThread(emu:&mut emu::Emu) {
+    let sec_attr = emu.regs.rcx;
+    let stack_sz = emu.regs.rdx;
+    let code = emu.regs.r8;
+    let param = emu.regs.r9;
+    let flags = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!CreateThread cannot read flags") as u64;
+    let tid_ptr = emu.maps.read_qword(emu.regs.rsp+8).expect("kernel32!CreateThread cannot read tid_ptr") as u64;
+
+    emu.maps.write_dword(tid_ptr, 0x123);
+
+    println!("{}** {} kernel32!CreateThread code: 0x{:x} {}", emu.colors.light_red, emu.pos, code, emu.colors.nc);
+
+    for _ in 0..2 {
+        emu.stack_pop64(false);
+    }
+
+    if flags == constants::CREATE_SUSPENDED {
+        println!("\tcreated suspended!");
+    }
+
+    let con = console::Console::new();
+    con.print("Continue emulating the created thread (y/n)? ");
+    let line = con.cmd();
+
+    if line == "y" || line == "yes" {
+        if emu.maps.is_mapped(code) {
+            emu.regs.rip = code;
+            emu.regs.rax = 0;
+            // alloc a stack vs reusing stack.
+            return;
+        } else {
+            println!("cannot emulate the thread, the function pointer is not mapped.");
+        }
+    } 
+
     emu.regs.rax = helper::handler_create();
 }

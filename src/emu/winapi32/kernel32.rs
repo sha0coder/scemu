@@ -963,7 +963,7 @@ fn CreateThread(emu:&mut emu::Emu) {
 
     emu.maps.write_dword(tid_ptr, 0x123);
 
-    println!("{}** {} kernel32!CreateThread code: {} {}", emu.colors.light_red, emu.pos, code, emu.colors.nc);
+    println!("{}** {} kernel32!CreateThread code: 0x{:x} {}", emu.colors.light_red, emu.pos, code, emu.colors.nc);
 
     for _ in 0..6 {
         emu.stack_pop32(false);
