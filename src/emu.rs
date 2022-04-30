@@ -1974,6 +1974,10 @@ impl Emu {
                             let s = structures::LdrDataTableEntry64::load(addr, &self.maps);
                             s.print();
                         }
+                        "image_export_directory" => {
+                            let s = structures::ImageExportDirectory::load(addr, &self.maps);
+                            s.print();
+                        }
 
                         _  => println!("unrecognized structure."),
                     }
