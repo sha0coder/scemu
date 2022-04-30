@@ -14,6 +14,7 @@ use crate::emu;
 pub fn gateway(addr:u64, name:String, emu:&mut emu::Emu) { //name:String, maps:&emu32::maps::Maps, regs:&emu32::regs32::Regs32) {
     match name.as_str() {
         "kernel32_text" => kernel32::gateway(addr, emu),
+        "kernel32_rdata" => kernel32::gateway(addr, emu),
         "ntdll_text" => ntdll::gateway(addr, emu),
         "user32_text" => user32::gateway(addr, emu),
         "ws2_32_text" => ws2_32::gateway(addr, emu),

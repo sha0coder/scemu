@@ -33,7 +33,9 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dc5a50 => GetCurrentProcessId(emu),
         0x76dc6500 => QueryPerformanceCounter(emu),
         0x76dd3050 => GetProcessHeap(emu),
-        _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
+        0x76e5a504 => HeapAlloc(emu),
+        0x76dc1120 => CreateEventA(emu),
+        _ => panic!("calling unimplemented kernel32 64bits API 0x{:x}", addr),
     }
 }
 
@@ -50,6 +52,7 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         "winhttp"|"winhttp.dll" => emu.regs.rax = emu.maps.get_mem("winhttp_pe").get_base(),
         "dnsapi"|"dnsapi.dll" => emu.regs.rax = emu.maps.get_mem("dnsapi_pe").get_base(),
         "iphlpapi"|"iphlpapi.dll" => emu.regs.rax = emu.maps.get_mem("iphlpapi_pe").get_base(),
+        "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32_pe").get_base(),
         _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll),
     }
 
@@ -63,7 +66,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
     let func = emu.maps.read_string(func_ptr).to_lowercase();
 
-    println!("looking for '{}'", func);
+    if dbg {
+        println!("looking for '{}'", func);
+    }
 
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
@@ -129,7 +134,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
         if !emu.maps.is_mapped(export_table) {
             flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            println!("getting new flink: 0x{:x}", flink);
+            if dbg {
+                println!("getting new flink: 0x{:x}", flink);
+            }
             continue;
         }
 
@@ -415,5 +422,34 @@ fn GetProcessHeap(emu:&mut emu::Emu) {
     emu.regs.rax = helper::handler_create();
 
     println!("{}** {} kernel32!GetProcessHeap ={} {}", emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc);
+}
 
+fn HeapAlloc(emu:&mut emu::Emu) {
+    let hndl = emu.regs.rcx;
+    let flags = emu.regs.rdx;
+    let size = emu.regs.r8;
+
+    emu.regs.rax = match emu.maps.alloc(size) {
+        Some(sz) => sz,
+        None => 0,
+    };
+
+    let mem = emu.maps.create_map(format!("alloc_{:x}", emu.regs.rax).as_str());
+    mem.set_base(emu.regs.rax);
+    mem.set_size(size);
+    
+    println!("{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}", emu.colors.light_red, 
+        emu.pos, flags, size, emu.regs.rax, emu.colors.nc);
+}
+
+fn CreateEventA(emu:&mut emu::Emu) {
+    let attributes = emu.regs.rcx;
+    let bManualReset = emu.regs.rdx;
+    let bInitialState = emu.regs.r8;
+    let name = emu.regs.r9;
+
+    println!("{}** {} kernel32!CreateEventA attr: 0x{:x} manual_reset: {} init_state: {} name: {} {}", 
+        emu.colors.light_red, emu.pos, attributes, bManualReset, bInitialState, name, emu.colors.nc);
+    
+    emu.regs.rax = helper::handler_create();
 }
