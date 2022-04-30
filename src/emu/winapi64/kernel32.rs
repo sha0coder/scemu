@@ -57,7 +57,7 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
 }
 
 fn GetProcAddress(emu:&mut emu::Emu) {
-    let dbg = true;
+    let dbg = false;
     let hndl = emu.regs.rcx;
     let func_ptr = emu.regs.rdx;
 
@@ -166,10 +166,10 @@ fn GetProcAddress(emu:&mut emu::Emu) {
             //println!("func_name: {}", func_name);
             
             if func_name == func { 
-                let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
+                let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64; // Ok address_of_ordinals
                 let ordinal_tbl = ordinal_tbl_rva + mod_base;
                 let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal") as u64;
-                let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva") as u64;
+                let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva") as u64; //Ok address_of_functions
                 let func_addr_tbl = func_addr_tbl_rva + mod_base;
                 
                 let func_rva = emu.maps.read_dword(func_addr_tbl + 4 * ordinal).expect("kernel32!GetProcAddress error reading func_rva") as u64;
