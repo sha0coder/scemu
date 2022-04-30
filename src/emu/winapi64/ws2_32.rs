@@ -24,13 +24,10 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu)  {
         0x7fefeebdd30 => setsockopt(emu),
         0x7fefeebe200 => getsockopt(emu),
         0x7fefeebea20 => WsaAccept(emu),
-
-
+        0x7fefeeb9480 => GetSockName(emu),
 
 
         //0x7fefeebd7f0 => sendto(emu),
-
-
 
 
         /*
@@ -341,4 +338,16 @@ fn WsaAccept(emu:&mut emu::Emu) {
     } else {
         emu.regs.rax = 0;
     }
+}
+
+fn GetSockName(emu:&mut emu::Emu) {
+    let sock = emu.regs.rcx;
+    let sockaddr_ptr = emu.regs.rdx;
+    let namelen_ptr = emu.regs.r8;
+
+    //emu.write_dword(namelen_ptr, 0);
+
+    println!("{}** {} ws2_32!GetSockName sock: {} {}", emu.colors.light_red, emu.pos, sock, emu.colors.nc);
+
+
 }
