@@ -402,6 +402,7 @@ impl LdrDataTableEntry64 {
 pub struct ImageExportDirectory {
     characteristics: u32,
     time_date_stamp: u32,
+    major_version: u16,
     minor_version: u16,
     name: u32,
     base: u32,
@@ -417,14 +418,15 @@ impl ImageExportDirectory {
         ImageExportDirectory {
             characteristics: maps.read_dword(addr).unwrap(),
             time_date_stamp: maps.read_dword(addr+4).unwrap(),
-            minor_version: maps.read_word(addr+8).unwrap(),
-            name: maps.read_dword(addr+10).unwrap(),
-            base: maps.read_dword(addr+14).unwrap(),
-            number_of_functions: maps.read_dword(addr+18).unwrap(),
-            number_of_names: maps.read_dword(addr+22).unwrap(),
-            address_of_functions: maps.read_dword(addr+26).unwrap(),
-            address_of_names: maps.read_dword(addr+30).unwrap(),
-            address_of_ordinals: maps.read_dword(addr+34).unwrap()
+            major_version: maps.read_word(addr+8).unwrap(),
+            minor_version: maps.read_word(addr+10).unwrap(),
+            name: maps.read_dword(addr+12).unwrap(),
+            base: maps.read_dword(addr+16).unwrap(),
+            number_of_functions: maps.read_dword(addr+20).unwrap(),
+            number_of_names: maps.read_dword(addr+24).unwrap(),
+            address_of_functions: maps.read_dword(addr+28).unwrap(),
+            address_of_names: maps.read_dword(addr+32).unwrap(),
+            address_of_ordinals: maps.read_dword(addr+36).unwrap()
         }
     }
 
