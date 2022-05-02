@@ -36,6 +36,7 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76e5a504 => HeapAlloc(emu),
         0x76dc1120 => CreateEventA(emu),
         0x76dc6580 => CreateThread(emu),
+        0x76dd2b70 => Sleep(emu),
         _ => panic!("calling unimplemented kernel32 64bits API 0x{:x}", addr),
     }
 }
@@ -482,6 +483,8 @@ fn CreateThread(emu:&mut emu::Emu) {
     if line == "y" || line == "yes" {
         if emu.maps.is_mapped(code) {
             emu.regs.rip = code;
+            //emu.stack_pop64(false);
+            //emu.stack_push64(code);
             emu.regs.rax = 0;
             // alloc a stack vs reusing stack.
             return;
@@ -491,4 +494,11 @@ fn CreateThread(emu:&mut emu::Emu) {
     } 
 
     emu.regs.rax = helper::handler_create();
+}
+
+fn Sleep(emu:&mut emu::Emu) {
+    let millis = emu.regs.rcx;
+
+    println!("{}** {} kernel32!Sleep millis: {} {}", emu.colors.light_red, emu.pos, millis, emu.colors.nc);
+
 }

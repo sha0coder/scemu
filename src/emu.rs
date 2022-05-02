@@ -1009,11 +1009,12 @@ impl Emu {
             if self.cfg.verbose >= 1 {
                 println!("/!\\ changing EIP to {} ", name);
             }
-            let retaddr = self.stack_pop64(false);
-            winapi64::gateway(addr, name, self);
 
+
+            let retaddr = self.stack_pop64(false);
             self.regs.rip = retaddr;
-            //self.regs.rax = retaddr;
+
+            winapi64::gateway(addr, name, self);
         }
 
     }
@@ -1037,10 +1038,11 @@ impl Emu {
             }
 
             let retaddr = self.stack_pop32(false);
+            self.regs.set_eip(retaddr.into());
 
             winapi32::gateway(to32!(addr), name, self);
 
-            self.regs.set_eip(retaddr.into());
+            
         }
     }
 
@@ -2724,7 +2726,6 @@ impl Emu {
                             self.stack_push64(self.regs.rip + sz as u64);
                             self.set_rip(addr, false);
                         } else {
-                            println!("tmp from call instruction");
                             self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
                             self.set_eip(addr, false);
                         }
@@ -2745,7 +2746,6 @@ impl Emu {
                         if self.cfg.is_64bits {
                             self.stack_push64(value);
                         } else {
-                            println!("tmp from push instruction");
                             self.stack_push32(to32!(value));
                         }
                     }
