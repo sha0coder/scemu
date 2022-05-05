@@ -483,8 +483,6 @@ fn CreateThread(emu:&mut emu::Emu) {
     if line == "y" || line == "yes" {
         if emu.maps.is_mapped(code) {
             emu.regs.rip = code;
-            //emu.stack_pop64(false);
-            //emu.stack_push64(code);
             emu.regs.rax = 0;
             // alloc a stack vs reusing stack.
             return;

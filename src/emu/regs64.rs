@@ -116,6 +116,14 @@ pub struct Regs64 {
     pub xmm5: u128,
     pub xmm6: u128,
     pub xmm7: u128, 
+    pub xmm8: u128, 
+    pub xmm9: u128, 
+    pub xmm10: u128, 
+    pub xmm11: u128, 
+    pub xmm12: u128, 
+    pub xmm13: u128, 
+    pub xmm14: u128, 
+    pub xmm15: u128, 
 }
 
 impl Regs64 {
@@ -180,6 +188,14 @@ impl Regs64 {
             xmm5: 0,
             xmm6: 0,
             xmm7: 0,
+            xmm8: 0,
+            xmm9: 0,
+            xmm10: 0,
+            xmm11: 0,
+            xmm12: 0,
+            xmm13: 0,
+            xmm14: 0,
+            xmm15: 0,
         }
     }
 
@@ -289,6 +305,14 @@ impl Regs64 {
         println!("  xmm5: {}", self.xmm5);
         println!("  xmm6: {}", self.xmm6);
         println!("  xmm7: {}", self.xmm7);
+        println!("  xmm8: {}", self.xmm8);
+        println!("  xmm9: {}", self.xmm9);
+        println!("  xmm10: {}", self.xmm10);
+        println!("  xmm11: {}", self.xmm11);
+        println!("  xmm12: {}", self.xmm12);
+        println!("  xmm13: {}", self.xmm13);
+        println!("  xmm14: {}", self.xmm14);
+        println!("  xmm15: {}", self.xmm15);
     }   
 
     // get 16 bits
@@ -797,7 +821,16 @@ impl Regs64 {
             Register::XMM5 => self.xmm5,
             Register::XMM6 => self.xmm6,
             Register::XMM7 => self.xmm7,
-            _ => unimplemented!("SSE  XMM re gister: {:?} ", reg),
+            Register::XMM8 => self.xmm8,
+            Register::XMM9 => self.xmm9,
+            Register::XMM10 => self.xmm10,
+            Register::XMM11 => self.xmm11,
+            Register::XMM12 => self.xmm12,
+            Register::XMM13 => self.xmm13,
+            Register::XMM14 => self.xmm14,
+            Register::XMM15 => self.xmm15,
+
+            _ => unimplemented!("SSE  XMM register: {:?} ", reg),
         };
         return value;
     }
@@ -812,7 +845,16 @@ impl Regs64 {
             Register::XMM5 => self.xmm5 = value,
             Register::XMM6 => self.xmm6 = value,
             Register::XMM7 => self.xmm7 = value,
-            _ => unimplemented!("SSE  XMM re gister: {:?} ", reg),
+            Register::XMM8 => self.xmm8 = value,
+            Register::XMM9 => self.xmm9 = value,
+            Register::XMM10 => self.xmm10 = value,
+            Register::XMM11 => self.xmm11 = value,
+            Register::XMM12 => self.xmm12 = value,
+            Register::XMM13 => self.xmm13 = value,
+            Register::XMM14 => self.xmm14 = value,
+            Register::XMM15 => self.xmm15 = value,
+
+            _ => unimplemented!("SSE  XMM register: {:?} ", reg),
         };
     }
 

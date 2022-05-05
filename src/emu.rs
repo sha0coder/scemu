@@ -1015,6 +1015,7 @@ impl Emu {
             self.regs.rip = retaddr;
 
             winapi64::gateway(addr, name, self);
+            self.force_break = true;
         }
 
     }
@@ -1041,8 +1042,7 @@ impl Emu {
             self.regs.set_eip(retaddr.into());
 
             winapi32::gateway(to32!(addr), name, self);
-
-            
+            self.force_break = true;
         }
     }
 
@@ -1514,6 +1514,14 @@ impl Emu {
                 "r xmm5" => println!("\txmm5: 0x{:x}", self.regs.xmm5),
                 "r xmm6" => println!("\txmm6: 0x{:x}", self.regs.xmm6),
                 "r xmm7" => println!("\txmm7: 0x{:x}", self.regs.xmm7),
+                "r xmm8" => println!("\txmm8: 0x{:x}", self.regs.xmm8),
+                "r xmm9" => println!("\txmm9: 0x{:x}", self.regs.xmm9),
+                "r xmm10" => println!("\txmm10: 0x{:x}", self.regs.xmm10),
+                "r xmm11" => println!("\txmm11: 0x{:x}", self.regs.xmm11),
+                "r xmm12" => println!("\txmm12: 0x{:x}", self.regs.xmm12),
+                "r xmm13" => println!("\txmm13: 0x{:x}", self.regs.xmm13),
+                "r xmm14" => println!("\txmm14: 0x{:x}", self.regs.xmm14),
+                "r xmm15" => println!("\txmm15: 0x{:x}", self.regs.xmm15),
 
                 "rc" => {
                     con.print("register name");
@@ -2486,6 +2494,9 @@ impl Emu {
                     MemorySize::QwordOffset => 64,
                     MemorySize::DwordOffset => 32,
                     MemorySize::WordOffset => 16,
+                    MemorySize::Packed128_UInt64 => 64, // 128bits packed in 2 qwords
+                    MemorySize::Packed128_UInt32 => 32, // 128bits packed in 4 dwords
+                    MemorySize::Packed128_UInt16 => 16, // 128bits packed in 8 words
                     _  => unimplemented!("memory size {:?}", mem.memory_size()),
                 };
 
@@ -2729,7 +2740,6 @@ impl Emu {
                             self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
                             self.set_eip(addr, false);
                         }
-
                         break;
                     }
 
@@ -6317,7 +6327,8 @@ impl Emu {
                     // scalar double: only 54b less significative part.
                     // packed: compute all parts.
                     // packed double: 
-                    
+                    //
+
 
                     Mnemonic::Pxor => {
                         self.show_instruction(&self.colors.green, &ins);
@@ -6395,6 +6406,30 @@ impl Emu {
                             panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
                         }
                     }
+
+
+                    Mnemonic::Movdqa => {
+                        self.show_instruction(&self.colors.green, &ins);
+
+                        assert!(ins.op_count() == 2);
+
+                        let sz0 = self.get_operand_sz(&ins, 0);
+                        let sz1 = self.get_operand_sz(&ins, 1);
+
+                        if sz0 == 32 && sz1 == 128 {
+                            let xmm = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
+                            let addr = self.get_operand_value(&ins, 0, false).expect("error getting address");
+                            //println!("addr: 0x{:x} value: 0x{:x}", addr, xmm);
+                            self.maps.write_dword(addr, ((xmm & 0xffffffff_00000000_00000000_00000000) >> (12*8)) as u32 );
+                            self.maps.write_dword(addr+4, ((xmm & 0xffffffff_00000000_00000000) >> (8*8)) as u32 );
+                            self.maps.write_dword(addr+8, ((xmm & 0xffffffff_00000000) >> (12*8)) as u32 );
+                            self.maps.write_dword(addr+12, (xmm & 0xffffffff) as u32 );
+                        } else {
+                            println!("sz0: {}  sz1: {}\n", sz0, sz1);
+                            unimplemented!("movdqa");
+                        }
+                    }
+                    
 
                     Mnemonic::Andpd => {
                         self.show_instruction(&self.colors.green, &ins);

@@ -1,13 +1,13 @@
 [package]
 name = "scemu"
-version = "0.3.3"
-authors = ["sha0coder <sha0@badchecksum.net>"]
+version = "0.3.4"
+authors = ["sha0coder"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced-x86 = "1.15.0"
+iced-x86 = "1.17.0"
 clap = "2.33.3"
 md5 = "0.7.0"
 lazy_static = "1.4.0"
