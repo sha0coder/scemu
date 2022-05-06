@@ -485,7 +485,8 @@ fn CreateThread(emu:&mut emu::Emu) {
             emu.regs.rip = code;
             emu.regs.rax = 0;
             emu.regs.rcx = param;
-            emu.maps.write_qword(emu.regs.rsp+8, param);
+            emu.stack_push64(param);
+            emu.stack_push64(constants::RETURN_THREAD.into());
 
             // alloc a stack vs reusing stack.
             return;

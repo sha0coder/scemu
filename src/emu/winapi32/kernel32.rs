@@ -981,9 +981,9 @@ fn CreateThread(emu:&mut emu::Emu) {
         if emu.maps.is_mapped(code) {
             emu.regs.set_eip(code);
             emu.regs.rax = 0;
-
             emu.regs.set_ecx(param as u64);
-            emu.maps.write_dword(emu.regs.get_esp()+4, param);
+            emu.stack_push32(param);
+            emu.stack_push32(constants::RETURN_THREAD);
 
             // alloc a stack vs reusing stack.
             return;
