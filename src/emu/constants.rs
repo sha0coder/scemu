@@ -18,6 +18,8 @@ pub const WAIT_FAILED:u64 = 0xFFFFFFFF;
 pub const CALL_FIRST:u32 = 1;
 pub const CALL_LAST:u32 = 0;
 
+pub const RETURN_THREAD:u32 = 0x11223344; 
+
 pub const INTERNET_OPTION_ALTER_IDENTITY:u32 = 80;
 pub const INTERNET_OPTION_ASYNC:u32 = 30;
 pub const INTERNET_OPTION_ASYNC_ID:u32 = 15;
