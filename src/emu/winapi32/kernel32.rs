@@ -957,7 +957,7 @@ fn CreateThread(emu:&mut emu::Emu) {
     let sec_attr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateThread cannot read sec_attr");
     let stack_sz = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!CreateThread cannot read stack_sz");
     let code = emu.maps.read_dword(emu.regs.get_esp()+8).expect("kernel32!CreateThread cannot read fptr") as u64;
-    let param = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!CreateThread cannot read param");
+    let param = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!CreateThread cannot read param"); 
     let flags = emu.maps.read_dword(emu.regs.get_esp()+16).expect("kernel32!CreateThread cannot read flags") as u64;
     let tid_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("kernel32!CreateThread cannot read tid_ptr") as u64;
 
@@ -981,6 +981,10 @@ fn CreateThread(emu:&mut emu::Emu) {
         if emu.maps.is_mapped(code) {
             emu.regs.set_eip(code);
             emu.regs.rax = 0;
+
+            emu.regs.set_ecx(param as u64);
+            emu.maps.write_dword(emu.regs.get_esp()+4, param);
+
             // alloc a stack vs reusing stack.
             return;
         } else {

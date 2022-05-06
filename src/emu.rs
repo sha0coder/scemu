@@ -1052,10 +1052,10 @@ impl Emu {
             return 8;
         } else if operand.contains("dword ptr") {
             return 32;
-        } else if operand.contains("word ptr") {
-            return 16;
         } else if operand.contains("qword ptr") {
             return 64;
+        } else if operand.contains("word ptr") {
+            return 16;
         }
 
         let c:Vec<char> = operand.chars().collect();

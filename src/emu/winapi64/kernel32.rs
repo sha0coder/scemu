@@ -466,7 +466,7 @@ fn CreateThread(emu:&mut emu::Emu) {
 
     emu.maps.write_dword(tid_ptr, 0x123);
 
-    println!("{}** {} kernel32!CreateThread code: 0x{:x} {}", emu.colors.light_red, emu.pos, code, emu.colors.nc);
+    println!("{}** {} kernel32!CreateThread code: 0x{:x} param: 0x{:x} {}", emu.colors.light_red, emu.pos, code, param, emu.colors.nc);
 
     for _ in 0..2 {
         emu.stack_pop64(false);
@@ -484,6 +484,9 @@ fn CreateThread(emu:&mut emu::Emu) {
         if emu.maps.is_mapped(code) {
             emu.regs.rip = code;
             emu.regs.rax = 0;
+            emu.regs.rcx = param;
+            emu.maps.write_qword(emu.regs.rsp+8, param);
+
             // alloc a stack vs reusing stack.
             return;
         } else {
