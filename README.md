@@ -6,8 +6,8 @@ x86 32/64bits emulator, for securely emulating shellcodes
 	- All dependencies are in rust.
 	- zero unsafe{} blocks.
 - ⚡ very fast emulation (much faster than unicorn) 
-	- 3,000,000 instructions/second
-	- 100,000 instructions/second printing every instruction -vv.
+	- 2,000,000 instructions/second
+	- 379,000 instructions/second printing every instruction -vv.
 - powered by iced-x86 rust dissasembler awesome library.
 - iteration detector.
 - memory and register tracking.

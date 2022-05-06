@@ -6422,8 +6422,35 @@ impl Emu {
                             //println!("addr: 0x{:x} value: 0x{:x}", addr, xmm);
                             self.maps.write_dword(addr, ((xmm & 0xffffffff_00000000_00000000_00000000) >> (12*8)) as u32 );
                             self.maps.write_dword(addr+4, ((xmm & 0xffffffff_00000000_00000000) >> (8*8)) as u32 );
-                            self.maps.write_dword(addr+8, ((xmm & 0xffffffff_00000000) >> (12*8)) as u32 );
+                            self.maps.write_dword(addr+8, ((xmm & 0xffffffff_00000000) >> (4*8)) as u32 );
                             self.maps.write_dword(addr+12, (xmm & 0xffffffff) as u32 );
+
+                        } else if sz0 == 128 && sz1 == 32 {
+                            let addr = self.get_operand_value(&ins, 1, false).expect("error reading address in movdqa");
+                            let b1 = match self.maps.read_dword(addr) {
+                                Some(v) => v,
+                                None => panic!("error reading b1 in movdqa"),
+                            };
+                            let b2 = match self.maps.read_dword(addr+4) {
+                                Some(v) => v,
+                                None => panic!("error reading b2 in movdqa"),
+                            };
+                            let b3 = match self.maps.read_dword(addr+8) {
+                                Some(v) => v,
+                                None => panic!("error reading b3 in movdqa"),
+                            };
+                            let b4 = match self.maps.read_dword(addr+12) {
+                                Some(v) => v,
+                                None => panic!("error reading b4 in movdqa"),
+                            };
+
+                            let r1 :u128 = b1 as u128;
+                            let r2 :u128 = b2 as u128;
+                            let r3 :u128 = b3 as u128;
+                            let r4 :u128 = b4 as u128;
+
+                            self.set_operand_xmm_value_128(&ins, 0, r1 << (12*8) | r2 << (8*8) | r3 << (4*8) | r4);
+
                         } else {
                             println!("sz0: {}  sz1: {}\n", sz0, sz1);
                             unimplemented!("movdqa");
