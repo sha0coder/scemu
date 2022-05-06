@@ -2516,7 +2516,7 @@ impl Emu {
 
     pub fn show_instruction_pushpop(&self, color:&str, ins:&Instruction, value:u64) {
         if !self.step {
-            println!("{}{} 0x{:x}: {} -> 0x{:x} {}", color, self.pos, ins.ip(), self.out, value, self.colors.nc);
+            println!("{}{} 0x{:x}: {} ;0x{:x} {}", color, self.pos, ins.ip(), self.out, value, self.colors.nc);
         }
     }
 
