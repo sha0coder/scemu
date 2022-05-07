@@ -118,6 +118,7 @@ fn NtQueryVirtualMemory(emu:&mut emu::Emu) {
             emu.stack_pop32(false);
         }
         emu.regs.rax = emu::constants::STATUS_INVALID_PARAMETER;
+        return;
     }
 
     let base = emu.maps.get_addr_base(addr).unwrap_or(0);
@@ -139,8 +140,11 @@ fn NtQueryVirtualMemory(emu:&mut emu::Emu) {
 
 
 fn LdrLoadDll(emu:&mut emu::Emu) {
-    let libaddr_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("LdrLoadDll: error reading lib ptr") as u64;
-    let libname_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("LdrLoadDll: error reading lib param") as u64;
+    //let libaddr_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("LdrLoadDll: error reading lib ptr") as u64;
+    //let libname_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("LdrLoadDll: error reading lib param") as u64;
+
+    let libname_ptr = emu.maps.read_dword(emu.regs.get_esp()+8).expect("LdrLoadDll: error reading lib name") as u64;
+    let libaddr_ptr = emu.maps.read_dword(emu.regs.get_esp()+12).expect("LdrLoadDll: error reading lib base") as u64;
 
     let libname = emu.maps.read_wide_string(libname_ptr);
     println!("{}** {} ntdll!LdrLoadDll   lib: {} {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
@@ -159,7 +163,6 @@ fn LdrLoadDll(emu:&mut emu::Emu) {
         }
     }
 
-
     for _ in 0..4 {
         emu.stack_pop32(false);
     }
@@ -170,7 +173,8 @@ fn RtlVectoredExceptionHandler(emu:&mut emu::Emu) {
     let p1 = emu.maps.read_dword(emu.regs.get_esp()).expect("ntdll_RtlVectoredExceptionHandler: error reading p1") as u64;
     let fptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("ntdll_RtlVectoredExceptionHandler: error reading fptr") as u64;
 
-    println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback: 0x{:x} {}", emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc);
+    println!("{}** {} ntdll!RtlVectoredExceptionHandler  {} callback: 0x{:x} {}", emu.colors.light_red, emu.pos, p1, 
+             fptr, emu.colors.nc);
 
     emu.veh = fptr;
 
