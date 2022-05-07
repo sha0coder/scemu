@@ -17,6 +17,7 @@ mod winapi32;
 mod winapi64;
 mod fpu;
 pub mod context32;
+pub mod context64;
 pub mod syscall32;
 pub mod syscall64;
 mod breakpoint;
