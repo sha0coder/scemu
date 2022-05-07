@@ -996,66 +996,6 @@ impl Emu {
         ret
     }
 
-    pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
-        if addr == constants::RETURN_THREAD.into() {
-            println!("/!\\ Thread returned, continuing the main thread");
-            self.regs.rip = self.main_thread_cont;
-            return;
-        }
-
-        let name = match self.maps.get_addr_name(addr) {
-            Some(n) => n,
-            None => {
-                eprintln!("/!\\ setting rip to non mapped addr 0x{:x}", addr);
-                self.exception();
-                return;
-            }
-        };
-
-
-        if addr < 0x70000000 || name == "code" {
-            self.regs.rip = addr;
-        } else {
-            if self.cfg.verbose >= 1 {
-                println!("/!\\ changing EIP to {} ", name);
-            }
-
-
-            self.gateway_return = self.stack_pop64(false);
-            self.regs.rip = self.gateway_return;
-
-            winapi64::gateway(addr, name, self);
-            self.force_break = true;
-        }
-
-    }
-
-    pub fn set_eip(&mut self, addr:u64, is_branch:bool) {
-
-        let name = match self.maps.get_addr_name(addr) {
-            Some(n) => n,
-            None => { 
-                eprintln!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
-                self.exception();
-                return;
-            }
-        };
-
-        if name == "code" || addr < 0x70000000 {
-            self.regs.set_eip(addr);
-        } else {
-            if self.cfg.verbose >= 1 {
-                println!("/!\\ changing EIP to {} ", name);
-            }
-
-            self.gateway_return = self.stack_pop32(false).into();
-            self.regs.set_eip(self.gateway_return);
-
-            winapi32::gateway(to32!(addr), name, self);
-            self.force_break = true;
-        }
-    }
-
     // this is not used on the emulation
     pub fn get_size(&self, operand:&str) -> u8 {
         if operand.contains("byte ptr") {
@@ -1091,6 +1031,75 @@ impl Emu {
 
         panic!("weird size: {}", operand);
     }
+
+    pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
+        if addr == constants::RETURN_THREAD.into() {
+            println!("/!\\ Thread returned, continuing the main thread");
+            self.regs.rip = self.main_thread_cont;
+            self.spawn_console();
+            self.force_break = true;
+            return;
+        }
+
+        let name = match self.maps.get_addr_name(addr) {
+            Some(n) => n,
+            None => {
+                eprintln!("/!\\ setting rip to non mapped addr 0x{:x}", addr);
+                self.exception();
+                return;
+            }
+        };
+
+
+        if addr < constants::LIBS_BARRIER || name == "code" {
+            self.regs.rip = addr;
+        } else {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ changing EIP to {} ", name);
+            }
+
+
+            self.gateway_return = self.stack_pop64(false);
+            self.regs.rip = self.gateway_return;
+
+            winapi64::gateway(addr, name, self);
+            self.force_break = true;
+        }
+    }
+
+    pub fn set_eip(&mut self, addr:u64, is_branch:bool) {
+        if addr == constants::RETURN_THREAD.into() {
+            println!("/!\\ Thread returned, continuing the main thread");
+            self.regs.rip = self.main_thread_cont;
+            self.spawn_console();
+            self.force_break = true;
+            return;
+        }
+
+        let name = match self.maps.get_addr_name(addr) {
+            Some(n) => n,
+            None => { 
+                eprintln!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
+                self.exception();
+                return;
+            }
+        };
+
+        if name == "code" || addr < constants::LIBS_BARRIER {
+            self.regs.set_eip(addr);
+        } else {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ changing EIP to {} ", name);
+            }
+
+            self.gateway_return = self.stack_pop32(false).into();
+            self.regs.set_eip(self.gateway_return);
+
+            winapi32::gateway(to32!(addr), name, self);
+            self.force_break = true;
+        }
+    }
+
     
     fn mul64(&mut self, value0:u64) {
         let value1:u64 = self.regs.rax;
