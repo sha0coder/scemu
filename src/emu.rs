@@ -93,6 +93,8 @@ pub struct Emu {
     tls: Vec<u32>,
     step: bool,
     out: String,
+    main_thread_cont: u64,
+    gateway_return: u64,
 }
 
 impl Emu {
@@ -116,6 +118,8 @@ impl Emu {
             tls: Vec::new(),
             step: false,
             out: String::new(),
+            main_thread_cont: 0,
+            gateway_return: 0,
         }
     }
 
@@ -993,6 +997,12 @@ impl Emu {
     }
 
     pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
+        if addr == constants::RETURN_THREAD.into() {
+            println!("/!\\ Thread returned, continuing the main thread");
+            self.regs.rip = self.main_thread_cont;
+            return;
+        }
+
         let name = match self.maps.get_addr_name(addr) {
             Some(n) => n,
             None => {
@@ -1011,8 +1021,8 @@ impl Emu {
             }
 
 
-            let retaddr = self.stack_pop64(false);
-            self.regs.rip = retaddr;
+            self.gateway_return = self.stack_pop64(false);
+            self.regs.rip = self.gateway_return;
 
             winapi64::gateway(addr, name, self);
             self.force_break = true;
@@ -1038,8 +1048,8 @@ impl Emu {
                 println!("/!\\ changing EIP to {} ", name);
             }
 
-            let retaddr = self.stack_pop32(false);
-            self.regs.set_eip(retaddr.into());
+            self.gateway_return = self.stack_pop32(false).into();
+            self.regs.set_eip(self.gateway_return);
 
             winapi32::gateway(to32!(addr), name, self);
             self.force_break = true;
