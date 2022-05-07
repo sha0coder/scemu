@@ -485,6 +485,7 @@ fn CreateThread(emu:&mut emu::Emu) {
             emu.regs.rip = code;
             emu.regs.rax = 0;
             emu.regs.rcx = param;
+            emu.main_thread_cont = emu.gateway_return;
             emu.stack_push64(param);
             emu.stack_push64(constants::RETURN_THREAD.into());
 
