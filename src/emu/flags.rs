@@ -18,6 +18,7 @@ pub const MAX_I64:i64 = 0x7fffffffffffffff;
 pub const MIN_U64:u64 = 0;
 pub const MAX_U64:u64 = 0xffffffffffffffff;
 
+#[derive(Clone)]
 pub struct Flags {
     pub f_cf: bool,
     pub f_pf: bool,

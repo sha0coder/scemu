@@ -1,5 +1,6 @@
 
 
+#[derive(Clone)]
 pub struct Eflags {
     pub rf: bool,
     pub vm: bool,

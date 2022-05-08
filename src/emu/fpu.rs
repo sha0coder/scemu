@@ -1,5 +1,5 @@
 
-
+#[derive(Clone)]
 pub struct FPU {
     st:Vec<f32>,
     tag:u16,
