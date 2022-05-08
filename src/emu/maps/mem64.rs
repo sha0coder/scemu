@@ -8,6 +8,7 @@ use std::io::Read;
 use std::io::Write;
 use md5;
 
+#[derive(Clone)]
 pub struct Mem64 {
     mem_name: String,
     base_addr: u64,

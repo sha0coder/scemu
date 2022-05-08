@@ -1,5 +1,5 @@
 
-
+#[derive(Clone)]
 pub struct Colors {
     pub black:String,
     pub red:String,

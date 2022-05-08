@@ -1,4 +1,4 @@
-
+#[derive(Clone)]
 pub struct Breakpoint {
     addr:u64,
     instruction: u64,

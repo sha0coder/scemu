@@ -1,4 +1,5 @@
 
+#[derive(Clone)]
 pub struct Config {
     pub trace_mem: bool,    // show memory operations in every step.
     pub trace_regs: bool,   // show all the regs in every step.

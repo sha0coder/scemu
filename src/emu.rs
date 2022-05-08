@@ -75,6 +75,7 @@ macro_rules! to32 {
 }
 
 
+#[derive(Clone)]
 pub struct Emu {
     regs: Regs64,
     flags: Flags,
@@ -96,6 +97,7 @@ pub struct Emu {
     out: String,
     main_thread_cont: u64,
     gateway_return: u64,
+    is_running: bool,
 }
 
 impl Emu {
@@ -121,6 +123,7 @@ impl Emu {
             out: String::new(),
             main_thread_cont: 0,
             gateway_return: 0,
+            is_running: false,
         }
     }
 
@@ -1655,7 +1658,10 @@ impl Emu {
                     }
                     self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
                 }
-                "c" => return,
+                "c" => {
+                    self.is_running = true;
+                    return;
+                },
                 "f" => self.flags.print(),
                 "fc" => self.flags.clear(),
                 "fz" => self.flags.f_zf = !self.flags.f_zf,
@@ -2553,9 +2559,21 @@ impl Emu {
         }
     }
 
+    pub fn stop(&mut self) {
+        self.is_running = false;
+    }
+
     ///  RUN ENGINE ///
 
     pub fn run(&mut self) {     
+        self.is_running = true;
+
+        /*
+        ctrlc::set_handler(move || {
+            println!("Ctrl-C detected, spawning console");
+        }).expect("ctrl-c handler failed");*/
+
+
         let mut looped:Vec<u64> = Vec::new();
         let mut prev_addr:u64 = 0;
         let mut repeat_counter:u32 = 0;
@@ -2569,7 +2587,7 @@ impl Emu {
 
         self.pos = 0;
 
-        loop {
+        while self.is_running {
             let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
                 None => {
@@ -3692,6 +3710,23 @@ impl Emu {
                             }
 
                         }
+                    }
+
+                    Mnemonic::Bt | Mnemonic::Bts | Mnemonic::Btr | Mnemonic::Btc => {
+                        self.show_instruction(&self.colors.green, &ins);
+                        assert!(ins.op_count() == 2);
+
+                        let bit = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        self.flags.f_cf = (value & (1 << bit)) == 1;
                     }
 
                     Mnemonic::Movsxd => {

@@ -56,6 +56,7 @@ macro_rules! get_reg8h {
 
 //  https://wiki.osdev.org/CPU_Registers_x86-64
 
+#[derive(Clone)]
 pub struct Regs64 {
     pub dr0: u64, // bp
     pub dr1: u64, // bp

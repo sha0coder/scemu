@@ -4,6 +4,7 @@ use mem64::Mem64;
 use std::collections::HashMap;
 use std::str;
 
+#[derive(Clone)]
 pub struct Maps {
     pub maps: HashMap<String,Mem64>,
     pub is_64bits: bool,
