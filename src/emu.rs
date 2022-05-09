@@ -25,16 +25,17 @@ pub mod endpoint;
 pub mod structures;
 mod exception;
 
-use flags::Flags;
-use eflags::Eflags;
 use fpu::FPU;
 use maps::Maps;
+use flags::Flags;
+use colors::Colors;
+use eflags::Eflags;
 use regs64::Regs64;
 use console::Console;
-use colors::Colors;
-use breakpoint::Breakpoint;
+use std::sync::Arc;
+use std::sync::atomic;
 use crate::config::Config;
-
+use breakpoint::Breakpoint;
 
 use iced_x86::{Decoder, DecoderOptions, Formatter, Instruction, IntelFormatter, Mnemonic, OpKind, 
     InstructionInfoFactory, Register, MemorySize};
@@ -75,7 +76,6 @@ macro_rules! to32 {
 }
 
 
-#[derive(Clone)]
 pub struct Emu {
     regs: Regs64,
     flags: Flags,
@@ -97,7 +97,7 @@ pub struct Emu {
     out: String,
     main_thread_cont: u64,
     gateway_return: u64,
-    is_running: bool,
+    is_running: Arc<atomic::AtomicU32>,
 }
 
 impl Emu {
@@ -123,7 +123,7 @@ impl Emu {
             out: String::new(),
             main_thread_cont: 0,
             gateway_return: 0,
-            is_running: false,
+            is_running: Arc::new(atomic::AtomicU32::new(0)), 
         }
     }
 
@@ -1659,7 +1659,7 @@ impl Emu {
                     self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
                 }
                 "c" => {
-                    self.is_running = true;
+                    self.is_running.store(1, atomic::Ordering::Relaxed);
                     return;
                 },
                 "f" => self.flags.print(),
@@ -2560,18 +2560,19 @@ impl Emu {
     }
 
     pub fn stop(&mut self) {
-        self.is_running = false;
+        self.is_running.store(0, atomic::Ordering::Relaxed);
     }
 
     ///  RUN ENGINE ///
 
     pub fn run(&mut self) {     
-        self.is_running = true;
+        self.is_running.store(1, atomic::Ordering::Relaxed);
+        let is_running2 = Arc::clone(&self.is_running);
 
-        /*
         ctrlc::set_handler(move || {
             println!("Ctrl-C detected, spawning console");
-        }).expect("ctrl-c handler failed");*/
+            is_running2.store(0, atomic::Ordering::Relaxed);
+        }).expect("ctrl-c handler failed");
 
 
         let mut looped:Vec<u64> = Vec::new();
@@ -2587,7 +2588,7 @@ impl Emu {
 
         self.pos = 0;
 
-        while self.is_running {
+        while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
             let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
                 None => {
@@ -2636,7 +2637,6 @@ impl Emu {
                     println!("infinite loop!  opcode: {}", ins.op_code().op_code_string());
                     return;
                 }
-
 
 
                 if self.cfg.loops {
@@ -2782,7 +2782,6 @@ impl Emu {
                     }
 
                     Mnemonic::Push => {
-                        
 
                         let value = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
@@ -2799,7 +2798,6 @@ impl Emu {
                     }
 
                     Mnemonic::Pop => {
-                        
 
                         let value:u64;
 
@@ -2833,7 +2831,6 @@ impl Emu {
                     Mnemonic::Popad => {
                         self.show_instruction(&self.colors.blue, &ins);
                         let mut poped:u64;
-
 
                         poped = self.stack_pop32(false) as u64;
                         self.regs.set_edi(poped);
@@ -2878,7 +2875,6 @@ impl Emu {
                         } else {
                             ret_addr = self.stack_pop32(false) as u64; // return address
                         }
-                        
 
                         if ins.op_count() > 0 {
                             let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
@@ -6797,6 +6793,8 @@ impl Emu {
 
             } // end decoder 
         }  // end loop
+
+        self.spawn_console();
     } // end run
 
 }
