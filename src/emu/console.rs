@@ -67,6 +67,7 @@ impl Console {
         println!("h ...................... help");
         println!("s ...................... stack");
         println!("v ...................... vars");
+        println!("vv ..................... verbose mode -vv");
         println!("r ...................... register show all");
         println!("r reg .................. show reg");
         println!("rc ..................... register change");

@@ -1658,6 +1658,9 @@ impl Emu {
                     }
                     self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
                 }
+                "vv" => {
+                    self.step = false;
+                }
                 "c" => {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
                     return;
@@ -2588,6 +2591,7 @@ impl Emu {
 
         self.pos = 0;
 
+        loop {
         while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
             let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
@@ -6793,8 +6797,10 @@ impl Emu {
 
             } // end decoder loop
         }  // end running loop
-
         self.spawn_console();
+
+        }  // end infinite loop, the unique way of exit is console quit `q` 
+
     } // end run
 
 }
