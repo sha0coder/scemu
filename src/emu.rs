@@ -6791,8 +6791,8 @@ impl Emu {
                     break;
                 }
 
-            } // end decoder 
-        }  // end loop
+            } // end decoder loop
+        }  // end running loop
 
         self.spawn_console();
     } // end run
