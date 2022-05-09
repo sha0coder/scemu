@@ -202,6 +202,7 @@ fn NtGetContextThread(emu:&mut emu::Emu) {
 
 fn RtlExitUserThread(emu:&mut emu::Emu) {
     println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
+    emu.spawn_console();
     std::process::exit(1);
 }
 
