@@ -190,25 +190,6 @@ fn NtGetContextThread(emu:&mut emu::Emu) {
     
     println!("{}** {} ntdll_NtGetContextThread   ctx  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    /*
-    if !emu.maps.write_dword(ctx+4, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
-    }
-    if !emu.maps.write_dword(ctx+8, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr1 in context");
-    }
-    if !emu.maps.write_dword(ctx+12, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr2 in context");
-    }
-    if !emu.maps.write_dword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr3 in context");
-    }
-    if !emu.maps.write_dword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr6 in context");
-    }
-    if !emu.maps.write_dword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
-    }*/
 
     let ctx = Context32::new(&emu.regs);
     ctx.save(ctx_ptr2 as u32, &mut emu.maps);
