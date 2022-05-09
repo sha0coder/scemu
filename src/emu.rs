@@ -98,6 +98,7 @@ pub struct Emu {
     main_thread_cont: u64,
     gateway_return: u64,
     is_running: Arc<atomic::AtomicU32>,
+    break_on_next_cmp: bool,
 }
 
 impl Emu {
@@ -124,6 +125,7 @@ impl Emu {
             main_thread_cont: 0,
             gateway_return: 0,
             is_running: Arc::new(atomic::AtomicU32::new(0)), 
+            break_on_next_cmp: false,
         }
     }
 
@@ -1642,6 +1644,9 @@ impl Emu {
                     self.bp.clear_bp();
                     self.exp = self.pos+1;
                 },
+                "bcmp" => {
+                    self.break_on_next_cmp = true;
+                },
                 "cls" => println!("{}", self.colors.clear_screen),
                 "s" => {
                     if self.cfg.is_64bits {
@@ -1659,7 +1664,8 @@ impl Emu {
                     self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
                 }
                 "vv" => {
-                    self.step = false;
+                    self.cfg.verbose = 2;
+                    //self.step = false;
                 }
                 "c" => {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
@@ -4676,6 +4682,11 @@ impl Emu {
                     Mnemonic::Cmp => {
                         self.show_instruction(&self.colors.orange, &ins);
 
+                        if self.break_on_next_cmp {
+                            self.spawn_console();
+                            self.break_on_next_cmp = false;
+                        }
+
                         assert!(ins.op_count() == 2);
 
                         let value0 = match self.get_operand_value(&ins, 0, true) {
@@ -5560,6 +5571,10 @@ impl Emu {
                         // https://c9x.me/x86/html/file_module_x86_id_45.html
                         // TODO: implement 0x40000000 -> get the virtualization vendor
 
+                        if self.cfg.verbose >= 1 {
+                                println!("\tinput value: 0x{:x}", self.regs.rax);
+                        }
+
                         match self.regs.rax {
                             0x00 => {
                                 self.regs.rax = 16;
@@ -5568,10 +5583,10 @@ impl Emu {
                                 self.regs.rdx = 0x49656e69;
                             },
                             0x01 => {
-                                self.regs.rax = 0x906ed;
+                                self.regs.rax = 0x906ed;    // Version Information (Type, Family, Model, and Stepping ID)
                                 self.regs.rbx = 0x5100800;
                                 self.regs.rcx = 0x7ffafbbf;
-                                self.regs.rdx = 0xbfebfbff;
+                                self.regs.rdx = 0xbfebfbff;  // feature
                             },
                             0x02 => {
                                 self.regs.rax = 0x76036301;
