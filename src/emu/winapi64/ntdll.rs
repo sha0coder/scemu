@@ -213,8 +213,8 @@ fn ZwQueueApcThread(emu:&mut emu::Emu) {
     let arg1 = emu.regs.r9;
     let arg2 = emu.maps.read_qword(emu.regs.rsp).expect("kernel32!ZwQueueApcThread cannot read arg2");
 
-    println!("{}** {} ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {} {}", emu.colors.light_red, emu.pos,
-        thread_handle, apc_routine, apc_ctx, arg1, arg2, emu.colors.nc);
+    println!("{}** {} ntdll!ZwQueueApcThread hndl: {} routine: {} ctx: {} arg1: {} arg2: {} {}", emu.colors.light_red, 
+             emu.pos, thread_handle, apc_routine, apc_ctx, arg1, arg2, emu.colors.nc);
 
     emu.stack_pop64(false);
     emu.regs.rax = constants::STATUS_SUCCESS;
