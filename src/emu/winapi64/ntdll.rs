@@ -1,6 +1,6 @@
 use crate::emu;
 use crate::emu::winapi32::helper;
-//use crate::emu::context64::Context64;
+use crate::emu::context64::Context64;
 use crate::emu::structures;
 use crate::emu::constants;
 
@@ -194,30 +194,8 @@ fn NtGetContextThread(emu:&mut emu::Emu) {
     
     println!("{}** {} ntdll_NtGetContextThread   ctx: {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    /*
-    if !emu.maps.write_qword(ctx+4, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr0 in context");
-    }
-    if !emu.maps.write_qword(ctx+8, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr1 in context");
-    }
-    if !emu.maps.write_qword(ctx+12, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr2 in context");
-    }
-    if !emu.maps.write_qword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr3 in context");
-    }
-    if !emu.maps.write_qword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr6 in context");
-    }
-    if !emu.maps.write_qword(ctx+16, 0) {
-        panic!("ntdll_NtGetContextThread: error writting Dr7 in context");
-    }*/
-
-
-    //TODO: context64
-    //let ctx = Context32::new(&emu.regs);
-    //ctx.save(ctx_ptr2 as u32, &mut emu.maps);
+    let ctx = Context64::new(&emu.regs);
+    ctx.save(ctx_ptr2, &mut emu.maps);
 
     emu.regs.rax = 0;
 }
