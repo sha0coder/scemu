@@ -6797,6 +6797,8 @@ impl Emu {
 
             } // end decoder loop
         }  // end running loop
+           
+        self.is_running.store(1, atomic::Ordering::Relaxed);
         self.spawn_console();
 
         }  // end infinite loop, the unique way of exit is console quit `q` 
