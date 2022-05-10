@@ -1673,6 +1673,16 @@ impl Emu {
                         }
                     };
                 }
+                "tr" => {
+                    con.print("register");
+                    let reg = con.cmd();
+                    self.cfg.trace_reg = true;
+                    self.cfg.reg_names.push(reg);
+                }
+                "trd" => {
+                    self.cfg.trace_reg = false;
+                    self.cfg.reg_names.clear();
+                }
                 "c" => {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
                     return;
