@@ -1663,9 +1663,15 @@ impl Emu {
                     }
                     self.maps.get_mem("stack").print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp()+0x100);
                 }
-                "vv" => {
-                    self.cfg.verbose = 2;
-                    //self.step = false;
+                "sv" => {
+                    con.print("verbose level");
+                    self.cfg.verbose = match con.cmd_num() {
+                        Ok(v) => to32!(v),
+                        Err(_) => {
+                            println!("incorrect verbose level, set 0, 1 or 2");
+                            continue;
+                        }
+                    };
                 }
                 "c" => {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
