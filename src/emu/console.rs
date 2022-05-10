@@ -114,6 +114,9 @@ impl Console {
         println!("d ...................... dissasemble");
         println!("dt ..................... dump structure");
         println!("enter .................. step into");
+        println!("tr ..................... trace reg");
+        println!("trd .................... trace regs disable");
+
         //println!("o ...................... step over");
         println!();
         println!("---");
