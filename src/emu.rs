@@ -24,6 +24,7 @@ mod breakpoint;
 pub mod endpoint;
 pub mod structures;
 mod exception;
+mod pe32;
 
 use fpu::FPU;
 use maps::Maps;
@@ -4595,6 +4596,11 @@ impl Emu {
 
                         assert!(ins.op_count() == 2);
 
+                        if self.break_on_next_cmp {
+                            self.spawn_console();
+                            self.break_on_next_cmp = false;
+                        }
+
                         let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break,
@@ -4604,6 +4610,8 @@ impl Emu {
                             Some(v) => v,
                             None => break,
                         };
+
+
 
                         let sz = self.get_operand_sz(&ins, 0);
 
@@ -4698,10 +4706,6 @@ impl Emu {
                     Mnemonic::Cmp => {
                         self.show_instruction(&self.colors.orange, &ins);
 
-                        if self.break_on_next_cmp {
-                            self.spawn_console();
-                            self.break_on_next_cmp = false;
-                        }
 
                         assert!(ins.op_count() == 2);
 
@@ -4722,6 +4726,31 @@ impl Emu {
                                 println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
                             } else {
                                 println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+                        
+                        if self.break_on_next_cmp {
+                            self.spawn_console();
+                            self.break_on_next_cmp = false;
+
+                            let value0 = match self.get_operand_value(&ins, 0, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.step {
+                                if value0 > value1 {
+                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                                } else if value0 < value1 {
+                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                                } else {
+                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                                }
                             }
                         }
 

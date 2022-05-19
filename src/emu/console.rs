@@ -82,7 +82,7 @@ impl Console {
         println!("bmr .................... breakpoint on read memory");
         println!("bmw .................... breakpoint on write memory");
         println!("bmx .................... breakpoint on execute memory");
-        println!("bcmp ................... break on next cmp");
+        println!("bcmp ................... break on next cmp or test");
         println!("bc ..................... clear breakpoint");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
