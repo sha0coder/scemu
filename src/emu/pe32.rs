@@ -309,8 +309,239 @@ impl ImageSectionHeader {
 }
 
 
+#[derive(Debug)]
+pub struct ImageResourceDirectoryEntry {
+    pub name: u32,
+    pub offset_to_data: u32,
+}
+
+impl ImageResourceDirectoryEntry {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirectoryEntry {
+        ImageResourceDirectoryEntry {
+            name: read_u32_le!(raw, off),
+            offset_to_data: read_u32_le!(raw, off+4),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
 
 
+#[derive(Debug)]
+pub struct ImageResourceDirectory {
+    pub characteristics: u32,
+    pub time_date_stamp: u32,
+    pub major_version: u16,
+    pub minor_version: u16,
+    pub number_of_named_entries: u16,
+    pub number_of_id_entries: u16,
+}
+
+impl ImageResourceDirectory {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirectory {
+        ImageResourceDirectory {
+            characteristics: read_u32_le!(raw, off),
+            time_date_stamp: read_u32_le!(raw, off+4),
+            major_version: read_u16_le!(raw, off+8),
+            minor_version: read_u16_le!(raw, off+10),
+            number_of_named_entries: read_u16_le!(raw, off+12),
+            number_of_id_entries: read_u16_le!(raw, off+14),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageResourceDataEntry {
+    pub offset_to_data: u32,
+    pub size: u32,
+    pub code_page: u32,
+    pub reserved: u32,
+}
+
+impl ImageResourceDataEntry {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDataEntry {
+        ImageResourceDataEntry {
+            offset_to_data: read_u32_le!(raw, off),
+            size: read_u32_le!(raw, off+4),
+            code_page: read_u32_le!(raw, off+8),
+            reserved: read_u32_le!(raw, off+12),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageResourceDirStringU {
+    pub length: u16,
+    pub name_string: u8
+}
+
+impl ImageResourceDirStringU {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirStringU {
+        ImageResourceDirStringU {
+            length: read_u16_le!(raw, off),
+            name_string: read_u8!(raw, off+2),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageExportDirectory {
+    pub characteristics: u32,
+    pub time_date_stamp: u32,
+    pub major_version: u16,
+    pub minor_version: u16,
+    pub name: u32,
+    pub base: u32,
+    pub number_of_functions: u32,
+    pub number_of_names: u32,
+    pub address_of_functions: u32,
+    pub address_of_names: u32,
+    pub address_of_name_ordinals: u32,
+}
+
+impl ImageExportDirectory {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageExportDirectory {
+        ImageExportDirectory {
+            characteristics: read_u32_le!(raw, off),
+            time_date_stamp: read_u32_le!(raw, off+4),
+            major_version: read_u16_le!(raw, off+8),
+            minor_version: read_u16_le!(raw, off+10),
+            name: read_u32_le!(raw, off+12),
+            base: read_u32_le!(raw, off+16),
+            number_of_functions: read_u32_le!(raw, off+20),
+            number_of_names: read_u32_le!(raw, off+24),
+            address_of_functions: read_u32_le!(raw, off+28),
+            address_of_names: read_u32_le!(raw, off+22),
+            address_of_name_ordinals: read_u32_le!(raw, off+26),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+
+#[derive(Debug)]
+pub struct ImageImportDirectory {
+    pub address_of_import_lookup_table: u32,
+    pub time_date_stamp: u32,
+    pub forwarder_chain: u32,
+    pub address_of_names: u32,
+    pub address_of_import_table: u32,
+}
+
+impl ImageImportDirectory {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageImportDirectory {
+        ImageImportDirectory {
+            address_of_import_lookup_table: read_u32_le!(raw, off),
+            time_date_stamp: read_u32_le!(raw, off+4),
+            forwarder_chain: read_u32_le!(raw, off+8),
+            address_of_names: read_u32_le!(raw, off+12),
+            address_of_import_table: read_u32_le!(raw, off+16),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct TagImportDirectory {
+    pub dw_rva_function_name_list: u32,
+    pub dw_useless1: u32,
+    pub dw_useless2: u32,
+    pub dw_rva_module_name: u32,
+    pub dw_rva_function_address_list: u32,
+}
+
+impl TagImportDirectory {
+    pub fn load(raw: &Vec<u8>, off: usize) -> TagImportDirectory {
+        TagImportDirectory {
+            dw_rva_function_name_list: read_u32_le!(raw, off),
+            dw_useless1: read_u32_le!(raw, off+4),
+            dw_useless2: read_u32_le!(raw, off+8),
+            dw_rva_module_name: read_u32_le!(raw, off+12),
+            dw_rva_function_address_list: read_u32_le!(raw, off+16),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageDebugDirectory {
+    pub characteristics: u32,
+    pub time_date_stamp: u32,
+    pub major_version: u16, 
+    pub minor_version: u16,
+    pub types: u32,
+    pub size_of_data: u32,
+    pub address_of_raw_data: u32,
+    pub pointer_to_raw_data: u32,
+}
+
+impl ImageDebugDirectory {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageDebugDirectory {
+        ImageDebugDirectory {
+            characteristics: read_u32_le!(raw, off),
+            time_date_stamp: read_u32_le!(raw, off+4),
+            major_version: read_u16_le!(raw, off+8),
+            minor_version: read_u16_le!(raw, off+10),
+            types: read_u32_le!(raw, off+12),
+            size_of_data: read_u32_le!(raw, off+16),
+            address_of_raw_data: read_u32_le!(raw, off+20),
+            pointer_to_raw_data: read_u32_le!(raw, off+24),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageBaseRelocation {
+    pub virtual_address: u32,
+    pub size_of_block: u32,
+}
+
+impl ImageBaseRelocation {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageBaseRelocation {
+        ImageBaseRelocation {
+            virtual_address: read_u32_le!(raw, off),
+            size_of_block: read_u32_le!(raw, off+4),
+        }
+    }
+    
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
 
 
 
