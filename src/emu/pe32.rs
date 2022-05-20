@@ -3,6 +3,8 @@
 */
 
 use std::str;
+use std::fs::File;
+use std::io::Read;
 
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {
@@ -28,19 +30,19 @@ pub const IMAGE_OS2_SIGNATURE_LE:u16 = 0x45AC;
 pub const IMAGE_NT_SIGNATURE:u32 = 0x00004550;
 pub const IMAGE_SIZEOF_FILE_HEADER:u8 = 20;
 pub const IMAGE_NUMBEROF_DIRECTORY_ENTRIES:usize = 16;
-pub const SECTION_HEADER_SZ:u8 = 40;
+pub const SECTION_HEADER_SZ:usize = 40;
 
-pub const IMAGE_DIRECTORY_ENTRY_EXPORT:u8 = 0;
-pub const IMAGE_DIRECTORY_ENTRY_IMPORT:u8 = 1;
-pub const IMAGE_DIRECTORY_ENTRY_RESOURCE:u8 = 2;
-pub const IMAGE_DIRECTORY_ENTRY_EXCEPTION:u8 = 3;
-pub const IMAGE_DIRECTORY_ENTRY_SECURITY:u8 = 4;
-pub const IMAGE_DIRECTORY_ENTRY_BASERELOC:u8 = 5;
-pub const IMAGE_DIRECTORY_ENTRY_DEBUG:u8 = 6;
-pub const IMAGE_DIRECTORY_ENTRY_COPYRIGHT:u8 = 7;
-pub const IMAGE_DIRECTORY_ENTRY_GLOBALPTR:u8 = 8;
-pub const IMAGE_DIRECTORY_ENTRY_TLS:u8 = 9;
-pub const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG:u8 = 10;
+pub const IMAGE_DIRECTORY_ENTRY_EXPORT:usize = 0;
+pub const IMAGE_DIRECTORY_ENTRY_IMPORT:usize = 1;
+pub const IMAGE_DIRECTORY_ENTRY_RESOURCE:usize = 2;
+pub const IMAGE_DIRECTORY_ENTRY_EXCEPTION:usize = 3;
+pub const IMAGE_DIRECTORY_ENTRY_SECURITY:usize = 4;
+pub const IMAGE_DIRECTORY_ENTRY_BASERELOC:usize = 5;
+pub const IMAGE_DIRECTORY_ENTRY_DEBUG:usize = 6;
+pub const IMAGE_DIRECTORY_ENTRY_COPYRIGHT:usize = 7;
+pub const IMAGE_DIRECTORY_ENTRY_GLOBALPTR:usize = 8;
+pub const IMAGE_DIRECTORY_ENTRY_TLS:usize = 9;
+pub const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG:usize = 10;
 
 pub const IMAGE_SIZEOF_SHORT_NAME:usize = 8;
 pub const IMAGE_DEBUG_TYPE_UNKNOWN:u8 = 0;
@@ -543,5 +545,87 @@ impl ImageBaseRelocation {
     }
 }
 
+
+pub struct PE32 {
+    raw: Vec<u8>,
+    dos: ImageDosHeader,
+    nt: ImageNtHeaders,
+    fh: ImageFileHeader,
+    opt: ImageOptionalHeader,
+    sect: Vec<ImageSectionHeader>,
+    import_dir: ImageImportDirectory,
+    export_dir: ImageExportDirectory,
+}
+
+impl PE32 {
+    pub fn load(filename: &str) -> PE32 {   
+        let mut fd = File::open(filename).expect("pe32 binary not found");
+        let mut raw: Vec<u8> = Vec::new();
+        fd.read_to_end(&mut raw).expect("couldnt read the pe32 binary");
+
+        let dos = ImageDosHeader::load(&raw, 0);
+        let nt = ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
+        let fh = ImageFileHeader::load(&raw, dos.e_lfanew as usize +4); 
+        let opt = ImageOptionalHeader::load(&raw, dos.e_lfanew as usize +24);
+        let mut sect: Vec<ImageSectionHeader> = Vec::new();
+
+        let mut off = dos.e_lfanew as usize +248; 
+        for i in 0..fh.number_of_sections {
+            let s = ImageSectionHeader::load(&raw, off);
+            sect.push(s);
+            off += SECTION_HEADER_SZ;
+        }
+
+        let importd: ImageImportDirectory;
+        let exportd: ImageExportDirectory;
+        let import_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT].virtual_address;
+        let export_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
+
+        if import_va > 0 {
+            let import_off = PE32::vaddr_to_off(&sect, import_va);
+            if import_off > 0 {
+                importd = ImageImportDirectory::load(&raw, import_off as usize);
+            } else {
+                panic!("no import directory at va 0x{:x}", import_va);
+            }
+        } else {
+            panic!("no import directory at va 0x{:x}", import_va);
+        }
+
+        if export_va > 0 {
+            let export_off = PE32::vaddr_to_off(&sect, export_va);
+            if export_off > 0 {
+                exportd = ImageExportDirectory::load(&raw, export_off as usize);
+            } else {
+                panic!("no export directory at va 0x{:x}", import_va);
+            }
+        } else {
+            panic!("no export directory at va 0x{:x}", import_va);
+        }
+
+        PE32 {
+            raw: raw,
+            dos: dos,
+            fh: fh,
+            nt: nt,
+            opt: opt,
+            sect: sect,
+            import_dir: importd,
+            export_dir: exportd,
+        }
+    }
+
+    pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
+        for sect in sections {
+            if vaddr > sect.virtual_address &&
+                vaddr < sect.virtual_address + sect.virtual_size {
+                    return vaddr - sect.virtual_address + sect.pointer_to_raw_data; 
+            }
+        }
+        
+        return 0;
+    }
+
+}
 
 
