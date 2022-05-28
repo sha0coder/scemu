@@ -545,6 +545,22 @@ impl ImageBaseRelocation {
     }
 }
 
+pub struct Section {
+    pub name: String,
+    pub off: usize,
+    pub sz: usize,
+}
+
+impl Section {
+    pub fn new(off: usize, sz: usize) -> Section {
+        Section {
+            name: String::new(),
+            off: off,
+            sz: sz,
+        }
+    }
+}
+
 
 pub struct PE32 {
     raw: Vec<u8>,
@@ -552,7 +568,7 @@ pub struct PE32 {
     nt: ImageNtHeaders,
     fh: ImageFileHeader,
     opt: ImageOptionalHeader,
-    sect: Vec<ImageSectionHeader>,
+    sect_hdr: Vec<ImageSectionHeader>,
     import_dir: ImageImportDirectory,
     export_dir: ImageExportDirectory,
 }
@@ -609,10 +625,15 @@ impl PE32 {
             fh: fh,
             nt: nt,
             opt: opt,
-            sect: sect,
+            sect_hdr: sect,
             import_dir: importd,
             export_dir: exportd,
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.raw.clear();
+        self.sect_hdr.clear();
     }
 
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
@@ -626,6 +647,32 @@ impl PE32 {
         return 0;
     }
 
-}
+    pub fn num_of_sections(&self) -> usize {
+        return self.sect_hdr.len();
+    }
 
+    pub fn get_section_ptr_by_name(&self, name: &str) -> &[u8] {
+        for i in 0..self.sect_hdr.len() {
+            if self.sect_hdr[i].get_name() == name {
+                let off = self.sect_hdr[i].pointer_to_raw_data as usize;
+                let sz = self.sect_hdr[i].virtual_size as usize;
+                let section_ptr = &self.raw[off..off+sz];
+                return section_ptr;
+            }
+        }
+        panic!("section name {} not found", name);
+        //return &[];
+    }
+
+    pub fn get_section_ptr(&self, id: usize) -> &[u8] {
+        let off = self.sect_hdr[id].pointer_to_raw_data as usize;
+        let sz = self.sect_hdr[id].virtual_size as usize;
+        let section_ptr = &self.raw[off..off+sz];
+        return section_ptr;
+    }
+
+    pub fn get_section_vaddr(&self, id: usize) -> u32 {
+        return self.sect_hdr[id].virtual_address;
+    }
+}
 
