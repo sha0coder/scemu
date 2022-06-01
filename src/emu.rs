@@ -1108,7 +1108,7 @@ impl Emu {
             self.regs.rip = addr;
         } else {
             if self.cfg.verbose >= 1 {
-                println!("/!\\ changing EIP to {} ", name);
+                println!("/!\\ changing RIP to {} ", name);
             }
 
 
@@ -1142,7 +1142,7 @@ impl Emu {
             self.regs.set_eip(addr);
         } else {
             if self.cfg.verbose >= 1 {
-                println!("/!\\ changing EIP to {} ", name);
+                println!("/!\\ changing EIP to {} 0x{:x}", name, addr);
             }
 
             self.gateway_return = self.stack_pop32(false).into();
