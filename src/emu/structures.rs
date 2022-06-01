@@ -119,6 +119,34 @@ pub struct PEB {
 }
 
 impl PEB {
+
+    pub fn new(ldr:u32, process_parameters:u32, alt_thunk_list_ptr:u32, alt_thunk_list_ptr_32:u32, 
+                 post_process_init_routine:u32, session_id:u32) -> PEB {
+
+        PEB {
+            reserved1: [0;2],
+            being_debugged: 0,
+            reserved2: 0,
+            reserved3: [0;2],
+            ldr: ldr,
+            process_parameters: process_parameters,
+            reserved4: [0;3],
+            alt_thunk_list_ptr: alt_thunk_list_ptr,
+            reserved5: 0,
+            reserved6: 0,
+            reserved7: 0,
+            reserved8: 0,
+            alt_thunk_list_ptr_32: alt_thunk_list_ptr_32,
+            reserved9: [0;45],
+            reserved10: [0;96],
+            post_process_init_routine: post_process_init_routine,
+            reserved11: [0;128],
+            reserved12: 0,
+            session_id: session_id,
+        }
+    }
+
+
     pub fn load(addr:u64, maps:&Maps) -> PEB {
         PEB {
             reserved1: [0;2],
