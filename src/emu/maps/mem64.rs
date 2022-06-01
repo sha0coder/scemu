@@ -46,6 +46,12 @@ impl Mem64 {
         self.bottom_addr
     }
 
+    pub fn memcpy(&mut self, ptr:&[u8], sz:usize) {
+        for i in 0..sz {
+            self.mem[i] = ptr[i];
+        }
+    }
+
     pub fn inside(&self, addr:u64) -> bool {
         if addr >= self.base_addr && addr < self.bottom_addr {
             return true;

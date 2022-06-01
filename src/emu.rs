@@ -27,6 +27,7 @@ mod exception;
 mod pe32;
 
 use fpu::FPU;
+use pe32::PE32;
 use maps::Maps;
 use flags::Flags;
 use colors::Colors;
@@ -135,7 +136,8 @@ impl Emu {
 
         stack.set_base(0x22d000); 
         stack.set_size(0x020000);
-        self.regs.set_esp(0x22e000);
+        //self.regs.set_esp(0x22e000);
+        self.regs.set_esp(0x22e000+4);
         self.regs.set_ebp(0x22f000);
 
         assert!(self.regs.get_esp() < self.regs.get_ebp());
@@ -630,12 +632,42 @@ impl Emu {
         self.maps.create_map("iphlpapi_pe").load_at(0x7fefc1b0000);
         self.maps.create_map("iphlpapi_text").load_at(0x7fefc1b1000);
 
-        // peb64 patch for being_debugged: 0
+        // peb64 patch for being_debugged
         let peb = self.maps.get_mem("peb");
         peb.write_byte(peb.get_base() + 2, 0);
 
 
         std::env::set_current_dir(orig_path);
+    }
+
+    pub fn load_pe32(&mut self, filename: &str) {
+        let mut pe32 = PE32::load(filename);
+
+        println!("{} sections", pe32.num_of_sections());
+
+        for i in 0..pe32.num_of_sections() {
+            let base = pe32.opt.image_base;
+            let ptr = pe32.get_section_ptr(i);
+            let sect = pe32.get_section(i);
+            let map = self.maps.create_map(&format!("pe32{}", sect.get_name()));
+
+            map.set_base(base as u64 + sect.virtual_address as u64);
+            if sect.virtual_size > sect.size_of_raw_data {
+                map.set_size(sect.virtual_size as u64);
+            } else {
+                map.set_size(sect.size_of_raw_data as u64);
+            }
+            map.memcpy(ptr, ptr.len());
+
+            println!("crated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
+                     map.get_base(), sect.virtual_size);
+            if sect.get_name() == ".text" || i == 0 {
+                self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64; //TODO: calcular entry point
+                println!("entry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
+            }
+        }
+
+        pe32.clear();
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -649,9 +681,15 @@ impl Emu {
     }
 
     pub fn load_code(&mut self, filename: &str) {
-        if !self.maps.get_mem("code").load(filename) {
-            println!("shellcode not found, select the file with -f");
-            std::process::exit(1);
+        
+        if self.cfg.pe32load {
+            self.load_pe32(filename);
+
+        } else {
+            if !self.maps.get_mem("code").load(filename) {
+                println!("shellcode not found, select the file with -f");
+                std::process::exit(1);
+            }
         }
     }
 

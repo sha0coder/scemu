@@ -277,7 +277,7 @@ impl ImageSectionHeader {
     pub fn load(raw: &Vec<u8>, off: usize) -> ImageSectionHeader {
         let mut name:[u8;IMAGE_SIZEOF_SHORT_NAME] = [0;IMAGE_SIZEOF_SHORT_NAME];
         for i in off..off+IMAGE_SIZEOF_SHORT_NAME {
-            name[i] = raw[i];
+            name[i-off] = raw[i];
         }
 
         let off2 = off + IMAGE_SIZEOF_SHORT_NAME;
@@ -297,12 +297,13 @@ impl ImageSectionHeader {
     }
 
     pub fn get_name(&self) -> String {
+
         let s = match str::from_utf8(&self.name) {
             Ok(v) => v,
-            Err(_) => "",
+            Err(_) => "err",
         };
 
-        s.to_string()
+        s.to_string().replace("\x00","")
     }
     
     pub fn print(&self) {
@@ -564,13 +565,13 @@ impl Section {
 
 pub struct PE32 {
     raw: Vec<u8>,
-    dos: ImageDosHeader,
-    nt: ImageNtHeaders,
-    fh: ImageFileHeader,
-    opt: ImageOptionalHeader,
+    pub dos: ImageDosHeader,
+    pub nt: ImageNtHeaders,
+    pub fh: ImageFileHeader,
+    pub opt: ImageOptionalHeader,
     sect_hdr: Vec<ImageSectionHeader>,
     import_dir: ImageImportDirectory,
-    export_dir: ImageExportDirectory,
+    //export_dir: Option<ImageExportDirectory>,
 }
 
 impl PE32 {
@@ -608,16 +609,17 @@ impl PE32 {
             panic!("no import directory at va 0x{:x}", import_va);
         }
 
+        /*
         if export_va > 0 {
             let export_off = PE32::vaddr_to_off(&sect, export_va);
             if export_off > 0 {
                 exportd = ImageExportDirectory::load(&raw, export_off as usize);
             } else {
-                panic!("no export directory at va 0x{:x}", import_va);
+                println!("no export directory at va 0x{:x}", import_va);
             }
         } else {
-            panic!("no export directory at va 0x{:x}", import_va);
-        }
+            println!("no export directory at va 0x{:x}", import_va);
+        }*/
 
         PE32 {
             raw: raw,
@@ -627,7 +629,7 @@ impl PE32 {
             opt: opt,
             sect_hdr: sect,
             import_dir: importd,
-            export_dir: exportd,
+            //export_dir: exportd,
         }
     }
 
@@ -664,9 +666,17 @@ impl PE32 {
         //return &[];
     }
 
+    pub fn get_section(&self, id: usize) -> &ImageSectionHeader {
+        return &self.sect_hdr[id];
+    }
+
     pub fn get_section_ptr(&self, id: usize) -> &[u8] {
         let off = self.sect_hdr[id].pointer_to_raw_data as usize;
-        let sz = self.sect_hdr[id].virtual_size as usize;
+        let mut sz = self.sect_hdr[id].size_of_raw_data as usize; //TODO: coger sz en disk no en va
+        if off+sz >= self.raw.len() {
+            println!("/!\\ warning: raw sz:{} off:{} sz:{}  off+sz:{}", self.raw.len(), off, sz, off+sz);
+            sz = self.raw.len() - off - 1;
+        }
         let section_ptr = &self.raw[off..off+sz];
         return section_ptr;
     }

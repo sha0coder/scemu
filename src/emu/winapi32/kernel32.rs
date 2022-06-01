@@ -86,8 +86,10 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e93d01 => SetUnhandledExceptionFilter(emu),
         0x75e9ed38 => UnhandledExceptionFilter(emu),
         0x75e8cdcf => GetCurrentProcess(emu),
+        0x75e93363 => LocalAlloc(emu),
 
-        _ => panic!("calling unimplemented kernel32 API 0x{:x}", addr),
+
+        _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
     }
 }
 
@@ -99,6 +101,70 @@ lazy_static! {
 
 //// kernel32 API ////
 
+fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
+
+    let peb = emu.maps.get_mem("peb");
+    let peb_base = peb.get_base();
+    let ldr = peb.read_dword(peb_base + 0x0c) as u64;
+    let mut flink = emu.maps.read_dword(ldr + 0x14).expect("kernel32!GetProcAddress error reading flink") as u64;
+
+    loop { // walk modules
+
+        let mod_name_ptr = emu.maps.read_dword(flink + 0x28).expect("kernel32!GetProcAddress error reading mod_name_ptr") as u64;
+        let mod_base = emu.maps.read_dword(flink + 0x10).expect("kernel32!GetProcAddress error reading mod_addr") as u64;
+        let mod_name = emu.maps.read_wide_string(mod_name_ptr);
+
+        let pe_hdr = match emu.maps.read_dword(mod_base + 0x3c) { //.expect("kernel32!GetProcAddress error reading pe_hdr");
+            Some(hdr) => hdr as u64,
+            None => { emu.regs.rax = 0; return "err1".to_string(); }
+        };
+        let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr + 0x78).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
+        if export_table_rva == 0 {
+            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            continue;
+        }
+
+        let export_table = export_table_rva + mod_base;
+        let mut num_of_funcs = emu.maps.read_dword(export_table + 0x18).expect("kernel32!GetProcAddress error reading the num_of_funcs") as u64;
+
+        let func_name_tbl_rva = emu.maps.read_dword(export_table + 0x20).expect("kernel32!GetProcAddress  error reading func_name_tbl_rva") as u64;
+        let func_name_tbl = func_name_tbl_rva + mod_base;
+
+        if num_of_funcs == 0 {
+            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+            continue;
+        }
+
+        loop { // walk functions
+                
+            num_of_funcs -= 1;
+            let func_name_rva = emu.maps.read_dword(func_name_tbl + num_of_funcs * 4).expect("kernel32!GetProcAddress error reading func_rva") as u64;
+            let func_name_va = func_name_rva + mod_base;
+            let func_name = emu.maps.read_string(func_name_va);
+            
+            let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
+            let ordinal_tbl = ordinal_tbl_rva + mod_base;
+            let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal") as u64;
+            let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva") as u64;
+            let func_addr_tbl = func_addr_tbl_rva + mod_base;
+            
+            let func_rva = emu.maps.read_dword(func_addr_tbl + 4 * ordinal).expect("kernel32!GetProcAddress error reading func_rva") as u64;
+            let func_va = func_rva + mod_base;
+
+            if func_va == addr.into() {
+                return func_name;
+            }
+
+            if num_of_funcs == 0 {
+                break;
+            }
+        }
+
+        flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+    } 
+
+    // return "api not loaded".to_string();
+}
 
 fn GetProcAddress(emu:&mut emu::Emu) {
     let hndl = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!GetProcAddress cannot read the handle") as u64;
@@ -150,9 +216,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
             num_of_funcs -= 1;
             let func_name_rva = emu.maps.read_dword(func_name_tbl + num_of_funcs * 4).expect("kernel32!GetProcAddress error reading func_rva") as u64;
             let func_name_va = func_name_rva + mod_base;
-            let func_name = emu.maps.read_string(func_name_va).to_lowercase();
+            let func_name = emu.maps.read_string(func_name_va);
             
-            if func_name == func { 
+            if func_name.to_lowercase() == func { 
                 let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
                 let ordinal_tbl = ordinal_tbl_rva + mod_base;
                 let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal") as u64;
@@ -1251,3 +1317,24 @@ fn GetCurrentProcess(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!GetCurrentProcess {}", emu.colors.light_red, emu.pos, emu.colors.nc);
     emu.regs.rax = helper::handler_create();
 }
+
+fn LocalAlloc(emu:&mut emu::Emu) {
+    let flags = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!LocalAlloc cannot read flags");
+    let size = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!LocalAlloc cannot read size") as u64;
+
+    emu.regs.rax = match emu.maps.alloc(size) {
+        Some(sz) => sz,
+        None => 0,
+    };
+
+    let mem = emu.maps.create_map(format!("alloc_{:x}", emu.regs.get_eax() as u32).as_str());
+    mem.set_base(emu.regs.get_eax());
+    mem.set_size(size);
+    
+    println!("{}** {} kernel32!LocalAlloc flags: 0x{:x} size: {} =0x{:x} {}", emu.colors.light_red, 
+            emu.pos, flags, size, emu.regs.get_eax() as u32, emu.colors.nc);
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+}
+
