@@ -88,6 +88,11 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e8cdcf => GetCurrentProcess(emu),
         0x75e93363 => LocalAlloc(emu),
         0x75ecf5c9 => VirtualAllocExNuma(emu),
+        0x75ea6447 => GetUserDefaultLangID(emu),
+        0x75e91280 => GetProcessHeap(emu),
+        0x75e76ba9 => GetComputerNameA(emu),
+        0x75e93589 => CreateMutexA(emu),
+        0x75e8bf00 => GetLastError(emu),
 
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
@@ -97,6 +102,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
 lazy_static! {
     static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
     static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
+    static ref TICK:Mutex<u32> = Mutex::new(0);
 }
 
 
@@ -178,8 +184,6 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    // https://github.com/ssherei/asm/blob/master/get_api.asm
-
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_dword(peb_base + 0x0c) as u64;
@@ -193,7 +197,11 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
         let pe_hdr = match emu.maps.read_dword(mod_base + 0x3c) { //.expect("kernel32!GetProcAddress error reading pe_hdr");
             Some(hdr) => hdr as u64,
-            None => { emu.regs.rax = 0; return; }
+            None => { 
+                emu.regs.rax = 0; 
+                println!("kernel32!GetProcAddress error searching {}", func);
+                return; 
+            }
         };
         let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr + 0x78).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
         if export_table_rva == 0 {
@@ -261,6 +269,8 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
             "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
             "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
             "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
+            "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32").get_base(),
+            "gdi32"|"gdi32.dll" => emu.regs.rax = emu.maps.get_mem("gdi32").get_base(),
             _ =>  {
                 if std::path::Path::new(dll_path.as_str()).exists() {
                     emu.regs.rax = emu.load_pe32(dll_path.as_str(), false) as u64;
@@ -1117,7 +1127,8 @@ fn GetTickCount(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!GetTickCount {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    emu.regs.rax = 1;
+    let tick = TICK.lock().unwrap();
+    emu.regs.rax = *tick as u64;
 }
 
 fn QueryPerformanceCounter(emu:&mut emu::Emu) {
@@ -1242,6 +1253,8 @@ fn Sleep(emu:&mut emu::Emu) {
     let millis = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!Sleep cannot read millis");
 
     println!("{}** {} kernel32!Sleep millis: {} {}", emu.colors.light_red, emu.pos, millis, emu.colors.nc);
+    let mut tick  = TICK.lock().unwrap();
+    *tick += millis;
 
     emu.stack_pop32(false);
 }
@@ -1369,3 +1382,51 @@ fn VirtualAllocExNuma(emu:&mut emu::Emu) {
         emu.stack_pop32(false);
     }
 }
+
+fn GetUserDefaultLangID(emu:&mut emu::Emu) {
+    emu.regs.rax = 0x000000000000ffff;
+    println!("{}** {} kernel32!GetUserDefaultLangID =0x{:x} {}", emu.colors.light_red, emu.pos, emu.regs.rax as u16, emu.colors.nc);
+}
+
+fn GetProcessHeap(emu:&mut emu::Emu) {
+    emu.regs.rax = helper::handler_create();
+    println!("{}** {} kernel32!GetProcessHeap =0x{:x} {}", emu.colors.light_red, emu.pos, emu.regs.rax as u32, emu.colors.nc);
+}   
+
+fn GetComputerNameA(emu:&mut emu::Emu) {
+    let buff_ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!GetComputerNameA cannot read buff param") as u64;
+    let size_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!GetComputerNameA cannot read size param") as u64;
+
+    emu.maps.write_dword(size_ptr, 6);
+    emu.maps.write_string(buff_ptr, "medusa");
+
+    println!("{}** {} kernel32!GetComputerName 'medusa' {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 1;
+}
+
+fn CreateMutexA(emu:&mut emu::Emu) {
+    let attr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateMutexA cannot read attr param");
+    let owner = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateMutexA cannot read owner param");
+    let name_ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateMutexA cannot read name param") as u64;
+    let name = emu.maps.read_string(name_ptr);
+
+    println!("{}** {} kernel32!CreateMutexA '{}' {}", emu.colors.light_red, emu.pos, name, emu.colors.nc);
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
+    
+    emu.regs.rax = helper::handler_create();
+}
+
+fn GetLastError(emu:&mut emu::Emu) {
+    emu.regs.rax = 0;
+    println!("{}** {} kernel32!GetLastError '{}' {}", emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc);
+}
+
+
+
