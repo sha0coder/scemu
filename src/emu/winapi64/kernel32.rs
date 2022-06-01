@@ -44,6 +44,10 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
 fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.regs.rcx;
     let dll = emu.maps.read_string(dllptr);
+    let mut dll_path = emu.cfg.maps_folder.clone();
+    dll_path.push_str(&dll);
+
+    println!("dll path: {}", dll_path);
 
     match dll.to_lowercase().as_str() {
         "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll_pe").get_base(),
@@ -55,7 +59,10 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         "dnsapi"|"dnsapi.dll" => emu.regs.rax = emu.maps.get_mem("dnsapi_pe").get_base(),
         "iphlpapi"|"iphlpapi.dll" => emu.regs.rax = emu.maps.get_mem("iphlpapi_pe").get_base(),
         "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32_pe").get_base(),
-        _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll),
+        
+        _ => {
+            unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll);
+        }
     }
 
     println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc);
