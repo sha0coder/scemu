@@ -87,6 +87,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e9ed38 => UnhandledExceptionFilter(emu),
         0x75e8cdcf => GetCurrentProcess(emu),
         0x75e93363 => LocalAlloc(emu),
+        0x75ecf5c9 => VirtualAllocExNuma(emu),
 
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
@@ -101,7 +102,7 @@ lazy_static! {
 
 //// kernel32 API ////
 
-fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
+pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
 
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
@@ -246,7 +247,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
     let dll = emu.maps.read_string(dllptr);
-
+    let mut dll_path = emu.cfg.maps_folder.clone();
+    dll_path.push_str(&dll);
+      
     if dll.len() == 0 {
         emu.regs.rax = 0;
 
@@ -258,11 +261,18 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
             "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
             "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
             "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
-            _ => unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr),
+            _ =>  {
+                if std::path::Path::new(dll_path.as_str()).exists() {
+                    emu.regs.rax = emu.load_pe32(dll_path.as_str(), false) as u64;
+                } else {
+                    unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr);
+                }
+            }
         }
     }
 
-    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, emu.regs.get_eax() as u32, emu.colors.nc);
+    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, 
+             emu.regs.get_eax() as u32, emu.colors.nc);
 
     emu.stack_pop32(false);
 }
@@ -1338,3 +1348,24 @@ fn LocalAlloc(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
 }
 
+fn VirtualAllocExNuma(emu:&mut emu::Emu) {
+    let proc_hndl = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!VirtualAllocExNuma cannot read the proc handle") as u64;
+    let addr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!VirtualAllocExNuma cannot read the address") as u64;
+    let size = emu.maps.read_dword(emu.regs.get_esp()+8).expect("kernel32!VirtualAllocExNuma cannot read the size") as u64;
+    let alloc_type = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!VirtualAllocExNuma cannot read the type");
+    let protect = emu.maps.read_dword(emu.regs.get_esp()+16).expect("kernel32!VirtualAllocExNuma cannot read the protect");
+    let nnd = emu.maps.read_dword(emu.regs.get_esp()+20).expect("kernel32!VirtualAllocExNuma cannot read the nndPreferred");
+
+    println!("{}** {} kernel32!VirtualAllocExNuma hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
+
+    let base = emu.maps.alloc(size).expect("kernel32!VirtualAllocExNuma out of memory");
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
+    alloc.set_base(base);
+    alloc.set_size(size);
+    
+    emu.regs.rax = base;
+
+    for _ in 0..6 {
+        emu.stack_pop32(false);
+    }
+}

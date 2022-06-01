@@ -640,16 +640,21 @@ impl Emu {
         std::env::set_current_dir(orig_path);
     }
 
-    pub fn load_pe32(&mut self, filename: &str) {
+    pub fn load_pe32(&mut self, filename: &str, set_entry: bool) -> u32 {
         let mut pe32 = PE32::load(filename);
 
-        println!("{} sections", pe32.num_of_sections());
+        let spl:Vec<&str> = filename.split('.').collect();
+        let spl2:Vec<&str> = spl[0].split('/').collect();
+        let last = spl2.len() -1;
+        let base = pe32.opt.image_base;
+
+        println!("{} sections  base addr 0x{:x}", pe32.num_of_sections(), pe32.opt.image_base);
 
         for i in 0..pe32.num_of_sections() {
             let base = pe32.opt.image_base;
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
-            let map = self.maps.create_map(&format!("pe32{}", sect.get_name()));
+            let map = self.maps.create_map(&format!("{}{}",  spl2[last], sect.get_name()));
 
             map.set_base(base as u64 + sect.virtual_address as u64);
             if sect.virtual_size > sect.size_of_raw_data {
@@ -661,13 +666,16 @@ impl Emu {
 
             println!("crated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
                      map.get_base(), sect.virtual_size);
-            if sect.get_name() == ".text" || i == 0 {
-                self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64; //TODO: calcular entry point
-                println!("entry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
+            if set_entry {
+                if sect.get_name() == ".text" || i == 0 {
+                    self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64; //TODO: calcular entry point
+                    println!("entry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
+                }
             }
         }
 
         pe32.clear();
+        return base;
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -683,7 +691,7 @@ impl Emu {
     pub fn load_code(&mut self, filename: &str) {
         
         if self.cfg.pe32load {
-            self.load_pe32(filename);
+            self.load_pe32(filename, true);
 
         } else {
             if !self.maps.get_mem("code").load(filename) {
