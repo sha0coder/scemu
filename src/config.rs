@@ -22,6 +22,7 @@ pub struct Config {
     pub code_base_addr: u64,
     pub is_64bits: bool,        // 64bits mode
     pub stack_trace: bool,
+    pub pe32load: bool,
 }
 
 impl Config {
@@ -48,6 +49,7 @@ impl Config {
             code_base_addr: 0x3c0000,
             is_64bits: false,
             stack_trace: false,
+            pe32load: false,
         }
     }
 }
