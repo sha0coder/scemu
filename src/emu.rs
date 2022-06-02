@@ -25,6 +25,7 @@ pub mod endpoint;
 pub mod structures;
 mod exception;
 mod pe32;
+mod peb;
 
 use fpu::FPU;
 use pe32::PE32;
@@ -194,7 +195,7 @@ impl Emu {
         self.maps.create_map("20000");
         self.maps.create_map("stack");
         self.maps.create_map("code");
-        self.maps.create_map("peb");
+        //self.maps.create_map("peb");
         self.maps.create_map("teb");
         self.maps.create_map("ntdll");
         self.maps.create_map("ntdll_text");
@@ -301,12 +302,14 @@ impl Emu {
         assert!(reserved.read_byte(0x2c31a0) != 0);
 
 
-        let peb = self.maps.get_mem("peb");
-        peb.set_base(  0x7ffdf000);
-        peb.load("peb.bin");
+        /*let peb = self.maps.get_mem("peb");
+        peb.set_base(0x7ffdf000);
+        peb.load("peb.bin");*/
+
+        peb::init_peb32(self);
 
         let teb = self.maps.get_mem("teb");
-        teb.set_base(  0x7ffde000);
+        teb.set_base(0x7ffde000);
         teb.load("teb.bin");
 
         let ntdll = self.maps.get_mem("ntdll");
