@@ -1,4 +1,4 @@
-mod mem64;
+pub mod mem64;
 
 use mem64::Mem64;
 use std::collections::HashMap;

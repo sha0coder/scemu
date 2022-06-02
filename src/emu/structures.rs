@@ -1,4 +1,5 @@
 use crate::emu::maps::Maps;
+use crate::emu::maps::mem64::Mem64;
 
 
 ////// PEB / TEB //////
@@ -124,8 +125,8 @@ impl PEB {
         return 848; // std::mem::size_of_val
     }
 
-    pub fn new(ldr:u32, process_parameters:u32, alt_thunk_list_ptr:u32, alt_thunk_list_ptr_32:u32, 
-                 post_process_init_routine:u32, session_id:u32) -> PEB {
+    pub fn new(ldr:u32, process_parameters:u32, alt_thunk_list_ptr:u32, reserved7:u32, 
+               alt_thunk_list_ptr_32:u32, post_process_init_routine:u32, session_id:u32) -> PEB {
 
         PEB {
             reserved1: [0;2],
@@ -137,8 +138,8 @@ impl PEB {
             reserved4: [0;3],
             alt_thunk_list_ptr: alt_thunk_list_ptr,
             reserved5: 0,
-            reserved6: 0,
-            reserved7: 0,
+            reserved6: 6,
+            reserved7: reserved7,
             reserved8: 0,
             alt_thunk_list_ptr_32: alt_thunk_list_ptr_32,
             reserved9: [0;45],
@@ -149,7 +150,6 @@ impl PEB {
             session_id: session_id,
         }
     }
-
 
     pub fn load(addr:u64, maps:&Maps) -> PEB {
         PEB {
@@ -175,6 +175,32 @@ impl PEB {
             reserved12: maps.read_dword(addr + 840).unwrap(),
             session_id: maps.read_dword(addr + 844).unwrap(),
         }
+    }
+
+    pub fn save(&self, mem: &mut Mem64) {
+        let base = mem.get_base();
+        mem.write_byte(base, self.reserved1[0]);
+        mem.write_byte(base+1, self.reserved1[1]);
+        mem.write_byte(base+2, self.being_debugged);
+        mem.write_byte(base+3, self.reserved2);
+        mem.write_dword(base+4, self.reserved3[0]);
+        mem.write_dword(base+8, self.reserved3[1]);
+        mem.write_dword(base+12, self.ldr);
+        mem.write_dword(base+16, self.process_parameters);
+        mem.write_dword(base+20, self.reserved4[0]);
+        mem.write_dword(base+24, self.reserved4[1]);
+        mem.write_dword(base+28, self.reserved4[2]);
+        mem.write_dword(base+32, self.alt_thunk_list_ptr);
+        mem.write_dword(base+36, self.reserved5);
+        mem.write_dword(base+40, self.reserved6);
+        mem.write_dword(base+44, self.reserved7);
+        mem.write_dword(base+48, self.reserved8);
+        mem.write_dword(base+52, self.alt_thunk_list_ptr_32);
+
+        mem.write_dword(base+328, self.post_process_init_routine);
+
+        mem.write_dword(base+840, self.reserved12);
+        mem.write_dword(base+844, self.session_id);
     }
 
     pub fn print(&self) {
