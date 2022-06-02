@@ -120,6 +120,10 @@ pub struct PEB {
 
 impl PEB {
 
+    pub fn size() -> usize {
+        return 848; // std::mem::size_of_val
+    }
+
     pub fn new(ldr:u32, process_parameters:u32, alt_thunk_list_ptr:u32, alt_thunk_list_ptr_32:u32, 
                  post_process_init_routine:u32, session_id:u32) -> PEB {
 
