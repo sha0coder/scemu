@@ -695,11 +695,13 @@ impl Emu {
     }
 
     pub fn load_code(&mut self, filename: &str) {
-        
-        if self.cfg.pe32load {
+
+        if pe32::PE32::is_pe32(filename) {
+            println!("PE32 header detected.");
             self.load_pe32(filename, true);
 
-        } else {
+        } else { // shellcode
+            println!("shellcode detected.");
             if !self.maps.get_mem("code").load(filename) {
                 println!("shellcode not found, select the file with -f");
                 std::process::exit(1);
@@ -1465,17 +1467,17 @@ impl Emu {
         }
     }
 
-    pub fn shrd(&mut self, value0:u64, value1:u64, counter:u64, size:u8) -> u64 {
+    pub fn shrd(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> u64 {
         let mut storage0:u64 = value0;
+        let mut counter:u64 = pcounter;
         self.flags.f_cf = get_bit!(value0, counter - 1) == 1;
+
+        if counter >= size as u64 {
+            counter = pcounter - size as u64;
+        }
 
         if counter == 0 {
             return storage0;
-        }
-
-        if counter as u8 > size {
-            println!("SHRD bad params.");
-            return 0;
         }
 
         for i in 0..=(size as u64 - 1 - counter) {
@@ -1484,7 +1486,7 @@ impl Emu {
         }
 
         for i in (size as u64 - counter)..size as u64 {
-            let bit = get_bit!(value1, i as u32 + counter as u32 - 32);
+            let bit = get_bit!(value1, i as u32 + counter as u32 - size as u32);
             set_bit!(storage0, i as u32, bit);
         }
 
@@ -1498,16 +1500,12 @@ impl Emu {
 
         self.flags.f_cf = get_bit!(value0, (size as u64) - counter) == 1;
 
-        if counter == 0 {
-            return storage0;
+        if pcounter >= size as u64 {
+            counter = pcounter - size as u64;
         }
 
-        if pcounter >= size as u64 {
-            /*if self.cfg.verbose > 0 {
-                println!("SHLD bad params. counter: {} size: {}", counter, size);
-            }
-            return value0;*/
-            counter = pcounter - size as u64;
+        if counter == 0 {
+            return storage0;
         }
 
         for i in (counter..=((size as u64)-1)).rev() {

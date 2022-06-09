@@ -1,19 +1,27 @@
 # TODO
 
+
+- ldr update on LoadLibrary
+- implement pe64
+- automatically detect pe hdr instead of using flags --pe32
+
+
+
+- set all flags
 - list breakpoints
 - clear breakpoint bug
 - md accept registers
 - md memory check the string filter
 - mr mw options can crash the console
 - fix instruction breakpoint 
-- 64bits apis
+- more 64bits apis
 - in self.execption() put a message self.exception(msg)
 - improve seh command
 - better api implementations
 - winhttp
 - implement a basic decompiler in rust.
 - remove expect() on implemented instructions, just break;
-- stack_push and stack_pop assumes the stack is in the memory map stack
+- stack\_push and stack\_pop assumes the stack is in the memory map stack
 - step over
 - more fpu and xmm
 - on WriteProcessMemory/recv save the payload written to disk
@@ -23,7 +31,7 @@
 - scripting
 - intead of panic spawn console
 - set the code base addr
-- on every set_eip of a non branch dump stack to log file
+- on every set\_eip of a non branch dump stack to log file
 - other rep instruction preffix
 - check pf flag bug
 - save state to disk and continue
