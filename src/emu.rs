@@ -25,7 +25,7 @@ pub mod endpoint;
 pub mod structures;
 mod exception;
 mod pe32;
-mod peb;
+mod peb32;
 
 use fpu::FPU;
 use pe32::PE32;
@@ -306,7 +306,7 @@ impl Emu {
         peb.set_base(0x7ffdf000);
         peb.load("peb.bin");*/
 
-        peb::init_peb32(self);
+        peb32::init_peb(self);
 
         let teb = self.maps.get_mem("teb");
         teb.set_base(0x7ffde000);
@@ -545,6 +545,8 @@ impl Emu {
         assert!(self.shrd(0x6fdcb03, 0x0, 0x6, 32) == 0x1bf72c);
         assert!(self.shrd(0x91545f1d, 0x6fe2, 0x6, 32) == 0x8a45517c);
         assert!(self.shld(0x1b, 0xf1a7eb1d, 0xa, 32) == 0x6fc6);
+        assert!(self.shld(0x1, 0xffffffff, 4, 32) == 0x1f);
+        assert!(self.shld(0x1, 0xffffffff, 33, 32) == 0x3);
 
 
         if self.maps.mem_test() {
@@ -657,7 +659,8 @@ impl Emu {
             let base = pe32.opt.image_base;
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
-            let map = self.maps.create_map(&format!("{}{}",  spl2[last], sect.get_name()));
+            let map = self.maps.create_map(&format!("{}{}",  spl2[last], sect.get_name().replace(" ","").replace("\t","")
+                                                    .replace("\x0a","").replace("\x0d","")));
 
             map.set_base(base as u64 + sect.virtual_address as u64);
             if sect.virtual_size > sect.size_of_raw_data {
@@ -1489,8 +1492,9 @@ impl Emu {
         storage0
     }
 
-    pub fn shld(&mut self, value0:u64, value1:u64, counter:u64, size:u8) -> u64 {
+    pub fn shld(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> u64 {
         let mut storage0:u64 = value0;
+        let mut counter:u64 = pcounter;
 
         self.flags.f_cf = get_bit!(value0, (size as u64) - counter) == 1;
 
@@ -1498,9 +1502,12 @@ impl Emu {
             return storage0;
         }
 
-        if counter as u8 > size {
-            println!("SHLD bad params.");
-            return 0;
+        if pcounter >= size as u64 {
+            /*if self.cfg.verbose > 0 {
+                println!("SHLD bad params. counter: {} size: {}", counter, size);
+            }
+            return value0;*/
+            counter = pcounter - size as u64;
         }
 
         for i in (counter..=((size as u64)-1)).rev() {
@@ -1508,12 +1515,13 @@ impl Emu {
             set_bit!(storage0, i, bit);
         }
 
-        for i in (0..=(counter - 1)).rev() {
-            let bit = get_bit!(value1, i - counter + (size as u64));
+        for i in (0..counter).rev() {
+            let bit = get_bit!(value1, i + (size as u64) - counter);
             set_bit!(storage0, i, bit);
         }
 
         self.flags.calc_flags(storage0, size);
+
         storage0
     }
 
@@ -3580,7 +3588,7 @@ impl Emu {
                         }
                     }
 
-                    Mnemonic::Ror => {
+                    Mnemonic::Ror | Mnemonic::Rcr => {
                         self.show_instruction(&self.colors.green, &ins);
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
@@ -3618,7 +3626,7 @@ impl Emu {
                         self.flags.calc_flags(result, sz);
                     }
 
-                    Mnemonic::Rol => {
+                    Mnemonic::Rol|Mnemonic::Rcl => {
                         self.show_instruction(&self.colors.green, &ins);
 
                         assert!(ins.op_count() == 1 || ins.op_count() == 2);
@@ -3799,6 +3807,131 @@ impl Emu {
                         };
 
                         self.flags.f_cf = (value & (1 << bit)) == 1;
+                    }
+
+                    Mnemonic::Bsf => {
+                        self.show_instruction(&self.colors.green, &ins);
+                        assert!(ins.op_count() == 2);
+
+                        let src = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let mut bitpos: u8 = 0;
+                        let mut dest: u64 = 0;
+
+                        while bitpos < sz && get_bit!(src, bitpos) == 0 {
+                            dest += 1;
+                            bitpos += 1;
+                        }
+
+                        if dest == sz as u64 {
+                            self.flags.f_cf = true;
+                        } else {
+                            self.flags.f_cf = false;
+                        }
+
+                        if dest == 0 {
+                            self.flags.f_zf = true;
+                        } else {
+                            self.flags.f_zf = false;
+                        }
+
+                        if !self.set_operand_value(&ins, 0, dest) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Bsr => {
+                        self.show_instruction(&self.colors.green, &ins);
+                        assert!(ins.op_count() == 2);
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let mut bitpos: u8 = sz-1;
+                        let mut dest: u64 = 0;
+
+                        while bitpos <= 0 && get_bit!(value1, bitpos) == 0 {
+                            dest += 1;
+                            bitpos -= 1;
+                        }
+
+                        if dest != sz as u64 {
+                            self.flags.f_cf = true;
+                        } else {
+                            self.flags.f_cf = false;
+                        }
+
+                        if dest == 0 {
+                            self.flags.f_zf = true;
+                        } else {
+                            self.flags.f_zf = false;
+                        }
+
+                        if !self.set_operand_value(&ins, 0, dest) {
+                            break;
+                        }
+                    }
+
+                    Mnemonic::Bswap => {
+                        self.show_instruction(&self.colors.green, &ins);
+                        assert!(ins.op_count() == 1);
+
+                        let mut value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let mut dst:u64;
+
+                        let sz = self.get_operand_sz(&ins, 0);
+
+                        for i in 0..sz {
+                            let bit = get_bit!(value0, i);
+                            set_bit!(value0, sz-i-1, bit);
+                        }
+
+                        if !self.set_operand_value(&ins, 0, value0) {
+                            break;
+                        }
+
+                    }
+
+                    Mnemonic::Xadd => {
+                        self.show_instruction(&self.colors.green, &ins);
+                        assert!(ins.op_count() == 2);
+
+                        let value1 = match self.get_operand_value(&ins, 1, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
+                            Some(v) => v,
+                            None => break,
+                        };
+
+                        if !self.set_operand_value(&ins, 1, value0) {
+                            break;
+                        }
+
+                        let res:u64 = match self.get_operand_sz(&ins, 1) {
+                            64 => self.flags.add64(value0, value1),
+                            32 => self.flags.add32(value0, value1),
+                            16 => self.flags.add16(value0, value1),
+                            8  => self.flags.add8(value0, value1),
+                            _  => unreachable!("weird size")
+                        };
+
+                        if !self.set_operand_value(&ins, 0, res) {
+                            break;
+                        }
                     }
 
                     Mnemonic::Movsxd => {
@@ -5964,6 +6097,16 @@ impl Emu {
                     Mnemonic::Std => {
                         self.show_instruction(&self.colors.blue, &ins);
                         self.flags.f_df = true;
+                    }
+
+                    Mnemonic::Stc => {
+                        self.show_instruction(&self.colors.blue, &ins);
+                        self.flags.f_cf = true;
+                    }
+
+                    Mnemonic::Cmc => {
+                        self.show_instruction(&self.colors.blue, &ins);
+                        self.flags.f_cf = !self.flags.f_cf;
                     }
 
                     Mnemonic::Cld => {

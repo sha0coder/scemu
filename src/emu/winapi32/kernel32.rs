@@ -3,6 +3,7 @@ use crate::emu::winapi32::helper;
 use crate::emu::context32;
 use crate::emu::constants;
 use crate::emu::console;
+use crate::emu::peb32;
 
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
@@ -110,6 +111,25 @@ lazy_static! {
 
 pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
 
+    let mut flink = peb32::Flink::new(emu);
+    flink.load(emu);
+    while flink.has_module() {
+        //let mod_name = flink.mod_name.clone();
+
+        for i in 0..flink.num_of_funcs {
+            let ordinal = flink.get_function_ordinal(emu, i);
+
+            if ordinal.func_va == addr.into() {
+                return ordinal.func_name.clone();
+            }
+        }
+
+        flink.next(emu);
+    }
+
+    return "function not found".to_string();
+
+    /*
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_dword(peb_base + 0x0c) as u64;
@@ -168,7 +188,7 @@ pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
         }
 
         flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-    } 
+    } */
 
     // return "api not loaded".to_string();
 }
