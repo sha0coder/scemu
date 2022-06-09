@@ -76,6 +76,11 @@ pub struct ImageDosHeader {
 }
 
 impl ImageDosHeader {
+
+    pub fn size() -> usize {
+        return 64;
+    }
+
     pub fn load(raw: &Vec<u8>, off: usize) -> ImageDosHeader {
         ImageDosHeader {
             e_magic: read_u16_le!(raw, off),
@@ -575,6 +580,24 @@ pub struct PE32 {
 }
 
 impl PE32 {
+
+    pub fn is_pe32(filename: &str) -> bool {
+        let mut fd = File::open(filename).expect("file not found");
+        let mut raw = vec![0u8; ImageDosHeader::size()];
+        fd.read_exact(&mut raw).expect("couldnt read the file");
+        let dos = ImageDosHeader::load(&raw, 0);
+
+        if dos.e_magic != 0x5a4d {
+            return false;
+        }
+
+        if dos.e_lfanew >= fd.metadata().unwrap().len() as u32 {
+            return false;
+        }
+
+        return true;
+    }
+
     pub fn load(filename: &str) -> PE32 {   
         let mut fd = File::open(filename).expect("pe32 binary not found");
         let mut raw: Vec<u8> = Vec::new();
@@ -608,18 +631,6 @@ impl PE32 {
         } else {
             panic!("no import directory at va 0x{:x}", import_va);
         }
-
-        /*
-        if export_va > 0 {
-            let export_off = PE32::vaddr_to_off(&sect, export_va);
-            if export_off > 0 {
-                exportd = ImageExportDirectory::load(&raw, export_off as usize);
-            } else {
-                println!("no export directory at va 0x{:x}", import_va);
-            }
-        } else {
-            println!("no export directory at va 0x{:x}", import_va);
-        }*/
 
         PE32 {
             raw: raw,

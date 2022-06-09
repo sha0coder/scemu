@@ -107,10 +107,6 @@ fn main() {
                         .long("stack")
                         .help("trace stack on push/pop")
                         .takes_value(false))
-                    .arg(Arg::with_name("pe32_load")
-                        .long("pe32")
-                        .help("not a shellcode, a pe32")
-                        .takes_value(false))
                     .get_matches();
 
 
@@ -185,9 +181,6 @@ fn main() {
     }
     if matches.is_present("stack_trace") {
         cfg.stack_trace = true;
-    }
-    if matches.is_present("pe32_load") {
-        cfg.pe32load = true;
     }
 
     let mut emu = Emu::new();
