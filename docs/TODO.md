@@ -3,9 +3,9 @@
 
 - ldr update on LoadLibrary
 - implement pe64
-- automatically detect pe hdr instead of using flags --pe32
+- optimize GetProcAddress storing in the handler the lib name
 
-
+- support vmprotect 
 
 - set all flags
 - list breakpoints

@@ -26,6 +26,15 @@ impl Console {
         line.to_lowercase()
     }
 
+    pub fn cmd2(&self) -> String {
+        let mut line = String::new();
+        self.print("=>");
+        std::io::stdin().read_line(&mut line).unwrap();
+        line = line.replace("\r", ""); // some shells (windows) also add \r  thanks Alberto Segura
+        line.truncate(line.len() - 1);
+        line
+    }
+
     pub fn cmd_hex32(&self) -> Result<u32,ParseIntError> {
         let mut x = self.cmd();
 
@@ -105,6 +114,7 @@ impl Console {
         println!("mds .................... memory dump string");
         println!("mdw .................... memory dump wide string");
         println!("mdd .................... memory dump to disk");
+        println!("mdda ................... memory dump all allocations to disk");
         println!("mt ..................... memory test");
         println!("ss ..................... search string");
         println!("sb ..................... search bytes");

@@ -133,18 +133,18 @@ impl Mem64 {
         r
     }
 
-    pub fn write_qword(&mut self, addr:u64, value:u64) {
-        let idx = (addr - self.base_addr) as usize;
-        for i in 0..8 {
-            self.mem[idx+i] = ((value & (0xff<<(i*8))) >>(i*8)) as u8;
-        }
-    }
 
     pub fn write_byte(&mut self, addr:u64, value:u8) {
         let idx = (addr - self.base_addr) as usize;
         self.mem[idx] = value;
     }
 
+    pub fn write_bytes(&mut self, addr:u64, bs:Vec<u8>) {
+        let idx = (addr - self.base_addr) as usize;
+        for i in 0..bs.len() {
+            self.mem[idx+i] = bs[i];
+        }
+    }
 
     pub fn write_word(&mut self, addr:u64, value:u16) {
         let idx = (addr - self.base_addr) as usize;
@@ -159,6 +159,32 @@ impl Mem64 {
         self.mem[idx+2] = ((value & 0x00ff0000) >> 16) as u8;
         self.mem[idx+3] = ((value & 0xff000000) >> 24) as u8;
     }
+
+    pub fn write_qword(&mut self, addr:u64, value:u64) {
+        let idx = (addr - self.base_addr) as usize;
+        for i in 0..8 {
+            self.mem[idx+i] = ((value & (0xff<<(i*8))) >>(i*8)) as u8;
+        }
+    }
+
+    pub fn write_string(&mut self, addr:u64, s:&str) {
+        let mut v = s.as_bytes().to_vec();
+        v.push(0);
+        self.write_bytes(addr, v);
+    }
+
+    pub fn write_wide_string(&mut self, addr:u64, s:&str) {
+        let mut wv:Vec<u8> = Vec::new();
+        let v = s.as_bytes().to_vec();
+        for b in v {
+            wv.push(b);
+            wv.push(0);
+        }
+        wv.push(0);
+        wv.push(0);
+        self.write_bytes(addr, wv);
+    }
+
 
     pub fn print_bytes(&self) {
         println!("---mem---");

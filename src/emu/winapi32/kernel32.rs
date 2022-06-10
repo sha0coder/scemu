@@ -115,12 +115,18 @@ pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
     flink.load(emu);
     while flink.has_module() {
         //let mod_name = flink.mod_name.clone();
+        
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
+                }
 
-        for i in 0..flink.num_of_funcs {
-            let ordinal = flink.get_function_ordinal(emu, i);
+                let ordinal = flink.get_function_ordinal(emu, i);
 
-            if ordinal.func_va == addr.into() {
-                return ordinal.func_name.clone();
+                if ordinal.func_va == addr.into() {
+                    return ordinal.func_name.clone();
+                }
             }
         }
 
@@ -196,7 +202,6 @@ pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
 fn GetProcAddress(emu:&mut emu::Emu) {
     let hndl = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!GetProcAddress cannot read the handle") as u64;
     let func_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!GetProcAddress cannot read the func name") as u64;
-
     let func = emu.maps.read_string(func_ptr).to_lowercase();
 
     //println!("looking for '{}'", func);
@@ -204,6 +209,42 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
+
+    //peb32::show_linked_modules(emu);
+
+    let mut flink = peb32::Flink::new(emu);
+    flink.load(emu);
+
+
+    while flink.has_module() {
+
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
+                }
+                let ordinal = flink.get_function_ordinal(emu, i);
+                
+                //println!("func name {}!{}", flink.mod_name, ordinal.func_name);
+                
+                if ordinal.func_name.to_lowercase() == func {
+                    emu.regs.rax = ordinal.func_va;
+                    println!("{}** {} kernel32!GetProcAddress  `{}!{}` =0x{:x} {}", emu.colors.light_red, emu.pos, flink.mod_name
+                             ,ordinal.func_name, emu.regs.get_eax() as u32, emu.colors.nc);
+                    return;
+                }
+            }
+        }
+
+        flink.next(emu);
+    }
+    emu.regs.rax = 0;
+    println!("kernel32!GetProcAddress error searching {}", func);
+    return;
+
+
+
+    /*
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_dword(peb_base + 0x0c) as u64;
@@ -269,7 +310,7 @@ fn GetProcAddress(emu:&mut emu::Emu) {
         }
 
         flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-    } 
+    } */
 }
 
 fn LoadLibraryA(emu:&mut emu::Emu) {
@@ -280,31 +321,55 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
       
     if dll.len() == 0 {
         emu.regs.rax = 0;
-
-    } else {
-
-        match dll.to_lowercase().as_str() {
-            "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll").get_base(),
-            "ws2_32"|"ws2_32.dll" => emu.regs.rax = emu.maps.get_mem("ws2_32").get_base(),
-            "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
-            "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
-            "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
-            "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32").get_base(),
-            "gdi32"|"gdi32.dll" => emu.regs.rax = emu.maps.get_mem("gdi32").get_base(),
-            _ =>  {
-                if std::path::Path::new(dll_path.as_str()).exists() {
-                    emu.regs.rax = emu.load_pe32(dll_path.as_str(), false) as u64;
-                } else {
-                    unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr);
-                }
-            }
-        }
+        return;
     }
 
-    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, 
+    /*
+    match dll.to_lowercase().as_str() {
+        "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll").get_base(),
+        "ws2_32"|"ws2_32.dll" => emu.regs.rax = emu.maps.get_mem("ws2_32").get_base(),
+        "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
+        "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
+        "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
+        "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32").get_base(),
+        "gdi32"|"gdi32.dll" => emu.regs.rax = emu.maps.get_mem("gdi32").get_base(),
+        _ =>  {
+            if std::path::Path::new(dll_path.as_str()).exists() {
+                // dynamic loading of new libraries
+                emu.regs.rax = emu.load_pe32(dll_path.as_str(), false) as u64;
+                peb32::add_module(emu.regs.rax, dll.as_str(), emu);
+
+            } else {
+                unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr);
+            }
+        }
+        
+    }*/
+
+    match peb32::get_base(&dll, emu) {
+        Some(base) => {
+            // already linked
+            emu.regs.rax = base;
+        },
+        None => {
+            // do link
+            if std::path::Path::new(dll_path.as_str()).exists() {
+                let (base, pe_off) = emu.load_pe32(&dll_path, false);
+                emu.regs.rax = base as u64;
+                peb32::add_module(emu.regs.rax, pe_off,  &dll, emu);
+            } else {
+                println!("dll {} not found.", dll_path);
+                emu.regs.rax = 0; 
+            }
+        }
+    };
+
+    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, &dll, 
              emu.regs.get_eax() as u32, emu.colors.nc);
 
     emu.stack_pop32(false);
+
+    //TODO: instead returning the base, return a handle that have linked the dll name
 }
 
 fn LoadLibraryExA(emu:&mut emu::Emu) {

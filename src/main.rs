@@ -10,7 +10,7 @@ use clap::{Arg, App};
 fn main() {
     let mut cfg = Config::new();
     let matches = App::new("SCEMU emulator for Shellcodes")
-                    .version("0.3.5")
+                    .version(env!("CARGO_PKG_VERSION"))
                     .author("@sha0coder")
                     .arg(Arg::with_name("filename")
                         .short("f")
