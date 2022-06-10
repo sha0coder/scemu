@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::emu::structures::PEB;
+use crate::emu::structures::LdrDataTableEntry;
 
 pub fn init_peb(emu:&mut emu::Emu) {
     let mut peb_map = emu.maps.create_map("peb");
@@ -45,6 +46,7 @@ impl OrdinalTable {
 }
 
 
+#[derive(Debug)]
 pub struct Flink {
     flink_addr: u64,
     pub mod_base: u64,
@@ -79,6 +81,10 @@ impl Flink {
         }
     }
 
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+
     pub fn get_ptr(&self) -> u64 {
         return self.flink_addr;
     }
@@ -106,7 +112,7 @@ impl Flink {
     }
 
     pub fn has_module(&self) -> bool {
-        if self.mod_base == 0 || self.pe_hdr == 0 || self.export_table_rva == 0 {
+        if self.mod_base == 0 || self.flink_addr == 0 {
             return false;
         }
         return true;
@@ -115,11 +121,16 @@ impl Flink {
     pub fn get_pe_hdr(&mut self, emu: &mut emu::Emu) {
         self.pe_hdr = match emu.maps.read_dword(self.mod_base + 0x3c) {
             Some(hdr) => hdr as u64,
-            None => 0,
+            None => {
+                0
+            },
         };
     }
 
     pub fn get_export_table(&mut self, emu: &mut emu::Emu) {
+        if self.pe_hdr == 0 {
+            return;
+        }
         self.export_table_rva = emu.maps.read_dword(self.mod_base + self.pe_hdr + 0x78)
             .expect("error reading export_table_rva") as u64;
 
@@ -162,6 +173,73 @@ impl Flink {
     }
 }
 
+pub fn get_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {   
+    let mut flink = Flink::new(emu);
+    flink.load(emu);
+    while flink.mod_base != 0 {
+        //println!("{} == {}", libname, flink.mod_name);
+        if libname.to_string().to_lowercase() == flink.mod_name.to_string().to_lowercase() {
+            return Some(flink.mod_base);
+        }
+        flink.next(emu);
+    }
+    return None;
+}
 
 
+pub fn show_linked_modules(emu: &mut emu::Emu) {
+    let mut flink = Flink::new(emu);
+    flink.load(emu);
+
+    // get last element
+    while flink.mod_base != 0 { 
+        let pe1 = match emu.maps.read_byte(flink.mod_base + flink.pe_hdr) {
+            Some(b) => b,
+            None => 0,
+        };
+        let pe2 = match emu.maps.read_byte(flink.mod_base + flink.pe_hdr+1) {
+            Some(b) => b,
+            None => 0,
+        };
+        println!("mod:{} flink:{:x} base:{:x} pe_hdr:{:x} {:x}{:x}", flink.mod_name, flink.get_ptr(), flink.mod_base, flink.pe_hdr, pe1, pe2);
+        flink.next(emu);
+    }
+}
+
+
+pub fn add_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu::Emu) {
+    let mut last_flink:u64 = 0;
+    let mut flink = Flink::new(emu);
+    flink.load(emu);
+
+    // get last element
+    while flink.mod_base != 0 { 
+        last_flink = flink.get_ptr();
+        flink.next(emu);
+    }
+    let next_flink:u64 = flink.get_ptr();
+
+    // make space for ldr
+    let sz = LdrDataTableEntry::size() as u64 +40;
+    let space_addr = emu.maps.alloc(sz).expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
+    let mut lib = libname.to_string();
+    lib.push_str(".ldr");
+    let mem = emu.maps.create_map(lib.as_str());
+    mem.set_base(space_addr);
+    mem.set_size(sz);
+
+    // write ldr
+    mem.write_dword(space_addr, next_flink as u32);
+    mem.write_dword(space_addr+4, last_flink as u32);
+    mem.write_dword(space_addr+0x10, base as u32);
+    mem.write_dword(space_addr+0x3c, pe_off);
+    mem.write_dword(space_addr+0x28, space_addr as u32 + 0x3d); // libname ptr
+    mem.write_wide_string(space_addr+0x3d, libname);
+
+    // point previous flink to this ldr
+    emu.maps.write_dword(last_flink, space_addr as u32);
+
+    // point next blink to this ldr
+    emu.maps.write_dword(next_flink+4, space_addr as u32);
+}
 

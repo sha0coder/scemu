@@ -424,26 +424,28 @@ impl Maps {
 
         for (name,mem) in self.maps.iter() {
             if name == map_name {
+
                 for addr in mem.get_base()..mem.get_bottom() {
                     let bkw = kw.as_bytes();
                     let mut c = 0;
                     
                     for (i, bkwi) in bkw.iter().enumerate() {
                         let b = mem.read_byte(addr+(i as u64));
+
                         if b == *bkwi {
                             c+=1;
                         } else {
                             break;
                         }
                     }
-
-                    if c == bkw.len() {
+                    
+                    if c == kw.len() {
                         found.push(addr);
                     }
 
                 }
 
-                if found.is_empty() {
+                if !found.is_empty() {
                     return Some(found);
                 } else {
                     return None;
@@ -631,6 +633,19 @@ impl Maps {
             }
 
         }
+    }
+
+    pub fn save_all_allocs(&mut self, path: String) {
+        for (name, mem) in self.maps.iter() {
+            if name.to_string().starts_with("alloc_") {
+                let mut ppath = path.clone();
+                ppath.push_str("/");
+                ppath.push_str(name);
+                ppath.push_str(".bin");
+                mem.save(mem.get_base(), mem.size() as usize, ppath);
+            }
+        }
+
     }
 
     pub fn save(&mut self, addr:u64, size:u64, filename:String) {

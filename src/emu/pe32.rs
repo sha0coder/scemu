@@ -576,6 +576,7 @@ pub struct PE32 {
     pub opt: ImageOptionalHeader,
     sect_hdr: Vec<ImageSectionHeader>,
     import_dir: ImageImportDirectory,
+    pub import_off: u32,
     //export_dir: Option<ImageExportDirectory>,
 }
 
@@ -620,9 +621,10 @@ impl PE32 {
         let exportd: ImageExportDirectory;
         let import_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT].virtual_address;
         let export_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
+        let import_off: u32;
 
         if import_va > 0 {
-            let import_off = PE32::vaddr_to_off(&sect, import_va);
+            import_off = PE32::vaddr_to_off(&sect, import_va);
             if import_off > 0 {
                 importd = ImageImportDirectory::load(&raw, import_off as usize);
             } else {
@@ -641,7 +643,16 @@ impl PE32 {
             sect_hdr: sect,
             import_dir: importd,
             //export_dir: exportd,
+            import_off: import_off,
         }
+    }
+
+    pub fn get_raw(&self) -> &[u8] {
+           return  &self.raw[0..self.raw.len()];
+    }
+
+    pub fn get_headers(&self) -> &[u8] {
+        return  &self.raw[0..self.opt.size_of_headers as usize];
     }
 
     pub fn clear(&mut self) {

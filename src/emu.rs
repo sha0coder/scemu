@@ -645,13 +645,20 @@ impl Emu {
         std::env::set_current_dir(orig_path);
     }
 
-    pub fn load_pe32(&mut self, filename: &str, set_entry: bool) -> u32 {
+    pub fn load_pe32(&mut self, filename: &str, set_entry: bool) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
 
         let spl:Vec<&str> = filename.split('.').collect();
         let spl2:Vec<&str> = spl[0].split('/').collect();
         let last = spl2.len() -1;
         let base = pe32.opt.image_base;
+    
+        //TODO: query if this vaddr is already used
+        let pemap = self.maps.create_map(&format!("{}.pe",  spl2[last]));
+        pemap.set_base(base.into());
+        pemap.set_size(pe32.opt.size_of_headers.into());
+        pemap.memcpy(pe32.get_headers(), pe32.opt.size_of_headers as usize);
+
 
         println!("{} sections  base addr 0x{:x}", pe32.num_of_sections(), pe32.opt.image_base);
 
@@ -680,8 +687,10 @@ impl Emu {
             }
         }
 
+        let pe_hdr_off = pe32.dos.e_lfanew;
+
         pe32.clear();
-        return base;
+        return (base, pe_hdr_off);
     }
 
     pub fn set_config(&mut self, cfg:Config) {
@@ -1882,6 +1891,11 @@ impl Emu {
                         self.maps.save(addr, sz, filename);
                     }
                 }
+                "mdda" => {
+                    con.print("path:");
+                    let path = con.cmd2();
+                    self.maps.save_all_allocs(path);
+                }
                 "mt" => {
                     if self.maps.mem_test() {
                         println!("mem test passed ok.");
@@ -1947,7 +1961,7 @@ impl Emu {
                     con.print("map name");
                     let mem_name = con.cmd();
                     con.print("string");
-                    let kw = con.cmd();
+                    let kw = con.cmd2();
                     let result = match self.maps.search_string(&kw, &mem_name) {
                         Some(v) => v,
                         None => { 
@@ -1988,7 +2002,7 @@ impl Emu {
                 },
                 "ssa" => {
                     con.print("string");
-                    let kw = con.cmd();
+                    let kw = con.cmd2();
                     self.maps.search_string_in_all(kw);
                 },
                 "seh" => {

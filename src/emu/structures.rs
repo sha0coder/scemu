@@ -26,22 +26,26 @@ impl ListEntry {
 
 #[derive(Debug)]
 pub struct LdrDataTableEntry {
-    reserved1: [u32;2], 
-    in_memory_order_module_links: ListEntry, // +8
-    reserved2: [u32;2], 
-    dll_base: u32,        // +16 +0x10
-    entry_point: u32,     // +20 +0x14
-    reserved3: u32,
-    full_dll_name: u32,   // ptr to string +28  +0x1c   
-    reserved4: [u8;8],
-    reserved5: [u32;3],
-    checksum: u32,          // +52  +0x34
-    reserved6: u32,
-    time_date_stamp: u32,   // +60  +0x3c
+    pub reserved1: [u32;2], 
+    pub in_memory_order_module_links: ListEntry, // +8
+    pub reserved2: [u32;2], 
+    pub dll_base: u32,        // +16 +0x10
+    pub entry_point: u32,     // +20 +0x14
+    pub reserved3: u32,
+    pub full_dll_name: u32,   // ptr to string +28  +0x1c   
+    pub reserved4: [u8;8],
+    pub reserved5: [u32;3],
+    pub checksum: u32,          // +52  +0x34
+    pub reserved6: u32,
+    pub time_date_stamp: u32,   // +60  +0x3c
 }
 
 
 impl LdrDataTableEntry {
+    pub fn size() -> usize {
+        return 62;
+    }
+
     pub fn load(addr:u64, maps:&Maps) -> LdrDataTableEntry {
         LdrDataTableEntry {
             reserved1: [maps.read_dword(addr).unwrap(), maps.read_dword(addr + 4).unwrap()],
