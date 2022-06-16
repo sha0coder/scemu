@@ -173,18 +173,19 @@ impl Flink {
     }
 }
 
-pub fn get_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {   
-    let mut name_without_dll:String = libname.to_string().to_lowercase();
-    name_without_dll.push_str(".dll");
-
+pub fn get_module_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {   
+    let mut libname2:String = libname.to_string().to_lowercase();
+    if !libname2.ends_with(".dll") {
+        libname2.push_str(".dll");
+    }
 
     let mut flink = Flink::new(emu);
     flink.load(emu);
     while flink.mod_base != 0 {
-        //println!("{} == {}", libname, flink.mod_name);
+        //println!("{} == {}", libname2, flink.mod_name);
 
         if libname.to_string().to_lowercase() == flink.mod_name.to_string().to_lowercase() || 
-            name_without_dll == flink.mod_name.to_string().to_lowercase() {
+            libname2 == flink.mod_name.to_string().to_lowercase() {
             return Some(flink.mod_base);
         }
         flink.next(emu);

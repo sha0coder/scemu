@@ -315,14 +315,20 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
 fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
-    let dll = emu.maps.read_string(dllptr);
-    let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push_str(&dll);
-      
+    let mut dll = emu.maps.read_string(dllptr).to_lowercase();
+
     if dll.len() == 0 {
         emu.regs.rax = 0;
         return;
     }
+
+    if !dll.ends_with(".dll") {
+        dll.push_str(".dll");
+    }
+
+    let mut dll_path = emu.cfg.maps_folder.clone();
+    dll_path.push_str(&dll);
+      
 
     /*
     match dll.to_lowercase().as_str() {
@@ -346,9 +352,12 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         
     }*/
 
-    match peb32::get_base(&dll, emu) {
+    match peb32::get_module_base(&dll, emu) {
         Some(base) => {
             // already linked
+            if emu.cfg.verbose > 0 {
+                println!("dll already linked.");
+            }
             emu.regs.rax = base;
         },
         None => {
@@ -358,7 +367,9 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
                 emu.regs.rax = base as u64;
                 peb32::add_module(emu.regs.rax, pe_off,  &dll, emu);
             } else {
-                println!("dll {} not found.", dll_path);
+                if emu.cfg.verbose > 0 {
+                    println!("dll {} not found.", dll_path);
+                }
                 emu.regs.rax = 0; 
             }
         }
