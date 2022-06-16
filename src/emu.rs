@@ -102,6 +102,7 @@ pub struct Emu {
     gateway_return: u64,
     is_running: Arc<atomic::AtomicU32>,
     break_on_next_cmp: bool,
+    filename: String,
 }
 
 impl Emu {
@@ -129,13 +130,14 @@ impl Emu {
             gateway_return: 0,
             is_running: Arc::new(atomic::AtomicU32::new(0)), 
             break_on_next_cmp: false,
+            filename: String::new(),
         }
     }
 
     pub fn init_stack32(&mut self) {
         let stack = self.maps.get_mem("stack");
 
-        stack.set_base(0x22d000); 
+        stack.set_base(0x226000); //22d000
         stack.set_size(0x020000);
         //self.regs.set_esp(0x22e000);
         self.regs.set_esp(0x22e000+4);
@@ -704,6 +706,7 @@ impl Emu {
     }
 
     pub fn load_code(&mut self, filename: &str) {
+        self.filename = filename.to_string();
 
         if pe32::PE32::is_pe32(filename) {
             println!("PE32 header detected.");

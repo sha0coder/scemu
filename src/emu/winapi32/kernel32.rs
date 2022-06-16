@@ -94,6 +94,9 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e76ba9 => GetComputerNameA(emu),
         0x75e93589 => CreateMutexA(emu),
         0x75e8bf00 => GetLastError(emu),
+        0x75e80a7f => CreateFileMappingW(emu),
+        0x75e8ced8 => GetSystemTime(emu),
+        0x75e8a19f => lstrcat(emu),
 
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
@@ -1187,13 +1190,20 @@ fn MapViewOfFile(emu:&mut emu::Emu) {
 
     let off:u64 = (off_hight << 32) + off_low;
 
-    println!("{}** {} kernel32!MapViewOfFile hndl: {} off: {} sz: {} {}", emu.colors.light_red, emu.pos, hndl, off, size, emu.colors.nc);
 
     let addr = emu.maps.alloc(size).expect("kernel32!MapViewOfFile cannot allocate");
     let mem = emu.maps.create_map("file_map");
-    mem.set_base(addr);
+    mem.set_base(addr+off);
     mem.set_size(size);
+    mem.load(&emu.filename);
     //TODO: use mem.load()
+
+    println!("{}** {} kernel32!MapViewOfFile hndl: {} off: {} sz: {} ={} {}", emu.colors.light_red, emu.pos, 
+             hndl, off, size, addr, emu.colors.nc);
+
+    if off > 0 {
+        println!("the non-zero offset is not implemented for now");
+    }
 
     for _ in 0..5 {
         emu.stack_pop32(false);
@@ -1524,5 +1534,51 @@ fn GetLastError(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!GetLastError '{}' {}", emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc);
 }
 
+fn CreateFileMappingW(emu:&mut emu::Emu) {
+    let hFile = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateFileMappingW cannot read hFile param");
+    let attr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!CreateFileMappingW cannot read attr param");
+    let protect = emu.maps.read_dword(emu.regs.get_esp()+8).expect("kernel32!CreateFileMappingW cannot read protect");
+    let maxsz_high = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!CreateFileMappingW cannot read max size high");
+    let maxsz_low = emu.maps.read_dword(emu.regs.get_esp()+16).expect("kernel32!CreateFileMappingW cannot read max size low");
+    let name_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("kernel32!CreateFileMappingW cannot read name ptr") as u64;
+    let mut name:String = String::new();
+
+    if name_ptr > 0 {
+        name = emu.maps.read_string(name_ptr);
+    }
+
+    emu.regs.rax = helper::handler_create(); 
+
+    println!("{}** {} kernel32!CreateFileMappingW '{}' ={} {}", emu.colors.light_red, emu.pos, name, emu.regs.get_eax(), emu.colors.nc);
+
+    for _ in 0..6 {
+        emu.stack_pop32(false);
+    }
+
+}
+
+fn GetSystemTime(emu:&mut emu::Emu) {
+    let out_time = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!GetSystemTime cannot read out_time param");
+
+    println!("{}** {} kernel32!GetSystemTime ptr: 0x{:x}' {}", emu.colors.light_red, emu.pos, out_time, emu.colors.nc);
+
+    emu.stack_pop32(false);
+}
+
+fn lstrcat(emu:&mut emu::Emu) {
+    let str1_ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!lstrcat cannot read str1 param") as u64;
+    let str2_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!lstrcat cannot read str2 param") as u64;
+    
+    let mut str1 = emu.maps.read_string(str1_ptr);
+    let str2 = emu.maps.read_string(str2_ptr);
+
+    println!("{}** {} kernel32!lstrcat '{}'+'{}' {}", emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc);
+
+    str1.push_str(&str2);
+
+    emu.maps.write_string(str1_ptr, &str1);
+
+    emu.regs.rax = 1;
+}
 
 
