@@ -102,6 +102,7 @@ impl Console {
         println!("seh .................... view SEH");
         println!("veh .................... view vectored execption pointer");
         println!("m ...................... memory maps");
+        println!("ms ..................... memory filtered by keyword string");
         println!("ma ..................... memory allocs");
         println!("mc ..................... memory create map");
         println!("mn ..................... memory name of an address");
@@ -126,6 +127,9 @@ impl Console {
         println!("enter .................. step into");
         println!("tr ..................... trace reg");
         println!("trd .................... trace regs disable");
+        println!("ldr .................... show ldr linked list");
+        println!("iat .................... find names in all iat's");
+        println!("iatd ................... dump the iat of specific module");
 
         //println!("o ...................... step over");
         println!();

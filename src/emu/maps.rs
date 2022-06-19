@@ -209,6 +209,28 @@ impl Maps {
         buff
     }
 
+    pub fn print_maps_keyword(&self, kw:&str) {
+        println!("--- maps ---");
+        for k in self.maps.keys() {
+            let map = self.maps.get(k).unwrap();
+            let n;
+            if k.len() < 20 {
+                n = 20 - k.len();
+            } else {
+                n = 1;
+            }
+            let mut spcs:String = String::new();
+            for i in 0..n {
+                spcs.push(' ');
+            }
+            if k.contains(kw) {
+                println!("{}{}0x{:x} - 0x{:x} ({})", k, spcs, map.get_base(), map.get_bottom(), map.size());
+            }
+        }
+        println!("memory usage: {} bytes", self.size());
+        println!("---");
+    }
+
     pub fn print_maps(&self) {
         println!("--- maps ---");
         for k in self.maps.keys() {

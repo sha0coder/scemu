@@ -70,6 +70,16 @@ impl FPU {
         self.st[i] = value;
     }
 
+    pub fn get_st(self, i:usize) -> f32 {
+        return self.st[i].clone();
+    }
+
+    pub fn xchg_st(&mut self, i:usize) {
+        let tmp = self.st[0];
+        self.st[0] = self.st[i];
+        self.st[i] = tmp;
+    }
+
     pub fn clear_st(&mut self, i:usize) {
         self.st[i] = 0.0;
     }

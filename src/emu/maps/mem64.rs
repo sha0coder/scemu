@@ -154,6 +154,7 @@ impl Mem64 {
 
     pub fn write_dword(&mut self, addr:u64, value:u32) {
         let idx = (addr - self.base_addr) as usize;
+        assert!(idx < self.mem.len());
         self.mem[idx]   = (value & 0x000000ff) as u8;
         self.mem[idx+1] = ((value & 0x0000ff00) >> 8) as u8;
         self.mem[idx+2] = ((value & 0x00ff0000) >> 16) as u8;

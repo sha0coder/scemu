@@ -493,6 +493,16 @@ impl Emu {
 
 
 
+        let (base, pe_hdr) = self.load_pe32("nsi.dll", false, 0x776c0000);
+
+
+
+        //let nsi = self.maps.create_map("NSI.dll");
+        //nsi.set_base(0x776c0000);
+        //nsi.load("nsi.dll");
+
+
+
         // xloader initial state hack
         //self.memory_write("dword ptr [esp + 4]", 0x22a00);
         //self.maps.get_mem("kernel32_xloader").set_base(0x75e40000) 
@@ -647,13 +657,18 @@ impl Emu {
         std::env::set_current_dir(orig_path);
     }
 
-    pub fn load_pe32(&mut self, filename: &str, set_entry: bool) -> (u32,u32) {
+    pub fn load_pe32(&mut self, filename: &str, set_entry: bool, force_base: u32) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
 
         let spl:Vec<&str> = filename.split('.').collect();
         let spl2:Vec<&str> = spl[0].split('/').collect();
         let last = spl2.len() -1;
-        let base = pe32.opt.image_base;
+        let base;
+        if force_base > 0 {
+            base = force_base;
+        } else {
+            base = pe32.opt.image_base;
+        }
     
         //TODO: query if this vaddr is already used
         let pemap = self.maps.create_map(&format!("{}.pe",  spl2[last]));
@@ -661,11 +676,16 @@ impl Emu {
         pemap.set_size(pe32.opt.size_of_headers.into());
         pemap.memcpy(pe32.get_headers(), pe32.opt.size_of_headers as usize);
 
-
-        println!("{} sections  base addr 0x{:x}", pe32.num_of_sections(), pe32.opt.image_base);
+        println!("Loaded {}", filename);
+        println!("\t{} sections  base addr 0x{:x}", pe32.num_of_sections(), base);
 
         for i in 0..pe32.num_of_sections() {
-            let base = pe32.opt.image_base;
+            let base;
+            if force_base > 0 {
+                base = force_base;
+            } else {
+                base = pe32.opt.image_base;
+            }
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
             let map = self.maps.create_map(&format!("{}{}",  spl2[last], sect.get_name().replace(" ","").replace("\t","")
@@ -679,12 +699,12 @@ impl Emu {
             }
             map.memcpy(ptr, ptr.len());
 
-            println!("crated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
+            println!("\tcreated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
                      map.get_base(), sect.virtual_size);
             if set_entry {
                 if sect.get_name() == ".text" || i == 0 {
                     self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64; //TODO: calcular entry point
-                    println!("entry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
+                    println!("\tentry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
                 }
             }
         }
@@ -710,7 +730,7 @@ impl Emu {
 
         if pe32::PE32::is_pe32(filename) {
             println!("PE32 header detected.");
-            self.load_pe32(filename, true);
+            self.load_pe32(filename, true, 0);
 
         } else { // shellcode
             println!("shellcode detected.");
@@ -2040,6 +2060,11 @@ impl Emu {
                     return;
                 },
                 "m" => self.maps.print_maps(),
+                "ms" => {
+                    con.print("keyword");
+                    let kw = con.cmd2();
+                    self.maps.print_maps_keyword(&kw);
+                }
                 "d" => {
                     con.print("address");
                     let addr = match con.cmd_hex64() {
@@ -2051,6 +2076,24 @@ impl Emu {
                     };
                     self.disasemble(addr, 10);
                 },
+                "ldr" => {
+                    peb32::show_linked_modules(self);
+                }
+                "iat" => {
+                    con.print("api keyword");
+                    let kw = con.cmd2();
+                    let (addr, lib, name) = winapi32::kernel32::search_api_name(self, &kw);
+                    if addr == 0 {
+                        println!("api not found");
+                    } else {
+                        println!("found: 0x{:x} {}!{}", addr, lib, name);
+                    }
+                }
+                "iatd" => {
+                    con.print("module");
+                    let lib = con.cmd2().to_lowercase();
+                    winapi32::kernel32::dump_module_iat(self, &lib);
+                }
                 "dt" => {
                     con.print("structure");
                     let struc = con.cmd();
@@ -6224,7 +6267,11 @@ impl Emu {
                         if self.cfg.is_64bits {
                             let val = match self.maps.read_byte(self.regs.rsi) {
                                 Some(v) => v,
-                                None => panic!("lodsb: memory read error"),
+                                None => {
+                                    println!("lodsb: memory read error");
+                                    self.spawn_console();
+                                    0
+                                }
                             };
 
                             self.regs.set_al(val as u64);
@@ -6238,7 +6285,11 @@ impl Emu {
 
                             let val = match self.maps.read_byte(self.regs.get_esi()) {
                                 Some(v) => v,
-                                None => panic!("lodsb: memory read error"),
+                                None => {   
+                                    println!("lodsb: memory read error");
+                                    self.spawn_console();
+                                    0
+                                }
                             };
 
                             self.regs.set_al(val as u64);
@@ -6522,6 +6573,23 @@ impl Emu {
                                 Register::ST7 => self.fpu.move_to_st0(7),
                                 _  => unimplemented!("impossible case"),
                             }
+                        }
+
+                        self.fpu.set_ip(self.regs.rip);
+                    }
+
+                    Mnemonic::Fxch => {
+                        self.show_instruction(&self.colors.blue, &ins);
+                        match ins.op_register(1) {  
+                            Register::ST0 => self.fpu.xchg_st(0),  
+                            Register::ST1 => self.fpu.xchg_st(1),  
+                            Register::ST2 => self.fpu.xchg_st(2),  
+                            Register::ST3 => self.fpu.xchg_st(3),  
+                            Register::ST4 => self.fpu.xchg_st(4),  
+                            Register::ST5 => self.fpu.xchg_st(5),  
+                            Register::ST6 => self.fpu.xchg_st(6),  
+                            Register::ST7 => self.fpu.xchg_st(7),  
+                            _  => unimplemented!("impossible case"),  
                         }
 
                         self.fpu.set_ip(self.regs.rip);

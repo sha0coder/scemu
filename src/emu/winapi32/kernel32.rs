@@ -112,11 +112,69 @@ lazy_static! {
 
 //// kernel32 API ////
 
-pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
 
+pub fn dump_module_iat(emu:&mut emu::Emu, module: &str) {
     let mut flink = peb32::Flink::new(emu);
     flink.load(emu);
-    while flink.has_module() {
+    let first_ptr = flink.get_ptr();
+
+    loop {
+        if flink.mod_name.to_lowercase().contains(module) {
+            if flink.export_table_rva > 0 {
+                for i in 0..flink.num_of_funcs {
+                    if flink.pe_hdr == 0 {
+                        continue
+                    }
+
+                    let ordinal = flink.get_function_ordinal(emu, i);
+                    println!("0x{:x} {}!{}", ordinal.func_va, &flink.mod_name, &ordinal.func_name); 
+                }
+            }
+        }
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+
+}
+
+pub fn search_api_name(emu:&mut emu::Emu, name: &str) -> (u64, String, String) {
+    let mut flink = peb32::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+
+    loop {
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue
+                }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                if ordinal.func_name.contains(name) {
+                    return (ordinal.func_va, flink.mod_name.clone(), ordinal.func_name.clone());
+                }
+            }
+        }
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+
+
+    return (0,String::new(), String::new()); //TODO: use Option<>
+}
+
+pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
+    let mut flink = peb32::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+
+    loop {
         //let mod_name = flink.mod_name.clone();
         
         if flink.export_table_rva > 0 {
@@ -134,6 +192,10 @@ pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
         }
 
         flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {
+            break;
+        }
     }
 
     return "function not found".to_string();
@@ -329,31 +391,10 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         dll.push_str(".dll");
     }
 
+
     let mut dll_path = emu.cfg.maps_folder.clone();
     dll_path.push_str(&dll);
       
-
-    /*
-    match dll.to_lowercase().as_str() {
-        "ntdll"|"ntdll.dll" => emu.regs.rax = emu.maps.get_mem("ntdll").get_base(),
-        "ws2_32"|"ws2_32.dll" => emu.regs.rax = emu.maps.get_mem("ws2_32").get_base(),
-        "wininet"|"wininet.dll" => emu.regs.rax = emu.maps.get_mem("wininet").get_base(),
-        "advapi32"|"advapi32.dll" => emu.regs.rax = emu.maps.get_mem("advapi32").get_base(),
-        "kernel32"|"kernel32.dll" => emu.regs.rax = emu.maps.get_mem("kernel32").get_base(),
-        "user32"|"user32.dll" => emu.regs.rax = emu.maps.get_mem("user32").get_base(),
-        "gdi32"|"gdi32.dll" => emu.regs.rax = emu.maps.get_mem("gdi32").get_base(),
-        _ =>  {
-            if std::path::Path::new(dll_path.as_str()).exists() {
-                // dynamic loading of new libraries
-                emu.regs.rax = emu.load_pe32(dll_path.as_str(), false) as u64;
-                peb32::add_module(emu.regs.rax, dll.as_str(), emu);
-
-            } else {
-                unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found `{}` dllptr:0x{:x}", dll, dllptr);
-            }
-        }
-        
-    }*/
 
     match peb32::get_module_base(&dll, emu) {
         Some(base) => {
@@ -366,9 +407,9 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
         None => {
             // do link
             if std::path::Path::new(dll_path.as_str()).exists() {
-                let (base, pe_off) = emu.load_pe32(&dll_path, false);
+                let (base, pe_off) = emu.load_pe32(&dll_path, false, 0);
                 emu.regs.rax = base as u64;
-                peb32::add_module(emu.regs.rax, pe_off,  &dll, emu);
+                peb32::dynamic_link_module(emu.regs.rax, pe_off,  &dll, emu);
             } else {
                 if emu.cfg.verbose > 0 {
                     println!("dll {} not found.", dll_path);
