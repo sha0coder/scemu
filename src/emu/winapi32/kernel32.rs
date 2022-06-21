@@ -279,9 +279,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
 
     let mut flink = peb32::Flink::new(emu);
     flink.load(emu);
+    let first_flink = flink.get_ptr();
 
-
-    while flink.has_module() {
+    loop {
 
         if flink.export_table_rva > 0 {
             for i in 0..flink.num_of_funcs {
@@ -302,6 +302,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
         }
 
         flink.next(emu);
+        if flink.get_ptr() == first_flink {
+            break;
+        }
     }
     emu.regs.rax = 0;
     println!("kernel32!GetProcAddress error searching {}", func);
