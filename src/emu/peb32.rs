@@ -185,7 +185,8 @@ pub fn get_module_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {
 
     let mut flink = Flink::new(emu);
     flink.load(emu);
-    while flink.mod_base != 0 {
+    let first_flink = flink.get_ptr();
+    loop {
         //println!("{} == {}", libname2, flink.mod_name);
 
         if libname.to_string().to_lowercase() == flink.mod_name.to_string().to_lowercase() || 
@@ -193,6 +194,10 @@ pub fn get_module_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {
             return Some(flink.mod_base);
         }
         flink.next(emu);
+
+        if flink.get_ptr() == first_flink {
+            break;
+        }
     }
     return None;
 }
