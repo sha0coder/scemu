@@ -131,6 +131,8 @@ impl Flink {
         if self.pe_hdr == 0 {
             return;
         }
+
+        //println!("base: 0x{:x} + pe_hdr {} + 0x78 = {}", self.mod_base, self.pe_hdr, self.mod_base + self.pe_hdr + 0x78);
         self.export_table_rva = emu.maps.read_dword(self.mod_base + self.pe_hdr + 0x78)
             .expect("error reading export_table_rva") as u64;
 

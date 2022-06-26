@@ -150,6 +150,9 @@ impl Emu {
         assert!(self.regs.get_ebp() < stack.get_bottom());
         assert!(stack.inside(self.regs.get_esp()));
         assert!(stack.inside(self.regs.get_ebp()));
+
+        let apiname = winapi32::kernel32::guess_api_name(self, 0x75e6b45c);
+        println!("the apiname {} ", apiname);
     }
 
     pub fn init_stack64(&mut self) {
@@ -659,6 +662,9 @@ impl Emu {
 
     pub fn load_pe32(&mut self, filename: &str, set_entry: bool, force_base: u32) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
+        if set_entry {
+            pe32.iat_binding(self);
+        }
 
         let spl:Vec<&str> = filename.split('.').collect();
         let spl2:Vec<&str> = spl[0].split('/').collect();

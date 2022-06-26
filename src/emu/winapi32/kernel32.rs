@@ -97,7 +97,9 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e80a7f => CreateFileMappingW(emu),
         0x75e8ced8 => GetSystemTime(emu),
         0x75e8a19f => lstrcat(emu),
-
+        0x75e94a51 => SetErrorMode(emu),
+        0x75e83b1a => GetVersionExW(emu),
+        0x75e940fb => GetSystemDirectoryW(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
     }
@@ -138,6 +140,35 @@ pub fn dump_module_iat(emu:&mut emu::Emu, module: &str) {
         }
     }
 
+}
+
+pub fn resolve_api_name(emu:&mut emu::Emu, name: &str) -> u64 {
+    let mut flink = peb32::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+
+    loop {
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue
+                }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                if ordinal.func_name.contains(name) {
+                    return ordinal.func_va;
+                }
+            }
+        }
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+
+
+    return 0; //TODO: use Option<>
 }
 
 pub fn search_api_name(emu:&mut emu::Emu, name: &str) -> (u64, String, String) {
@@ -200,68 +231,6 @@ pub fn guess_api_name(emu:&mut emu::Emu, addr: u32) -> String {
 
     return "function not found".to_string();
 
-    /*
-    let peb = emu.maps.get_mem("peb");
-    let peb_base = peb.get_base();
-    let ldr = peb.read_dword(peb_base + 0x0c) as u64;
-    let mut flink = emu.maps.read_dword(ldr + 0x14).expect("kernel32!GetProcAddress error reading flink") as u64;
-
-    loop { // walk modules
-
-        let mod_name_ptr = emu.maps.read_dword(flink + 0x28).expect("kernel32!GetProcAddress error reading mod_name_ptr") as u64;
-        let mod_base = emu.maps.read_dword(flink + 0x10).expect("kernel32!GetProcAddress error reading mod_addr") as u64;
-        let mod_name = emu.maps.read_wide_string(mod_name_ptr);
-
-        let pe_hdr = match emu.maps.read_dword(mod_base + 0x3c) { //.expect("kernel32!GetProcAddress error reading pe_hdr");
-            Some(hdr) => hdr as u64,
-            None => { emu.regs.rax = 0; return "err1".to_string(); }
-        };
-        let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr + 0x78).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
-        if export_table_rva == 0 {
-            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            continue;
-        }
-
-        let export_table = export_table_rva + mod_base;
-        let mut num_of_funcs = emu.maps.read_dword(export_table + 0x18).expect("kernel32!GetProcAddress error reading the num_of_funcs") as u64;
-
-        let func_name_tbl_rva = emu.maps.read_dword(export_table + 0x20).expect("kernel32!GetProcAddress  error reading func_name_tbl_rva") as u64;
-        let func_name_tbl = func_name_tbl_rva + mod_base;
-
-        if num_of_funcs == 0 {
-            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            continue;
-        }
-
-        loop { // walk functions
-                
-            num_of_funcs -= 1;
-            let func_name_rva = emu.maps.read_dword(func_name_tbl + num_of_funcs * 4).expect("kernel32!GetProcAddress error reading func_rva") as u64;
-            let func_name_va = func_name_rva + mod_base;
-            let func_name = emu.maps.read_string(func_name_va);
-            
-            let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
-            let ordinal_tbl = ordinal_tbl_rva + mod_base;
-            let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal") as u64;
-            let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva") as u64;
-            let func_addr_tbl = func_addr_tbl_rva + mod_base;
-            
-            let func_rva = emu.maps.read_dword(func_addr_tbl + 4 * ordinal).expect("kernel32!GetProcAddress error reading func_rva") as u64;
-            let func_va = func_rva + mod_base;
-
-            if func_va == addr.into() {
-                return func_name;
-            }
-
-            if num_of_funcs == 0 {
-                break;
-            }
-        }
-
-        flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-    } */
-
-    // return "api not loaded".to_string();
 }
 
 fn GetProcAddress(emu:&mut emu::Emu) {
@@ -309,85 +278,14 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     emu.regs.rax = 0;
     println!("kernel32!GetProcAddress error searching {}", func);
     return;
-
-
-
-    /*
-    let peb = emu.maps.get_mem("peb");
-    let peb_base = peb.get_base();
-    let ldr = peb.read_dword(peb_base + 0x0c) as u64;
-    let mut flink = emu.maps.read_dword(ldr + 0x14).expect("kernel32!GetProcAddress error reading flink") as u64;
-
-    loop { // walk modules
-
-        let mod_name_ptr = emu.maps.read_dword(flink + 0x28).expect("kernel32!GetProcAddress error reading mod_name_ptr") as u64;
-        let mod_base = emu.maps.read_dword(flink + 0x10).expect("kernel32!GetProcAddress error reading mod_addr") as u64;
-        let mod_name = emu.maps.read_wide_string(mod_name_ptr);
-
-        let pe_hdr = match emu.maps.read_dword(mod_base + 0x3c) { //.expect("kernel32!GetProcAddress error reading pe_hdr");
-            Some(hdr) => hdr as u64,
-            None => { 
-                emu.regs.rax = 0; 
-                println!("kernel32!GetProcAddress error searching {}", func);
-                return; 
-            }
-        };
-        let export_table_rva = emu.maps.read_dword(mod_base + pe_hdr + 0x78).expect("kernel32!GetProcAddress error reading export_table_rva") as u64;
-        if export_table_rva == 0 {
-            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            continue;
-        }
-
-        let export_table = export_table_rva + mod_base;
-        let mut num_of_funcs = emu.maps.read_dword(export_table + 0x18).expect("kernel32!GetProcAddress error reading the num_of_funcs") as u64;
-
-        let func_name_tbl_rva = emu.maps.read_dword(export_table + 0x20).expect("kernel32!GetProcAddress  error reading func_name_tbl_rva") as u64;
-        let func_name_tbl = func_name_tbl_rva + mod_base;
-
-        if num_of_funcs == 0 {
-            flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-            continue;
-        }
-
-        loop { // walk functions
-                
-            num_of_funcs -= 1;
-            let func_name_rva = emu.maps.read_dword(func_name_tbl + num_of_funcs * 4).expect("kernel32!GetProcAddress error reading func_rva") as u64;
-            let func_name_va = func_name_rva + mod_base;
-            let func_name = emu.maps.read_string(func_name_va);
-            
-            if func_name.to_lowercase() == func { 
-                let ordinal_tbl_rva = emu.maps.read_dword(export_table + 0x24).expect("kernel32!GetProcAddress error reading ordinal_tbl_rva") as u64;
-                let ordinal_tbl = ordinal_tbl_rva + mod_base;
-                let ordinal = emu.maps.read_word(ordinal_tbl + 2 * num_of_funcs).expect("kernel32!GetProcAddress error reading ordinal") as u64;
-                let func_addr_tbl_rva = emu.maps.read_dword(export_table + 0x1c).expect("kernel32!GetProcAddress  error reading func_addr_tbl_rva") as u64;
-                let func_addr_tbl = func_addr_tbl_rva + mod_base;
-                
-                let func_rva = emu.maps.read_dword(func_addr_tbl + 4 * ordinal).expect("kernel32!GetProcAddress error reading func_rva") as u64;
-                let func_va = func_rva + mod_base;
-
-                emu.regs.rax = func_va;
-
-                println!("{}** {} kernel32!GetProcAddress  `{}!{}` =0x{:x} {}", emu.colors.light_red, emu.pos, mod_name, func_name, emu.regs.get_eax() as u32, emu.colors.nc);
-                return;
-            }
-
-            if num_of_funcs == 0 {
-                break;
-            }
-        }
-
-        flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
-    } */
 }
 
-fn LoadLibraryA(emu:&mut emu::Emu) {
-    let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
-    let mut dll = emu.maps.read_string(dllptr).to_lowercase();
+pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
+    let mut dll = libname.to_string().to_lowercase();
 
     if dll.len() == 0 {
         emu.regs.rax = 0;
-        return;
+        return 0;
     }
 
     if !dll.ends_with(".dll") {
@@ -397,30 +295,36 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
 
     let mut dll_path = emu.cfg.maps_folder.clone();
     dll_path.push_str(&dll);
-      
 
     match peb32::get_module_base(&dll, emu) {
         Some(base) => {
             // already linked
             if emu.cfg.verbose > 0 {
-                println!("dll already linked.");
+                println!("dll {} already linked.", dll);
             }
-            emu.regs.rax = base;
+            return base;
         },
         None => {
             // do link
             if std::path::Path::new(dll_path.as_str()).exists() {
                 let (base, pe_off) = emu.load_pe32(&dll_path, false, 0);
-                emu.regs.rax = base as u64;
-                peb32::dynamic_link_module(emu.regs.rax, pe_off,  &dll, emu);
+                peb32::dynamic_link_module(base as u64, pe_off,  &dll, emu);
+                return base as u64;
             } else {
                 if emu.cfg.verbose > 0 {
                     println!("dll {} not found.", dll_path);
                 }
-                emu.regs.rax = 0; 
+                return 0; 
             }
         }
     };
+}
+
+fn LoadLibraryA(emu:&mut emu::Emu) {
+    let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
+    let dll = emu.maps.read_string(dllptr);
+
+    emu.regs.rax = load_library(emu, &dll);
 
     println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, &dll, 
              emu.regs.get_eax() as u32, emu.colors.nc);
@@ -1226,21 +1130,27 @@ fn CreateThread(emu:&mut emu::Emu) {
 }
 
 fn MapViewOfFile(emu:&mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!MapViewOfFile cannot read the handle");
-    let access = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!MapViewOfFile cannot read the acess");
-    let off_hight = emu.maps.read_dword(emu.regs.get_esp()+8).expect("kernel32!MapViewOfFile cannot read the off_hight") as u64;
-    let off_low = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!MapViewOfFile cannot read the off_low") as u64;
-    let size = emu.maps.read_dword(emu.regs.get_esp()+16).expect("kernel32!MapViewOfFile cannot read the size") as u64;
+    let hndl = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32!MapViewOfFile cannot read the handle");
+    let access = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("kernel32!MapViewOfFile cannot read the acess");
+    let off_hight = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("kernel32!MapViewOfFile cannot read the off_hight") as u64;
+    let off_low = emu.maps.read_dword(emu.regs.get_esp()+12)
+        .expect("kernel32!MapViewOfFile cannot read the off_low") as u64;
+    let mut size = emu.maps.read_dword(emu.regs.get_esp()+16)
+        .expect("kernel32!MapViewOfFile cannot read the size") as u64;
 
     let off:u64 = (off_hight << 32) + off_low;
 
-
+    if size > 1024*4 {
+        size = 1024
+    }
     let addr = emu.maps.alloc(size).expect("kernel32!MapViewOfFile cannot allocate");
     let mem = emu.maps.create_map("file_map");
-    mem.set_base(addr+off);
+    mem.set_base(addr);
     mem.set_size(size);
-    mem.load(&emu.filename);
-    //TODO: use mem.load()
+    let loaded = mem.load_chunk(&emu.filename, off, size as usize);
 
     println!("{}** {} kernel32!MapViewOfFile hndl: {} off: {} sz: {} ={} {}", emu.colors.light_red, emu.pos, 
              hndl, off, size, addr, emu.colors.nc);
@@ -1579,12 +1489,19 @@ fn GetLastError(emu:&mut emu::Emu) {
 }
 
 fn CreateFileMappingW(emu:&mut emu::Emu) {
-    let hFile = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!CreateFileMappingW cannot read hFile param");
-    let attr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!CreateFileMappingW cannot read attr param");
-    let protect = emu.maps.read_dword(emu.regs.get_esp()+8).expect("kernel32!CreateFileMappingW cannot read protect");
-    let maxsz_high = emu.maps.read_dword(emu.regs.get_esp()+12).expect("kernel32!CreateFileMappingW cannot read max size high");
-    let maxsz_low = emu.maps.read_dword(emu.regs.get_esp()+16).expect("kernel32!CreateFileMappingW cannot read max size low");
-    let name_ptr = emu.maps.read_dword(emu.regs.get_esp()+20).expect("kernel32!CreateFileMappingW cannot read name ptr") as u64;
+    let hFile = emu.maps.read_dword(emu.regs.get_esp()) 
+        .expect("kernel32!CreateFileMappingW cannot read hFile param");
+    let attr = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("kernel32!CreateFileMappingW cannot read attr param");
+    let protect = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("kernel32!CreateFileMappingW cannot read protect");
+    let maxsz_high = emu.maps.read_dword(emu.regs.get_esp()+12)
+        .expect("kernel32!CreateFileMappingW cannot read max size high");
+    let maxsz_low = emu.maps.read_dword(emu.regs.get_esp()+16)
+        .expect("kernel32!CreateFileMappingW cannot read max size low");
+    let name_ptr = emu.maps.read_dword(emu.regs.get_esp()+20)
+        .expect("kernel32!CreateFileMappingW cannot read name ptr") as u64;
+
     let mut name:String = String::new();
 
     if name_ptr > 0 {
@@ -1610,8 +1527,10 @@ fn GetSystemTime(emu:&mut emu::Emu) {
 }
 
 fn lstrcat(emu:&mut emu::Emu) {
-    let str1_ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!lstrcat cannot read str1 param") as u64;
-    let str2_ptr = emu.maps.read_dword(emu.regs.get_esp()+4).expect("kernel32!lstrcat cannot read str2 param") as u64;
+    let str1_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32!lstrcat cannot read str1 param") as u64;
+    let str2_ptr = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("kernel32!lstrcat cannot read str2 param") as u64;
     
     let mut str1 = emu.maps.read_string(str1_ptr);
     let str2 = emu.maps.read_string(str2_ptr);
@@ -1621,6 +1540,49 @@ fn lstrcat(emu:&mut emu::Emu) {
     str1.push_str(&str2);
 
     emu.maps.write_string(str1_ptr, &str1);
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 1;
+}
+
+fn SetErrorMode(emu:&mut emu::Emu) {
+    let mode = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!SetErrorMode cannot read mode param");
+
+    println!("{}** {} kernel32!SetErrorMode 0x{:x} {}", emu.colors.light_red, emu.pos, mode, emu.colors.nc);
+
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 0;
+}
+
+fn GetVersionExW(emu:&mut emu::Emu) {
+    let version_info_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32!GetVersionExW cannot read version_info_ptr param");
+
+    println!("{}** {} kernel32!GetVersionExW 0x{:x} {}", emu.colors.light_red, emu.pos, version_info_ptr, emu.colors.nc);
+
+
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 1;
+}
+
+
+fn GetSystemDirectoryW(emu:&mut emu::Emu) {
+    let out_buff_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32!GetSystemDirectoryW cannot read out_buff_ptr param") as u64;
+    let size = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("kernel32!GetSystemDirectoryW cannot read size param");
+
+    emu.maps.write_wide_string(out_buff_ptr, "C:\\Windows\\");
+
+    println!("{}** {} kernel32!GetSystemDirectoryW  {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+        
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
 
     emu.regs.rax = 1;
 }

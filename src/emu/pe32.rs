@@ -3,6 +3,7 @@
 */
 
 use std::str;
+use crate::emu;
 use std::fs::File;
 use std::io::Read;
 
@@ -23,6 +24,16 @@ macro_rules! read_u32_le {
           (($raw[$off+3] as u32) << 24) | (($raw[$off+2] as u32) << 16) | (($raw[$off+1] as u32) << 8) | ($raw[$off] as u32)
     }
 }
+
+macro_rules! write_u32_le {
+    ($raw:expr, $off:expr, $val:expr) => {
+      $raw[$off+0]  = ($val & 0x000000ff) as u8;
+      $raw[$off+1] = (($val & 0x0000ff00) >> 8) as u8;
+      $raw[$off+2] = (($val & 0x00ff0000) >> 16) as u8;
+      $raw[$off+3] = (($val & 0xff000000) >> 24) as u8;
+    }   
+} 
+
 
 pub const IMAGE_DOS_SIGNATURE:u16 = 0x5A4D;
 pub const IMAGE_OS2_SIGNATURE:u16 = 0x544E;
@@ -446,7 +457,9 @@ impl ImageExportDirectory {
     }
 }
 
-
+//
+// https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#import-directory-table
+//
 
 #[derive(Debug)]
 pub struct ImageImportDirectory {
@@ -470,6 +483,83 @@ impl ImageImportDirectory {
     
     pub fn print(&self) {
         println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct ImageImportDescriptor {  // one per imported dll
+    pub original_first_thunk: u32,
+    pub time_date_stamp: u32,
+    pub forwarder_chain: u32,
+    pub name_ptr: u32,
+    pub first_thunk: u32,
+    pub name: String,
+}
+
+impl ImageImportDescriptor {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageImportDescriptor {
+        ImageImportDescriptor {
+            original_first_thunk: read_u32_le!(raw, off),
+            time_date_stamp: read_u32_le!(raw, off+4),
+            forwarder_chain: read_u32_le!(raw, off+8),
+            name_ptr: read_u32_le!(raw, off+12),
+            first_thunk: read_u32_le!(raw, off+16),
+            name: String::new(),
+        }
+    }
+
+    pub fn size() -> usize {
+        20
+    }
+}
+
+// https://docs.microsof[t.com/en-us/windows/win32/debug/pe-format#import-lookup-table
+
+#[derive(Debug)]
+pub struct ImportLookupTable {
+    pub bits: Vec<u32>,
+}
+
+#[derive(Debug)]
+pub struct HintNameItem {
+    pub is_ordinal: bool,
+    pub func_name_addr: u32,
+}
+
+impl HintNameItem {
+    pub fn load(raw: &Vec<u8>, off: usize) -> HintNameItem {
+
+        let func_name_addr = read_u32_le!(raw, off); // & 0b01111111_11111111_11111111_11111111;
+
+        HintNameItem {
+            is_ordinal: raw[off] & 0b10000000 == 0b10000000,
+            func_name_addr: func_name_addr
+        }
+    }
+
+    pub fn size() -> usize {
+        4
+    }
+}   
+
+
+#[derive(Debug)]
+pub struct ImportAddressTable {
+
+}
+
+impl ImportLookupTable {
+    pub fn load(raw: &Vec<u8>, off: usize, nitems: usize) -> ImportLookupTable {
+        let bits: Vec<u32> = Vec::new();
+        /*
+        for i in 0..nitems {
+            raw + off + i*32
+        }*/
+
+        ImportLookupTable {
+            bits: bits
+        }
     }
 }
 
@@ -575,8 +665,8 @@ pub struct PE32 {
     pub fh: ImageFileHeader,
     pub opt: ImageOptionalHeader,
     sect_hdr: Vec<ImageSectionHeader>,
-    import_dir: ImageImportDirectory,
-    pub import_off: u32,
+    //import_dir: ImageImportDirectory,
+    pub image_import_descriptor: Vec<ImageImportDescriptor>,
     //export_dir: Option<ImageExportDirectory>,
 }
 
@@ -597,6 +687,24 @@ impl PE32 {
         }
 
         return true;
+    }
+
+    pub fn read_string(raw:&[u8], off: usize) -> String { 
+        let mut last = 0;
+
+        for i in off..off+200 {
+            if raw[i] == 0 {
+                last = i;
+                break;
+            }
+        }
+
+        if last == 0 {
+            panic!("cannot found end of string");
+        }
+
+        let s = str::from_utf8(raw.get(off..last).unwrap()).expect("utf8 error");
+        s.to_string()
     }
 
     pub fn load(filename: &str) -> PE32 {   
@@ -621,12 +729,32 @@ impl PE32 {
         let exportd: ImageExportDirectory;
         let import_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_IMPORT].virtual_address;
         let export_va = opt.data_directory[IMAGE_DIRECTORY_ENTRY_EXPORT].virtual_address;
-        let import_off: u32;
+        let mut import_off: usize;
+
+        let mut image_import_descriptor: Vec<ImageImportDescriptor> = Vec::new();
 
         if import_va > 0 {
-            import_off = PE32::vaddr_to_off(&sect, import_va);
+            import_off = PE32::vaddr_to_off(&sect, import_va) as usize;
             if import_off > 0 {
-                importd = ImageImportDirectory::load(&raw, import_off as usize);
+
+                loop {
+                    let mut iid = ImageImportDescriptor::load(&raw, import_off);
+                    if iid.name_ptr == 0 {
+                        break;
+                    }
+                    let off = PE32::vaddr_to_off(&sect, iid.name_ptr) as usize;
+                    if off > raw.len() {
+                        panic!("the name of pe32 iid is out of buffer");
+                    }
+                    
+
+                    let libname = PE32::read_string(&raw, off);
+                    iid.name = libname.to_string();
+
+                    image_import_descriptor.push(iid);
+                    import_off += ImageImportDescriptor::size();
+                }
+
             } else {
                 panic!("no import directory at va 0x{:x}", import_va);
             }
@@ -641,9 +769,9 @@ impl PE32 {
             nt: nt,
             opt: opt,
             sect_hdr: sect,
-            import_dir: importd,
+            image_import_descriptor: image_import_descriptor
+            //import_dir: importd,
             //export_dir: exportd,
-            import_off: import_off,
         }
     }
 
@@ -662,7 +790,7 @@ impl PE32 {
 
     pub fn vaddr_to_off(sections: &Vec<ImageSectionHeader>, vaddr: u32) -> u32 {
         for sect in sections {
-            if vaddr > sect.virtual_address &&
+            if vaddr >= sect.virtual_address &&
                 vaddr < sect.virtual_address + sect.virtual_size {
                     return vaddr - sect.virtual_address + sect.pointer_to_raw_data; 
             }
@@ -705,6 +833,48 @@ impl PE32 {
 
     pub fn get_section_vaddr(&self, id: usize) -> u32 {
         return self.sect_hdr[id].virtual_address;
+    }
+
+    pub fn iat_binding(&mut self, emu:&mut emu::Emu) {
+        // https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2#Binding
+
+        println!("IAT Bound started ...");
+        for i in 0..self.image_import_descriptor.len() {
+            let iim = &self.image_import_descriptor[i];
+            //println!("import: {}", iim.name);
+
+            emu::winapi32::kernel32::load_library(emu, &iim.name);
+            
+            // Walking function names.
+            let mut off_name = PE32::vaddr_to_off(&self.sect_hdr, iim.original_first_thunk) as usize;
+            let mut off_addr = PE32::vaddr_to_off(&self.sect_hdr, iim.first_thunk) as usize;
+
+            loop {
+                let hint = HintNameItem::load(&self.raw, off_name);
+                if hint.func_name_addr == 0 {
+                    break;
+                }
+                let addr = read_u32_le!(self.raw, off_addr); // & 0b01111111_11111111_11111111_11111111;
+                let off2 = PE32::vaddr_to_off(&self.sect_hdr, hint.func_name_addr) as usize;
+                if off2 == 0 { //|| addr < 0x100 {
+                    off_name += HintNameItem::size();
+                    off_addr += 4;
+                    continue;
+                }
+                let func_name = PE32::read_string(&self.raw, off2+2);
+                //println!("0x{:x} {}!{}", addr, iim.name, func_name); 
+
+                let real_addr = emu::winapi32::kernel32::resolve_api_name(emu, &func_name);
+                //println!("real addr: 0x{:x}", real_addr);
+
+                write_u32_le!(self.raw, off_addr, real_addr);
+
+                off_name += HintNameItem::size();
+                off_addr += 4;
+            }
+
+        }
+        println!("IAT Bound.");
     }
 }
 

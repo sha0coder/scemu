@@ -1,8 +1,10 @@
 use crate::emu;
-use crate::emu::winapi32::helper;
-use crate::emu::context32::Context32;
-use crate::emu::structures;
 use crate::emu::constants;
+use crate::emu::structures;
+use crate::emu::winapi32::helper;
+use crate::emu::winapi32::kernel32;
+use crate::emu::context32::Context32;
+
 
 
 pub fn gateway(addr:u32, emu:&mut emu::Emu) {
@@ -14,7 +16,8 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x775b6258 => NtQueryVirtualMemory(emu),
         0x775d531f => stricmp(emu),
         0x7759f611 => RtlExitUserThread(emu),
-        _ => panic!("calling unimplemented ntdll API 0x{:x}", addr),
+        0x7763a4dd => sscanf(emu),
+        _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
 
@@ -203,5 +206,33 @@ fn RtlExitUserThread(emu:&mut emu::Emu) {
     println!("{}** {} ntdll!RtlExitUserThread   {}", emu.colors.light_red, emu.pos, emu.colors.nc);   
     emu.spawn_console();
     std::process::exit(1);
+}
+
+fn sscanf(emu:&mut emu::Emu) {
+    let buffer_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!sscanf error reading out buffer paramter") as u64;
+    let fmt_ptr = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!sscanf error reading format parameter") as u64;
+    let list = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!sscanf error reading list parameter");
+
+    let buffer = emu.maps.read_string(buffer_ptr);
+    let fmt = emu.maps.read_string(fmt_ptr);
+
+    println!("{}** {} ntdll!sscanf out_buff: `{}` fmt: `{}` {}", emu.colors.light_red, emu.pos, buffer, fmt, emu.colors.nc);
+
+    let rust_fmt = fmt.replace("%x","{usize:x}").replace("%d","{i32}").replace("%s","{str}").replace("%hu","{u16}").replace("%i","{i32}").replace("%o", "{i32:o}").replace("%f","{f32}");
+
+    let params = rust_fmt.matches("{").count();
+
+
+    let b = buffer.as_str();
+    let p1:String;
+
+    //let params = scanf!(b, format!("{}", rust_fmt)).unwrap();
+
+    unimplemented!("sscanf is unimplemented for now.");
+    //println!("sscanf not implemented for now");
+    //emu.spawn_console();
 }
 
