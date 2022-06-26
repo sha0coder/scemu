@@ -189,6 +189,16 @@ impl Maps {
         }
     }
 
+    pub fn write_wide_string(&mut self, to:u64, from:&str) {
+        let bs:Vec<u8> = from.bytes().collect();
+        let mut off = 0;
+        for (i, bsi) in bs.iter().enumerate() {
+            self.write_byte(to + off as u64, *bsi);
+            self.write_byte(to + off + 1 as u64, 0x00);
+            off += 2;
+        }
+    }
+
     pub fn write_buffer(&mut self, to:u64, from:&[u8]) {
         for (i,fromi) in from.iter().enumerate() {
             self.write_byte(to + i as u64, *fromi);

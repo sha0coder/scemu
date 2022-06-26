@@ -2,11 +2,14 @@
     Little endian 64 bits and inferior bits memory.
 */
 
-use std::io::BufReader;
+
+use md5;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
-use md5;
+use std::io::SeekFrom;  
+use std::io::BufReader;
+use std::io::prelude::*;
 
 #[derive(Clone)]
 pub struct Mem64 {
@@ -217,6 +220,22 @@ impl Mem64 {
         let mut name:String = String::from(&self.mem_name);
         name.push_str(".bin");
         self.load(name.as_str());
+    }
+
+    pub fn load_chunk(&mut self, filename: &str, off: u64, sz: usize) -> bool {
+        let mut f = match File::open(&filename) {
+            Ok(f) => f,
+            Err(_) => {  return false; }
+        };
+        f.seek(SeekFrom::Start(off));
+        let mut reader = BufReader::new(&f);
+        self.mem.clear();
+        for i in 0..sz {
+            self.mem.push(0);
+        }
+        reader.read_exact(&mut self.mem).expect("cannot load chunk of file");
+        f.sync_all(); // thanks Alberto Segura
+        true 
     }
 
     pub fn load(&mut self, filename: &str) -> bool {
