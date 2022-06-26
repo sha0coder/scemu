@@ -21,6 +21,7 @@ x86 32/64bits emulator, for securely emulating shellcodes
 - vectored exception handler.
 - PEB, TEB structures.
 - dynamic linking.
+- IAT binding.
 - memory allocator.
 - react with int3.
 - non debugged cpuid.
