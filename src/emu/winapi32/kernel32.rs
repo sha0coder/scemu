@@ -100,6 +100,8 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e94a51 => SetErrorMode(emu),
         0x75e83b1a => GetVersionExW(emu),
         0x75e940fb => GetSystemDirectoryW(emu),
+        0x75e41e10 => GetStartupInfoA(emu),
+        0x75e91e16 => FlsGetValue(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
     }
@@ -1586,5 +1588,60 @@ fn GetSystemDirectoryW(emu:&mut emu::Emu) {
 
     emu.regs.rax = 1;
 }
+
+fn GetStartupInfoA(emu:&mut emu::Emu) {
+    let startup_info_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32!GetStartupInfoA cannot read startup_info_ptr param") as u64;
+
+    println!("{}** {} kernel32!GetStartupInfoA {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    if startup_info_ptr > 0 {
+        emu.maps.write_dword(startup_info_ptr + 12, 100); // dwX
+        emu.maps.write_dword(startup_info_ptr + 16, 100); // dwY
+        emu.maps.write_dword(startup_info_ptr + 20, 0); // dwXSize
+        emu.maps.write_dword(startup_info_ptr + 24, 0); // dwYSize
+    }
+
+    emu.stack_pop32(false);
+
+    /*
+     Structure filled by the process that started this process
+
+    typedef struct _STARTUPINFOA {
+      DWORD  cb;
+      LPSTR  lpReserved;
+      LPSTR  lpDesktop;
+      LPSTR  lpTitle;
+      DWORD  dwX;
+      DWORD  dwY;
+      DWORD  dwXSize;
+      DWORD  dwYSize;
+      DWORD  dwXCountChars;
+      DWORD  dwYCountChars;
+      DWORD  dwFillAttribute;
+      DWORD  dwFlags;
+      WORD   wShowWindow;
+      WORD   cbReserved2;
+      LPBYTE lpReserved2;
+      HANDLE hStdInput;
+      HANDLE hStdOutput;
+      HANDLE hStdError;
+    } STARTUPINFOA, *LPSTARTUPINFOA;
+    */
+}
+
+fn FlsGetValue(emu:&mut emu::Emu) {
+    let idx = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!FlsGetValue cannot read idx");
+
+    emu.stack_pop32(false);
+
+    if idx as usize > emu.fls.len() {
+        emu.regs.rax = 0;
+    } else {
+        emu.regs.rax = emu.fls[idx as usize] as u64;
+    }
+
+    println!("{}** {} kernel32!FlsGetValue idx: {} =0x{:x} {}", emu.colors.light_red, emu.pos, idx, emu.regs.get_eax() as u32, emu.colors.nc);
+}
+
 
 
