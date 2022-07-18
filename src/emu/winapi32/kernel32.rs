@@ -108,7 +108,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
 lazy_static! {
     static ref COUNT_READ:Mutex<u32> = Mutex::new(0);
     static ref COUNT_WRITE:Mutex<u32> = Mutex::new(0);
-    static ref TICK:Mutex<u32> = Mutex::new(0);
+    pub static ref TICK:Mutex<u32> = Mutex::new(0);
 }
 
 
