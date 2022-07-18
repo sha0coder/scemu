@@ -5,7 +5,7 @@ use crate::emu::winapi32::helper;
 use crate::emu::winapi32::kernel32;
 use crate::emu::context32::Context32;
 
-
+use scan_fmt::scan_fmt_some;
 
 pub fn gateway(addr:u32, emu:&mut emu::Emu) {
     match addr {
@@ -17,6 +17,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x775d531f => stricmp(emu),
         0x7759f611 => RtlExitUserThread(emu),
         0x7763a4dd => sscanf(emu),
+        0x7761b3de => NtGetTickCount(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -221,7 +222,7 @@ fn sscanf(emu:&mut emu::Emu) {
 
     println!("{}** {} ntdll!sscanf out_buff: `{}` fmt: `{}` {}", emu.colors.light_red, emu.pos, buffer, fmt, emu.colors.nc);
 
-    let rust_fmt = fmt.replace("%x","{usize:x}").replace("%d","{i32}").replace("%s","{str}").replace("%hu","{u16}").replace("%i","{i32}").replace("%o", "{i32:o}").replace("%f","{f32}");
+    let rust_fmt = fmt.replace("%x","{x}").replace("%d","{}").replace("%s","{}").replace("%hu","{u16}").replace("%i","{}").replace("%o", "{o}").replace("%f","{}");
 
     let params = rust_fmt.matches("{").count();
 
@@ -229,10 +230,21 @@ fn sscanf(emu:&mut emu::Emu) {
     let b = buffer.as_str();
     let p1:String;
 
+
+    let params = scan_fmt_some!(b, &rust_fmt, i32);
+
     //let params = scanf!(b, format!("{}", rust_fmt)).unwrap();
 
     unimplemented!("sscanf is unimplemented for now.");
     //println!("sscanf not implemented for now");
     //emu.spawn_console();
 }
+
+fn NtGetTickCount(emu:&mut emu::Emu) {
+    println!("{}** {} ntdll!NtGetTickCount {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    let tick = kernel32::TICK.lock().unwrap();
+    emu.regs.rax = *tick as u64;
+}
+
+
 

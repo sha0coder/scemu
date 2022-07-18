@@ -33,6 +33,7 @@ x86 32/64bits emulator, for securely emulating shellcodes
 	- cobalt strike.
 	- shellgen.
 	- guloader (not totally for now, but arrive further than the debugger)
+    - mars stealer pe32.
 
 ## TODO
 	- more fpu
