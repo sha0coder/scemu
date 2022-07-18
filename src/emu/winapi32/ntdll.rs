@@ -18,6 +18,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x7759f611 => RtlExitUserThread(emu),
         0x7763a4dd => sscanf(emu),
         0x7761b3de => NtGetTickCount(emu),
+        0x775b6158 => NtQueryPerformanceCounter(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -244,6 +245,22 @@ fn NtGetTickCount(emu:&mut emu::Emu) {
     println!("{}** {} ntdll!NtGetTickCount {}", emu.colors.light_red, emu.pos, emu.colors.nc);
     let tick = kernel32::TICK.lock().unwrap();
     emu.regs.rax = *tick as u64;
+}
+
+fn NtQueryPerformanceCounter(emu:&mut emu::Emu) {
+    let perf_counter_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!NtQueryPerformanceCounter error reading perf_counter_ptr") as u64;
+    let perf_freq_ptr = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!NtQueryPerformanceCounter error reading perf_freq_ptr") as u64;
+    
+    println!("{}** {} ntdll!NtQueryPerformanceCounter {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+    emu.maps.write_dword(perf_counter_ptr, 0);
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 
