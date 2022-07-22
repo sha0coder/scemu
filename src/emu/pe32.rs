@@ -756,10 +756,10 @@ impl PE32 {
                 }
 
             } else {
-                panic!("no import directory at va 0x{:x}", import_va);
+                println!("no import directory at va 0x{:x}.", import_va);
             }
         } else {
-            panic!("no import directory at va 0x{:x}", import_va);
+            println!("no import directory at va 0x{:x}", import_va);
         }
 
         PE32 {
