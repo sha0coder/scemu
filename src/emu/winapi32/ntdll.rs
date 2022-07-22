@@ -19,6 +19,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x7763a4dd => sscanf(emu),
         0x7761b3de => NtGetTickCount(emu),
         0x775b6158 => NtQueryPerformanceCounter(emu),
+        0x775eabd1 => RtlGetProcessHeaps(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -263,5 +264,9 @@ fn NtQueryPerformanceCounter(emu:&mut emu::Emu) {
     emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
+fn RtlGetProcessHeaps(emu:&mut emu::Emu) {
+    println!("{}** {} ntdll!RtlGetProcessHeaps {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
+    emu.regs.rax = helper::handler_create();
+}
 
