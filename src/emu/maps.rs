@@ -181,6 +181,26 @@ impl Maps {
         true
     }
 
+    pub fn sizeof_wide(&self, unicode_str_ptr:u64) -> usize {
+        let mut zero = false;
+        let mut counter:usize = 0;
+
+        for i in 0..usize::MAX {
+            let b = self.read_byte(unicode_str_ptr + i as u64).expect("maps.sizeof_wide controlled overflow");
+            if b == 0 {
+                if zero == true {
+                    return counter / 2;
+                }
+                zero = true;
+            } else {
+                zero = false;
+            }
+            counter += 1;
+        }
+
+        0
+    }
+
     pub fn write_string(&mut self, to:u64, from:&str) {
         let bs:Vec<u8> = from.bytes().collect();
 

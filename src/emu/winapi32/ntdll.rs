@@ -20,6 +20,10 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x7761b3de => NtGetTickCount(emu),
         0x775b6158 => NtQueryPerformanceCounter(emu),
         0x775eabd1 => RtlGetProcessHeaps(emu),
+        0x775d27e0 => RtlDosPathNameToNtPathName_U(emu),
+        0x775b55c8 => NtCreateFile(emu),
+        0x775c2c6a => RtlFreeHeap(emu),
+        0x775b6018 => NtQueryInformationFile(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -265,8 +269,156 @@ fn NtQueryPerformanceCounter(emu:&mut emu::Emu) {
 }
 
 fn RtlGetProcessHeaps(emu:&mut emu::Emu) {
+    let count = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!RtlGetProcessHeaps error reading count param");
+    let hndl = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!RtlGetProcessHeaps error reading handle param");
+
     println!("{}** {} ntdll!RtlGetProcessHeaps {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-    emu.regs.rax = helper::handler_create();
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 1; // number of handlers
 }
+
+struct CurDir {
+    DosPath: String, // unicode
+    Handle: u64,
+}
+
+fn RtlDosPathNameToNtPathName_U(emu:&mut emu::Emu) {
+   let dos_path_name_ptr = emu.maps.read_dword(emu.regs.get_esp())
+       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading dos_path_name_ptr param") as u64;
+   let nt_path_name_ptr = emu.maps.read_dword(emu.regs.get_esp()+4)
+       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading nt_path_name_ptr param") as u64;
+   let nt_file_name_part_ptr = emu.maps.read_dword(emu.regs.get_esp()+8)
+       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading nt_file_name_part_ptr param");
+   let curdir_ptr = emu.maps.read_dword(emu.regs.get_esp()+12)
+       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading curdir_ptr param") as u64; // DirectoryInfo
+    
+   let dos_path_name = emu.maps.read_wide_string(dos_path_name_ptr);
+
+   println!("{}** {} ntdll!RtlDosPathNameToNtPathName_U {} {}", emu.colors.light_red, emu.pos, dos_path_name, emu.colors.nc);
+
+   if curdir_ptr > 0 {
+       let dos_path_unicode_ptr = emu.maps.read_dword(curdir_ptr)
+           .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading dos_path_unicode_ptr") as u64;
+        
+       emu.maps.memcpy(dos_path_unicode_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+   }
+
+   if nt_path_name_ptr > 0 {
+       emu.maps.memcpy(nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+   }
+
+   emu.stack_pop32(false);
+   emu.stack_pop32(false);
+   emu.stack_pop32(false);
+   emu.stack_pop32(false);
+
+}
+
+fn NtCreateFile(emu:&mut emu::Emu) {
+    let out_handle_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!NtCreateFile error reading out_handle_ptr param") as u64;
+    let access_mask = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!NtCreateFile error reading access_mask param");
+    let oattrib = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!NtCreateFile error reading oattrib param");
+    let iostat = emu.maps.read_dword(emu.regs.get_esp()+12)
+        .expect("ntdll!NtCreateFile error reading iostat param");
+    let alloc_sz = emu.maps.read_dword(emu.regs.get_esp()+16)
+        .expect("ntdll!NtCrea   teFile error reading alloc_sz param");
+    let fattrib = emu.maps.read_dword(emu.regs.get_esp()+20)
+        .expect("ntdll!NtCreateFile error reading fattrib param");
+    let share_access = emu.maps.read_dword(emu.regs.get_esp()+24)
+        .expect("ntdll!NtCreateFile error reading share_access param");
+    let create_disp = emu.maps.read_dword(emu.regs.get_esp()+28)
+        .expect("ntdll!NtCreateFile error reading create_disp param");
+    let create_opt = emu.maps.read_dword(emu.regs.get_esp()+32)
+        .expect("ntdll!NtCreateFile error reading create_opt param"); 
+    let ea_buff = emu.maps.read_dword(emu.regs.get_esp()+36)
+        .expect("ntdll!NtCreateFile error reading ea_buff param");
+    let ea_len = emu.maps.read_dword(emu.regs.get_esp()+40)
+        .expect("ntdll!NtCreateFile error reading ea_len param");
+
+    /*
+      [out]          PHANDLE            FileHandle,
+      [in]           ACCESS_MASK        DesiredAccess,
+      [in]           POBJECT_ATTRIBUTES ObjectAttributes,
+      [out]          PIO_STATUS_BLOCK   IoStatusBlock,
+      [in, optional] PLARGE_INTEGER     AllocationSize,
+      [in]           ULONG              FileAttributes,
+      [in]           ULONG              ShareAccess,
+      [in]           ULONG              CreateDisposition,
+      [in]           ULONG              CreateOptions,
+      [in]           PVOID              EaBuffer,
+      [in]           ULONG              EaLength
+      */
+
+   println!("{}** {} ntdll!NtCreateFile {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+
+   if out_handle_ptr > 0 {
+       emu.maps.write_dword(out_handle_ptr, helper::handler_create() as u32);
+   }
+
+   for i in 0..11 {
+       emu.stack_pop32(false);
+   }
+
+   emu.regs.rax = constants::STATUS_SUCCESS;
+}
+
+fn RtlFreeHeap(emu:&mut emu::Emu) {
+    let handle = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!RtlFreeHeap error reading handle param") as u64;
+    let flags = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!RtlFreeHeap error reading flags param");
+    let base_addr = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!RtlFreeHeap error reading base_addr param") as u64;
+
+    println!("{}** {} ntdll!RtlFreeHeap 0x{} {}", emu.colors.light_red, emu.pos, base_addr, emu.colors.nc);
+
+
+    helper::handler_close(handle);
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+
+    let name = emu.maps.get_addr_name(base_addr).unwrap_or_else(|| String::new());
+    if name == "" {
+        println!("map not allocated, so cannot free it.");
+        emu.regs.rax = 0;
+        return;
+    }
+
+    emu.maps.free(&name);
+    emu.regs.rax = 1;
+}
+
+fn NtQueryInformationFile(emu:&mut emu::Emu) {
+    let handle = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!NtQueryInformationFile error reading handle param") as u64;
+    let stat = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!NtQueryInformationFile error reading stat param");
+    let fileinfo = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!NtQueryInformationFile error reading fileinfo param");
+    let len = emu.maps.read_dword(emu.regs.get_esp()+12)
+        .expect("ntdll!NtQueryInformationFile error reading len param");
+    let fileinfocls = emu.maps.read_dword(emu.regs.get_esp()+16)
+        .expect("ntdll!NtQueryInformationFile error reading fileinfocls param");
+   
+    println!("{}** {} ntdll!NtQueryInformationFile {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+        
+    for i in 0..5 {
+        emu.stack_pop32(false);
+    }
+
+    emu.regs.rax = constants::STATUS_SUCCESS;
+}
+
+
 
