@@ -25,6 +25,8 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x775c2c6a => RtlFreeHeap(emu),
         0x775b6018 => NtQueryInformationFile(emu),
         0x775c2dd6 => RtlAllocateHeap(emu),
+        0x775b62b8 => NtReadFile(emu),
+        0x775b54c8 => NtClose(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -457,6 +459,73 @@ fn RtlAllocateHeap(emu:&mut emu::Emu) {
     for _ in 0..3 {
         emu.stack_pop32(false);
     }
+}
+
+fn NtReadFile(emu:&mut emu::Emu) {
+    let file_hndl = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!NtReadFile error reading file_hndl param") as u64;
+    let ev_hndl = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!NtReadFile error reading ev_hndl param") as u64;
+    let apc_rout = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!NtReadFile error reading apc_rout param");
+    let apc_ctx = emu.maps.read_dword(emu.regs.get_esp()+12)
+        .expect("ntdll!NtReadFile error reading apc_ctx param");
+    let stat = emu.maps.read_dword(emu.regs.get_esp()+16)
+        .expect("ntdll!NtReadFile error reading stat param");
+    let buff = emu.maps.read_dword(emu.regs.get_esp()+20)
+        .expect("ntdll!NtReadFile error reading buff param") as u64;
+    let len = emu.maps.read_dword(emu.regs.get_esp()+24)
+        .expect("ntdll!NtReadFile error reading len param") as usize;
+    let off = emu.maps.read_dword(emu.regs.get_esp()+28)
+        .expect("ntdll!NtReadFile error reading off param");
+    let key = emu.maps.read_dword(emu.regs.get_esp()+32)
+        .expect("ntdll!NtReadFile error reading key param");
+
+    /*
+          [in]           HANDLE           FileHandle,
+          [in, optional] HANDLE           Event,
+          [in, optional] PIO_APC_ROUTINE  ApcRoutine,
+          [in, optional] PVOID            ApcContext,
+          [out]          PIO_STATUS_BLOCK IoStatusBlock,
+          [out]          PVOID            Buffer,
+          [in]           ULONG            Length,
+          [in, optional] PLARGE_INTEGER   ByteOffset,
+          [in, optional] PULONG           Key
+    */
+
+
+    let file = helper::handler_get_uri(file_hndl);
+
+
+    println!("{}** {} ntdll!NtReadFile {} buff: 0x{:x} sz: {} off_var: 0x{:x} {}", 
+             emu.colors.light_red, emu.pos, file, buff, len, off, emu.colors.nc);
+
+    for _ in 0..9 {
+        emu.stack_pop32(false);
+    }
+
+    emu.maps.memset(buff, 0x90, len);
+
+    emu.regs.rax = constants::STATUS_SUCCESS;
+}
+
+fn NtClose(emu:&mut emu::Emu) {
+    let hndl = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!NtClose error reading hndl param") as u64;
+    
+    let uri = helper::handler_get_uri(hndl);
+
+    println!("{}** {} ntdll!NtClose hndl: 0x{:x} uri: {} {}", 
+             emu.colors.light_red, emu.pos, hndl, uri, emu.colors.nc);
+
+    emu.stack_pop32(false);
+
+    if uri == "" {
+        emu.regs.rax = constants::STATUS_INVALID_HANDLE;
+    } else {
+        emu.regs.rax = constants::STATUS_SUCCESS;
+    }
+
 }
 
 
