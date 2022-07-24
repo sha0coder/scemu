@@ -24,6 +24,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x775b55c8 => NtCreateFile(emu),
         0x775c2c6a => RtlFreeHeap(emu),
         0x775b6018 => NtQueryInformationFile(emu),
+        0x775c2dd6 => RtlAllocateHeap(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -325,7 +326,7 @@ fn NtCreateFile(emu:&mut emu::Emu) {
     let access_mask = emu.maps.read_dword(emu.regs.get_esp()+4)
         .expect("ntdll!NtCreateFile error reading access_mask param");
     let oattrib = emu.maps.read_dword(emu.regs.get_esp()+8)
-        .expect("ntdll!NtCreateFile error reading oattrib param");
+        .expect("ntdll!NtCreateFile error reading oattrib param") as u64;
     let iostat = emu.maps.read_dword(emu.regs.get_esp()+12)
         .expect("ntdll!NtCreateFile error reading iostat param");
     let alloc_sz = emu.maps.read_dword(emu.regs.get_esp()+16)
@@ -355,19 +356,34 @@ fn NtCreateFile(emu:&mut emu::Emu) {
       [in]           ULONG              CreateOptions,
       [in]           PVOID              EaBuffer,
       [in]           ULONG              EaLength
-      */
 
-   println!("{}** {} ntdll!NtCreateFile {}", emu.colors.light_red, emu.pos, emu.colors.nc);
 
-   if out_handle_ptr > 0 {
-       emu.maps.write_dword(out_handle_ptr, helper::handler_create() as u32);
-   }
+      typedef struct _OBJECT_ATTRIBUTES {
+          ULONG           Length;
+          HANDLE          RootDirectory;
+          PUNICODE_STRING ObjectName;
+          ULONG           Attributes;
+          PVOID           SecurityDescriptor;
+          PVOID           SecurityQualityOfService;
+        } OBJECT_ATTRIBUTES;
 
-   for i in 0..11 {
+   */
+
+    let obj_name_ptr = emu.maps.read_dword(oattrib + 8)
+        .expect("ntdll!NtCreateFile error reading oattrib +8") as u64;
+    let filename = emu.maps.read_wide_string(obj_name_ptr);
+
+    println!("{}** {} ntdll!NtCreateFile {} {}", emu.colors.light_red, emu.pos, filename, emu.colors.nc);
+
+    if out_handle_ptr > 0 {
+       emu.maps.write_dword(out_handle_ptr, helper::handler_create(&filename) as u32);
+    }
+
+    for _ in 0..11 {
        emu.stack_pop32(false);
-   }
+    }
 
-   emu.regs.rax = constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 fn RtlFreeHeap(emu:&mut emu::Emu) {
@@ -413,11 +429,34 @@ fn NtQueryInformationFile(emu:&mut emu::Emu) {
    
     println!("{}** {} ntdll!NtQueryInformationFile {}", emu.colors.light_red, emu.pos, emu.colors.nc);
         
-    for i in 0..5 {
+    for _ in 0..5 {
         emu.stack_pop32(false);
     }
 
     emu.regs.rax = constants::STATUS_SUCCESS;
+}
+
+fn RtlAllocateHeap(emu:&mut emu::Emu) {
+    let handle = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("ntdll!RtlAllocateHeap error reading handle param") as u64;
+    let flags = emu.maps.read_dword(emu.regs.get_esp()+4)
+        .expect("ntdll!RtlAllocateHeap error reading handle param");
+    let size = emu.maps.read_dword(emu.regs.get_esp()+8)
+        .expect("ntdll!RtlAllocateHeap error reading handle param") as u64;
+
+    let base = emu.maps.alloc(size).expect("ntdll!RtlAllocateHeap out of memory");
+    let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
+    alloc.set_base(base);
+    alloc.set_size(size);
+
+    println!("{}** {} ntdll!RtlAllocateHeap sz: {} addr: 0x{:x} {}", 
+             emu.colors.light_red, emu.pos, size, base, emu.colors.nc);
+
+    emu.regs.rax = base;
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
 }
 
 

@@ -211,7 +211,9 @@ fn CreateToolhelp32Snapshot(emu:&mut emu::Emu) {
     let pid = emu.regs.rdx;
 
     println!("{}** {} kernel32!CreateToolhelp32Snapshot flags: {:x} pid: {} {}", emu.colors.light_red, emu.pos, flags, pid, emu.colors.nc);
-    emu.regs.rax = helper::handler_create();
+
+    let uri = format!("CreateToolhelp32Snapshot://{}", pid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn Process32First(emu:&mut emu::Emu) {
@@ -292,7 +294,7 @@ fn BeginUpdateResourceA(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!BeginUpdateResourceA `{}` {} {}", emu.colors.light_red, emu.pos, filename, bDeleteExistingResources, emu.colors.nc);
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create(&filename);
 }
 
 fn OpenProcess(emu:&mut emu::Emu) {
@@ -302,7 +304,8 @@ fn OpenProcess(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!OpenProcess pid: {} {}", emu.colors.light_red, emu.pos, pid, emu.colors.nc);
 
-    emu.regs.rax = helper::handler_create();
+    let uri = format!("pid://{}", pid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn VirtualAlloc(emu:&mut emu::Emu) {
@@ -394,7 +397,8 @@ fn OpenThread(emu:&mut emu::Emu) {
 
     println!("{}** {} kernel32!OpenThread tid: {} {}", emu.colors.light_red, emu.pos, tid, emu.colors.nc);
 
-    emu.regs.rax = helper::handler_create();
+    let uri = format!("tid://{}", tid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn GetSystemTimeAsFileTime(emu:&mut emu::Emu) {
@@ -428,7 +432,7 @@ fn QueryPerformanceCounter(emu:&mut emu::Emu) {
 }
 
 fn GetProcessHeap(emu:&mut emu::Emu) {
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("heap");
 
     println!("{}** {} kernel32!GetProcessHeap ={} {}", emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc);
 }
@@ -455,12 +459,18 @@ fn CreateEventA(emu:&mut emu::Emu) {
     let attributes = emu.regs.rcx;
     let bManualReset = emu.regs.rdx;
     let bInitialState = emu.regs.r8;
-    let name = emu.regs.r9;
+    let name_ptr = emu.regs.r9;
+
+    let mut name = String::new();
+    if name_ptr > 0 {
+        name = emu.maps.read_string(name_ptr);
+    }
 
     println!("{}** {} kernel32!CreateEventA attr: 0x{:x} manual_reset: {} init_state: {} name: {} {}", 
         emu.colors.light_red, emu.pos, attributes, bManualReset, bInitialState, name, emu.colors.nc);
-    
-    emu.regs.rax = helper::handler_create();
+   
+    let uri = format!("event://{}", name);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn CreateThread(emu:&mut emu::Emu) {
@@ -503,7 +513,7 @@ fn CreateThread(emu:&mut emu::Emu) {
         }
     } 
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("tid://0x123");
 }
 
 fn Sleep(emu:&mut emu::Emu) {

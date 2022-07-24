@@ -1,30 +1,46 @@
 use lazy_static::lazy_static; 
 use std::sync::Mutex;
 
+pub struct Handler {
+    id: u64,
+    uri: String,
+}
+
+impl Handler {
+    fn new(id: u64, uri: &str) -> Handler {
+        Handler {
+            id: id,
+            uri: uri.to_string()
+        }
+    }
+}
+
 lazy_static! {
-    static ref HANDLERS:Mutex<Vec<u64>> = Mutex::new(vec![0;0]);
+    static ref HANDLERS:Mutex<Vec<Handler>> = Mutex::new(Vec::new());
     static ref SOCKETS:Mutex<Vec<u64>> = Mutex::new(vec![0;0]);
 }
 
 
-pub fn handler_create() -> u64 {
-    let new_handle:u64;
+pub fn handler_create(uri: &str) -> u64 {
+    let new_id:u64;
     let mut handles = HANDLERS.lock().unwrap();
 
     if handles.len() == 0 {
-        new_handle = 1;
+        new_id = 1;
     } else {
-        let last_handle = handles[handles.len()-1];
-        new_handle = last_handle + 1;
+        let last_id = handles[handles.len()-1].id;
+        new_id = last_id + 1;
     }
+
+    let new_handler = Handler::new(new_id, uri); 
     
-    handles.push(new_handle);
-    return new_handle;
+    handles.push(new_handler);
+    return new_id;
 }
 
 pub fn handler_close(hndl:u64) -> bool {
     let mut handles = HANDLERS.lock().unwrap();
-    let idx = match handles.iter().position(|h| *h == hndl) {
+    let idx = match handles.iter().position(|h| (*h).id == hndl) {
         Some(i) => i,
         None => return false,
     };
@@ -35,15 +51,23 @@ pub fn handler_close(hndl:u64) -> bool {
 pub fn handler_print() {
     let hndls = HANDLERS.lock().unwrap();
     for h in hndls.iter() {
-        println!("{:x}", h);
+        println!("{:x} {}", h.id, h.uri);
     }
 }
 
 pub fn handler_exist(hndl:u64) -> bool {
     let handles = HANDLERS.lock().unwrap();
-    match handles.iter().position(|h| *h == hndl) {
+    match handles.iter().position(|h| (*h).id == hndl) {
         Some(_) => return true,
         None => return false,
+    }
+}
+
+pub fn handler_get_uri(hndl:u64) -> String {
+    let handles = HANDLERS.lock().unwrap();
+    match handles.iter().position(|h| (*h).id == hndl) {
+        Some(idx) => return handles[idx].uri.clone(),
+        None => return String::new(),
     }
 }
 
