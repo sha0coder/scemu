@@ -63,7 +63,8 @@ pub fn InternetOpenA(emu:&mut emu::Emu) {
         }
     }
 
-    emu.regs.rax = helper::handler_create();
+    let uri = format!("InternetOpenA://{}", uagent);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 pub fn InternetOpenW(emu:&mut emu::Emu) {
@@ -97,7 +98,7 @@ pub fn InternetOpenW(emu:&mut emu::Emu) {
         }
     }
 
-    emu.regs.rax = helper::handler_create(); // internet handle
+    emu.regs.rax = helper::handler_create("InternetOpenW://"); // internet handle
 }
 
 pub fn InternetConnectA(emu:&mut emu::Emu) {
@@ -139,7 +140,8 @@ pub fn InternetConnectA(emu:&mut emu::Emu) {
         emu.stack_pop64(false);
     }
 
-    emu.regs.rax = helper::handler_create(); // connect handle
+    let uri = format!("InternetConnectA://{}:{}", server, port);
+    emu.regs.rax = helper::handler_create(&uri); // connect handle
 }
 
 pub fn InternetConnectW(emu:&mut emu::Emu) {
@@ -181,7 +183,8 @@ pub fn InternetConnectW(emu:&mut emu::Emu) {
         emu.stack_pop64(false);
     }
 
-    emu.regs.rax = helper::handler_create(); // connect handle
+    let uri = format!("InternetConnectW://{}:{}", server, port);
+    emu.regs.rax = helper::handler_create(&uri); // connect handle
 }
 
 fn HttpOpenRequestA(emu:&mut emu::Emu) {
@@ -247,7 +250,8 @@ fn HttpOpenRequestA(emu:&mut emu::Emu) {
         emu.stack_pop64(false);
     }
 
-    emu.regs.rax = helper::handler_create(); // request handle
+    let uri = format!("HttpOpenRequestA://{}", path);
+    emu.regs.rax = helper::handler_create(&uri); // request handle
 }
 
 fn HttpOpenRequestW(emu:&mut emu::Emu) {
@@ -308,7 +312,8 @@ fn HttpOpenRequestW(emu:&mut emu::Emu) {
         emu.stack_pop64(false);
     }
 
-    emu.regs.rax = helper::handler_create(); // request handle
+    let uri = format!("HttpOpenRequestW://{}", path);
+    emu.regs.rax = helper::handler_create(&uri); // request handle
 }
 
 fn InternetSetOptionA(emu:&mut emu::Emu) {

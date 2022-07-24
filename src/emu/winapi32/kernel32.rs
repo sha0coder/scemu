@@ -486,7 +486,7 @@ fn CreateRemoteThread(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!CreateRemoteThread hproc: 0x{:x} addr: 0x{:x} {}", emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc);
 
     emu.maps.write_dword(out_tid, 0x123); 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("tid://0x123");
 
     for _ in 0..7 {
         emu.stack_pop32(false);
@@ -511,7 +511,7 @@ fn CreateNamedPipeA(emu:&mut emu::Emu) {
         emu.stack_pop32(false);
     }
 
-    emu.regs.rax = helper::handler_create(); 
+    emu.regs.rax = helper::handler_create(&name); 
 }
 
 fn ConnectNamedPipe(emu:&mut emu::Emu) {
@@ -915,7 +915,7 @@ fn FindFirstFileW(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create(&file);
 }
 
 fn FindNextFileA(emu:&mut emu::Emu) {
@@ -1028,7 +1028,9 @@ fn OpenProcess(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+
+    let uri = format!("pid://{}", pid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn GetCurrentProcessId(emu:&mut emu::Emu) {
@@ -1073,7 +1075,8 @@ fn OpenThread(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+    let uri = format!("tid://{}", tid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn CreateToolhelp32Snapshot(emu:&mut emu::Emu) {
@@ -1085,7 +1088,8 @@ fn CreateToolhelp32Snapshot(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+    let uri = format!("pid://{}", pid);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn CreateThread(emu:&mut emu::Emu) {
@@ -1128,7 +1132,7 @@ fn CreateThread(emu:&mut emu::Emu) {
         }
     } 
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("tid://0x123");
 }
 
 fn MapViewOfFile(emu:&mut emu::Emu) {
@@ -1217,7 +1221,7 @@ fn HeapCreate(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
     
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("heap://");
 }
 
 fn GetModuleHandleA(emu:&mut emu::Emu) {
@@ -1228,7 +1232,7 @@ fn GetModuleHandleA(emu:&mut emu::Emu) {
 
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create(&mod_name);
 }
 
 fn GetModuleHandleW(emu:&mut emu::Emu) {
@@ -1239,7 +1243,7 @@ fn GetModuleHandleW(emu:&mut emu::Emu) {
 
     emu.stack_pop32(false);
 
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create(&mod_name);
 }
 
 fn TlsAlloc(emu:&mut emu::Emu) { 
@@ -1400,7 +1404,7 @@ fn UnhandledExceptionFilter(emu:&mut emu::Emu) {
 
 fn GetCurrentProcess(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!GetCurrentProcess {}", emu.colors.light_red, emu.pos, emu.colors.nc);
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("current process");
 }
 
 fn LocalAlloc(emu:&mut emu::Emu) {
@@ -1451,7 +1455,7 @@ fn GetUserDefaultLangID(emu:&mut emu::Emu) {
 }
 
 fn GetProcessHeap(emu:&mut emu::Emu) {
-    emu.regs.rax = helper::handler_create();
+    emu.regs.rax = helper::handler_create("process heap");
     println!("{}** {} kernel32!GetProcessHeap =0x{:x} {}", emu.colors.light_red, emu.pos, emu.regs.rax as u32, emu.colors.nc);
 }   
 
@@ -1481,8 +1485,9 @@ fn CreateMutexA(emu:&mut emu::Emu) {
     for _ in 0..3 {
         emu.stack_pop32(false);
     }
-    
-    emu.regs.rax = helper::handler_create();
+   
+    let uri = format!("mutex://{}", name);
+    emu.regs.rax = helper::handler_create(&uri);
 }
 
 fn GetLastError(emu:&mut emu::Emu) {
@@ -1510,7 +1515,7 @@ fn CreateFileMappingW(emu:&mut emu::Emu) {
         name = emu.maps.read_string(name_ptr);
     }
 
-    emu.regs.rax = helper::handler_create(); 
+    emu.regs.rax = helper::handler_create(&name); 
 
     println!("{}** {} kernel32!CreateFileMappingW '{}' ={} {}", emu.colors.light_red, emu.pos, name, emu.regs.get_eax(), emu.colors.nc);
 
