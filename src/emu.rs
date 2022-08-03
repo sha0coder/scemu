@@ -1726,7 +1726,7 @@ impl Emu {
                 },
                 "bi" => {
                     con.print("instruction number");
-                    let num = match con.cmd_hex64() {
+                    let num = match con.cmd_num() {
                         Ok(v) => v,
                         Err(_) => {
                             println!("bad hex value.");
