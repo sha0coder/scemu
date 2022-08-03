@@ -139,8 +139,8 @@ impl Emu {
     pub fn init_stack32(&mut self) {
         let stack = self.maps.get_mem("stack");
 
-        stack.set_base(0x226000); //22d000
-        stack.set_size(0x020000);
+        stack.set_base(0x212000); //22d000
+        stack.set_size(0x030000);
         //self.regs.set_esp(0x22e000);
         self.regs.set_esp(0x22e000+4);
         self.regs.set_ebp(0x22f000);
@@ -2689,6 +2689,12 @@ impl Emu {
         }
     }
 
+    pub fn show_instruction_addr(&self, color:&str, ins:&Instruction, addr: u64) {
+        if !self.step {
+            println!("{}{} 0x{:x}: {} ;0x{:x}{}", color, self.pos, ins.ip(), self.out, addr, self.colors.nc);
+        }
+    }
+
     pub fn show_instruction_pushpop(&self, color:&str, ins:&Instruction, value:u64) {
         if !self.step {
             println!("{}{} 0x{:x}: {} ;0x{:x} {}", color, self.pos, ins.ip(), self.out, value, self.colors.nc);
@@ -3017,7 +3023,6 @@ impl Emu {
                     }
 
                     Mnemonic::Ret => {
-                        self.show_instruction(&self.colors.yellow, &ins);
                         let ret_addr:u64;
 
                         if self.cfg.is_64bits {
@@ -3026,6 +3031,8 @@ impl Emu {
                             ret_addr = self.stack_pop32(false) as u64; // return address
                         }
 
+                        self.show_instruction_addr(&self.colors.yellow, &ins, ret_addr);
+    
                         if ins.op_count() > 0 {
                             let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
                             // apply stack compensation of ret operand
