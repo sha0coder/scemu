@@ -278,7 +278,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
         }
     }
     emu.regs.rax = 0;
-    println!("kernel32!GetProcAddress error searching {}", func);
+    if emu.cfg.verbose >= 1 {
+        println!("kernel32!GetProcAddress error searching {}", func);
+    }
     return;
 }
 

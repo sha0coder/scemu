@@ -292,27 +292,52 @@ struct CurDir {
 
 fn RtlDosPathNameToNtPathName_U(emu:&mut emu::Emu) {
    let dos_path_name_ptr = emu.maps.read_dword(emu.regs.get_esp())
-       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading dos_path_name_ptr param") as u64;
+       .expect("ntdll!RtlDosPathNameToNtPathName_U error reading dos_path_name_ptr param") as u64;
    let nt_path_name_ptr = emu.maps.read_dword(emu.regs.get_esp()+4)
-       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading nt_path_name_ptr param") as u64;
+       .expect("ntdll!RtlDosPathNameToNtPathName_U error reading nt_path_name_ptr param") as u64;
    let nt_file_name_part_ptr = emu.maps.read_dword(emu.regs.get_esp()+8)
-       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading nt_file_name_part_ptr param");
+       .expect("ntdll!RtlDosPathNameToNtPathName_U error reading nt_file_name_part_ptr param");
    let curdir_ptr = emu.maps.read_dword(emu.regs.get_esp()+12)
-       .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading curdir_ptr param") as u64; // DirectoryInfo
+       .expect("ntdll!RtlDosPathNameToNtPathName_U error reading curdir_ptr param") as u64; // DirectoryInfo
     
    let dos_path_name = emu.maps.read_wide_string(dos_path_name_ptr);
 
    println!("{}** {} ntdll!RtlDosPathNameToNtPathName_U {} {}", emu.colors.light_red, emu.pos, dos_path_name, emu.colors.nc);
 
+
+   //TODO: si la variable destino apunta a pila no hacer memcpy, solo si es un alloc_
+
    if curdir_ptr > 0 {
        let dos_path_unicode_ptr = emu.maps.read_dword(curdir_ptr)
-           .expect("ntdll!RRtlDosPathNameToNtPathName_U error reading dos_path_unicode_ptr") as u64;
-        
-       emu.maps.memcpy(dos_path_unicode_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+           .expect("ntdll!RtlDosPathNameToNtPathName_U error reading dos_path_unicode_ptr") as u64;
+      
+       let dst_map_name = emu.maps.get_addr_name(dos_path_unicode_ptr)
+           .expect("ntdll!RtlDosPathNameToNtPathName_U writting on unmapped address");
+
+       if dst_map_name.starts_with("alloc_") {
+           emu.maps.memcpy(dos_path_unicode_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+       } else {
+           if emu.cfg.verbose >= 1 {
+               println!("/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map", dst_map_name);
+               println!("memcpy1 0x{:x} <- 0x{:x}  sz: {}", 
+                    dos_path_unicode_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+           }
+       }
    }
 
    if nt_path_name_ptr > 0 {
-       emu.maps.memcpy(nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+       let dst_map_name = emu.maps.get_addr_name(nt_path_name_ptr)
+           .expect("ntdll!RtlDosPathNameToNtPathName_U writting on unmapped address.");
+
+       if dst_map_name.starts_with("alloc_") {
+            emu.maps.memcpy(nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+       } else {
+           if emu.cfg.verbose >= 1 {
+               println!("/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map", dst_map_name);
+               println!("memcpy2 0x{:x} <- 0x{:x}  sz: {}", 
+                    nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+           }
+       }
    }
 
    emu.stack_pop32(false);
@@ -408,13 +433,23 @@ fn RtlFreeHeap(emu:&mut emu::Emu) {
 
     let name = emu.maps.get_addr_name(base_addr).unwrap_or_else(|| String::new());
     if name == "" {
-        println!("map not allocated, so cannot free it.");
+        if emu.cfg.verbose >= 1 {
+            println!("map not allocated, so cannot free it.");
+        }
         emu.regs.rax = 0;
         return;
     }
 
-    emu.maps.free(&name);
-    emu.regs.rax = 1;
+    if name.starts_with("alloc_") {
+        emu.maps.free(&name);
+        emu.regs.rax = 1;
+    } else {
+        emu.regs.rax = 0;
+        if emu.cfg.verbose >= 1 {
+            println!("trying to free a systems map {}", name);
+        }
+    }
+
 }
 
 fn NtQueryInformationFile(emu:&mut emu::Emu) {
@@ -525,7 +560,6 @@ fn NtClose(emu:&mut emu::Emu) {
     } else {
         emu.regs.rax = constants::STATUS_SUCCESS;
     }
-
 }
 
 
