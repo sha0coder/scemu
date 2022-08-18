@@ -95,6 +95,7 @@ impl Console {
         println!("bc ..................... clear breakpoint");
         println!("n ...................... next instruction");
         println!("eip .................... change eip");
+        println!("rip .................... change rip");
         println!("push ................... push dword to the stack");
         println!("pop .................... pop dword from stack");
         println!("fpu .................... fpu view");
@@ -108,7 +109,8 @@ impl Console {
         println!("mn ..................... memory name of an address");
         println!("ml ..................... memory load file content to map");
         println!("mr ..................... memory read, speficy ie: dword ptr [esi]");
-        println!("mw ..................... memory read, speficy ie: dword ptr [esi]  and then: 1af");
+        println!("mw ..................... memory write, speficy ie: dword ptr [esi]  and then: 1af");
+        println!("mwb .................... memory write bytes, input spaced bytes");
         println!("md ..................... memory dump");
         println!("mrd .................... memory read dwords");
         println!("mrq .................... memory read qwords");

@@ -189,7 +189,6 @@ fn main() {
     emu.init();
     emu.load_code(&filename.to_string());
 
-    emu.run();
+    emu.run(0);
 }
-
 

@@ -326,17 +326,32 @@ fn RtlDosPathNameToNtPathName_U(emu:&mut emu::Emu) {
    }
 
    if nt_path_name_ptr > 0 {
+        // its a stack dword where to write the address of a new buffer
+
        let dst_map_name = emu.maps.get_addr_name(nt_path_name_ptr)
            .expect("ntdll!RtlDosPathNameToNtPathName_U writting on unmapped address.");
 
        if dst_map_name.starts_with("alloc_") {
             emu.maps.memcpy(nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
        } else {
-           if emu.cfg.verbose >= 1 {
-               println!("/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map", dst_map_name);
-               println!("memcpy2 0x{:x} <- 0x{:x}  sz: {}", 
-                    nt_path_name_ptr, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
-           }
+
+            let addr = match emu.maps.alloc(255) {
+                Some(a) => {
+                    let mem = emu.maps.create_map("nt_alloc");
+                    mem.set_base(a);
+                    mem.set_size(255);
+                    emu.maps.write_dword(nt_path_name_ptr, a as u32);
+                    emu.maps.memcpy(a, dos_path_name_ptr, emu.maps.sizeof_wide(dos_path_name_ptr)*2);
+                },
+                None => {
+                   if emu.cfg.verbose >= 1 {
+                       println!("/!\\ ntdll!RtlDosPathNameToNtPathName_U low memory");
+                   }
+                },
+            };
+
+            
+
        }
    }
 
@@ -344,7 +359,6 @@ fn RtlDosPathNameToNtPathName_U(emu:&mut emu::Emu) {
    emu.stack_pop32(false);
    emu.stack_pop32(false);
    emu.stack_pop32(false);
-
 }
 
 fn NtCreateFile(emu:&mut emu::Emu) {
