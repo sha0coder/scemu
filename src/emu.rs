@@ -80,7 +80,7 @@ macro_rules! to32 {
 
 
 pub struct Emu {
-    regs: Regs64,
+    pub regs: Regs64,
     flags: Flags,
     eflags: Eflags,
     fpu: FPU,
@@ -103,6 +103,7 @@ pub struct Emu {
     gateway_return: u64,
     is_running: Arc<atomic::AtomicU32>,
     break_on_next_cmp: bool,
+    break_on_next_return: bool,
     filename: String,
 }
 
@@ -132,6 +133,7 @@ impl Emu {
             gateway_return: 0,
             is_running: Arc::new(atomic::AtomicU32::new(0)), 
             break_on_next_cmp: false,
+            break_on_next_return: false,
             filename: String::new(),
         }
     }
@@ -747,6 +749,20 @@ impl Emu {
                 std::process::exit(1);
             }
         }
+    }
+
+    pub fn alloc(&mut self, name:&str, size:u64) -> u64 {
+        let addr = match self.maps.alloc(size) {
+            Some(a) => a,
+            None => {
+                println!("low memory");
+                return 0;
+            }
+        };
+        let map = self.maps.create_map(name);
+        map.set_base(addr);
+        map.set_size(size);
+        addr
     }
 
     pub fn stack_push32(&mut self, value:u32) {
@@ -1688,6 +1704,20 @@ impl Emu {
                     }
 
                 },
+                "mwb" => {
+                    con.print("addr");
+                    let addr = match con.cmd_hex64() {
+                        Ok(a) => a,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
+                    con.print("spaced bytes");
+                    let bytes = con.cmd();
+                    self.maps.write_spaced_bytes(addr, bytes);
+                    println!("done.");
+                },
                 "b" => {
                     self.bp.show();
                 }
@@ -1783,6 +1813,11 @@ impl Emu {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
                     return;
                 },
+                "cr" => {
+                    self.break_on_next_return = true;
+                    self.is_running.store(1, atomic::Ordering::Relaxed);
+                    return;
+                }
                 "f" => self.flags.print(),
                 "fc" => self.flags.clear(),
                 "fz" => self.flags.f_zf = !self.flags.f_zf,
@@ -1790,16 +1825,26 @@ impl Emu {
                 "mc" => {
                     con.print("name ");
                     let name = con.cmd();
-                    con.print("base address ");
-                    let addr = match con.cmd_hex64() {
+                    con.print("size ");
+                    let sz = match con.cmd_num() {
                         Ok(v) => v,
                         Err(_) => {
-                            println!("bad hex value.");
+                            println!("bad size.");
                             continue;
                         }
                     };
-                    self.maps.create_map(name.as_str());
-                    self.maps.get_mem(name.as_str()).set_base(addr);
+
+                    let addr = match self.maps.alloc(sz) {
+                        Some(a) => a,
+                        None => {
+                            println!("memory full");
+                            continue;
+                        }
+                    };
+                    let map = self.maps.create_map(&name);
+                    map.set_base(addr);
+                    map.set_size(sz);
+                    println!("allocated {} at 0x{:x} sz: {}", name, addr, sz); 
                 },
                 "ml" => {
                     con.print("map name");
@@ -1945,6 +1990,18 @@ impl Emu {
                     };
                     self.force_break = true;
                     self.regs.set_eip(addr);
+                },
+                "rip" => {
+                    con.print("=");
+                    let addr = match con.cmd_hex64() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad hex value");
+                            continue;
+                        }
+                    };
+                    self.force_break = true;
+                    self.regs.rip = addr;
                 },
                 "push" => {
                     con.print("value");
@@ -2689,9 +2746,9 @@ impl Emu {
         }
     }
 
-    pub fn show_instruction_addr(&self, color:&str, ins:&Instruction, addr: u64) {
+    pub fn show_instruction_ret(&self, color:&str, ins:&Instruction, addr: u64) {
         if !self.step {
-            println!("{}{} 0x{:x}: {} ;0x{:x}{}", color, self.pos, ins.ip(), self.out, addr, self.colors.nc);
+            println!("{}{} 0x{:x}: {} ; ret-addr: 0x{:x} ret-value: 0x{:x} {}", color, self.pos, ins.ip(), self.out, addr, self.regs.rax, self.colors.nc);
         }
     }
 
@@ -2720,7 +2777,7 @@ impl Emu {
 
     ///  RUN ENGINE ///
 
-    pub fn run(&mut self) {     
+    pub fn run(&mut self, end_addr:u64) {     
         self.is_running.store(1, atomic::Ordering::Relaxed);
         let is_running2 = Arc::clone(&self.is_running);
 
@@ -2766,6 +2823,11 @@ impl Emu {
 
                 let sz = ins.len();
                 let addr = ins.ip();
+
+                if end_addr > 0 && addr == end_addr {
+                    return;
+                }
+
                 self.step = false;
                 self.out.clear();
                 formatter.format(&ins, &mut self.out);
@@ -3031,7 +3093,12 @@ impl Emu {
                             ret_addr = self.stack_pop32(false) as u64; // return address
                         }
 
-                        self.show_instruction_addr(&self.colors.yellow, &ins, ret_addr);
+                        self.show_instruction_ret(&self.colors.yellow, &ins, ret_addr);
+
+                        if self.break_on_next_return {
+                            self.break_on_next_return = false;
+                            self.spawn_console();
+                        }
     
                         if ins.op_count() > 0 {
                             let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
