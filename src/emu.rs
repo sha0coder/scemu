@@ -84,7 +84,7 @@ pub struct Emu {
     flags: Flags,
     eflags: Eflags,
     fpu: FPU,
-    maps: Maps,
+    pub maps: Maps,
     exp: u64,
     break_on_alert: bool,
     bp: Breakpoint,
@@ -105,6 +105,7 @@ pub struct Emu {
     break_on_next_cmp: bool,
     break_on_next_return: bool,
     filename: String,
+    pub enabled_ctrlc: bool,
 }
 
 impl Emu {
@@ -135,6 +136,7 @@ impl Emu {
             break_on_next_cmp: false,
             break_on_next_return: false,
             filename: String::new(),
+            enabled_ctrlc: true,
         }
     }
 
@@ -2781,10 +2783,12 @@ impl Emu {
         self.is_running.store(1, atomic::Ordering::Relaxed);
         let is_running2 = Arc::clone(&self.is_running);
 
-        ctrlc::set_handler(move || {
-            println!("Ctrl-C detected, spawning console");
-            is_running2.store(0, atomic::Ordering::Relaxed);
-        }).expect("ctrl-c handler failed");
+        if self.enabled_ctrlc {
+            ctrlc::set_handler(move || {
+                println!("Ctrl-C detected, spawning console");
+                is_running2.store(0, atomic::Ordering::Relaxed);
+            }).expect("ctrl-c handler failed");
+        }
 
 
         let mut looped:Vec<u64> = Vec::new();
