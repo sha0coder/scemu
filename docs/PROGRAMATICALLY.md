@@ -31,6 +31,7 @@ but run(0) means forever.
     emu.set_config(cfg);
     emu.init();
     emu.load_code(&filename.to_string());
+    emu.disable_ctrlc();
     
     // alloc a buffer needed to generate the key
     let buff = emu.alloc("key_buffer", 1024);

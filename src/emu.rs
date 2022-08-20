@@ -105,7 +105,7 @@ pub struct Emu {
     break_on_next_cmp: bool,
     break_on_next_return: bool,
     filename: String,
-    pub enabled_ctrlc: bool,
+    enabled_ctrlc: bool,
 }
 
 impl Emu {
@@ -138,6 +138,14 @@ impl Emu {
             filename: String::new(),
             enabled_ctrlc: true,
         }
+    }
+
+    pub fn enable_ctrlc(&mut self) {
+        self.enabled_ctrlc = true;
+    }
+
+    pub fn disable_ctrlc(&mut self) {
+        self.enabled_ctrlc = false;
     }
 
     pub fn init_stack32(&mut self) {
