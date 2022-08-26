@@ -2,6 +2,7 @@ use crate::emu;
 use crate::emu::winapi32::helper;
 use crate::emu::constants;
 use crate::emu::console;
+use crate::emu::peb64;
 
 
 /*
@@ -37,13 +38,175 @@ pub fn gateway(addr:u64, emu:&mut emu::Emu) {
         0x76dc1120 => CreateEventA(emu),
         0x76dc6580 => CreateThread(emu),
         0x76dd2b70 => Sleep(emu),
-        _ => panic!("calling unimplemented kernel32 64bits API 0x{:x}", addr),
+        _ => panic!("calling unimplemented kernel32 64bits API 0x{:x} {}", addr, guess_api_name(emu, addr)),
     }
 }
+
+pub fn dump_module_iat(emu:&mut emu::Emu, module: &str) {
+    let mut flink = peb64::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+    
+    loop {
+        if flink.mod_name.to_lowercase().contains(module) {  
+            if flink.export_table_rva > 0 {
+                for i in 0..flink.num_of_funcs {
+                    if flink.pe_hdr == 0 {
+                        continue
+                    }
+
+                    let ordinal = flink.get_function_ordinal(emu, i);
+                    println!("0x{:x} {}!{}", ordinal.func_va, &flink.mod_name, 
+                             &ordinal.func_name);
+                }
+            }
+        }
+        flink.next(emu);
+    
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+}
+
+pub fn resolve_api_name(emu:&mut emu::Emu, name: &str) -> u64 {
+    let mut flink = peb64::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+                    
+    loop {
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue
+                }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                if ordinal.func_name.contains(name) {
+                    return ordinal.func_va;
+                }
+            }
+        }
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+
+
+    return 0; //TODO: use Option<>
+}
+
+pub fn search_api_name(emu:&mut emu::Emu, name: &str) -> (u64, String, String) {
+    let mut flink = peb64::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+
+    loop {
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue
+                }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                if ordinal.func_name.contains(name) {
+                    return (ordinal.func_va, flink.mod_name.clone(), ordinal.func_name.clone());
+                }
+            }
+        }
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {  
+            break;  
+        }
+    }
+
+
+    return (0,String::new(), String::new()); //TODO: use Option<>
+}
+
+pub fn guess_api_name(emu:&mut emu::Emu, addr: u64) -> String {
+    let mut flink = peb64::Flink::new(emu);
+    flink.load(emu);
+    let first_ptr = flink.get_ptr();
+
+    loop {
+        //let mod_name = flink.mod_name.clone();
+        
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
+                }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+
+                if ordinal.func_va == addr.into() {
+                    return ordinal.func_name.clone();
+                }
+            }
+        }
+
+        flink.next(emu);
+
+        if flink.get_ptr() == first_ptr {
+            break;
+        }
+    }
+
+    return "function not found".to_string();
+
+}
+
+pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
+    let mut dll = libname.to_string().to_lowercase();
+
+    if dll.len() == 0 {
+        emu.regs.rax = 0;
+        return 0;
+    }
+
+    if !dll.ends_with(".dll") {
+        dll.push_str(".dll");
+    }
+
+
+    let mut dll_path = emu.cfg.maps_folder.clone();
+    dll_path.push_str(&dll);
+
+    match peb64::get_module_base(&dll, emu) {
+        Some(base) => {
+            // already linked
+            if emu.cfg.verbose > 0 {
+                println!("dll {} already linked.", dll);
+            }
+            return base;
+        },
+        None => {
+            // do link
+            if std::path::Path::new(&dll_path).exists() {
+                println!("linking library");
+                let (base, pe_off) = emu.load_pe64(&dll_path, false, 0);
+                peb64::dynamic_link_module(base as u64, pe_off,  &dll, emu);
+                return base as u64;
+            } else {
+                if emu.cfg.verbose > 0 {
+                    println!("dll {} not found.", dll_path);
+                }
+                return 0;
+            }
+        }                                                                                         
+    };
+}
+
 
 fn LoadLibraryA(emu:&mut emu::Emu) {
     let dllptr = emu.regs.rcx;
     let dll = emu.maps.read_string(dllptr);
+
+    /*
     let mut dll_path = emu.cfg.maps_folder.clone();
     dll_path.push_str(&dll);
 
@@ -64,21 +227,58 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
             unimplemented!("/!\\ kernel32!LoadLibraryA: lib not found {}", dll);
         }
     }
+    */
 
-    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc);
+    emu.regs.rax = load_library(emu, &dll);
+
+    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, 
+             emu.pos, dll, emu.regs.rax, emu.colors.nc);
 }
 
 fn GetProcAddress(emu:&mut emu::Emu) {
-    let dbg = false;
     let hndl = emu.regs.rcx;
     let func_ptr = emu.regs.rdx;
 
     let func = emu.maps.read_string(func_ptr).to_lowercase();
 
-    if dbg {
-        println!("looking for '{}'", func);
+    let mut flink = peb64::Flink::new(emu);
+    flink.load(emu);
+    let first_flink = flink.get_ptr();
+
+    loop {
+        if flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
+                }
+                let ordinal = flink.get_function_ordinal(emu, i);
+                
+               // println!("func name {}!{}", flink.mod_name, ordinal.func_name);
+                
+                if ordinal.func_name.to_lowercase() == func {
+                    emu.regs.rax = ordinal.func_va;
+                    println!("{}** {} kernel32!GetProcAddress  `{}!{}` =0x{:x} {}", 
+                             emu.colors.light_red, emu.pos, flink.mod_name, ordinal.func_name,
+                             emu.regs.rax, emu.colors.nc);
+                    return;
+                }
+            }
+        }
+
+        flink.next(emu);
+        if flink.get_ptr() == first_flink {
+            break;
+        }
+    }
+    emu.regs.rax = 0;
+    if emu.cfg.verbose >= 1 {
+        println!("kernel32!GetProcAddress error searching {}", func);
     }
 
+
+
+
+    /*
     let peb = emu.maps.get_mem("peb");
     let peb_base = peb.get_base();
     let ldr = peb.read_qword(peb_base + 0x18);
@@ -202,15 +402,17 @@ fn GetProcAddress(emu:&mut emu::Emu) {
             }
         }
 
-        flink = emu.maps.read_dword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
+        flink = emu.maps.read_qword(flink).expect("kernel32!GetProcAddress error reading next flink") as u64;
     } 
+    */
 }
 
 fn CreateToolhelp32Snapshot(emu:&mut emu::Emu) {
     let flags = emu.regs.rcx;
     let pid = emu.regs.rdx;
 
-    println!("{}** {} kernel32!CreateToolhelp32Snapshot flags: {:x} pid: {} {}", emu.colors.light_red, emu.pos, flags, pid, emu.colors.nc);
+    println!("{}** {} kernel32!CreateToolhelp32Snapshot flags: {:x} pid: {} {}", 
+             emu.colors.light_red, emu.pos, flags, pid, emu.colors.nc);
 
     let uri = format!("CreateToolhelp32Snapshot://{}", pid);
     emu.regs.rax = helper::handler_create(&uri);
@@ -220,7 +422,8 @@ fn Process32First(emu:&mut emu::Emu) {
     let handle = emu.regs.rcx;
     let lppe = emu.regs.rdx;
 
-    println!("{}** {} kernel32!Process32First hndl: {:x} lppe: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
+    println!("{}** {} kernel32!Process32First hndl: {:x} lppe: 0x{:x} {}", 
+             emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
 
     if !helper::handler_exist(handle) {
         emu.regs.rax = 0;
@@ -252,7 +455,8 @@ fn Process32Next(emu:&mut emu::Emu) {
     let handle = emu.regs.rcx;
     let lppe = emu.regs.rdx;
 
-    println!("{}** {} kernel32!Process32Next hndl: {:x} lppe: 0x{:x} {}", emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
+    println!("{}** {} kernel32!Process32Next hndl: {:x} lppe: 0x{:x} {}", 
+             emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc);
 
     emu.maps.write_string(lppe +  44, "explorer.exe\x00");
 
@@ -272,17 +476,20 @@ fn LStrCmpI(emu:&mut emu::Emu) {
     let s2 = emu.maps.read_string(sptr2);
 
     if s1 == s2 {
-        println!("{}** {} kernel32!lstrcmpi `{}` == `{}` {}", emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc);
+        println!("{}** {} kernel32!lstrcmpi `{}` == `{}` {}", emu.colors.light_red, emu.pos, 
+                 s1, s2, emu.colors.nc);
         emu.regs.rax = 0;
 
     } else {
-        println!("{}** {} kernel32!lstrcmpi `{}` != `{}` {}", emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc);
+        println!("{}** {} kernel32!lstrcmpi `{}` != `{}` {}", emu.colors.light_red, emu.pos, 
+                 s1, s2, emu.colors.nc);
         emu.regs.rax = 1;
     }
 }
 
 fn AreFileApiIsAnsi(emu:&mut emu::Emu) {
-    println!("{}** {} kernel32!AreFileApiIsAnsi {}", emu.colors.light_red, emu.pos, emu.colors.nc);
+    println!("{}** {} kernel32!AreFileApiIsAnsi {}", emu.colors.light_red, emu.pos, 
+             emu.colors.nc);
     emu.regs.rax = 1;
 }
 
@@ -292,7 +499,8 @@ fn BeginUpdateResourceA(emu:&mut emu::Emu) {
  
     let filename = emu.maps.read_string(pFileName);
 
-    println!("{}** {} kernel32!BeginUpdateResourceA `{}` {} {}", emu.colors.light_red, emu.pos, filename, bDeleteExistingResources, emu.colors.nc);
+    println!("{}** {} kernel32!BeginUpdateResourceA `{}` {} {}", emu.colors.light_red, 
+             emu.pos, filename, bDeleteExistingResources, emu.colors.nc);
 
     emu.regs.rax = helper::handler_create(&filename);
 }
@@ -302,7 +510,8 @@ fn OpenProcess(emu:&mut emu::Emu) {
     let inherit = emu.regs.rdx;
     let pid = emu.regs.r8;
 
-    println!("{}** {} kernel32!OpenProcess pid: {} {}", emu.colors.light_red, emu.pos, pid, emu.colors.nc);
+    println!("{}** {} kernel32!OpenProcess pid: {} {}", emu.colors.light_red, emu.pos, 
+             pid, emu.colors.nc);
 
     let uri = format!("pid://{}", pid);
     emu.regs.rax = helper::handler_create(&uri);
@@ -316,7 +525,8 @@ fn VirtualAlloc(emu:&mut emu::Emu) {
 
     let base = emu.maps.alloc(size).expect("kernel32!VirtualAlloc out of memory");
 
-    println!("{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}", emu.colors.light_red, emu.pos, addr, size, base, emu.colors.nc);
+    println!("{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}", 
+             emu.colors.light_red, emu.pos, addr, size, base, emu.colors.nc);
 
     let alloc = emu.maps.create_map(format!("alloc_{:x}", base).as_str());
     alloc.set_base(base);

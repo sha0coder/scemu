@@ -25,10 +25,13 @@ pub mod endpoint;
 pub mod structures;
 mod exception;
 mod pe32;
+mod pe64;
 mod peb32;
+mod peb64;
 
 use fpu::FPU;
 use pe32::PE32;
+use pe64::PE64;
 use maps::Maps;
 use flags::Flags;
 use colors::Colors;
@@ -600,7 +603,8 @@ impl Emu {
         self.maps.create_map("exe_pe").load_at(0x400000);
         self.maps.create_map("code").set_base(self.cfg.code_base_addr);
         self.maps.create_map("stack");
-        self.maps.create_map("peb").load_at(0x7fffffdf000);
+        //self.maps.create_map("peb").load_at(0x7fffffdf000);
+        peb64::init_peb(self);
         self.maps.create_map("teb").load_at(0x7fffffdd000);
         self.maps.create_map("ntdll_pe").load_at(0x76fd0000);
         self.maps.create_map("ntdll_text").load_at(0x76fd1000);
@@ -620,34 +624,46 @@ impl Emu {
         self.maps.create_map("msvcrt_rdata").load_at(0x7fefef7a000);
         self.maps.create_map("user32_pe").load_at(0x76ed0000);
         self.maps.create_map("user32_text").load_at(0x76ed1000);
+        self.maps.create_map("user32_rdata").load_at(0x76f52000);
         self.maps.create_map("msasn1_pe").load_at(0x7fefcfc0000);
         self.maps.create_map("msasn1_text").load_at(0x7fefcfc1000);
+        self.maps.create_map("msasn1_rdata").load_at(0x7fefcfc9000);
         self.maps.create_map("crypt32_pe").load_at(0x7fefd0c0000);
         self.maps.create_map("crypt32_text").load_at(0x7fefd0c1000);
+        self.maps.create_map("crypt32_rdata").load_at(0x7fefd18f000);
         self.maps.create_map("msctf_pe").load_at(0x7fefd2f0000);
         self.maps.create_map("msctf_text").load_at(0x7fefd2f1000);
+        self.maps.create_map("msctf_rdata").load_at(0x7fefd391000);
         self.maps.create_map("iertutil_pe").load_at(0x7fefd400000);
         self.maps.create_map("iertutil_text").load_at(0x7fefd401000);
+        self.maps.create_map("iertutil_rdata").load_at(0x7fefd43e000);
         self.maps.create_map("ole32_pe").load_at(0x7fefd660000);
         self.maps.create_map("ole32_text").load_at(0x7fefd661000);
+        self.maps.create_map("ole32_rdata").load_at(0x7fefd7df000);
         self.maps.create_map("lpk_pe").load_at(0x7fefd870000);
         self.maps.create_map("lpk_text").load_at(0x7fefd871000);
+        self.maps.create_map("lpk_rdata").load_at(0x7fefd878000);
         self.maps.create_map("wininet_pe").load_at(0x6fefd880000);
         self.maps.create_map("wininet_text").load_at(0x6fefd881000);
         self.maps.create_map("gdi32_pe").load_at(0x7fefd9b0000);
         self.maps.create_map("gdi32_text").load_at(0x7fefd9b1000);
+        self.maps.create_map("gdi32_rdata").load_at(0x7fefda02000);
         self.maps.create_map("imm32_pe").load_at(0x7fefe990000);
         self.maps.create_map("imm32_text").load_at(0x7fefe991000);
+        self.maps.create_map("imm32_rdata").load_at(0x7fefe9ad000);
         self.maps.create_map("usp10_pe").load_at(0x7fefe9c0000);
         self.maps.create_map("usp10_text").load_at(0x7fefe9c1000);
         self.maps.create_map("sechost_pe").load_at(0x7fefea90000);
         self.maps.create_map("sechost_text").load_at(0x7fefea91000);
         self.maps.create_map("rpcrt4_pe").load_at(0x7fefeab0000);
         self.maps.create_map("rpcrt4_text").load_at(0x7fefeab1000);
+        self.maps.create_map("rpcrt4_rdata").load_at(0x7fefeb93000);
         self.maps.create_map("nsi_pe").load_at(0x7fefebe0000);
         self.maps.create_map("nsi_text").load_at(0x7fefebe1000);
+        self.maps.create_map("nsi_rdata").load_at(0x7fefebe3000);
         self.maps.create_map("urlmon_pe").load_at(0x7fefed30000);
         self.maps.create_map("urlmon_text").load_at(0x7fefed31000);
+        self.maps.create_map("urlmon_rdata").load_at(0x7fefee05000);
         self.maps.create_map("ws2_32_pe").load_at(0x7fefeeb0000);
         self.maps.create_map("ws2_32_text").load_at(0x7fefeeb1000);
         self.maps.create_map("ws2_32_rdata").load_at(0x7fefeee1000);
@@ -657,8 +673,10 @@ impl Emu {
         self.maps.create_map("advapi32_text").load_at(0x7fefefa1000);
         self.maps.create_map("oleaut32_pe").load_at(0x7feff180000);
         self.maps.create_map("oleaut32_text").load_at(0x7feff181000);
+        self.maps.create_map("oleaut32_rdata").load_at(0x7feff21d000);
         self.maps.create_map("shlwapi_pe").load_at(0x7feff260000);
         self.maps.create_map("shlwapi_text").load_at(0x7feff261000);
+        self.maps.create_map("shlwapi_rdata").load_at(0x7feff2a5000);
         self.maps.create_map("winhttp_pe").load_at(0x7fef9760000);
         self.maps.create_map("winhttp_text").load_at(0x7fef9761000);
         self.maps.create_map("dnsapi_pe").load_at(0x7fefc5f0000);
@@ -700,7 +718,7 @@ impl Emu {
         println!("\t{} sections  base addr 0x{:x}", pe32.num_of_sections(), base);
 
         for i in 0..pe32.num_of_sections() {
-            let base;
+            let base:u32;
             if force_base > 0 {
                 base = force_base;
             } else {
@@ -708,7 +726,8 @@ impl Emu {
             }
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
-            let map = self.maps.create_map(&format!("{}{}",  spl2[last], sect.get_name().replace(" ","").replace("\t","")
+            let map = self.maps.create_map(&format!("{}{}",  spl2[last], 
+                                                    sect.get_name().replace(" ","").replace("\t","")
                                                     .replace("\x0a","").replace("\x0d","")));
 
             map.set_base(base as u64 + sect.virtual_address as u64);
@@ -723,7 +742,7 @@ impl Emu {
                      map.get_base(), sect.virtual_size);
             if set_entry {
                 if sect.get_name() == ".text" || i == 0 {
-                    self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64; //TODO: calcular entry point
+                    self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64;
                     println!("\tentry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
                 }
             }
@@ -732,6 +751,77 @@ impl Emu {
         let pe_hdr_off = pe32.dos.e_lfanew;
 
         pe32.clear();
+        return (base, pe_hdr_off);
+    }
+
+    pub fn load_pe64(&mut self, filename: &str, set_entry: bool, force_base: u64) -> (u64,u32) {
+        let mut pe64 = PE64::load(filename);
+        if set_entry {
+            pe64.iat_binding(self);
+        }
+
+        let spl:Vec<&str> = filename.split('.').collect();
+        let spl2:Vec<&str> = spl[0].split('/').collect();
+        let last = spl2.len() -1;
+        let base:u64;
+        if force_base > 0 {
+            base = force_base;
+        } else {
+            base = pe64.opt.image_base;
+        }
+    
+        //TODO: query if this vaddr is already used
+        let pemap = self.maps.create_map(&format!("{}.pe",  spl2[last]));
+        pemap.set_base(base.into());
+        pemap.set_size(pe64.opt.size_of_headers.into());
+        pemap.memcpy(pe64.get_headers(), pe64.opt.size_of_headers as usize);
+
+        println!("Loaded {}", filename);
+        println!("\t{} sections  base addr 0x{:x}", pe64.num_of_sections(), base);
+
+        for i in 0..pe64.num_of_sections() {
+            let base;
+            if force_base > 0 {
+                base = force_base;
+            } else {
+                base = pe64.opt.image_base;
+            }
+            let ptr = pe64.get_section_ptr(i);
+            let sect = pe64.get_section(i);
+            let map = self.maps.create_map(&format!("{}{}",  spl2[last], 
+                                                    sect.get_name().replace(" ","").replace("\t","")
+                                                    .replace("\x0a","").replace("\x0d","")));
+
+            map.set_base(base + sect.virtual_address as u64);
+            if sect.virtual_size > sect.size_of_raw_data {
+                map.set_size(sect.virtual_size as u64);
+            } else {
+                map.set_size(sect.size_of_raw_data as u64);
+            }
+            map.memcpy(ptr, ptr.len());
+
+            println!("\tcreated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
+                     map.get_base(), sect.virtual_size);
+
+            if set_entry {
+                if sect.get_name() == ".text" || i == 0 {
+
+                    if pe64.opt.address_of_entry_point == 0 {
+                        println!("entry point zero");
+                        self.regs.rip = base + sect.virtual_address as u64 + 
+                            sect.pointer_to_raw_data as u64;
+                    } else {
+                        self.regs.rip = base + pe64.opt.address_of_entry_point as u64; 
+                    }
+
+                    println!("\tentry point at 0x{:x}  0x{:x} ", self.regs.rip, pe64.opt.address_of_entry_point);
+                }
+            }
+        }
+
+        let pe_hdr_off = pe64.dos.e_lfanew;
+
+        pe64.clear();
         return (base, pe_hdr_off);
     }
 
@@ -748,11 +838,18 @@ impl Emu {
     pub fn load_code(&mut self, filename: &str) {
         self.filename = filename.to_string();
 
-        if pe32::PE32::is_pe32(filename) {
+        
+
+        if !self.cfg.is_64bits && PE32::is_pe32(filename) {
             println!("PE32 header detected.");
             self.load_pe32(filename, true, 0);
 
+        } else if self.cfg.is_64bits && PE64::is_pe64(filename) {
+            println!("PE64 header detected.");
+            self.load_pe64(filename, true, 0);
+
         } else { // shellcode
+
             println!("shellcode detected.");
             if !self.maps.get_mem("code").load(filename) {
                 println!("shellcode not found, select the file with -f");
@@ -1178,7 +1275,7 @@ impl Emu {
         };
 
 
-        if addr < constants::LIBS_BARRIER || name == "code" {
+        if addr < constants::LIBS_BARRIER64 || name == "code" {
             self.regs.rip = addr;
         } else {
             if self.cfg.verbose >= 1 {
@@ -2152,7 +2249,11 @@ impl Emu {
                     self.disasemble(addr, 10);
                 },
                 "ldr" => {
-                    peb32::show_linked_modules(self);
+                    if self.cfg.is_64bits {
+                        peb64::show_linked_modules(self);
+                    } else {
+                        peb32::show_linked_modules(self);
+                    }
                 }
                 "iat" => {
                     con.print("api keyword");

@@ -26,7 +26,7 @@ x86 32/64bits emulator, for securely emulating shellcodes
 - react with int3.
 - non debugged cpuid.
 - 32bits and 64bits shellcode emulation.
-- pe32 executables emulation.
+- pe32 and pe64 executables emulation.
 - tests with known payloads:
 	- metasploit shellcodes.
 	- metasploit encoders.

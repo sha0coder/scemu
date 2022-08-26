@@ -1,4 +1,4 @@
-mod kernel32;
+pub mod kernel32;
 mod ntdll;
 mod user32;
 mod wininet;

@@ -101,6 +101,34 @@ impl PebLdrData {
 }
 
 #[derive(Debug)]
+pub struct OrdinalTable {
+    pub func_name: String,
+    pub ordinal_tbl_rva: u64,
+    pub ordinal_tbl: u64,
+    pub ordinal: u64,
+    pub func_addr_tbl_rva: u64,
+    pub func_addr_tbl: u64,
+    pub func_rva: u64,
+    pub func_va: u64,
+}
+
+impl OrdinalTable {
+    pub fn new() -> OrdinalTable {
+        OrdinalTable {
+            func_name: String::new(),
+            ordinal_tbl_rva: 0,
+            ordinal_tbl: 0,
+            ordinal: 0,
+            func_addr_tbl_rva: 0, 
+            func_addr_tbl: 0,
+            func_rva: 0,
+            func_va: 0
+        }
+    }
+}
+
+
+#[derive(Debug)]
 pub struct PEB {
     reserved1: [u8;2],
     being_debugged: u8, 
@@ -213,7 +241,8 @@ impl PEB {
 }
 
 // 64bits
-// https://bytepointer.com/resources/tebpeb64.htm
+// https://bytepointer.com/resources/tebpeb64.htm   (from xp to win8)
+// https://www.tssc.de/winint/Win10_19042_ntoskrnl/_PEB64.htm (win10)
 
 #[derive(Debug)]
 pub struct PEB64 {
@@ -287,6 +316,151 @@ pub struct PEB64 {
 
 
 impl PEB64 {
+    pub fn size() -> usize {
+       return 800; // std::mem::size_of_val
+    }
+
+    pub fn new(image_base_addr:u64, ldr:u64, process_parameters:u64) -> PEB64 {
+        PEB64 {
+            inheritet_addr_space: 0x0,
+            read_img_file_exec_options: 0x0,
+            being_debugged: 0x0,
+            system_dependent_01: 0x0,
+            dummy_align: 0x0,
+            mutant: 0xffffffffffffffff,
+            image_base_addr: image_base_addr,
+            ldr: ldr,
+            process_parameters: process_parameters,
+            subsystem_data: 0x0,
+            process_heap: 0x520000,
+            fast_peb_lock: 0x7710a900,
+            system_dependent_02: 0x0,
+            system_dependent_03: 0x0,
+            system_dependent_04: 0x2,
+            kernel_callback_table: 0x76f59500,
+            system_reserved: 0x0,
+            system_dependent_05: 0x0,
+            system_dependent_06: 0x7feff2f0000,
+            tls_expansion_counter: 0x0,
+            tls_bitmap: 0x77102590,
+            tls_bitmap_bits: [
+                0x1fff,
+                0x0,
+            ],
+            read_only_shared_memory_base: 0x7efe0000,
+            system_dependent_07: 0x0,
+            read_only_static_server_data: 0x7efe0a90,
+            ansi_code_page_data: 0x7fffffb0000,
+            oem_code_page_data: 0x7fffffc0228,
+            unicode_case_table_data: 0x7fffffd0650,
+            number_of_processors: 0x1,
+            nt_global_flag: 0x70,
+            critical_section_timeout: 0xffffe86d079b8000,
+            heap_segment_reserve: 0x100000,
+            heap_segment_commit: 0x2000,
+            heap_decommit_total_free_threshold: 0x10000,
+            heap_decommit_free_block_threshold: 0x10000,
+            number_of_heaps: 0x4,
+            max_number_of_heaps: 0x10,
+            process_heaps: 0x7710a6c0,
+            gdi_share_handle_table: 0x920000,
+            process_starter_helper: 0x0,
+            gdi_dc_attribute_list: 0x14,
+            loader_lock: 0x77107490,
+            os_major_version: 0x6,
+            os_minor_version: 0x1,
+            os_build_number: 0x1db1,
+            oscsd_version: 0x100,
+            os_platform_id: 0x2,
+            image_subsystem: 0x3,
+            image_subsystem_major_version: 0x5,
+            image_subsystem_minor_version: 0x2,
+            active_process_afinity_mask: 0x1,
+            gdi_handle_buffer: [
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+            ],
+            post_process_init_routine: 0x0,
+            tls_expansion_bitmap: 0x77102580,
+            tls_expansion_bitmap_bits: [
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+                0x0,
+            ],
+            session_id: 0x1,
+            app_compat_flags: 0x0,
+            app_compat_flags_user: 0x0,
+            p_shim_data: 0x0,
+            app_compat_info: 0x0,
+            csd_version: [
+                0x1e001c,
+                0x7efe0afa,
+            ],
+            activate_context_data: 0x0,
+            process_assembly_storage_map: 0x0,
+            system_default_activation_context_data: 0x230000,
+            system_assembly_storage_map: 0x0,
+            minimum_stack_commit: 0x0,
+        }
+    }
+
     pub fn load(addr:u64, maps:&Maps) -> PEB64 {
         PEB64 {
             inheritet_addr_space: maps.read_byte(addr).unwrap(),
@@ -356,6 +530,86 @@ impl PEB64 {
             system_assembly_storage_map: maps.read_qword(addr+0x310).unwrap(),
             minimum_stack_commit: maps.read_qword(addr+0x318).unwrap()
         }   
+    }
+
+    pub fn save(&self, mem: &mut Mem64) {
+        let base = mem.get_base();
+        mem.write_byte(base, self.inheritet_addr_space);
+        mem.write_byte(base+1, self.read_img_file_exec_options);
+        mem.write_byte(base+2, self.being_debugged);
+        mem.write_byte(base+3, self.system_dependent_01);
+        mem.write_dword(base+4, self.dummy_align);
+        mem.write_qword(base+8, self.mutant);
+        mem.write_qword(base+16, self.image_base_addr);
+        mem.write_qword(base+24, self.ldr);
+        mem.write_qword(base+32, self.process_parameters);
+        mem.write_qword(base+40, self.subsystem_data);
+        mem.write_qword(base+48, self.process_heap);
+        mem.write_qword(base+56, self.fast_peb_lock);
+        mem.write_qword(base+64, self.system_dependent_02);
+        mem.write_qword(base+72, self.system_dependent_03);
+        mem.write_qword(base+80, self.system_dependent_04);
+        mem.write_qword(base+88, self.kernel_callback_table);
+        mem.write_dword(base+96, self.system_reserved);
+        mem.write_dword(base+100, self.system_dependent_05);
+        mem.write_qword(base+104, self.system_dependent_06);
+        mem.write_qword(base+112, self.tls_expansion_counter);
+        mem.write_qword(base+120, self.tls_bitmap);
+        mem.write_dword(base+128, self.tls_bitmap_bits[0]);
+        mem.write_dword(base+132, self.tls_bitmap_bits[1]);
+        mem.write_qword(base+136, self.read_only_shared_memory_base);
+        mem.write_qword(base+144, self.system_dependent_07);
+        mem.write_qword(base+152, self.read_only_static_server_data);
+        mem.write_qword(base+160, self.ansi_code_page_data);
+        mem.write_qword(base+168, self.oem_code_page_data);
+        mem.write_qword(base+176, self.unicode_case_table_data);
+        mem.write_dword(base+184, self.number_of_processors);
+        mem.write_dword(base+188, self.nt_global_flag);
+        mem.write_qword(base+192, self.critical_section_timeout);
+        mem.write_qword(base+200, self.heap_segment_reserve);
+        mem.write_qword(base+208, self.heap_segment_commit);
+        mem.write_qword(base+216, self.heap_decommit_total_free_threshold);
+        mem.write_qword(base+224, self.heap_decommit_free_block_threshold);
+        mem.write_dword(base+232, self.number_of_heaps);
+        mem.write_dword(base+236, self.max_number_of_heaps);
+        mem.write_qword(base+240, self.process_heaps);
+        mem.write_qword(base+248, self.gdi_share_handle_table);
+        mem.write_qword(base+256, self.process_starter_helper);
+        mem.write_qword(base+264, self.gdi_dc_attribute_list);
+        mem.write_qword(base+272, self.loader_lock);
+        mem.write_dword(base+280, self.os_major_version);
+        mem.write_dword(base+284, self.os_minor_version);
+        mem.write_word(base+288, self.os_build_number);
+        mem.write_word(base+290, self.oscsd_version);
+        mem.write_dword(base+292, self.os_platform_id);
+        mem.write_dword(base+296, self.image_subsystem);
+        mem.write_dword(base+300, self.image_subsystem_major_version);
+        mem.write_qword(base+304, self.image_subsystem_minor_version);
+        mem.write_qword(base+312, self.active_process_afinity_mask);
+        let mut idx = base+312+8;
+        for i in 0..30 {
+            mem.write_qword(idx, self.gdi_handle_buffer[i as usize]);
+            idx += 8;
+        }
+        mem.write_qword(idx, self.post_process_init_routine);
+        mem.write_qword(idx+8, self.tls_expansion_bitmap);
+        idx += 8;
+        for i in 0..32 {
+            mem.write_dword(idx, self.tls_expansion_bitmap_bits[i]);
+            idx += 4;
+        }
+        mem.write_qword(idx, self.session_id);
+        mem.write_qword(idx+8, self.app_compat_flags);
+        mem.write_qword(idx+16, self.app_compat_flags_user);
+        mem.write_qword(idx+24, self.p_shim_data);
+        mem.write_qword(idx+32, self.app_compat_info);
+        mem.write_qword(idx+40, self.csd_version[0]);
+        mem.write_qword(idx+48, self.csd_version[1]);
+        mem.write_qword(idx+56, self.activate_context_data);
+        mem.write_qword(idx+64, self.process_assembly_storage_map);
+        mem.write_qword(idx+72, self.system_default_activation_context_data);
+        mem.write_qword(idx+80, self.system_assembly_storage_map);
+        mem.write_qword(idx+88, self.minimum_stack_commit);
     }
 
     pub fn print(&self) {
@@ -435,6 +689,11 @@ pub struct LdrDataTableEntry64 {
 }
 
 impl LdrDataTableEntry64 {
+
+    pub fn size() -> u64 {
+        return 120;
+    }
+
     pub fn load(addr:u64, maps:&Maps) -> LdrDataTableEntry64 {
         LdrDataTableEntry64{
             in_load_order_links: maps.read_qword(addr).unwrap(),

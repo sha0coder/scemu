@@ -131,7 +131,8 @@ pub fn dump_module_iat(emu:&mut emu::Emu, module: &str) {
                     }
 
                     let ordinal = flink.get_function_ordinal(emu, i);
-                    println!("0x{:x} {}!{}", ordinal.func_va, &flink.mod_name, &ordinal.func_name); 
+                    println!("0x{:x} {}!{}", ordinal.func_va, &flink.mod_name, 
+                             &ordinal.func_name); 
                 }
             }
         }
@@ -245,7 +246,6 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
 
-
     //peb32::show_linked_modules(emu);
 
     let mut flink = peb32::Flink::new(emu);
@@ -253,7 +253,6 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     let first_flink = flink.get_ptr();
 
     loop {
-
         if flink.export_table_rva > 0 {
             for i in 0..flink.num_of_funcs {
                 if flink.pe_hdr == 0 {
@@ -265,8 +264,9 @@ fn GetProcAddress(emu:&mut emu::Emu) {
                 
                 if ordinal.func_name.to_lowercase() == func {
                     emu.regs.rax = ordinal.func_va;
-                    println!("{}** {} kernel32!GetProcAddress  `{}!{}` =0x{:x} {}", emu.colors.light_red, emu.pos, flink.mod_name
-                             ,ordinal.func_name, emu.regs.get_eax() as u32, emu.colors.nc);
+                    println!("{}** {} kernel32!GetProcAddress  `{}!{}` =0x{:x} {}", 
+                             emu.colors.light_red, emu.pos, flink.mod_name ,ordinal.func_name, 
+                             emu.regs.get_eax() as u32, emu.colors.nc);
                     return;
                 }
             }
@@ -281,7 +281,6 @@ fn GetProcAddress(emu:&mut emu::Emu) {
     if emu.cfg.verbose >= 1 {
         println!("kernel32!GetProcAddress error searching {}", func);
     }
-    return;
 }
 
 pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
@@ -325,13 +324,14 @@ pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
 }
 
 fn LoadLibraryA(emu:&mut emu::Emu) {
-    let dllptr = emu.maps.read_dword(emu.regs.get_esp()).expect("bad LoadLibraryA parameter") as u64;
+    let dllptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("bad LoadLibraryA parameter") as u64;
     let dll = emu.maps.read_string(dllptr);
 
     emu.regs.rax = load_library(emu, &dll);
 
-    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, emu.pos, &dll, 
-             emu.regs.get_eax() as u32, emu.colors.nc);
+    println!("{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}", emu.colors.light_red, 
+             emu.pos, &dll, emu.regs.get_eax() as u32, emu.colors.nc);
 
     emu.stack_pop32(false);
 
@@ -339,10 +339,12 @@ fn LoadLibraryA(emu:&mut emu::Emu) {
 }
 
 fn LoadLibraryExA(emu:&mut emu::Emu) {
-    let libname_ptr = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32_LoadLibraryExA: error reading libname ptr param") as u64;
+    let libname_ptr = emu.maps.read_dword(emu.regs.get_esp())
+        .expect("kernel32_LoadLibraryExA: error reading libname ptr param") as u64;
     let libname = emu.maps.read_string(libname_ptr);
 
-    println!("{}** {} LoadLibraryExA '{}' {}", emu.colors.light_red, emu.pos, libname, emu.colors.nc);
+    println!("{}** {} LoadLibraryExA '{}' {}", emu.colors.light_red, emu.pos, libname, 
+             emu.colors.nc);
     panic!();
 }
 
