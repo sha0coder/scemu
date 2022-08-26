@@ -1,5 +1,5 @@
 # scemu
-x86 32/64bits emulator, for securely emulating shellcodes 
+x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
 ## Features
 - 📦 rust safety, good for malware. 
