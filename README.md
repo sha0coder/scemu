@@ -36,14 +36,14 @@ x86 32/64bits emulator, for securely emulating malware and other stuff.
     - mars stealer pe32.
 
 ## TODO
+    - convert it on a library, and a tool that uses the lib, for a programatic usage.
 	- more fpu
 	- more mmx
-	- scripting?
-    - support more complex shellcodes
+    - support more complex malwares
 
 ## Usage
 ```
-SCEMU emulator for Shellcodes 0.3.3   32bits and 64bits
+SCEMU emulator for Shellcodes 0.4.0   32bits and 64bits
 @sha0coder
 
 USAGE:
