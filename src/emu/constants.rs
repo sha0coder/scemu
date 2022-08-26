@@ -19,7 +19,9 @@ pub const CALL_FIRST:u32 = 1;
 pub const CALL_LAST:u32 = 0;
 
 pub const RETURN_THREAD:u32 = 0x11223344; 
-pub const LIBS_BARRIER:u64 = 0x60000000;
+pub const LIBS_BARRIER:u64   = 0x60000000;
+pub const LIBS_BARRIER64:u64 = 0x60000000;
+                               // ntdll: 0x76dc7070
 
 pub const INTERNET_OPTION_ALTER_IDENTITY:u32 = 80;
 pub const INTERNET_OPTION_ASYNC:u32 = 30;
