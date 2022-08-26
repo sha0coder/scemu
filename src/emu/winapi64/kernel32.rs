@@ -187,7 +187,6 @@ pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
         None => {
             // do link
             if std::path::Path::new(&dll_path).exists() {
-                println!("linking library");
                 let (base, pe_off) = emu.load_pe64(&dll_path, false, 0);
                 peb64::dynamic_link_module(base as u64, pe_off,  &dll, emu);
                 return base as u64;
