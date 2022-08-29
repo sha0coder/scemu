@@ -137,6 +137,11 @@ fn main() {
     cfg.loops = matches.is_present("loops");
     cfg.nocolors = matches.is_present("nocolors");
 
+    let mut disable_ctrlc = false;
+    if cfg.nocolors {
+        disable_ctrlc = true;
+    }
+
     if matches.is_present("string") {
         cfg.trace_string = true;
         cfg.string_addr = u64::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
@@ -188,6 +193,9 @@ fn main() {
     emu.set_config(cfg);
     emu.init();
     emu.load_code(&filename.to_string());
+    if disable_ctrlc {
+        emu.disable_ctrlc();
+    }
 
     emu.run(0);
 }
