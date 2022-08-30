@@ -692,15 +692,20 @@ impl Emu {
         std::env::set_current_dir(orig_path);
     }
 
+    pub fn filename_to_mapname(&self, filename: &str) -> String {                                                                                                                              
+        let spl:Vec<&str> = filename.split('.').collect();                                                                                                                                     
+        let spl2:Vec<&str> = spl[0].split('/').collect();                                                                                                                                      
+        let last = spl2.len() -1;                                                                                                                                                              
+        spl2[last].to_string()                                                                                                                                                                 
+    }   
+
     pub fn load_pe32(&mut self, filename: &str, set_entry: bool, force_base: u32) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
         if set_entry {
             pe32.iat_binding(self);
         }
 
-        let spl:Vec<&str> = filename.split('.').collect();
-        let spl2:Vec<&str> = spl[0].split('/').collect();
-        let last = spl2.len() -1;
+        let map_name = self.filename_to_mapname(filename);
         let base;
         if force_base > 0 {
             base = force_base;
@@ -709,7 +714,7 @@ impl Emu {
         }
     
         //TODO: query if this vaddr is already used
-        let pemap = self.maps.create_map(&format!("{}.pe",  spl2[last]));
+        let pemap = self.maps.create_map(&format!("{}.pe", map_name));
         pemap.set_base(base.into());
         pemap.set_size(pe32.opt.size_of_headers.into());
         pemap.memcpy(pe32.get_headers(), pe32.opt.size_of_headers as usize);
@@ -726,7 +731,7 @@ impl Emu {
             }
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
-            let map = self.maps.create_map(&format!("{}{}",  spl2[last], 
+            let map = self.maps.create_map(&format!("{}{}", map_name, 
                                                     sect.get_name().replace(" ","").replace("\t","")
                                                     .replace("\x0a","").replace("\x0d","")));
 
@@ -760,9 +765,7 @@ impl Emu {
             pe64.iat_binding(self);
         }
 
-        let spl:Vec<&str> = filename.split('.').collect();
-        let spl2:Vec<&str> = spl[0].split('/').collect();
-        let last = spl2.len() -1;
+        let map_name = self.filename_to_mapname(filename);
         let base:u64;
         if force_base > 0 {
             base = force_base;
@@ -771,7 +774,7 @@ impl Emu {
         }
     
         //TODO: query if this vaddr is already used
-        let pemap = self.maps.create_map(&format!("{}.pe",  spl2[last]));
+        let pemap = self.maps.create_map(&format!("{}.pe", map_name));
         pemap.set_base(base.into());
         pemap.set_size(pe64.opt.size_of_headers.into());
         pemap.memcpy(pe64.get_headers(), pe64.opt.size_of_headers as usize);
@@ -788,7 +791,7 @@ impl Emu {
             }
             let ptr = pe64.get_section_ptr(i);
             let sect = pe64.get_section(i);
-            let map = self.maps.create_map(&format!("{}{}",  spl2[last], 
+            let map = self.maps.create_map(&format!("{}{}", map_name, 
                                                     sect.get_name().replace(" ","").replace("\t","")
                                                     .replace("\x0a","").replace("\x0d","")));
 
@@ -1274,8 +1277,8 @@ impl Emu {
             }
         };
 
-
-        if addr < constants::LIBS_BARRIER64 || name == "code" {
+        let map_name = self.filename_to_mapname(&self.cfg.filename);
+        if addr < constants::LIBS_BARRIER64 || name == "code" || name.starts_with(&map_name) {
             self.regs.rip = addr;
         } else {
             if self.cfg.verbose >= 1 {
@@ -1309,7 +1312,8 @@ impl Emu {
             }
         };
 
-        if name == "code" || addr < constants::LIBS_BARRIER {
+        let map_name = self.filename_to_mapname(&self.cfg.filename);
+        if name == "code" || addr < constants::LIBS_BARRIER || name.starts_with(&map_name) {
             self.regs.set_eip(addr);
         } else {
             if self.cfg.verbose >= 1 {

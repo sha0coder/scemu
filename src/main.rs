@@ -113,8 +113,10 @@ fn main() {
     if !matches.is_present("filename") {
         println!("the filename is mandatory, try -f <FILENAME> or --help");
     }
+    
+    let filename = matches.value_of("filename").expect("please enter the filename.").to_string();
+    cfg.filename = filename.clone();
 
-    let filename = matches.value_of("filename").expect("please enter the filename.");
     cfg.verbose = matches.occurrences_of("verbose") as u32;
     if cfg.verbose == 0 {
         println!("use -vv to see the assembly code emulated, and -v to see the messages");
@@ -192,7 +194,7 @@ fn main() {
     
     emu.set_config(cfg);
     emu.init();
-    emu.load_code(&filename.to_string());
+    emu.load_code(&filename);
     if disable_ctrlc {
         emu.disable_ctrlc();
     }
