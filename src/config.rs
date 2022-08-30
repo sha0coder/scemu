@@ -1,6 +1,7 @@
 
 #[derive(Clone)]
 pub struct Config {
+    pub filename: String,     // filename with full path included
     pub trace_mem: bool,    // show memory operations in every step.
     pub trace_regs: bool,   // show all the regs in every step.
     pub trace_reg: bool,    // show value and content of a reg in every step.
@@ -27,6 +28,7 @@ pub struct Config {
 impl Config {
     pub fn new() -> Config {
         Config {
+            filename: String::new(),
             trace_mem: false,
             trace_regs: false,
             trace_reg: false,
