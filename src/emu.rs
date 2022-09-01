@@ -2907,8 +2907,10 @@ impl Emu {
         let mut looped:Vec<u64> = Vec::new();
         let mut prev_addr:u64 = 0;
         let mut repeat_counter:u32 = 0;
-
-        println!(" ----- emulation -----");
+    
+        if end_addr == 0 {
+            println!(" ----- emulation -----");
+        }
         
         //let ins = Instruction::default();
         let mut formatter = IntelFormatter::new();
