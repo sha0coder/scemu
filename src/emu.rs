@@ -1664,8 +1664,10 @@ impl Emu {
     pub fn shld(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> u64 {
         let mut storage0:u64 = value0;
         let mut counter:u64 = pcounter;
-
-        self.flags.f_cf = get_bit!(value0, size - counter as u8) == 1;
+    
+        if counter < size as u64 && size - (counter as u8) < 64 {
+            self.flags.f_cf = get_bit!(value0, size - counter as u8) == 1;
+        }
 
         if pcounter >= size as u64 {
             counter = pcounter - size as u64;
