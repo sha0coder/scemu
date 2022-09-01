@@ -836,14 +836,17 @@ impl PE32 {
     }
 
     pub fn iat_binding(&mut self, emu:&mut emu::Emu) {
+        let dbg = false;
         // https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2#Binding
 
         println!("IAT Bound started ...");
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
-            //println!("import: {}", iim.name);
+            if dbg { println!("import: {}", iim.name); }
 
-            emu::winapi32::kernel32::load_library(emu, &iim.name);
+            if emu::winapi32::kernel32::load_library(emu, &iim.name) == 0 {
+                panic!("cannot found the library {} on maps32/", &iim.name);
+            }
             
             // Walking function names.
             let mut off_name = PE32::vaddr_to_off(&self.sect_hdr, iim.original_first_thunk) as usize;
@@ -862,10 +865,10 @@ impl PE32 {
                     continue;
                 }
                 let func_name = PE32::read_string(&self.raw, off2+2);
-                //println!("0x{:x} {}!{}", addr, iim.name, func_name); 
+                if dbg { println!("0x{:x} {}!{}", addr, iim.name, func_name); }
 
                 let real_addr = emu::winapi32::kernel32::resolve_api_name(emu, &func_name);
-                //println!("real addr: 0x{:x}", real_addr);
+                if dbg { println!("real addr: 0x{:x}", real_addr); }
 
                 write_u32_le!(self.raw, off_addr, real_addr);
 
