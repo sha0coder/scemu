@@ -508,7 +508,7 @@ impl Maps {
         None
     }
 
-    pub fn write_spaced_bytes(&mut self, addr:u64, sbs:String) -> bool {
+    pub fn write_spaced_bytes(&mut self, addr:u64, sbs:&str) -> bool {
         let bs:Vec<&str> = sbs.split(' ').collect();
         for bsi in bs.iter() {
             let b = u8::from_str_radix(bsi, 16).expect("bad num conversion");

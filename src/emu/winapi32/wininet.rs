@@ -460,7 +460,7 @@ fn InternetReadFile(emu:&mut emu::Emu) {
         *count += 1;
     
         if *count < 3 {
-            emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90".to_string());
+            emu.maps.write_spaced_bytes(buff_ptr, "90 90 90 90");
             emu.maps.write_dword(bytes_read_ptr, bytes_to_read as u32);
         } else {
             emu.maps.write_dword(bytes_read_ptr, 0);

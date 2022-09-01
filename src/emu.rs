@@ -1826,7 +1826,7 @@ impl Emu {
                     };
                     con.print("spaced bytes");
                     let bytes = con.cmd();
-                    self.maps.write_spaced_bytes(addr, bytes);
+                    self.maps.write_spaced_bytes(addr, &bytes);
                     println!("done.");
                 },
                 "b" => {
