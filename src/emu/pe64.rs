@@ -295,7 +295,9 @@ impl PE64 {
             let iim = &self.image_import_descriptor[i];
             //println!("import: {}", iim.name);
 
-            emu::winapi64::kernel32::load_library(emu, &iim.name);
+            if emu::winapi64::kernel32::load_library(emu, &iim.name) == 0 {
+                panic!("cannot found the library {} on maps64/", &iim.name);
+            }
 
             // Walking function names.
             let mut off_name = PE32::vaddr_to_off(&self.sect_hdr, iim.original_first_thunk) as usize;
