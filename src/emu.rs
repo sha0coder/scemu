@@ -3156,6 +3156,7 @@ impl Emu {
                     Mnemonic::Pushad => {
                         self.show_instruction(&self.colors.blue, &ins);
 
+                        // only 32bits instruction
                         let tmp_esp = self.regs.get_esp() as u32;
                         self.stack_push32(self.regs.get_eax() as u32);
                         self.stack_push32(self.regs.get_ecx() as u32);
@@ -3171,6 +3172,7 @@ impl Emu {
                         self.show_instruction(&self.colors.blue, &ins);
                         let mut poped:u64;
 
+                        // only 32bits instruction
                         poped = self.stack_pop32(false) as u64;
                         self.regs.set_edi(poped);
                         poped = self.stack_pop32(false) as u64;
@@ -7265,7 +7267,18 @@ impl Emu {
                         self.show_instruction(&self.colors.blue, &ins);
 
                         let flags = self.flags.dump();
-                        self.stack_push32(flags);
+                        self.stack_push32(flags); // 32bits only instruction
+                    }
+
+                    Mnemonic::Pushfq => {
+                        self.show_instruction(&self.colors.blue, &ins);
+
+                        // internal reserved register RFLAGS not very documented 
+                        if self.cfg.is_64bits { // 64bits only instruction
+                            self.stack_push64(0x00000346);
+                        } else {
+                            self.stack_push32(0x00000346);
+                        }
                     }
 
                     Mnemonic::Bound => {
