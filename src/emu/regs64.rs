@@ -486,6 +486,14 @@ impl Regs64 {
         get_reg8h!(self.r15);
     }
 
+    pub fn get_sil(&self) -> u64 {
+        get_reg8h!(self.rsi);
+    }
+
+    pub fn get_dil(&self) -> u64 {
+        get_reg8h!(self.rdi);
+    }
+
     // get 32bits
 
     pub fn get_eax(&self) -> u64 {
@@ -795,6 +803,14 @@ impl Regs64 {
         set_reg8h!(self.r15, val);
     }
 
+    pub fn set_sil(&mut self, val:u64) {
+        set_reg8h!(self.rsi, val);
+    }
+
+    pub fn set_dil(&mut self, val:u64) {
+        set_reg8h!(self.rdi, val);
+    }
+
     // xmm 
 
     pub fn is_xmm(&self, reg:Register) -> bool {
@@ -933,6 +949,8 @@ impl Regs64 {
             Register::R13L => self.get_r13l(),
             Register::R14L => self.get_r14l(),
             Register::R15L => self.get_r15l(),
+            Register::SIL => self.get_sil(),
+            Register::DIL => self.get_dil(),
             // segmets
             Register::DS => 0,
             Register::CS => 0,
@@ -1018,6 +1036,8 @@ impl Regs64 {
             Register::R13L => self.set_r13l(value),
             Register::R14L => self.set_r14l(value),
             Register::R15L => self.set_r15l(value),
+            Register::SIL => self.set_sil(value),
+            Register::DIL => self.set_dil(value),
             // segments
             Register::SS => { },
             Register::ES => { },
@@ -1095,6 +1115,8 @@ impl Regs64 {
             Register::R13L => 8,
             Register::R14L => 8,
             Register::R15L => 8,
+            Register::SIL => 8,
+            Register::DIL => 8,
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
@@ -1173,6 +1195,8 @@ impl Regs64 {
             "r13l" => return self.get_r13l(),
             "r14l" => return self.get_r14l(),
             "r15l" => return self.get_r15l(),
+            "sil" => return self.get_sil(),
+            "dil" => return self.get_dil(),
             &_ => unimplemented!("weird register name parsed {}", reg_name),
         }
     }
@@ -1249,6 +1273,8 @@ impl Regs64 {
             "r13l" => self.set_r13l(value),
             "r14l" => self.set_r14l(value),
             "r15l" => self.set_r15l(value),
+            "sil" => self.set_sil(value),
+            "dil" => self.set_dil(value),
             &_ => panic!("weird register name parsed {}", reg_name),
         }
     }
@@ -1514,13 +1540,20 @@ impl Regs64 {
         self.show_reg64(maps, "r15l", self.get_r15l(), pos);
     }
 
+    pub fn show_sil(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "sil", self.get_sil(), pos);
+    }
+
+    pub fn show_dil(&self, maps:&Maps, pos:u64) {
+        self.show_reg64(maps, "dil", self.get_dil(), pos);
+    }
 
     pub fn is_reg(&self, reg:&str) -> bool {
         match reg {
             "rax"|"rbx"|"rcx"|"rdx"|"rsi"|"rdi"|"rbp"|"rsp"|"rip"|"r8"|"r9"|"r10"|"r11"|"r12"|
             "eax"|"ebx"|"ecx"|"edx"|"esi"|"edi"|"esp"|"ebp"|"eip"|"r8d"|"r9d"|"r10d"|"r11d"|"r12d"|
             "ax"|"bx"|"cx"|"dx"|"bp"|"sp"|"r8w"|"r9w"|"r10w"|"r11w"|"r12w"|
-            "si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh"|"r8l"|"r9l"|"r10l"|"r11l"|"r12l" => true,
+            "si"|"di"|"al"|"ah"|"bl"|"bh"|"cl"|"ch"|"dl"|"dh"|"r8l"|"r9l"|"r10l"|"r11l"|"r12l"|"sil"|"dil" => true,
             &_ => false,
         }
     }
