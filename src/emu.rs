@@ -1647,12 +1647,22 @@ impl Emu {
             return storage0;
         }
 
-        for i in 0..=(size as u64 - 1 - counter) {
+        let mut to = size as u64 - 1 - counter;
+        if to>64 {
+            // println!("to: {}", to);
+            to = 64;
+        }
+
+        for i in 0..=to {
             let bit = get_bit!(storage0, i as u32 + counter as u32);
             set_bit!(storage0, i as u32, bit);
         }
 
-        for i in (size as u64 - counter)..size as u64 {
+        let from = size as u64 - counter;
+
+        //println!("from: {}", from);
+
+        for i in from..size as u64 {
             let bit = get_bit!(value1, i as u32 + counter as u32 - size as u32);
             set_bit!(storage0, i as u32, bit);
         }
@@ -4646,6 +4656,24 @@ impl Emu {
                                 break;
                             }
                         }
+                    }
+
+                    // https://hjlebbink.github.io/x86doc/html/CMOVcc.html
+
+                    Mnemonic::Cmovnp => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_pf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+
                     }
 
 
