@@ -6520,6 +6520,13 @@ impl Emu {
                         self.regs.set_eax(sigextend as u64);
                     }
 
+                    Mnemonic::Cwd => {
+                        self.show_instruction(&self.colors.green, &ins);
+
+                        let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
+                        self.regs.set_ax((sigextend & 0x0000ffff) as u64);
+                        self.regs.set_dx(((sigextend & 0xffff0000) >> 16) as u64); 
+                    }
         
 
                     ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
