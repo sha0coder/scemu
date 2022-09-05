@@ -3207,6 +3207,13 @@ impl Emu {
                         self.regs.set_eax(unum & 0xffffffff);
                     }
 
+                    Mnemonic::Cqo => {
+                        self.show_instruction(&self.colors.blue, &ins);
+
+                        let sigextend:u128 = self.regs.rax as u64 as i64 as i128 as u128;
+                        self.regs.rdx = ((sigextend & 0xffffffff_ffffffff_00000000_00000000) >> 64) as u64
+                    }
+
                     Mnemonic::Ret => {
                         let ret_addr:u64;
 
