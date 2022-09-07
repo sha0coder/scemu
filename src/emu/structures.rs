@@ -127,6 +127,41 @@ impl OrdinalTable {
     }
 }
 
+#[derive(Debug)]
+pub struct TEB {
+    reserved1: [u32;12],                                                                                                                              
+    peb: u32,                                                                                                                                         
+    reserved2: [u32;399],                                                                                                                             
+    reserved3: [u8;1952],                                                                                                                             
+    tls_slots: [u32;64],                                                                                                                              
+    reserved4: [u8;8],                                                                                                                                
+    reserved5: [u32;26],                                                                                                                              
+    reserved_for_ole: u32,                                                                                                                            
+    reserved6: [u32;4],                                                                                                                               
+    tls_expansion_slots: u32,                                                                                                                         
+}
+
+impl TEB {                                                                                                                                            
+    pub fn load(addr:u64, maps:&Maps) -> TEB {        
+        TEB {                                       
+            reserved1: [0;12],
+            peb: maps.read_dword(addr + 48).unwrap(), 
+            reserved2: [0;399],
+            reserved3: [0;1952],
+            tls_slots: [0;64], //TODO: read this
+            reserved4: [0;8],
+            reserved5: [0;26],
+            reserved_for_ole: maps.read_dword(addr + 3968).unwrap(),
+            reserved6: [0;4],
+            tls_expansion_slots: maps.read_dword(addr + 3988).unwrap(),
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
 
 #[derive(Debug)]
 pub struct PEB {
@@ -207,6 +242,10 @@ impl PEB {
             reserved12: maps.read_dword(addr + 840).unwrap(),
             session_id: maps.read_dword(addr + 844).unwrap(),
         }
+    }
+
+    pub fn set_image_base(&mut self, image_base:u32) {
+        self.reserved3[1] = image_base;
     }
 
     pub fn save(&self, mem: &mut Mem64) {

@@ -20,6 +20,13 @@ pub fn init_peb(emu:&mut emu::Emu) {
     peb.save(&mut peb_map);
 }
 
+pub fn set_image_base(emu:&mut emu::Emu, image_base:u32) {   
+    let mut peb = PEB::load(0x7ffdf000, &mut emu.maps);               
+    peb.set_image_base(image_base);
+    let map = emu.maps.get_mem("peb");
+    peb.save(map);
+}
+
 
 #[derive(Debug)]
 pub struct Flink {

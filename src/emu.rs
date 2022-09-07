@@ -711,6 +711,7 @@ impl Emu {
             base = force_base;
         } else {
             base = pe32.opt.image_base;
+            peb32::set_image_base(self, base);
         }
     
         //TODO: query if this vaddr is already used
@@ -2301,6 +2302,10 @@ impl Emu {
                     match struc.as_str() {
                         "peb" => {
                             let s = structures::PEB::load(addr, &self.maps);
+                            s.print();
+                        }
+                        "teb" => {
+                            let s = structures::TEB::load(addr, &self.maps);
                             s.print();
                         }
                         "peb_ldr_data" => {
