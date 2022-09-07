@@ -3,11 +3,11 @@ use crate::emu::structures::PEB;
 use crate::emu::structures::OrdinalTable;
 use crate::emu::structures::LdrDataTableEntry;
 
-pub fn init_peb(emu:&mut emu::Emu, first_entry:u64) {
+pub fn init_peb(emu:&mut emu::Emu, first_entry:u64, bin_base:u32) -> u64 {
+    let peb_addr = 0x7ffdf000;
     let mut peb_map = emu.maps.create_map("peb");
-    peb_map.set_base(0x7ffdf000); //TODO: use allocator
+    peb_map.set_base(peb_addr); //TODO: use allocator
     peb_map.set_size(PEB::size() as u64);
-
 
     let ldr = 0x77647880; // ntdll_data for now
     let process_parameters = 0x2c1118;  // reserved map for now
@@ -20,19 +20,21 @@ pub fn init_peb(emu:&mut emu::Emu, first_entry:u64) {
     let peb = PEB::new(ldr as u32, process_parameters, alt_thunk_list_ptr, reserved7, alt_thunk_list_ptr_32, post_process_init_routine, session_id);
     peb.save(&mut peb_map);
 
-    emu.maps.write_dword(ldr + 24, first_entry as u32);
-}
+    //emu.maps.write_dword(ldr + 24, first_entry as u32);
+    emu.maps.write_dword(ldr + 0x14, first_entry as u32);
 
-pub fn set_image_base(emu:&mut emu::Emu, image_base:u32, mod_name:&str) {   
-    let mut peb = PEB::load(0x7ffdf000, &mut emu.maps);               
-    peb.set_image_base(image_base);
-    let map = emu.maps.get_mem("peb");
-    peb.save(map);
+    if bin_base > 0 {
+        let ntdll_data = emu.maps.read_dword(peb_addr + 0xc).unwrap();
+        let reserved = emu.maps.read_dword(ntdll_data as u64 + 0xc).unwrap();
+        emu.maps.write_dword(reserved as u64 + 0x18, bin_base);
+    }
+    //let dll_base = emu.maps.read_dword(reserved as u64 + 0x18).unwrap();
+    //println!("dll_base: 0x{:x}", dll_base);
+    //assert!(1==2);
 
-    let mut flink = Flink::new(emu);
-    flink.mod_base = image_base as u64; 
-    flink.mod_name = mod_name.to_string();
-
+    //dont do this: emu.maps.write_dword(ntdll_data as u64 + 0xc, first_entry as u32); 
+    
+    peb_addr
 }
 
 

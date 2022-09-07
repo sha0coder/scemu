@@ -688,16 +688,16 @@ impl Emu {
         std::env::set_current_dir(orig_path);
     }
 
-    pub fn filename_to_mapname(&self, filename: &str) -> String {                                                                                                                              
-        let spl:Vec<&str> = filename.split('.').collect();                                                                                                                                     
-        let spl2:Vec<&str> = spl[0].split('/').collect();                                                                                                                                      
-        let last = spl2.len() -1;                                                                                                                                                              
-        spl2[last].to_string()                                                                                                                                                                 
+    pub fn filename_to_mapname(&self, filename: &str) -> String {
+        let spl:Vec<&str> = filename.split('.').collect();
+        let spl2:Vec<&str> = spl[0].split('/').collect();
+        let last = spl2.len() -1;
+        spl2[last].to_string()
     }   
 
     pub fn load_pe32(&mut self, filename: &str, set_entry: bool, force_base: u32) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
-        let base;
+        let mut base;
 
         if force_base > 0 {
             base = force_base;
@@ -705,11 +705,17 @@ impl Emu {
             base = pe32.opt.image_base;
         }
 
+        if self.cfg.code_base_addr != 0x3c0000 {
+            base = self.cfg.code_base_addr as u32;
+        }
+
         let map_name = self.filename_to_mapname(filename);
 
         if set_entry {
-            let space_addr = peb32::create_ldr_entry(self, base as u64, pe32.dos.e_lfanew, &map_name, 0, 0x2c194f);
-            peb32::init_peb(self, space_addr);
+            let space_addr = peb32::create_ldr_entry(self, base as u64, pe32.dos.e_lfanew, &map_name, 0, 0x2c1950);
+            let peb = peb32::init_peb(self, space_addr, base);
+            self.maps.write_dword(peb + 8, base);
+            
             pe32.iat_binding(self);
         }
 
@@ -749,7 +755,11 @@ impl Emu {
                      map.get_base(), sect.virtual_size);
             if set_entry {
                 if sect.get_name() == ".text" || i == 0 {
-                    self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64;
+                    if self.cfg.entry_point != 0x3c0000 {
+                        self.regs.rip = self.cfg.entry_point;
+                    } else {
+                        self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64;
+                    }
                     println!("\tentry point at 0x{:x}  0x{:x} ", self.regs.rip, pe32.opt.address_of_entry_point);
                 }
             }
@@ -844,7 +854,8 @@ impl Emu {
     pub fn load_code(&mut self, filename: &str) {
         self.filename = filename.to_string();
 
-        
+        //let map_name = self.filename_to_mapname(filename);  
+        //self.cfg.filename = map_name; 
 
         if !self.cfg.is_64bits && PE32::is_pe32(filename) {
             println!("PE32 header detected.");
@@ -858,7 +869,7 @@ impl Emu {
 
             println!("shellcode detected.");
             if !self.cfg.is_64bits {
-                peb32::init_peb(self, 0x2c18c0);
+                peb32::init_peb(self, 0x2c18c0, 0);
             }
 
 
@@ -2270,7 +2281,7 @@ impl Emu {
                             continue;
                         }
                     };
-                    self.disasemble(addr, 10);
+                    self.disassemble(addr, 10);
                 },
                 "ldr" => {
                     if self.cfg.is_64bits {
@@ -2446,7 +2457,7 @@ impl Emu {
         }
     }
 
-    pub fn disasemble(&mut self, addr:u64, amount:u32) {
+    pub fn disassemble(&mut self, addr:u64, amount:u32) {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
