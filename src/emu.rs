@@ -167,9 +167,6 @@ impl Emu {
         assert!(self.regs.get_ebp() < stack.get_bottom());
         assert!(stack.inside(self.regs.get_esp()));
         assert!(stack.inside(self.regs.get_ebp()));
-
-        let apiname = winapi32::kernel32::guess_api_name(self, 0x75e6b45c);
-        println!("the apiname {} ", apiname);
     }
 
     pub fn init_stack64(&mut self) {
@@ -327,8 +324,7 @@ impl Emu {
         /*let peb = self.maps.get_mem("peb");
         peb.set_base(0x7ffdf000);
         peb.load("peb.bin");*/
-
-        peb32::init_peb(self);
+    
 
         let teb = self.maps.get_mem("teb");
         teb.set_base(0x7ffde000);
@@ -701,21 +697,26 @@ impl Emu {
 
     pub fn load_pe32(&mut self, filename: &str, set_entry: bool, force_base: u32) -> (u32,u32) {
         let mut pe32 = PE32::load(filename);
-        if set_entry {
-            pe32.iat_binding(self);
-        }
-
-        let map_name = self.filename_to_mapname(filename);
         let base;
+
         if force_base > 0 {
             base = force_base;
         } else {
             base = pe32.opt.image_base;
-            peb32::set_image_base(self, base);
         }
-    
+
+        let map_name = self.filename_to_mapname(filename);
+
+        if set_entry {
+            let space_addr = peb32::create_ldr_entry(self, base as u64, pe32.dos.e_lfanew, &map_name, 0, 0x2c194f);
+            peb32::init_peb(self, space_addr);
+            pe32.iat_binding(self);
+        }
+
         //TODO: query if this vaddr is already used
         let pemap = self.maps.create_map(&format!("{}.pe", map_name));
+
+    
         pemap.set_base(base.into());
         pemap.set_size(pe32.opt.size_of_headers.into());
         pemap.memcpy(pe32.get_headers(), pe32.opt.size_of_headers as usize);
@@ -755,6 +756,7 @@ impl Emu {
         }
 
         let pe_hdr_off = pe32.dos.e_lfanew;
+
 
         pe32.clear();
         return (base, pe_hdr_off);
@@ -855,6 +857,11 @@ impl Emu {
         } else { // shellcode
 
             println!("shellcode detected.");
+            if !self.cfg.is_64bits {
+                peb32::init_peb(self, 0x2c18c0);
+            }
+
+
             if !self.maps.get_mem("code").load(filename) {
                 println!("shellcode not found, select the file with -f");
                 std::process::exit(1);
