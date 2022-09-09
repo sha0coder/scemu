@@ -2499,11 +2499,11 @@ impl Emu {
             OpKind::Immediate64 => ins.immediate64(),
             OpKind::Immediate8 => ins.immediate8().into(),
             OpKind::Immediate16 => ins.immediate16().into(),
-            OpKind::Immediate32 => ins.immediate32().into(),
+            OpKind::Immediate32 => ins.immediate32() as u32 as u64,
             OpKind::Immediate8to64 => ins.immediate8to64() as u64,
             OpKind::Immediate32to64 => ins.immediate32to64() as u64,
-            OpKind::Immediate8to32 => ins.immediate8to32() as u64,
-            OpKind::Immediate8to16 => ins.immediate8to16() as u64,
+            OpKind::Immediate8to32 => ins.immediate8to32() as u32 as u64,
+            OpKind::Immediate8to16 => ins.immediate8to16() as u16 as u64,
             OpKind::Register => self.regs.get_reg(ins.op_register(noperand)),
             OpKind::Memory => {
                 let mut derref = do_derref;
@@ -4928,19 +4928,47 @@ impl Emu {
                     Mnemonic::Stosb => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
                         
-                        if self.cfg.is_64bits {
-                            self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
-                            if self.flags.f_df {
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rdi += 1;
+                        if ins.has_rep_prefix() {
+                            loop {
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }
+
+                                if self.cfg.is_64bits {
+                                    self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
+                                    if self.flags.f_df {
+                                        self.regs.rdi -= 1;
+                                    } else {
+                                        self.regs.rdi += 1;
+                                    }
+                                } else { // 32bits
+                                    self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
+                                    if self.flags.f_df {
+                                        self.regs.set_edi(self.regs.get_edi() - 1);
+                                    } else {
+                                        self.regs.set_edi(self.regs.get_edi() + 1);
+                                    }
+                                }
+
+                                self.regs.rcx -= 1;
                             }
-                        } else { // 32bits
-                            self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 1);
+
+                        } else {
+
+                            if self.cfg.is_64bits {
+                                self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
+                                if self.flags.f_df {
+                                    self.regs.rdi -= 1;
+                                } else {
+                                    self.regs.rdi += 1;
+                                }
+                            } else { // 32bits
+                                self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
+                                if self.flags.f_df {
+                                    self.regs.set_edi(self.regs.get_edi() - 1);
+                                } else {
+                                    self.regs.set_edi(self.regs.get_edi() + 1);
+                                }
                             }
                         }
                     }
@@ -4970,21 +4998,48 @@ impl Emu {
                     Mnemonic::Stosd => {
                         self.show_instruction(&self.colors.light_cyan, &ins);
 
-                        if self.cfg.is_64bits {
-                            self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
+                        if ins.has_rep_prefix() {                                             
+                            loop {                  
+                                if self.regs.rcx == 0 {
+                                    break;
+                                }                      
+                                 
+                                if self.cfg.is_64bits {
+                                    self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
+                                    if self.flags.f_df {
+                                        self.regs.rdi -= 4;                    
+                                    } else {
+                                        self.regs.rdi += 4;                    
+                                    }
+                                } else { // 32bits
+                                    self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
+                     
+                                    if self.flags.f_df {
+                                        self.regs.set_edi(self.regs.get_edi() - 4);
+                                    } else {
+                                        self.regs.set_edi(self.regs.get_edi() + 4);
+                                    }
+                                }
 
-                            if self.flags.f_df {
-                                self.regs.rdi -= 4;
-                            } else {
-                                self.regs.rdi += 4;
+                                self.regs.rcx -= 1;
                             }
-                        } else { // 32bits
-                            self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
+                        } else {
+                            if self.cfg.is_64bits {
+                                self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
 
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 4);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 4);
+                                if self.flags.f_df {
+                                    self.regs.rdi -= 4;
+                                } else {
+                                    self.regs.rdi += 4;
+                                }
+                            } else { // 32bits
+                                self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
+
+                                if self.flags.f_df {
+                                    self.regs.set_edi(self.regs.get_edi() - 4);
+                                } else {
+                                    self.regs.set_edi(self.regs.get_edi() + 4);
+                                }
                             }
                         }
                     }

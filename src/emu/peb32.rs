@@ -31,8 +31,25 @@ pub fn init_peb(emu:&mut emu::Emu, first_entry:u64, bin_base:u32) -> u64 {
     //let dll_base = emu.maps.read_dword(reserved as u64 + 0x18).unwrap();
     //println!("dll_base: 0x{:x}", dll_base);
     //assert!(1==2);
+    //
 
-    //dont do this: emu.maps.write_dword(ntdll_data as u64 + 0xc, first_entry as u32); 
+    // xloader checks the flink + 0x30 of every lib looking for the module name which really it's
+    // on flink + 0x28
+    let mut flink = Flink::new(emu);
+    flink.load(emu);
+    let first_flink = flink.get_ptr();
+    loop {
+      
+        let libname_ptr =  emu.maps.read_dword(flink.get_ptr() + 0x28).unwrap();
+        let libname = emu.maps.read_wide_string(libname_ptr as u64);
+        emu.maps.write_dword(flink.get_ptr() + 0x30, libname_ptr as u32);
+
+        flink.next(emu);
+        if flink.get_ptr() == first_flink {
+            break;
+        }
+    }    
+
     
     peb_addr
 }
@@ -54,7 +71,6 @@ pub struct Flink {
 
 impl Flink {
     pub fn save(&mut self, emu: &mut emu::Emu) {
-        
     }
 
     pub fn new(emu: &mut emu::Emu) -> Flink {
@@ -102,7 +118,7 @@ impl Flink {
     }
 
     pub fn get_mod_name(&mut self, emu: &mut emu::Emu) {
-        let mod_name_ptr = emu.maps.read_dword(self.flink_addr + 0x28)
+        let mod_name_ptr = emu.maps.read_dword(self.flink_addr + 0x28) //0x28
             .expect("error reading mod_name_ptr") as u64;
         self.mod_name = emu.maps.read_wide_string(mod_name_ptr);
     }
@@ -313,11 +329,13 @@ pub fn create_ldr_entry(emu: &mut emu::Emu, base:u64, pe_off:u32, libname:&str, 
     mem.write_dword(space_addr+0x10, base as u32); // in_memory_order_linked_list
                                                          //
     mem.write_dword(space_addr+0x1c, base as u32);
-    //mem.write_dword(space_addr+0x3c, pe_off);
+    mem.write_dword(space_addr+0x3c, pe_off);
     mem.write_dword(space_addr+0x28, space_addr as u32 + 0x40); // libname ptr
+    mem.write_dword(space_addr+0x30, space_addr as u32 + 0x40); // libname ptr
     mem.write_wide_string(space_addr+0x40, &(libname.to_string()+"\x00"));
     mem.write_word(space_addr+0x26, libname.len() as u16 * 2 + 2); // undocumented field used on a cobalt strike sample.
-                                                                   //
+
     space_addr
 }
+
 
