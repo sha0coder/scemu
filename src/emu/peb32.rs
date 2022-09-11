@@ -301,7 +301,8 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
     emu.maps.write_dword(next_flink+4, space_addr as u32);
 }
 
-pub fn create_ldr_entry(emu: &mut emu::Emu, base:u64, pe_off:u32, libname:&str, next_flink:u64, prev_flink:u64) -> u64 {
+pub fn create_ldr_entry(emu: &mut emu::Emu, base:u64, pe_off:u32, libname:&str, 
+                        next_flink:u64, prev_flink:u64) -> u64 {
     // make space for ldr
     let sz = LdrDataTableEntry::size() as u64 +0x40 +1024;
     let space_addr = emu.maps.alloc(sz).expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
@@ -328,7 +329,7 @@ pub fn create_ldr_entry(emu: &mut emu::Emu, base:u64, pe_off:u32, libname:&str, 
     //mem.write_dword(space_addr+0x10, next_flink as u32); // in_memory_order_linked_list
     mem.write_dword(space_addr+0x10, base as u32); // in_memory_order_linked_list
                                                          //
-    mem.write_dword(space_addr+0x1c, base as u32);
+    mem.write_dword(space_addr+0x1c, base as u32); // entry_point?
     mem.write_dword(space_addr+0x3c, pe_off);
     mem.write_dword(space_addr+0x28, space_addr as u32 + 0x40); // libname ptr
     mem.write_dword(space_addr+0x30, space_addr as u32 + 0x40); // libname ptr

@@ -129,16 +129,16 @@ impl OrdinalTable {
 
 #[derive(Debug)]
 pub struct TEB {
-    reserved1: [u32;12],                                                                                                                              
-    peb: u32,                                                                                                                                         
-    reserved2: [u32;399],                                                                                                                             
-    reserved3: [u8;1952],                                                                                                                             
-    tls_slots: [u32;64],                                                                                                                              
-    reserved4: [u8;8],                                                                                                                                
-    reserved5: [u32;26],                                                                                                                              
-    reserved_for_ole: u32,                                                                                                                            
-    reserved6: [u32;4],                                                                                                                               
-    tls_expansion_slots: u32,                                                                                                                         
+    reserved1: [u32;12],
+    peb: u32,
+    reserved2: [u32;399],
+    reserved3: [u8;1952],
+    tls_slots: [u32;64],
+    reserved4: [u8;8],
+    reserved5: [u32;26],
+    reserved_for_ole: u32,
+    reserved6: [u32;4],
+    tls_expansion_slots: u32,
 }
 
 impl TEB {                                                                                                                                            
@@ -956,5 +956,70 @@ impl MemoryBasicInformation {
     pub fn print(&self) {
         println!("{:#x?}", self);
     }
+}
+
+// TLS
+
+
+#[derive(Debug)]
+pub struct TlsDirectory32 {
+    tls_data_start: u32,
+    tls_data_end: u32,
+    tls_index: u32,             // DS:[FS:[2Ch]] + tls_index *4
+    tls_callbacks: u32,
+    zero_fill_size: u32,        // size = tls_data_end - tls_data_start + zero_fill_size
+    characteristic: u32,
+}
+
+impl TlsDirectory32 {
+    pub fn load(addr:u64, maps:&Maps) -> TlsDirectory32 {
+        TlsDirectory32 {
+            tls_data_start: maps.read_dword(addr).unwrap(),
+            tls_data_end: maps.read_dword(addr + 4).unwrap(),
+            tls_index: maps.read_dword(addr + 8).unwrap(),
+            tls_callbacks: maps.read_dword(addr + 12).unwrap(),
+            zero_fill_size: maps.read_dword(addr + 16).unwrap(),
+            characteristic: maps.read_dword(addr + 20).unwrap()
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+#[derive(Debug)]
+pub struct TlsDirectory64 {
+    tls_data_start: u64,
+    tls_data_end: u64,
+    tls_index: u64,             // DS:[FS:[2Ch]] + tls_index *4
+    tls_callbacks: u64,
+    zero_fill_size: u32,        // size = tls_data_end - tls_data_start + zero_fill_size
+    characteristic: u32,
+}
+
+impl TlsDirectory64 {
+    pub fn load(addr:u64, maps:&Maps) -> TlsDirectory64 {
+        TlsDirectory64 {
+            tls_data_start: maps.read_qword(addr).unwrap(),
+            tls_data_end: maps.read_qword(addr + 8).unwrap(),
+            tls_index: maps.read_qword(addr + 16).unwrap(),
+            tls_callbacks: maps.read_qword(addr + 24).unwrap(),
+            zero_fill_size: maps.read_dword(addr + 32).unwrap(),
+            characteristic: maps.read_dword(addr + 34).unwrap()
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+#[derive(Debug)]
+pub struct ImageTlsCallback {  // every tls callback has this structure
+    dll_handle: u32,
+    reason: u32,
+    reserved:u32,
 }
 

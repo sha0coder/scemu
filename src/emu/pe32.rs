@@ -54,6 +54,12 @@ pub const IMAGE_DIRECTORY_ENTRY_COPYRIGHT:usize = 7;
 pub const IMAGE_DIRECTORY_ENTRY_GLOBALPTR:usize = 8;
 pub const IMAGE_DIRECTORY_ENTRY_TLS:usize = 9;
 pub const IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG:usize = 10;
+pub const IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT:usize = 11;
+pub const IMAGE_DIRECTORY_ENTRY_IAT:usize = 12;
+pub const IMAGE_DIRECTORY_ENTRY_DELAY_LOAD:usize = 13;
+pub const IMAGE_DIRECTORY_ENTRY_DOTNET_HDR:usize = 14;
+
+
 
 pub const IMAGE_SIZEOF_SHORT_NAME:usize = 8;
 pub const IMAGE_DEBUG_TYPE_UNKNOWN:u8 = 0;
@@ -839,7 +845,7 @@ impl PE32 {
         let dbg = false;
         // https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2#Binding
 
-        println!("IAT Bound started ...");
+        println!("IAT binding started ...");
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
             if dbg { println!("import: {}", iim.name); }

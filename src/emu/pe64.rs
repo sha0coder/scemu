@@ -56,6 +56,25 @@ macro_rules! read_u64_le {
     }   
 }*/
 
+/*
+#[derive(Debug)]
+pub struct ImageDataDirectory64 {
+    pub virtual_address: u64,
+    pub size: u32,
+}
+
+impl ImageDataDirectory64 {
+    pub fn load(raw: &Vec<u8>, off: usize) -> ImageDataDirectory64 {
+        ImageDataDirectory64 {
+            virtual_address: read_u64_le!(raw, off),
+            size: read_u32_le!(raw, off+8),
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}*/
 
 #[derive(Debug)]
 pub struct ImageOptionalHeader64 {
@@ -95,10 +114,12 @@ pub struct ImageOptionalHeader64 {
 impl ImageOptionalHeader64 {
     pub fn load(raw: &Vec<u8>, off: usize) -> ImageOptionalHeader64 {
         let mut dd: Vec<pe32::ImageDataDirectory> = Vec::new();
-        let mut pos = 108;
+        let mut pos = 112; //+ 144;   //108;
         for i in 0..pe32::IMAGE_NUMBEROF_DIRECTORY_ENTRIES {
-              dd.push( pe32::ImageDataDirectory::load(raw, off+pos) );
-              pos += 8;
+            let idd = pe32::ImageDataDirectory::load(raw, off+pos);
+            //println!("{} 0x{:x} {}", i, idd.virtual_address, idd.size);
+            dd.push( idd );
+            pos += 8;
         }
 
         ImageOptionalHeader64 {
@@ -140,6 +161,36 @@ impl ImageOptionalHeader64 {
         println!("{:#x?}", self);
     }
 }
+
+#[derive(Debug)]
+pub struct TlsDirectory64 {
+    tls_data_start: u64,
+    tls_data_end: u64,
+    tls_index: u64,             // DS:[FS:[2Ch]] + tls_index *4
+    tls_callbacks: u64,
+    zero_fill_size: u32,        // size = tls_data_end - tls_data_start + zero_fill_size
+    characteristic: u32,
+}
+
+impl TlsDirectory64 {
+    pub fn load(raw: &Vec<u8>, off: usize) -> TlsDirectory64 {
+        TlsDirectory64 {
+            tls_data_start: read_u64_le!(raw, off),
+            tls_data_end: read_u64_le!(raw, off + 8),
+            tls_index: read_u64_le!(raw, off + 16),
+            tls_callbacks: read_u64_le!(raw, off + 24),
+            zero_fill_size: read_u32_le!(raw, off + 32),
+            characteristic: read_u32_le!(raw, off + 36),
+        }
+    }
+
+    pub fn print(&self) {
+        println!("{:#x?}", self);
+    }
+}
+
+
+
 
 pub struct PE64 {
     raw: Vec<u8>,
@@ -219,10 +270,10 @@ impl PE64 {
                 }
 
             } else {
-                println!("no import directory at va 0x{:x}.", import_va);
+                //println!("no import directory at va 0x{:x}.", import_va);
             }
         } else {
-            println!("no import directory at va 0x{:x}", import_va);
+            //println!("no import directory at va 0x{:x}", import_va);
         }
 
         PE64 {
@@ -287,10 +338,48 @@ impl PE64 {
         return self.sect_hdr[id].virtual_address;
     }
 
-        pub fn iat_binding(&mut self, emu:&mut emu::Emu) {
+    pub fn get_tls_callbacks(&self, vaddr:u32) -> Vec<u64> {
+        let tls_off; // = PE32::vaddr_to_off(&self.sect_hdr, vaddr) as usize;
+        let mut callbacks:Vec<u64> = Vec::new();
+        //if tls_off == 0 {
+
+            if self.opt.data_directory.len() < pe32::IMAGE_DIRECTORY_ENTRY_TLS {
+                println!("/!\\ alert there is .tls section but not tls directory entry");
+                return callbacks;
+            }
+
+            let entry_tls = &self.opt.data_directory[pe32::IMAGE_DIRECTORY_ENTRY_TLS].virtual_address;
+            let iat = self.opt.data_directory[pe32::IMAGE_DIRECTORY_ENTRY_IAT].virtual_address;
+            let align = self.opt.file_alignment;
+
+            tls_off = (entry_tls - (iat + align)) as usize;
+            //println!("tls_off = (entry_tls - (iat + align))");
+            //println!("{:x} - ({:x} + {:x})", entry_tls, iat, align);
+        //}
+
+
+        //println!("vaddr: 0x{:x} tls_off 0x{:x} {}", vaddr, tls_off, tls_off);
+        let tls = TlsDirectory64::load(&self.raw, tls_off);
+        tls.print();
+        
+        let mut cb_off = tls.tls_callbacks - iat as u64 - self.opt.image_base - align as u64;
+        loop {
+            let callback:u64 = read_u64_le!(&self.raw, cb_off as usize);
+            if callback == 0 {
+                break
+            }
+            println!("TLS Callback: 0x{:x}", callback);
+            callbacks.push(callback);
+            cb_off += 8;
+        }
+
+        callbacks
+    }
+
+    pub fn iat_binding(&mut self, emu:&mut emu::Emu) {
         // https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2#Binding
 
-        println!("IAT Bound started ...");
+        println!("IAT binding started ...");
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
             //println!("import: {}", iim.name);

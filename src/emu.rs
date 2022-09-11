@@ -98,6 +98,7 @@ pub struct Emu {
     colors: Colors,
     pos: u64,
     force_break: bool,
+    tls_callbacks: Vec<u64>,
     tls: Vec<u32>,
     fls: Vec<u32>,
     step: bool,
@@ -129,6 +130,7 @@ impl Emu {
             colors: Colors::new(),
             pos: 0,
             force_break: false,
+            tls_callbacks: Vec::new(),
             tls: Vec::new(),
             fls: Vec::new(),
             step: false,
@@ -712,7 +714,8 @@ impl Emu {
         let map_name = self.filename_to_mapname(filename);
 
         if set_entry {
-            let space_addr = peb32::create_ldr_entry(self, base as u64, pe32.dos.e_lfanew, &map_name, 0, 0x2c1950);
+            let space_addr = peb32::create_ldr_entry(self, base as u64, pe32.dos.e_lfanew, 
+                                                     &map_name, 0, 0x2c1950);
             let peb = peb32::init_peb(self, space_addr, base);
             self.maps.write_dword(peb + 8, base);
             
@@ -757,6 +760,10 @@ impl Emu {
                 if sect.get_name() == ".text" || i == 0 {
                     if self.cfg.entry_point != 0x3c0000 {
                         self.regs.rip = self.cfg.entry_point;
+                        println!("entry point at 0x{:x} but forcing it at 0x{:x} by -a flag", 
+                                 base as u64 + pe32.opt.address_of_entry_point as u64,
+                                 self.regs.rip);
+
                     } else {
                         self.regs.rip = base as u64 + pe32.opt.address_of_entry_point as u64;
                     }
@@ -774,17 +781,29 @@ impl Emu {
 
     pub fn load_pe64(&mut self, filename: &str, set_entry: bool, force_base: u64) -> (u64,u32) {
         let mut pe64 = PE64::load(filename);
-        if set_entry {
-            pe64.iat_binding(self);
-        }
+        let mut base:u64;
 
-        let map_name = self.filename_to_mapname(filename);
-        let base:u64;
         if force_base > 0 {
             base = force_base;
         } else {
             base = pe64.opt.image_base;
         }
+
+        if self.cfg.code_base_addr != 0x3c0000 {
+            base = self.cfg.code_base_addr;
+        }
+
+        let map_name = self.filename_to_mapname(filename);
+
+        //peb64::get_module_base("api-ms-win-crt-private-l1-1-0.dll", self);
+        //self.spawn_console();
+
+        if set_entry {
+            //TODO: update the peb64 with latest changes on peb32
+            pe64.iat_binding(self);
+        }
+
+
     
         //TODO: query if this vaddr is already used
         let pemap = self.maps.create_map(&format!("{}.pe", map_name));
@@ -793,7 +812,7 @@ impl Emu {
         pemap.memcpy(pe64.get_headers(), pe64.opt.size_of_headers as usize);
 
         println!("Loaded {}", filename);
-        println!("\t{} sections  base addr 0x{:x}", pe64.num_of_sections(), base);
+        println!("\t{} sections, base addr 0x{:x}", pe64.num_of_sections(), base);
 
         for i in 0..pe64.num_of_sections() {
             let base;
@@ -816,7 +835,7 @@ impl Emu {
             }
             map.memcpy(ptr, ptr.len());
 
-            println!("\tcreated pe32 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
+            println!("\tcreated pe64 map for section `{}` at 0x{:x} size: {}", sect.get_name(), 
                      map.get_base(), sect.virtual_size);
 
             if set_entry {
@@ -831,6 +850,9 @@ impl Emu {
                     }
 
                     println!("\tentry point at 0x{:x}  0x{:x} ", self.regs.rip, pe64.opt.address_of_entry_point);
+                } else if sect.get_name() == ".tls" {
+                    let tls_off = sect.pointer_to_raw_data;
+                    self.tls_callbacks = pe64.get_tls_callbacks(sect.virtual_address);
                 }
             }
         }

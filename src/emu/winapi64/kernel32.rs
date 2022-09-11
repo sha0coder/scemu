@@ -172,7 +172,6 @@ pub fn load_library(emu:&mut emu::Emu, libname: &str) -> u64 {
         dll.push_str(".dll");
     }
 
-
     let mut dll_path = emu.cfg.maps_folder.clone();
     dll_path.push_str(&dll);
 

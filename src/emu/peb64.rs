@@ -247,6 +247,20 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
     }
     let next_flink:u64 = flink.get_ptr();
 
+    let space_addr = create_ldr_entry(emu, base, pe_off, libname, last_flink, first_flink);
+
+
+    // point previous flink to this ldr
+    emu.maps.write_qword(last_flink, space_addr);
+
+    // point next blink to this ldr
+    emu.maps.write_qword(next_flink+8, space_addr);
+}
+
+pub fn create_ldr_entry(emu: &mut emu::Emu, base:u64, pe_off:u32, libname:&str, 
+                        next_flink:u64, prev_flink:u64) -> u64 {
+
+
     // make space for ldr
     let sz = LdrDataTableEntry64::size()  +0x40 +1024;
     let space_addr = emu.maps.alloc(sz).expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
@@ -267,23 +281,31 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
     println!("+28 libname_ptr: 0x{:x}" , space_addr as u32 + 0x3d);
     */
 
+    // http://terminus.rewolf.pl/terminus/structures/ntdll/_LDR_DATA_TABLE_ENTRY_x64.html
+
     //mem.write_dword(space_addr, next_flink as u32);
-    mem.write_qword(space_addr, 0x2c18c0);
-    mem.write_qword(space_addr+4, last_flink);
+    mem.write_qword(space_addr, prev_flink); //0x2c18c0);
+    mem.write_qword(space_addr+8, next_flink);
+    mem.write_qword(space_addr+0x30, base);
+    mem.write_qword(space_addr+0x38, pe_off as u64); // entry point, not pe_off
+    //mem.write_dword(space_addr+0x40, image_size);
+    mem.write_qword(space_addr+0x48, space_addr+0x68);
+    mem.write_qword(space_addr+0x58, space_addr+0x68);
+    mem.write_wide_string(space_addr+0x68, &(libname.to_string()+"\x00"));
+
+
     //mem.write_dword(space_addr+0x10, next_flink as u32); // in_memory_order_linked_list
+    /*
     mem.write_qword(space_addr+0x10, base); // in_memory_order_linked_list
-                                                         //
     mem.write_qword(space_addr+0x1c, base);
     //mem.write_dword(space_addr+0x3c, pe_off);
     mem.write_qword(space_addr+0x28, space_addr + 0x40); // libname ptr
+    mem.write_qword(space_addr+0x30, space_addr + 0x40); // libname ptr
     mem.write_wide_string(space_addr+0x40, &(libname.to_string()+"\x00"));
     mem.write_word(space_addr+0x26, libname.len() as u16 * 2 + 2); // undocumented field used on a cobalt strike sample.
-
-    // point previous flink to this ldr
-    emu.maps.write_qword(last_flink, space_addr);
-
-    // point next blink to this ldr
-    emu.maps.write_qword(next_flink+4, space_addr);
+    */
+                                                                   //
+    space_addr
 }
 
 

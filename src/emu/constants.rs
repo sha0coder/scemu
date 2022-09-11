@@ -69,6 +69,13 @@ pub const MEM_IMAGE:u32 = 0x1000000;
 pub const MEM_MAPPED:u32 = 0x40000;
 pub const MEM_PRIVATE:u32 = 0x20000;
 
+// TLS Callback Reason:
+pub const DLL_PROCESS_ATTACH:u32   = 1;
+pub const DLL_PROCESS_DETACH:u32  = 0;
+pub const DLL_THREAD_ATTACH:u32  = 2;
+pub const DLL_THREAD_DETACH:u32  = 3;
+
+
 //// LINUX ////
 
 // linux errors
