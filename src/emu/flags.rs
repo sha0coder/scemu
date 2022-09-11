@@ -167,7 +167,7 @@ impl Flags {
         }
     
         self.f_of = rs < MIN_I64 as i128 || rs > MAX_I64 as i128;
-        (((rs as u128) & 0xffffffff) as u64) as i64
+        (((rs as u128) & 0xffffffff_ffffffff) as u64) as i64
     }
 
     pub fn check_overflow_sub_dword(&mut self, a:u64, b:u64) -> i32 {

@@ -3533,7 +3533,7 @@ impl Emu {
                         };
 
                         let res:u64;
-                        match self.get_operand_sz(&ins, 1) {
+                        match self.get_operand_sz(&ins, 0) {
                             64 => res = self.flags.sub64(value0, value1),
                             32 => res = self.flags.sub32(value0, value1),
                             16 => res = self.flags.sub16(value0, value1),
