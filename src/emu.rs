@@ -4739,9 +4739,37 @@ impl Emu {
                                 break;
                             }
                         }
-
                     }
 
+                    Mnemonic::Cmovs => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_sf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovo => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
 
                     Mnemonic::Seta  => {
                         self.show_instruction(&self.colors.orange, &ins);
