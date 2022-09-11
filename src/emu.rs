@@ -110,6 +110,7 @@ pub struct Emu {
     break_on_next_return: bool,
     filename: String,
     enabled_ctrlc: bool,
+    run_until_ret: bool,
 }
 
 impl Emu {
@@ -142,6 +143,7 @@ impl Emu {
             break_on_next_return: false,
             filename: String::new(),
             enabled_ctrlc: true,
+            run_until_ret: false,
         }
     }
 
@@ -842,7 +844,6 @@ impl Emu {
                 if sect.get_name() == ".text" || i == 0 {
 
                     if pe64.opt.address_of_entry_point == 0 {
-                        println!("entry point zero");
                         self.regs.rip = base + sect.virtual_address as u64 + 
                             sect.pointer_to_raw_data as u64;
                     } else {
@@ -885,7 +886,18 @@ impl Emu {
 
         } else if self.cfg.is_64bits && PE64::is_pe64(filename) {
             println!("PE64 header detected.");
-            self.load_pe64(filename, true, 0);
+            let (base, pe_off) = self.load_pe64(filename, true, 0);
+            let ep = self.regs.rip;
+
+            // emulating tls callbacks
+            for i in 0..self.tls_callbacks.len() {
+                println!("Emulating tls_callback {}", i+1);
+                self.regs.rip = self.tls_callbacks[i];
+                self.stack_push64(base);
+                self.run(base);
+            }
+
+            self.regs.rip = ep;
 
         } else { // shellcode
 
@@ -2947,6 +2959,11 @@ impl Emu {
         self.is_running.store(0, atomic::Ordering::Relaxed);
     }
 
+    pub fn run_until_ret(&mut self) {
+        self.run_until_ret = true;
+        self.run(0);
+    }
+
     ///  RUN ENGINE ///
 
     pub fn run(&mut self, end_addr:u64) {     
@@ -3279,6 +3296,10 @@ impl Emu {
                         }
 
                         self.show_instruction_ret(&self.colors.yellow, &ins, ret_addr);
+
+                        if self.run_until_ret {
+                            return;
+                        }
 
                         if self.break_on_next_return {
                             self.break_on_next_return = false;
