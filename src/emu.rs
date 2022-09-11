@@ -3090,9 +3090,9 @@ impl Emu {
                             "rdx" => self.regs.show_rdx(&self.maps, self.pos),
                             "rsi" => self.regs.show_rsi(&self.maps, self.pos),
                             "rdi" => self.regs.show_rdi(&self.maps, self.pos),
-                            "rbp" => println!("\t{} rbp: 0x{:}", self.pos, self.regs.rbp),
-                            "rsp" => println!("\t{} rsp: 0x{:}", self.pos, self.regs.rsp),
-                            "rip" => println!("\t{} rip: 0x{:}", self.pos, self.regs.rip),
+                            "rbp" => println!("\t{} rbp: 0x{:x}", self.pos, self.regs.rbp),
+                            "rsp" => println!("\t{} rsp: 0x{:x}", self.pos, self.regs.rsp),
+                            "rip" => println!("\t{} rip: 0x{:x}", self.pos, self.regs.rip),
                             "r8" => self.regs.show_r8(&self.maps, self.pos),
                             "r9" => self.regs.show_r9(&self.maps, self.pos),
                             "r10" => self.regs.show_r10(&self.maps, self.pos),
@@ -3107,9 +3107,9 @@ impl Emu {
                             "edx" => self.regs.show_edx(&self.maps, self.pos),
                             "esi" => self.regs.show_esi(&self.maps, self.pos),
                             "edi" => self.regs.show_edi(&self.maps, self.pos),
-                            "esp" => println!("\t{} esp: 0x{:}", self.pos, self.regs.get_esp() as u32),
-                            "ebp" => println!("\t{} ebp: 0x{:}", self.pos, self.regs.get_ebp() as u32),
-                            "eip" => println!("\t{} eip: 0x{:}", self.pos, self.regs.get_eip() as u32),
+                            "esp" => println!("\t{} esp: 0x{:x}", self.pos, self.regs.get_esp() as u32),
+                            "ebp" => println!("\t{} ebp: 0x{:x}", self.pos, self.regs.get_ebp() as u32),
+                            "eip" => println!("\t{} eip: 0x{:x}", self.pos, self.regs.get_eip() as u32),
                             _ => panic!("invalid register."),
                         }
                     }
@@ -4172,6 +4172,7 @@ impl Emu {
                             dest += 1;
                             bitpos += 1;
                         }
+                        dest -= 1;
 
                         if dest == sz as u64 {
                             self.flags.f_cf = true;
