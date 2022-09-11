@@ -4230,21 +4230,24 @@ impl Emu {
                         self.show_instruction(&self.colors.green, &ins);
                         assert!(ins.op_count() == 1);
 
-                        let mut value0 = match self.get_operand_value(&ins, 0, true) {
+                        let value0 = match self.get_operand_value(&ins, 0, true) {
                             Some(v) => v,
                             None => break,
                         };
 
-                        let mut dst:u64;
-
+                        let value1;
                         let sz = self.get_operand_sz(&ins, 0);
 
+                        value1 = (value0 & 0x00000000_000000ff) << 24 | (value0 & 0x00000000_0000ff00) << 8 |
+                            (value0 & 0x00000000_00ff0000) >> 8 | (value0 & 0x00000000_ff000000) >> 24;
+
+                        /*
                         for i in 0..sz {
                             let bit = get_bit!(value0, i);
-                            set_bit!(value0, sz-i-1, bit);
-                        }
+                            set_bit!(value1, sz-i-1, bit);
+                        }*/
 
-                        if !self.set_operand_value(&ins, 0, value0) {
+                        if !self.set_operand_value(&ins, 0, value1) {
                             break;
                         }
 
