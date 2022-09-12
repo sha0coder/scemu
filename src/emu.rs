@@ -4239,7 +4239,8 @@ impl Emu {
                         let sz = self.get_operand_sz(&ins, 0);
 
                         value1 = (value0 & 0x00000000_000000ff) << 24 | (value0 & 0x00000000_0000ff00) << 8 |
-                            (value0 & 0x00000000_00ff0000) >> 8 | (value0 & 0x00000000_ff000000) >> 24;
+                            (value0 & 0x00000000_00ff0000) >> 8 | (value0 & 0x00000000_ff000000) >> 24 |
+                            (value0 & 0xffffffff_00000000);
 
                         /*
                         for i in 0..sz {
