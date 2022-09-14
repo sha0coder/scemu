@@ -37,6 +37,13 @@ impl Mem64 {
         self.mem = vec![0; amount];
     }
 
+    pub fn extend(&mut self, amount:usize) {
+        for i in 0..amount {
+            self.mem.push(0);
+        }
+        self.bottom_addr += amount as u64;
+    }
+
     pub fn size(&self) -> usize {
         self.mem.len()
     }

@@ -797,14 +797,10 @@ impl Emu {
 
         let map_name = self.filename_to_mapname(filename);
 
-        //peb64::get_module_base("api-ms-win-crt-private-l1-1-0.dll", self);
-        //self.spawn_console();
-
         if set_entry {
             //TODO: update the peb64 with latest changes on peb32
             pe64.iat_binding(self);
         }
-
 
     
         //TODO: query if this vaddr is already used
@@ -911,6 +907,8 @@ impl Emu {
                 println!("shellcode not found, select the file with -f");
                 std::process::exit(1);
             }
+            let code = self.maps.get_mem("code");
+            code.extend(0xffff);
         }
     }
 
@@ -2017,6 +2015,32 @@ impl Emu {
                             continue;
                         }
                     };
+                    let map = self.maps.create_map(&name);
+                    map.set_base(addr);
+                    map.set_size(sz);
+                    println!("allocated {} at 0x{:x} sz: {}", name, addr, sz); 
+                },
+                "mca" => {
+                    con.print("name ");
+                    let name = con.cmd();
+                    con.print("address ");
+                    let addr = match con.cmd_hex64() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad size.");
+                            continue;
+                        }
+                    };
+
+                    con.print("size ");
+                    let sz = match con.cmd_num() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("bad size.");
+                            continue;
+                        }
+                    };
+
                     let map = self.maps.create_map(&name);
                     map.set_base(addr);
                     map.set_size(sz);

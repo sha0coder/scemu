@@ -613,6 +613,9 @@ impl Maps {
                     let mut c = 0;
                   
                     for (i, bkwn) in bkw.iter().enumerate() {
+                        if addr + i as u64 >= mem.get_bottom() {
+                            break;
+                        }
                         let b = mem.read_byte(addr+(i as u64));
                         if b == *bkwn {
                             c += 1;

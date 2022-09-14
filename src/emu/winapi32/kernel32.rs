@@ -102,6 +102,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x75e940fb => GetSystemDirectoryW(emu),
         0x75e41e10 => GetStartupInfoA(emu),
         0x75e91e16 => FlsGetValue(emu),
+        0x75e93891 => GetStartupInfoW(emu),
 
         _ => panic!("calling unimplemented kernel32 API 0x{:x} {}", addr, guess_api_name(emu, addr)),
     }
@@ -1652,5 +1653,11 @@ fn FlsGetValue(emu:&mut emu::Emu) {
     println!("{}** {} kernel32!FlsGetValue idx: {} =0x{:x} {}", emu.colors.light_red, emu.pos, idx, emu.regs.get_eax() as u32, emu.colors.nc);
 }
 
+fn GetStartupInfoW(emu:&mut emu::Emu) {
+    let ptr_startupinfo = emu.maps.read_dword(emu.regs.get_esp()).expect("kernel32!GetStartupInfoW cannot read ptr_startupinfo");
+    
+    // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/ns-processthreadsapi-startupinfoa
+    emu.maps.memset(ptr_startupinfo as u64, 0, 100); //TODO: write something realistic
+    println!("{}** {} kernel32!GetStartupInfoW ptr_startufinfo: 0x{:x} {}", emu.colors.light_red, emu.pos, ptr_startupinfo, emu.colors.nc);
 
-
+}

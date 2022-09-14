@@ -27,6 +27,7 @@ pub fn gateway(addr:u32, emu:&mut emu::Emu) {
         0x775c2dd6 => RtlAllocateHeap(emu),
         0x775b62b8 => NtReadFile(emu),
         0x775b54c8 => NtClose(emu),
+        0x775cee8d => RtlInitializeCriticalSectionAndSpinCount(emu),
         _ => panic!("calling unimplemented ntdll API 0x{:x} {}", addr, kernel32::guess_api_name(emu, addr)),
     }
 }
@@ -576,5 +577,6 @@ fn NtClose(emu:&mut emu::Emu) {
     }
 }
 
+fn RtlInitializeCriticalSectionAndSpinCount(emu:&mut emu::Emu) { 
 
-
+}
