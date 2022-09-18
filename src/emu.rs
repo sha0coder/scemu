@@ -1403,7 +1403,7 @@ impl Emu {
     }
 
     fn rcl(&self, val:u64, rot2:u64, bits:u8) -> u64 {
-        let mut ret:u64 = val;
+        let mut ret:u128 = val as u128;
         let rot = rot2 & 0b11111;
        
         if self.flags.f_cf {
@@ -1415,7 +1415,7 @@ impl Emu {
         for _ in 0..rot {
             let last_bit = get_bit!(ret, bits);
             //println!("last bit: {}", last_bit);
-            let mut ret2:u64 = ret;
+            let mut ret2:u128 = ret;
             
             for j in 0..bits {
                 let bit = get_bit!(ret, j);
@@ -1426,8 +1426,9 @@ impl Emu {
             ret = ret2;
             //println!("{:b}", ret);
         }
-        
-        ret
+
+        let a:u128 = 2;
+        (ret & (a.pow(bits as u32)-1) ) as u64
     }
 
     fn ror(&self, val:u64, rot:u64, bits:u8) -> u64 {
@@ -1449,7 +1450,7 @@ impl Emu {
     }
 
     fn rcr(&self, val:u64, rot2:u64, bits:u8) -> u64 {
-        let mut ret:u64 = val;
+        let mut ret:u128 = val as u128;
         let rot = rot2 & 0b11111;
         
         if self.flags.f_cf {
@@ -1460,7 +1461,7 @@ impl Emu {
         
         for _ in 0..rot {
             let first_bit = get_bit!(ret, 0);
-            let mut ret2:u64 = ret;
+            let mut ret2:u128 = ret;
             
             for j in (1..=bits).rev() {
                 let bit = get_bit!(ret, j);
@@ -1471,7 +1472,8 @@ impl Emu {
             ret = ret2;
         }
         
-        ret
+        let a:u128 = 2;
+        (ret & (a.pow(bits as u32)-1) ) as u64
     }
 
     fn mul64(&mut self, value0:u64) {
