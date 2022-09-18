@@ -205,6 +205,7 @@ pub struct PE64 {
 impl PE64 {
 
     pub fn is_pe64(filename: &str) -> bool {
+        println!("{}", filename);
         let mut fd = File::open(filename).expect("file not found");
         let mut raw = vec![0u8; pe32::ImageDosHeader::size()];
         fd.read_exact(&mut raw).expect("couldnt read the file");

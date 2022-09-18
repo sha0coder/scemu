@@ -53,10 +53,24 @@ macro_rules! get_reg8h {
     )
 }
 
+macro_rules! diff_reg {
+    ($rip:expr, $a:expr, $b:expr, $name:expr) => (
+        let mut output = format!("diff_reg: rip = {:x} ", $rip);
+        let mut diff_seen = false;
+        if $a != $b {
+            output = format!("{}{} {:x} -> {:x}; ", output, $name, $a, $b);
+            diff_seen = true;
+        }
+        if diff_seen == true {
+            println!("{}", output);
+        }
+    )
+}
+
 
 //  https://wiki.osdev.org/CPU_Registers_x86-64
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Regs64 {
     pub dr0: u64, // bp
     pub dr1: u64, // bp
@@ -198,6 +212,70 @@ impl Regs64 {
             xmm14: 0,
             xmm15: 0,
         }
+    }
+
+    pub fn diff(a: Regs64, b: Regs64) {
+        diff_reg!(a.rip, a.dr0, b.dr0, "dr0");
+        diff_reg!(a.rip, a.dr1, b.dr1, "dr1");
+        diff_reg!(a.rip, a.dr2, b.dr2, "dr2");
+        diff_reg!(a.rip, a.dr3, b.dr3, "dr3");
+        diff_reg!(a.rip, a.dr6, b.dr6, "dr6");
+        diff_reg!(a.rip, a.dr7, b.dr7, "dr7");
+        diff_reg!(a.rip, a.rax, b.rax, "rax");
+        diff_reg!(a.rip, a.rbx, b.rbx, "rbx");
+        diff_reg!(a.rip, a.rcx, b.rcx, "rcx");
+        diff_reg!(a.rip, a.rdx, b.rdx, "rdx");
+        diff_reg!(a.rip, a.rsi, b.rsi, "rsi");
+        diff_reg!(a.rip, a.rdi, b.rdi, "rdi");
+        diff_reg!(a.rip, a.rbp, b.rbp, "rbp");
+        diff_reg!(a.rip, a.rsp, b.rsp, "rsp");
+        diff_reg!(a.rip, a.rip, b.rip, "rip");
+        diff_reg!(a.rip, a.r8, b.r8, "r8");
+        diff_reg!(a.rip, a.r9, b.r9, "r9");
+        diff_reg!(a.rip, a.r10, b.r10, "r10");
+        diff_reg!(a.rip, a.r11, b.r11, "r11");
+        diff_reg!(a.rip, a.r12, b.r12, "r12");
+        diff_reg!(a.rip, a.r13, b.r13, "r13");
+        diff_reg!(a.rip, a.r14, b.r14, "r14");
+        diff_reg!(a.rip, a.r15, b.r15, "r15");
+        diff_reg!(a.rip, a.cr0, b.cr0, "cr0");
+        diff_reg!(a.rip, a.cr1, b.cr1, "cr1");
+        diff_reg!(a.rip, a.cr2, b.cr2, "cr2");
+        diff_reg!(a.rip, a.cr3, b.cr3, "cr3");
+        diff_reg!(a.rip, a.cr4, b.cr4, "cr4");
+        diff_reg!(a.rip, a.cr5, b.cr5, "cr5");
+        diff_reg!(a.rip, a.cr6, b.cr6, "cr6");
+        diff_reg!(a.rip, a.cr7, b.cr7, "cr7");
+        diff_reg!(a.rip, a.cr8, b.cr8, "cr8");
+        diff_reg!(a.rip, a.cr9, b.cr9, "cr9");
+        diff_reg!(a.rip, a.cr10, b.cr10, "cr10");
+        diff_reg!(a.rip, a.cr11, b.cr11, "cr11");
+        diff_reg!(a.rip, a.cr12, b.cr12, "cr12");
+        diff_reg!(a.rip, a.cr13, b.cr13, "cr13");
+        diff_reg!(a.rip, a.cr14, b.cr14, "cr14");
+        diff_reg!(a.rip, a.cr15, b.cr15, "cr15");
+        diff_reg!(a.rip, a.msr, b.msr, "msr");
+        diff_reg!(a.rip, a.tr3, b.tr3, "tr3");
+        diff_reg!(a.rip, a.tr4, b.tr4, "tr4");
+        diff_reg!(a.rip, a.tr5, b.tr5, "tr5");
+        diff_reg!(a.rip, a.tr6, b.tr6, "tr6");
+        diff_reg!(a.rip, a.tr7, b.tr7, "tr7");
+        diff_reg!(a.rip, a.xmm0, b.xmm0, "xmm0");
+        diff_reg!(a.rip, a.xmm1, b.xmm1, "xmm1");
+        diff_reg!(a.rip, a.xmm2, b.xmm2, "xmm2");
+        diff_reg!(a.rip, a.xmm3, b.xmm3, "xmm3");
+        diff_reg!(a.rip, a.xmm4, b.xmm4, "xmm4");
+        diff_reg!(a.rip, a.xmm5, b.xmm5, "xmm5");
+        diff_reg!(a.rip, a.xmm6, b.xmm6, "xmm6");
+        diff_reg!(a.rip, a.xmm7, b.xmm7, "xmm7");
+        diff_reg!(a.rip, a.xmm8, b.xmm8, "xmm8");
+        diff_reg!(a.rip, a.xmm9, b.xmm9, "xmm9");
+        diff_reg!(a.rip, a.xmm10, b.xmm10, "xmm10");
+        diff_reg!(a.rip, a.xmm11, b.xmm11, "xmm11");
+        diff_reg!(a.rip, a.xmm12, b.xmm12, "xmm12");
+        diff_reg!(a.rip, a.xmm13, b.xmm13, "xmm13");
+        diff_reg!(a.rip, a.xmm14, b.xmm14, "xmm14");
+        diff_reg!(a.rip, a.xmm15, b.xmm15, "xmm15");
     }
 
     pub fn clear<const B:usize>(&mut self) {
@@ -1342,7 +1420,7 @@ impl Regs64 {
             if pos > 0 {
                 println!("\t{} {}: 0x{:x} {}", pos, sreg, value, value);
             } else {
-                    println!("\t{}: 0x{:x} {}", sreg, value, value);
+                println!("\t{}: 0x{:x} {}", sreg, value, value);
             }
         }
     }
