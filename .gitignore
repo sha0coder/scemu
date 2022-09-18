@@ -4,3 +4,4 @@ shellcodes64/
 x
 *.swp
 *.idb
+test/
