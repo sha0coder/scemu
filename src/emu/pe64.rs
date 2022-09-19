@@ -409,6 +409,9 @@ impl PE64 {
 
                 let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &func_name);
                 //println!("real addr: 0x{:x}", real_addr);
+                if emu.cfg.verbose >= 1 { 
+                    println!("binded 0x{:x} {}", real_addr, func_name);
+                }
 
                 write_u32_le!(self.raw, off_addr, real_addr);
 

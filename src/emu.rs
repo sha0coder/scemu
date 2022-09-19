@@ -3971,13 +3971,20 @@ impl Emu {
 
                         if ins.op_count() == 1 { // 1 param
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.sar1p64(value0),
                                 32 => self.flags.sar1p32(value0),
                                 16 => self.flags.sar1p16(value0),
                                 8  => self.flags.sar1p8(value0),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::sar1p(value0, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar1p(value0, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -3991,13 +3998,20 @@ impl Emu {
                                 None => break,
                             };
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.sar2p64(value0, value1),
                                 32 => self.flags.sar2p32(value0, value1),
                                 16 => self.flags.sar2p16(value0, value1),
                                 8  => self.flags.sar2p8(value0, value1),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::sar2p(value0, value1, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar2p(value0, value1, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;

@@ -878,6 +878,10 @@ impl PE32 {
 
                 write_u32_le!(self.raw, off_addr, real_addr);
 
+                if emu.cfg.verbose >= 1 { 
+                    println!("binded 0x{:x} {}", real_addr, func_name);
+                }
+
                 off_name += HintNameItem::size();
                 off_addr += 4;
             }

@@ -200,7 +200,6 @@ pub fn rcl(a:u64, b:u64) -> u64 {
     r
 }
 
-
 pub fn rcr(a:u64, b:u64) -> u64 {
     let mut r:u64 = a;
     unsafe {   
@@ -210,11 +209,79 @@ pub fn rcr(a:u64, b:u64) -> u64 {
     r
 }
 
-pub fn sar(a:u64, b:u64) -> u64 {
+
+pub fn sar1p(a:u64, bits:u8) -> u64 {
     let mut r:u64 = a;
-    unsafe {   
-        asm!("sar {}, {}", inout(reg) r, in(reg) b);
-    }   
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("sar {}", inout(reg) r);
+            }   
+        }
+        32 => {
+            let mut rr:u32 = r as u32;
+            unsafe {   
+                asm!("sar {:e}", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        16 => {
+            let mut rr:u16 = r as u16;
+            unsafe {   
+                asm!("sar {:x}", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        8 => {
+            let mut rr:u8 = r as u8;
+            unsafe {   
+                asm!("sar {}", inout(reg_byte) rr);
+            }   
+            r = rr as u64;
+        }
+        _ => unimplemented!("weird case"),
+    }
+    
+    r
+}
+
+pub fn sar2p(a:u64, b:u64, bits:u8) -> u64 {
+    let mut r:u64 = a;
+    let b8 = b as u8;
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) b8);
+                asm!("sar {}, cl", inout(reg) r);
+            }   
+        }
+        32 => {
+            let mut rr:u32 = r as u32;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) b8);
+                asm!("sar {:e}, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        16 => {
+            let mut rr:u16 = r as u16;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) b8);
+                asm!("sar {:x}, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        8 => {
+            let mut rr:u8 = r as u8;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) b8);
+                asm!("sar {}, cl", inout(reg_byte) rr);
+            }   
+            r = rr as u64;
+        }
+        _ => unimplemented!("weird case"),
+    }
     
     r
 }
