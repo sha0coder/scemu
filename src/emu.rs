@@ -28,6 +28,7 @@ mod pe32;
 mod pe64;
 mod peb32;
 mod peb64;
+mod inline;
 
 use fpu::FPU;
 use pe32::PE32;
@@ -3529,6 +3530,12 @@ impl Emu {
                         let sz = self.get_operand_sz(&ins, 0);
                         let result = value0 ^ value1;
 
+                        if self.cfg.test_mode {
+                            if result != inline::xor(value0, value1) {
+                                panic!("0x{:x} should be 0x{:x}", result, inline::xor(value0, value1));
+                            }
+                        }
+
                         self.flags.calc_flags(result, sz);
 
                         if !self.set_operand_value(&ins, 0, result) {
@@ -3725,13 +3732,20 @@ impl Emu {
                             None => break,
                         };
 
-                        let res = match self.get_operand_sz(&ins, 0) {
+                        let sz = self.get_operand_sz(&ins, 0);
+                        let res = match sz {
                             64 => self.flags.neg64(value0),
                             32 => self.flags.neg32(value0),
                             16 => self.flags.neg16(value0),
                             8  => self.flags.neg8(value0),
                             _  => panic!("weird size")
                         };
+
+                        if self.cfg.test_mode {
+                            if res != inline::neg(value0, sz) {
+                                panic!("0x{:x} should be 0x{:x}", res, inline::neg(value0, sz));
+                            }
+                        }
 
                         if !self.set_operand_value(&ins, 0, res) {
                             break;
@@ -3753,14 +3767,35 @@ impl Emu {
                         /*let mut ival = value0 as i32;
                         ival = !ival;*/
 
-                        if self.cfg.is_64bits {
-                            let mut ival = value0 as i64;
-                            ival = !ival;
-                            val = ival as u64;
-                        } else {
-                            let mut ival = value0 as u32 as i32;
-                            ival = !ival;
-                            val = ival as u32 as u64;
+                        let sz = self.get_operand_sz(&ins, 0);
+                        match sz {
+                            64 => {
+                                let mut ival = value0 as i64;
+                                ival = !ival;
+                                val = ival as u64;
+                            }
+                            32 => {
+                                let mut ival = value0 as u32 as i32;
+                                ival = !ival;
+                                val = value0 & 0xffffffff_00000000 | ival as u32 as u64;
+                            }
+                            16 => {
+                                let mut ival = value0 as u16 as i16;
+                                ival = !ival;
+                                val = value0 & 0xffffffff_ffff0000 | ival as u16 as u64;
+                            }
+                            8 => {
+                                let mut ival = value0 as u8 as i8;
+                                ival = !ival;
+                                val = value0 & 0xffffffff_ffffff00 | ival as u8 as u64;
+                            }
+                            _ => unimplemented!("weird"),
+                        }
+
+                        if self.cfg.test_mode {
+                            if val != inline::not(value0, sz) {
+                                panic!("0x{:x} should be 0x{:x}", val, inline::not(value0, sz));
+                            }
                         }
 
                         if !self.set_operand_value(&ins, 0, val) {
@@ -3805,6 +3840,12 @@ impl Emu {
                                 result2 = result1;
                             }
                             _ => unreachable!(""),
+                        }
+
+                        if self.cfg.test_mode {
+                            if result2 != inline::and(value0, value1) {
+                                panic!("0x{:x} should be 0x{:x}", result2, inline::and(value0, value1));
+                            }
                         }
 
                         self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
@@ -3854,6 +3895,12 @@ impl Emu {
                                 result2 = result1;
                             }
                             _ => unreachable!(""),
+                        }
+
+                        if self.cfg.test_mode {
+                            if result2 != inline::or(value0, value1) {
+                                panic!("0x{:x} should be 0x{:x}", result2, inline::or(value0, value1));
+                            }
                         }
 
                         self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
@@ -4073,6 +4120,12 @@ impl Emu {
 
                             result = self.ror(value0, 1, sz);
 
+                            if self.cfg.test_mode {
+                                if result != inline::ror(value0, 1, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, 1, sz))
+                                }
+                            }
+
                         } else { // 2 params
                             let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -4085,6 +4138,13 @@ impl Emu {
                             };
 
                             result = self.ror(value0, value1, sz);
+
+                            if self.cfg.test_mode {
+                                if result != inline::ror(value0, value1, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, value1, sz))
+                                }
+                            }
+
                         }
 
                         if !self.set_operand_value(&ins, 0, result) {
@@ -4149,6 +4209,12 @@ impl Emu {
 
                             result = self.rol(value0, 1, sz);
 
+                            if self.cfg.test_mode {
+                                if result != inline::rol(value0, 1, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, 1, sz));
+                                }
+                            }
+
                         } else { // 2 params
                             let value0 = match self.get_operand_value(&ins, 0, true) {
                                 Some(v) => v,
@@ -4161,6 +4227,12 @@ impl Emu {
                             };
 
                             result = self.rol(value0, value1, sz);
+
+                            if self.cfg.test_mode {
+                                if result != inline::rol(value0, value1, sz) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, value1, sz));
+                                }
+                            }
                         }
 
                         if !self.set_operand_value(&ins, 0, result) {
@@ -6918,6 +6990,7 @@ impl Emu {
                         self.show_instruction(&self.colors.green, &ins);
 
                         let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
+                        
                         self.regs.set_eax(sigextend as u64);
                     }
 

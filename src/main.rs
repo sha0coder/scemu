@@ -107,6 +107,11 @@ fn main() {
                         .long("stack")
                         .help("trace stack on push/pop")
                         .takes_value(false))
+                    .arg(Arg::with_name("test_mode")
+                        .short("t")
+                        .long("test")
+                        .help("test mode")
+                        .takes_value(false))
                     .get_matches();
 
 
@@ -188,6 +193,9 @@ fn main() {
     }
     if matches.is_present("stack_trace") {
         cfg.stack_trace = true;
+    }
+    if matches.is_present("test_mode") {
+        cfg.test_mode = true;
     }
 
     let mut emu = Emu::new();
