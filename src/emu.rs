@@ -5013,6 +5013,21 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Cmovno => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_of {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
                     // https://hjlebbink.github.io/x86doc/html/CMOVcc.html
 
                     Mnemonic::Cmovnp => {
