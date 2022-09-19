@@ -4684,11 +4684,18 @@ impl Emu {
                     }
 
                     Mnemonic::Movsb => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
+                        
                         if self.cfg.is_64bits {
                             if ins.has_rep_prefix() {
+                                let mut first_iteration = true;
                                 loop {
+                                    if first_iteration || self.cfg.verbose >= 3 {
+                                        self.show_instruction(&self.colors.light_cyan, &ins);
+                                    }
+                                    if !first_iteration {
+                                        self.pos += 1;
+                                    }
+
                                     let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
                                     self.maps.write_byte(self.regs.rdi, val);
 
@@ -4704,9 +4711,12 @@ impl Emu {
                                     if self.regs.rcx == 0 { 
                                         break 
                                     }
+                                    first_iteration = false;
                                 }
 
                             } else {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+
                                 let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
                                 self.maps.write_byte(self.regs.rdi, val);
                                 if !self.flags.f_df {
@@ -4720,7 +4730,15 @@ impl Emu {
                         } else { // 32bits
 
                             if ins.has_rep_prefix() {
+                                let mut first_iteration = true;
                                 loop {
+                                    if first_iteration || self.cfg.verbose >= 3 {
+                                        self.show_instruction(&self.colors.light_cyan, &ins);
+                                    }
+                                    if !first_iteration {
+                                        self.pos += 1;
+                                    }
+
                                     let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
                                     self.maps.write_byte(self.regs.get_edi(), val);
 
@@ -4736,9 +4754,12 @@ impl Emu {
                                     if self.regs.get_ecx() == 0 { 
                                         break 
                                     }
+                                    first_iteration = false;
                                 }
 
                             } else {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+
                                 let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
                                 self.maps.write_byte(self.regs.get_edi(), val);
                                 if !self.flags.f_df {
