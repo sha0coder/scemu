@@ -446,7 +446,7 @@ impl Flags {
         self.f_of = value == 0x8000000000000000;
         self.f_cf = true;
 
-        let mut ival = value as i32;
+        let mut ival = value as i64;
         ival = -ival;
 
         let res = ival as u64;
@@ -462,7 +462,7 @@ impl Flags {
         let mut ival = value as i32;
         ival = -ival;
 
-        let res = ival as u64;
+        let res = ival as u32 as u64;
 
         self.calc_flags(res, 32);
         res
