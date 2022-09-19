@@ -5028,6 +5028,36 @@ impl Emu {
                         }
                     }
 
+                    Mnemonic::Cmovne => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_zf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovp => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if self.flags.f_pf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
                     // https://hjlebbink.github.io/x86doc/html/CMOVcc.html
 
                     Mnemonic::Cmovnp => {
@@ -5049,6 +5079,21 @@ impl Emu {
                         self.show_instruction(&self.colors.orange, &ins);
 
                         if self.flags.f_sf {
+                            let value1 = match self.get_operand_value(&ins, 1, true) {
+                                Some(v) => v,
+                                None => break,
+                            };
+
+                            if !self.set_operand_value(&ins, 0, value1) {
+                                break;
+                            }
+                        }
+                    }
+
+                    Mnemonic::Cmovns => {
+                        self.show_instruction(&self.colors.orange, &ins);
+
+                        if !self.flags.f_sf {
                             let value1 = match self.get_operand_value(&ins, 1, true) {
                                 Some(v) => v,
                                 None => break,
@@ -7319,6 +7364,15 @@ impl Emu {
                         let flags = self.stack_pop32(true);
                         self.flags.load(flags);
                     }
+
+
+                    Mnemonic::Popfq => {
+                        self.show_instruction(&self.colors.blue, &ins);
+                        
+                        let rflags = self.stack_pop64(true);
+                        // TODO: rflags
+                    }
+                
 
                     Mnemonic::Daa => {
                         self.show_instruction(&self.colors.green, &ins);
