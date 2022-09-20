@@ -3203,8 +3203,14 @@ impl Emu {
                 if self.cfg.trace_regs {
                     if self.cfg.is_64bits {
                         self.capture_pre_op_registers_64bits();
+                        println!("\trax: 0x{:x} rbx: 0x{:x} rcx: 0x{:x} rdx: 0x{:x} rsi: 0x{:x} rdi: 0x{:x} rbp: 0x{:x}", 
+                          self.regs.rax, self.regs.rbx, self.regs.rcx, 
+                          self.regs.rdx, self.regs.rsi, self.regs.rdi, self.regs.rbp);
                     } else {
-                        panic!("TODO");
+                        // TODO: capture pre_op_registers 32-bits?
+                        println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x} ebp: 0x{:x}", 
+                          self.regs.get_eax() as u32, self.regs.get_ebx() as u32, self.regs.get_ecx() as u32, 
+                          self.regs.get_edx() as u32, self.regs.get_esi() as u32, self.regs.get_edi() as u32, self.regs.get_ebp() as u32);
                     }
                 }
 
