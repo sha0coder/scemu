@@ -85,6 +85,8 @@ macro_rules! to32 {
 
 pub struct Emu {
     pub regs: Regs64,
+    pub pre_op_regs: Regs64,
+    pub post_op_regs: Regs64,
     flags: Flags,
     eflags: Eflags,
     fpu: FPU,
@@ -118,6 +120,8 @@ impl Emu {
     pub fn new() -> Emu {
         Emu{
             regs: Regs64::new(),
+            pre_op_regs: Regs64::new(),
+            post_op_regs: Regs64::new(),
             flags: Flags::new(),
             eflags: Eflags::new(),
             fpu: FPU::new(),
@@ -3127,6 +3131,15 @@ impl Emu {
         self.run(0);
     }
 
+    pub fn capture_pre_op_registers_64bits(&mut self) {
+        self.pre_op_regs = self.regs.clone();
+    }
+
+    pub fn diff_pre_op_post_op_registers_64bits(&mut self) {
+        self.post_op_regs = self.regs.clone();
+        Regs64::diff(self.pre_op_regs, self.post_op_regs);
+    }
+
     ///  RUN ENGINE ///
 
     pub fn run(&mut self, end_addr:u64) {     
@@ -3234,13 +3247,15 @@ impl Emu {
 
                 if self.cfg.trace_regs {
                     if self.cfg.is_64bits {
+                        self.capture_pre_op_registers_64bits();
                         println!("\trax: 0x{:x} rbx: 0x{:x} rcx: 0x{:x} rdx: 0x{:x} rsi: 0x{:x} rdi: 0x{:x} rbp: 0x{:x}", 
-                            self.regs.rax, self.regs.rbx, self.regs.rcx, 
-                            self.regs.rdx, self.regs.rsi, self.regs.rdi, self.regs.rbp);
+                          self.regs.rax, self.regs.rbx, self.regs.rcx, 
+                          self.regs.rdx, self.regs.rsi, self.regs.rdi, self.regs.rbp);
                     } else {
+                        // TODO: capture pre_op_registers 32-bits?
                         println!("\teax: 0x{:x} ebx: 0x{:x} ecx: 0x{:x} edx: 0x{:x} esi: 0x{:x} edi: 0x{:x} ebp: 0x{:x}", 
-                            self.regs.get_eax() as u32, self.regs.get_ebx() as u32, self.regs.get_ecx() as u32, 
-                            self.regs.get_edx() as u32, self.regs.get_esi() as u32, self.regs.get_edi() as u32, self.regs.get_ebp() as u32);
+                          self.regs.get_eax() as u32, self.regs.get_ebx() as u32, self.regs.get_ecx() as u32, 
+                          self.regs.get_edx() as u32, self.regs.get_esi() as u32, self.regs.get_edi() as u32, self.regs.get_ebp() as u32);
                     }
                 }
 
@@ -8014,6 +8029,14 @@ impl Emu {
                     },
 
                 } // end mnemonics
+
+                if self.cfg.trace_regs {
+                    if self.cfg.is_64bits {
+                        self.diff_pre_op_post_op_registers_64bits();
+                    } else {
+                        // TODO: self.diff_pre_op_post_op_registers_32bits();
+                    }
+                }
 
                 if self.cfg.is_64bits {
                     self.regs.rip += sz as u64;
