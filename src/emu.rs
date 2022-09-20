@@ -7760,7 +7760,7 @@ impl Emu {
                     if self.cfg.is_64bits {
                         self.diff_pre_op_post_op_registers_64bits();
                     } else {
-                        panic!("TODO");
+                        // TODO: self.diff_pre_op_post_op_registers_32bits();
                     }
                 }
 
