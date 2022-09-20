@@ -3924,13 +3924,20 @@ impl Emu {
 
                         if ins.op_count() == 1 { // 1 param
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.sal1p64(value0),
                                 32 => self.flags.sal1p32(value0),
                                 16 => self.flags.sal1p16(value0),
                                 8  => self.flags.sal1p8(value0),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::sal(value0, 1, sz) {
+                                    panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, 1, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -3944,13 +3951,20 @@ impl Emu {
                                 None => break,
                             };
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.sal2p64(value0, value1),
                                 32 => self.flags.sal2p32(value0, value1),
                                 16 => self.flags.sal2p16(value0, value1),
                                 8  => self.flags.sal2p8(value0, value1),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::sal(value0, value1, sz) {
+                                    panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, value1, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -3981,8 +3995,8 @@ impl Emu {
                             };
 
                             if self.cfg.test_mode {
-                                if result != inline::sar1p(value0, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar1p(value0, sz));
+                                if result != inline::sar1p(value0, sz, self.flags.f_cf) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar1p(value0, sz, self.flags.f_cf));
                                 }
                             }
 
@@ -4008,8 +4022,8 @@ impl Emu {
                             };
 
                             if self.cfg.test_mode {
-                                if result != inline::sar2p(value0, value1, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar2p(value0, value1, sz));
+                                if result != inline::sar2p(value0, value1, sz, self.flags.f_cf) {
+                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar2p(value0, value1, sz, self.flags.f_cf));
                                 }
                             }
 
@@ -4032,13 +4046,20 @@ impl Emu {
 
                         if ins.op_count() == 1 { // 1 param
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.shl1p64(value0),
                                 32 => self.flags.shl1p32(value0),
                                 16 => self.flags.shl1p16(value0),
                                 8  => self.flags.shl1p8(value0),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::shl(value0, 1, sz) {
+                                    panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, 1, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -4052,13 +4073,20 @@ impl Emu {
                                 None => break,
                             };
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.shl2p64(value0, value1),
                                 32 => self.flags.shl2p32(value0, value1),
                                 16 => self.flags.shl2p16(value0, value1),
                                 8  => self.flags.shl2p8(value0, value1),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::shl(value0, value1, sz) {
+                                    panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, value1, sz));
+                                }
+                            }
 
                             //println!("0x{:x}: 0x{:x} SHL 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
 
@@ -4081,13 +4109,20 @@ impl Emu {
 
                         if ins.op_count() == 1 { // 1 param
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.shr1p64(value0),
                                 32 => self.flags.shr1p32(value0),
                                 16 => self.flags.shr1p16(value0),
                                 8  => self.flags.shr1p8(value0),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::shr(value0, 1, sz) {
+                                    panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, 1, sz));
+                                }
+                            }
 
                             if !self.set_operand_value(&ins, 0, result) {
                                 break;
@@ -4100,13 +4135,20 @@ impl Emu {
                                 None => break,
                             };
 
-                            let result = match self.get_operand_sz(&ins, 0) {
+                            let sz = self.get_operand_sz(&ins, 0);
+                            let result = match sz {
                                 64 => self.flags.shr2p64(value0, value1),
                                 32 => self.flags.shr2p32(value0, value1),
                                 16 => self.flags.shr2p16(value0, value1),
                                 8  => self.flags.shr2p8(value0, value1),
                                 _  => panic!("weird size")
                             };
+
+                            if self.cfg.test_mode {
+                                if result != inline::shr(value0, value1, sz) {
+                                    panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, value1, sz));
+                                }
+                            }
 
                             //println!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
 
