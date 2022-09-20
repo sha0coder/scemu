@@ -423,6 +423,95 @@ pub fn shr(a:u64, b:u64, bits:u8) -> u64 {
     r
 }
 
+pub fn shld(a:u64, b:u64, c:u64, bits:u8) -> u64 {
+    let mut r:u64 = a;
+    let c8 = c as u8;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov rbx, {}", in(reg) b);
+                asm!("shld {}, rbx, cl", inout(reg) r);
+            }   
+        }
+        32 => {
+            let mut rr:u32 = r as u32;
+            let b32 = b as u32;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov ebx, {:e}", in(reg) b32);
+                asm!("shld {:e}, ebx, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        16 => {
+            let mut rr:u16 = r as u16;
+            let b16 = b as u16;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov bx, {:x}", in(reg) b16);
+                asm!("shld {:x}, bx, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        8 => {
+            unimplemented!("doesnt exit shld of 8bits");
+        }
+        _ => {
+            println!("sz: {}", bits);
+            unimplemented!("weird case");
+        }
+    }
+    
+    r
+}
+
+
+pub fn shrd(a:u64, b:u64, c:u64, bits:u8) -> u64 {
+    let mut r:u64 = a;
+    let c8 = c as u8;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov rbx, {}", in(reg) b);
+                asm!("shrd {}, rbx, cl", inout(reg) r);
+            }   
+        }
+        32 => {
+            let mut rr:u32 = r as u32;
+            let b32 = b as u32;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov ebx, {:e}", in(reg) b32);
+                asm!("shrd {:e}, ebx, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        16 => {
+            let mut rr:u16 = r as u16;
+            let b16 = b as u16;
+            unsafe {   
+                asm!("mov cl, {}", in(reg_byte) c8);
+                asm!("mov bx, {:x}", in(reg) b16);
+                asm!("shrd {:x}, bx, cl", inout(reg) rr);
+            }   
+            r = rr as u64;
+        }
+        8 => {
+            unimplemented!("doesnt exit shrd of 8bits");
+        }
+        _ => {
+            println!("sz: {}", bits);
+            unimplemented!("weird case");
+        }
+    }
+    
+    r
+}
+
 pub fn bswap(a:u64, b:u64) -> u64 {
     let mut r:u64 = a;
     unsafe {   

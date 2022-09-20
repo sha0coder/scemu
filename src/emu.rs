@@ -574,14 +574,23 @@ impl Emu {
 
         assert!(a == 0xffffff00);
 
-        assert!(self.shrd(0x9fd88893, 0x1b, 0x6, 32) == 0x6e7f6222);
-        assert!(self.shrd(0x6fdcb03, 0x0, 0x6, 32) == 0x1bf72c);
-        assert!(self.shrd(0x91545f1d, 0x6fe2, 0x6, 32) == 0x8a45517c);
-        assert!(self.shld(0x1b, 0xf1a7eb1d, 0xa, 32) == 0x6fc6);
-        assert!(self.shld(0x1, 0xffffffff, 4, 32) == 0x1f);
-        assert!(self.shld(0x1, 0xffffffff, 33, 32) == 0x3);
-        assert!(self.shld(0x144e471f8, 0x14F498, 0x3e, 64) == 0x53d26);
-
+        /*
+        let mut r:u64;
+        (r,_) = self.shrd(0x9fd88893, 0x1b, 0x6, 32);
+        assert!(r == 0x6e7f6222);
+        (r,_) = self.shrd(0x6fdcb03, 0x0, 0x6, 32);
+        assert!(r == 0x1bf72c);
+        (r,_) = self.shrd(0x91545f1d, 0x6fe2, 0x6, 32);
+        assert!(r == 0x8a45517c);
+        (r,_) = self.shld(0x1b, 0xf1a7eb1d, 0xa, 32);
+        assert!(r == 0x6fc6);
+        (r,_) = self.shld(0x1, 0xffffffff, 4, 32);
+        assert!(r == 0x1f);
+        (r,_) = self.shld(0x1, 0xffffffff, 33, 32);
+        assert!(r == 0x3);
+        (r,_) = self.shld(0x144e471f8, 0x14F498, 0x3e, 64);
+        assert!(r == 0x53d26);
+*/
 
         if self.maps.mem_test() {
             println!("memory test Ok.");
@@ -1782,18 +1791,29 @@ impl Emu {
         }
     }
 
-    pub fn shrd(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> u64 {
+    pub fn shrd(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> (u64, bool) {
         let mut storage0:u64 = value0;
         let mut counter:u64 = pcounter;
         self.flags.f_cf = get_bit!(value0, counter - 1) == 1;
 
-        if counter >= size as u64 {
-            counter = pcounter - size as u64;
+        if size == 64 {
+            counter = counter % 64; 
+        } else {
+            counter = counter % 32;
         }
 
         if counter == 0 {
-            return storage0;
+            return (storage0, false);
         }
+
+        if counter > size as u64 {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ SHRD undefined behaviour");
+            }
+            return (value0, true);
+        }
+
+        self.flags.f_cf = get_bit!(value0, counter - 1) == 1;
 
         let mut to = size as u64 - 1 - counter;
         if to>64 {
@@ -1814,26 +1834,48 @@ impl Emu {
             let bit = get_bit!(value1, i as u32 + counter as u32 - size as u32);
             set_bit!(storage0, i as u32, bit);
         }
+       
+        /*
+        for i in 0..=(size as u64 -1 -counter) {
+           let bit = get_bit!(storage0, i+counter);
+           set_bit!(storage0, i, bit);
+        }
+        for i in (size as u64 -counter)..(size as u64) {
+            let bit = get_bit!(storage0, i+counter-size as u64);
+            set_bit!(storage0, i, bit);
+        }*/
 
         self.flags.calc_flags(storage0, size);
-        storage0
+        (storage0, false)
     }
 
-    pub fn shld(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> u64 {
+    pub fn shld(&mut self, value0:u64, value1:u64, pcounter:u64, size:u8) -> (u64, bool) {
         let mut storage0:u64 = value0;
         let mut counter:u64 = pcounter;
     
+        if size == 64 {
+            counter = counter % 64; 
+        } else {
+            counter = counter % 32;
+        }
+        
+        if counter == 0 {
+            return (value0, false);
+        }
+
+        if counter > size as u64 {
+            if self.cfg.verbose >= 1 {
+                println!("/!\\ undefined behaviour on shld");
+            }
+            return (value0, true);
+            //counter = pcounter - size as u64;
+        }
+
+        self.flags.f_cf =  get_bit!(value0, size as u64 - counter) == 1;
+        /*
         if counter < size as u64 && size - (counter as u8) < 64 {
             self.flags.f_cf = get_bit!(value0, size - counter as u8) == 1;
-        }
-
-        if pcounter >= size as u64 {
-            counter = pcounter - size as u64;
-        }
-
-        if counter == 0 {
-            return storage0;
-        }
+        }*/
 
         for i in (counter..=((size as u64)-1)).rev() {
             let bit = get_bit!(storage0, i - counter);
@@ -1841,13 +1883,13 @@ impl Emu {
         }
 
         for i in (0..counter).rev() {
-            let bit = get_bit!(value1, i + (size as u64) - counter);
+            let bit = get_bit!(value1, i - counter + (size as u64));
             set_bit!(storage0, i, bit);
         }
 
         self.flags.calc_flags(storage0, size);
 
-        storage0
+        (storage0, false)
     }
 
     pub fn spawn_console(&mut self) {
@@ -7500,7 +7542,13 @@ impl Emu {
                         };
 
                         let sz = self.get_operand_sz(&ins, 0);
-                        let result = self.shld(value0, value1, counter, sz);
+                        let (result, undef) = self.shld(value0, value1, counter, sz);
+
+                        if self.cfg.test_mode && !undef {
+                            if result != inline::shld(value0, value1, counter, sz) {
+                                panic!("SHLD 0x{:x} should be 0x{:x}", result, inline::shld(value0, value1, counter, sz));
+                            }
+                        }
 
                         //println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
 
@@ -7528,9 +7576,14 @@ impl Emu {
                         };
 
                         let sz = self.get_operand_sz(&ins, 0);
-                        let result = self.shrd(value0, value1, counter, sz);
+                        let (result, undef) = self.shrd(value0, value1, counter, sz);
                         
                         //println!("0x{:x} SHRD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
+                        if self.cfg.test_mode && !undef {
+                            if result != inline::shrd(value0, value1, counter, sz) {
+                                panic!("SHRD 0x{:x} should be 0x{:x}", result, inline::shrd(value0, value1, counter, sz));
+                            }
+                        }
                         
                         if !self.set_operand_value(&ins, 0, result) {
                             break;
