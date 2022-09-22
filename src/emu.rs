@@ -2469,8 +2469,9 @@ impl Emu {
                     }
                 },
                 "n"|"" => {
-                    self.exp = self.pos + 1;
-                    return;
+                    //self.exp = self.pos + 1;
+                    self.step();
+                    //return;
                 },
                 "m" => self.maps.print_maps(),
                 "ms" => {
@@ -3144,6 +3145,57 @@ impl Emu {
         self.post_op_regs = self.regs.clone();
         Regs64::diff(self.pre_op_regs, self.post_op_regs);
     }
+
+    pub fn step(&mut self) {                                                   
+        self.pos += 1;                            
+        self.step = false;
+                                             
+        let code = match self.maps.get_mem_by_addr(self.regs.rip) {
+            Some(c) => c,                                                
+            None => {                            
+                println!("redirecting code flow to non maped address 0x{:x}", self.regs.rip);
+                self.spawn_console();                      
+                return;                       
+            }                                             
+        };                                                              
+        let block = code.read_from(self.regs.rip).to_vec(); // reduce code block for more speed
+        let mut decoder;           
+                                  
+        if self.cfg.is_64bits {                                                                  
+            decoder = Decoder::with_ip(64,  &block, self.regs.rip, DecoderOptions::NONE);
+        } else {                              
+            decoder = Decoder::with_ip(32,  &block, self.regs.get_eip(), DecoderOptions::NONE);
+        }                                                     
+                                                        
+        let mut formatter = IntelFormatter::new();                         
+        formatter.options_mut().set_digit_separator("");
+        formatter.options_mut().set_first_operand_char_index(6);
+
+        for ins in decoder.iter() {
+            let sz = ins.len();
+            self.out.clear();
+            formatter.format(&ins, &mut self.out); 
+
+            self.emulate_instruction(&ins, sz); 
+
+            if self.force_reload {
+                self.force_reload = false;
+            } else {
+                if self.cfg.is_64bits {
+                    self.regs.rip += sz as u64;
+                } else {
+                    self.regs.set_eip(self.regs.get_eip() + sz as u64);
+                }
+            }
+
+            break; // only one iteration
+        }
+
+
+    }
+
+
+
 
     ///  RUN ENGINE ///
 
