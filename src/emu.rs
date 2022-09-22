@@ -183,6 +183,7 @@ impl Emu {
     pub fn init_stack64(&mut self) {
         let stack = self.maps.get_mem("stack");
 
+        // regular
         self.regs.rsp = 0x22e000;
         self.regs.rbp = 0x22f000;
         stack.set_base(0x22a000);
@@ -197,6 +198,38 @@ impl Emu {
         assert!(stack.inside(self.regs.rbp));
     }
 
+    pub fn init_registers32(&mut self) {
+        // set all to 0
+        self.regs.eax = 0x0000000000000000;
+        self.regs.ebx = 0x0000000000000000;
+        self.regs.ecx = 0x0000000000000000;
+        self.regs.edx = 0x0000000000000000;
+        self.regs.ebp = 0x0000000000000000;
+        self.regs.esp = 0x0000000000000000;
+        self.regs.esi = 0x0000000000000000;
+        self.regs.edi = 0x0000000000000000;
+    }
+
+    pub fn init_registers64(&mut self) {
+        // set all to 0
+        self.regs.rax = 0x0000000000000000;
+        self.regs.rbx = 0x0000000000000000;
+        self.regs.rcx = 0x0000000000000000;
+        self.regs.rdx = 0x0000000000000000;
+        self.regs.rsp = 0x0000000000000000;
+        self.regs.rbp = 0x0000000000000000;
+        self.regs.rsi = 0x0000000000000000;
+        self.regs.rdi = 0x0000000000000000;
+        self.regs.r8 = 0x0000000000000000;
+        self.regs.r9 = 0x0000000000000000;
+        self.regs.r10 = 0x0000000000000000;
+        self.regs.r11 = 0x0000000000000000;
+        self.regs.r12 = 0x0000000000000000;
+        self.regs.r13 = 0x0000000000000000;
+        self.regs.r14 = 0x0000000000000000;
+        self.regs.r15 = 0x0000000000000000;
+    }
+
     pub fn init(&mut self) {
 
         println!("initializing regs");
@@ -206,12 +239,15 @@ impl Emu {
         if self.cfg.is_64bits {
             self.regs.rip = self.cfg.entry_point;
             self.maps.is_64bits = true;
+            self.init_registers64();
             self.init_mem64();
             self.init_stack64();
+
 
         } else { // 32bits
             self.regs.sanitize32();
             self.regs.set_eip(self.cfg.entry_point);
+            self.init_registers32();
             self.init_mem32();
             self.init_stack32();
         }
@@ -3298,8 +3334,8 @@ impl Emu {
                     if self.cfg.trace_regs {
                         if self.cfg.is_64bits {
                             self.capture_pre_op_registers_64bits();
-                            println!("\trax: 0x{:x} rbx: 0x{:x} rcx: 0x{:x} rdx: 0x{:x} rsi: 0x{:x} rdi: 0x{:x} rbp: 0x{:x}",
-                              self.regs.rax, self.regs.rbx, self.regs.rcx,
+                            println!("\trip: 0x{:x} rax: 0x{:x} rbx: 0x{:x} rcx: 0x{:x} rdx: 0x{:x} rsi: 0x{:x} rdi: 0x{:x} rbp: 0x{:x}",
+                              self.regs.rip, self.regs.rax, self.regs.rbx, self.regs.rcx,
                               self.regs.rdx, self.regs.rsi, self.regs.rdi, self.regs.rbp);
                         } else {
                             // TODO: capture pre_op_registers 32-bits?
