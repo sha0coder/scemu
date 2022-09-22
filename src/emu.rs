@@ -3166,7 +3166,7 @@ impl Emu {
             decoder = Decoder::with_ip(64,  &block, self.regs.rip, DecoderOptions::NONE);
         } else {
             decoder = Decoder::with_ip(32,  &block, self.regs.get_eip(), DecoderOptions::NONE);
-        };
+        }
         // formatter
         let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
@@ -3237,7 +3237,7 @@ impl Emu {
                     decoder = Decoder::with_ip(64,  &block, self.regs.rip, DecoderOptions::NONE);
                 } else {
                     decoder = Decoder::with_ip(32,  &block, self.regs.get_eip(), DecoderOptions::NONE);
-                };
+                }
 
                 for ins in decoder.iter() {
 
