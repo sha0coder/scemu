@@ -101,6 +101,7 @@ pub struct Emu {
     colors: Colors,
     pos: u64,
     force_break: bool,
+    force_reload: bool,
     tls_callbacks: Vec<u64>,
     tls: Vec<u32>,
     fls: Vec<u32>,
@@ -136,6 +137,7 @@ impl Emu {
             colors: Colors::new(),
             pos: 0,
             force_break: false,
+            force_reload: false,
             tls_callbacks: Vec::new(),
             tls: Vec::new(),
             fls: Vec::new(),
@@ -578,7 +580,6 @@ impl Emu {
 
         assert!(a == 0xffffff00);
 
-        /*
         let mut r:u64;
         (r,_) = self.shrd(0x9fd88893, 0x1b, 0x6, 32);
         assert!(r == 0x6e7f6222);
@@ -594,7 +595,6 @@ impl Emu {
         assert!(r == 0x3);
         (r,_) = self.shld(0x144e471f8, 0x14F498, 0x3e, 64);
         assert!(r == 0x53d26);
-*/
 
         if self.maps.mem_test() {
             println!("memory test Ok.");
@@ -1327,6 +1327,8 @@ impl Emu {
     }
 
     pub fn set_rip(&mut self, addr:u64, is_branch:bool) {
+        self.force_reload = true;
+
         if addr == constants::RETURN_THREAD.into() {
             println!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
@@ -1347,6 +1349,7 @@ impl Emu {
         let map_name = self.filename_to_mapname(&self.cfg.filename);
         if addr < constants::LIBS_BARRIER64 || name == "code" || name.starts_with(&map_name) {
             self.regs.rip = addr;
+            //self.force_break = true;
         } else {
             if self.cfg.verbose >= 1 {
                 println!("/!\\ changing RIP to {} ", name);
@@ -1362,6 +1365,8 @@ impl Emu {
     }
 
     pub fn set_eip(&mut self, addr:u64, is_branch:bool) {
+        self.force_reload = true;
+
         if addr == constants::RETURN_THREAD.into() {
             println!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
@@ -3171,6 +3176,7 @@ impl Emu {
 
         loop {
         while self.is_running.load(atomic::Ordering::Relaxed) == 1 {
+            //println!("reloading rip 0x{:x}", self.regs.rip);
             let code = match self.maps.get_mem_by_addr(self.regs.rip) {
                 Some(c) => c,
                 None => {
@@ -3322,4713 +3328,12 @@ impl Emu {
                         self.maps.read_string(addr), self.maps.read_string_of_bytes(addr, constants::NUM_BYTES_TRACE));
                 }
 
-                let mut info_factory = InstructionInfoFactory::new();
-                let info = info_factory.info(&ins);
+                //let mut info_factory = InstructionInfoFactory::new();
+                //let info = info_factory.info(&ins);
 
 
-                // instructions implementation
-
-                match ins.mnemonic() {
-
-                    Mnemonic::Jmp => {
-                        self.show_instruction(&self.colors.yellow, &ins);
-
-                        if ins.op_count() != 1 {
-                            unimplemented!("weird variant of jmp");
-                        }
-
-                        let addr = match self.get_operand_value(&ins, 0, true) {
-                            Some(a) => a,
-                            None => break
-                        };
-
-                        if self.cfg.is_64bits {
-                            self.set_rip(addr, false);
-                        } else {
-                            self.set_eip(addr, false);
-                        }
-                        break;
-                    }
-
-                    Mnemonic::Call => {
-                        self.show_instruction(&self.colors.yellow, &ins);
-
-                        if ins.op_count() != 1 {
-                            unimplemented!("weird variant of call");
-                        }
-
-                        let addr = match self.get_operand_value(&ins, 0, true) {
-                            Some(a) => a,
-                            None => break
-                        };
-
-                        if self.cfg.is_64bits {
-                            self.stack_push64(self.regs.rip + sz as u64);
-                            self.set_rip(addr, false);
-                        } else {
-                            self.stack_push32(self.regs.get_eip() as u32 + sz as u32);
-                            self.set_eip(addr, false);
-                        }
-                        break;
-                    }
-
-                    Mnemonic::Push => {
-
-                        let value = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break
-                        };
-
-                        self.show_instruction_pushpop(&self.colors.blue, &ins, value);
-
-                        if self.cfg.is_64bits {
-                            self.stack_push64(value);
-                        } else {
-                            self.stack_push32(to32!(value));
-                        }
-                    }
-
-                    Mnemonic::Pop => {
-
-                        let value:u64;
-
-                        if self.cfg.is_64bits { 
-                            value = self.stack_pop64(true);
-                        } else {
-                            value = self.stack_pop32(true) as u64;
-                        }
-
-                        self.show_instruction_pushpop(&self.colors.blue, &ins, value);
-
-                        if !self.set_operand_value(&ins, 0, value) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Pushad => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        // only 32bits instruction
-                        let tmp_esp = self.regs.get_esp() as u32;
-                        self.stack_push32(self.regs.get_eax() as u32);
-                        self.stack_push32(self.regs.get_ecx() as u32);
-                        self.stack_push32(self.regs.get_edx() as u32);
-                        self.stack_push32(self.regs.get_ebx() as u32);
-                        self.stack_push32(tmp_esp);
-                        self.stack_push32(self.regs.get_ebp() as u32);
-                        self.stack_push32(self.regs.get_esi() as u32);
-                        self.stack_push32(self.regs.get_edi() as u32);
-                    }
-
-                    Mnemonic::Popad => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        let mut poped:u64;
-
-                        // only 32bits instruction
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_edi(poped);
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_esi(poped);
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_ebp(poped);
-
-                        self.regs.set_esp(self.regs.get_esp() + 4); // skip esp
-
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_ebx(poped);
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_edx(poped);
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_ecx(poped);
-                        poped = self.stack_pop32(false) as u64;
-                        self.regs.set_eax(poped);
-                    }
-
-                    Mnemonic::Cdqe => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        self.regs.rax = self.regs.get_eax() as u32 as i32 as i64 as u64; // sign extend
-                    }
-
-                    Mnemonic::Cdq => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        let num:i64 = self.regs.get_eax() as u32 as i32 as i64; // sign-extend
-                        let unum:u64 = num as u64;
-                        self.regs.set_edx((unum & 0xffffffff00000000) >> 32);
-                        self.regs.set_eax(unum & 0xffffffff);
-                    }
-
-                    Mnemonic::Cqo => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        let sigextend:u128 = self.regs.rax as u64 as i64 as i128 as u128;
-                        self.regs.rdx = ((sigextend & 0xffffffff_ffffffff_00000000_00000000) >> 64) as u64
-                    }
-
-                    Mnemonic::Ret => {
-                        let ret_addr:u64;
-
-                        if self.cfg.is_64bits {
-                            ret_addr = self.stack_pop64(false); // return address
-                        } else {
-                            ret_addr = self.stack_pop32(false) as u64; // return address
-                        }
-
-                        self.show_instruction_ret(&self.colors.yellow, &ins, ret_addr);
-
-                        if self.run_until_ret {
-                            return;
-                        }
-
-                        if self.break_on_next_return {
-                            self.break_on_next_return = false;
-                            self.spawn_console();
-                        }
-    
-                        if ins.op_count() > 0 {
-                            let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
-                            // apply stack compensation of ret operand
-
-                            if self.cfg.is_64bits {
-
-                                if arg % 8 != 0 {
-                                    panic!("weird ret argument!");
-                                }
-    
-                                arg /= 8;
-
-                                for _ in 0..arg {
-                                    self.stack_pop64(false);
-                                }
-
-                            } else {
-
-                                if arg % 4 != 0 {
-                                    panic!("weird ret argument!");
-                                }
-    
-                                arg /= 4;
-
-                                for _ in 0..arg {
-                                    self.stack_pop32(false);
-                                }
-                            }
-                        }
-
-                        if self.eh_ctx != 0 {
-                            exception::exit(self);
-                            break;
-                        }
-
-                        if self.cfg.is_64bits {
-                            self.set_rip(ret_addr, false);                        
-                        } else {
-                            self.set_eip(ret_addr, false);                        
-                        }
-
-                        break;
-                    }
-
-                    Mnemonic::Xchg => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v)  => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v)  => v,
-                            None => break,
-                        };
-
-                        if !self.set_operand_value(&ins, 0, value1) { 
-                            break;
-                        }
-                        if !self.set_operand_value(&ins, 1, value0) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Mov => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if !self.set_operand_value(&ins, 0, value1) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Xor => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 2);
-                        assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let result = value0 ^ value1;
-
-                        if self.cfg.test_mode {
-                            if result != inline::xor(value0, value1) {
-                                panic!("0x{:x} should be 0x{:x}", result, inline::xor(value0, value1));
-                            }
-                        }
-
-                        self.flags.calc_flags(result, sz);
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Add => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res:u64 = match self.get_operand_sz(&ins, 1) {
-                            64 => self.flags.add64(value0, value1),
-                            32 => self.flags.add32(value0, value1),
-                            16 => self.flags.add16(value0, value1),
-                            8  => self.flags.add8(value0, value1),
-                            _  => unreachable!("weird size")
-                        };
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        }
-
-                    }
-
-                    Mnemonic::Adc => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let cf:u64;
-                        if self.flags.f_cf {
-                            cf = 1
-                        } else {
-                            cf = 0;
-                        }
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res:u64;
-                        match self.get_operand_sz(&ins, 1) {
-                            64 => res = self.flags.add64(value0, value1 + cf),
-                            32 => res = self.flags.add32(value0, value1 + cf),
-                            16 => res = self.flags.add16(value0, value1 + cf),
-                            8  => res = self.flags.add8(value0, value1 + cf),
-                            _  => unreachable!("weird size")
-                        }
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        }                        
-
-                    }
-
-                    Mnemonic::Sbb => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let cf:u64;
-                        if self.flags.f_cf {
-                            cf = 1;
-                        } else {
-                            cf = 0;
-                        }
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res:u64;
-                        match self.get_operand_sz(&ins, 1) {
-                            64 => res = self.flags.sub64(value0, value1 + cf),
-                            32 => res = self.flags.sub32(value0, value1 + cf),
-                            16 => res = self.flags.sub16(value0, value1 + cf),
-                            8  => res = self.flags.sub8(value0, value1 + cf),
-                            _  => panic!("weird size")
-                        }
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        } 
-
-                    }
-
-                    Mnemonic::Sub => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res:u64;
-                        match self.get_operand_sz(&ins, 0) {
-                            64 => res = self.flags.sub64(value0, value1),
-                            32 => res = self.flags.sub32(value0, value1),
-                            16 => res = self.flags.sub16(value0, value1),
-                            8  => res = self.flags.sub8(value0, value1),
-                            _  => panic!("weird size")
-                        }
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        } 
-
-                    }
-
-                    Mnemonic::Inc => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res = match self.get_operand_sz(&ins, 0) {
-                            64 => self.flags.inc64(value0),
-                            32 => self.flags.inc32(value0),
-                            16 => self.flags.inc16(value0),
-                            8  => self.flags.inc8(value0),
-                            _  => panic!("weird size")
-                        };
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        } 
-                    }
-
-                    Mnemonic::Dec => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let res = match self.get_operand_sz(&ins, 0) {
-                            64 => self.flags.dec64(value0),
-                            32 => self.flags.dec32(value0),
-                            16 => self.flags.dec16(value0),
-                            8  => self.flags.dec8(value0),
-                            _  => panic!("weird size")
-                        };
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        } 
-                    }
-
-                    Mnemonic::Neg => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let res = match sz {
-                            64 => self.flags.neg64(value0),
-                            32 => self.flags.neg32(value0),
-                            16 => self.flags.neg16(value0),
-                            8  => self.flags.neg8(value0),
-                            _  => panic!("weird size")
-                        };
-
-                        if self.cfg.test_mode {
-                            if res != inline::neg(value0, sz) {
-                                panic!("0x{:x} should be 0x{:x}", res, inline::neg(value0, sz));
-                            }
-                        }
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Not => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let val:u64;
-
-                        /*let mut ival = value0 as i32;
-                        ival = !ival;*/
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        match sz {
-                            64 => {
-                                let mut ival = value0 as i64;
-                                ival = !ival;
-                                val = ival as u64;
-                            }
-                            32 => {
-                                let mut ival = value0 as u32 as i32;
-                                ival = !ival;
-                                val = value0 & 0xffffffff_00000000 | ival as u32 as u64;
-                            }
-                            16 => {
-                                let mut ival = value0 as u16 as i16;
-                                ival = !ival;
-                                val = value0 & 0xffffffff_ffff0000 | ival as u16 as u64;
-                            }
-                            8 => {
-                                let mut ival = value0 as u8 as i8;
-                                ival = !ival;
-                                val = value0 & 0xffffffff_ffffff00 | ival as u8 as u64;
-                            }
-                            _ => unimplemented!("weird"),
-                        }
-
-                        if self.cfg.test_mode {
-                            if val != inline::not(value0, sz) {
-                                panic!("0x{:x} should be 0x{:x}", val, inline::not(value0, sz));
-                            }
-                        }
-
-                        if !self.set_operand_value(&ins, 0, val) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::And => {  
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let result1:u64;
-                        let result2:u64;
-
-                        match sz {
-                            8 => {
-                                result1 = (value0 & 0xff) & (value1 & 0xff);
-                                result2 = (value0 & 0xffffffffffffff00) + result1;
-                            }
-                            16 => {
-                                result1 = (value0 & 0xffff) & (value1 & 0xffff);
-                                result2 = (value0 & 0xffffffffffff0000) + result1;
-                            }
-                            32 => {
-                                result1 = (value0 & 0xffffffff) & (value1 & 0xffffffff);
-                                result2 = (value0 & 0xffffffff00000000) + result1;
-                            }
-                            64 => { 
-                                result1 = value0 & value1;
-                                result2 = result1;
-                            }
-                            _ => unreachable!(""),
-                        }
-
-                        if self.cfg.test_mode {
-                            if result2 != inline::and(value0, value1) {
-                                panic!("0x{:x} should be 0x{:x}", result2, inline::and(value0, value1));
-                            }
-                        }
-
-                        self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
-                        self.flags.f_of = false;
-                        self.flags.f_cf = false;
-
-                        if !self.set_operand_value(&ins, 0, result2) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Or => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 2);
-                        assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let result1:u64;
-                        let result2:u64;
-
-                        match sz {
-                            8 => {
-                                result1 = (value0 & 0xff) | (value1 & 0xff);
-                                result2 = (value0 & 0xffffffffffffff00) + result1;
-                            }
-                            16 => {
-                                result1 = (value0 & 0xffff) | (value1 & 0xffff);
-                                result2 = (value0 & 0xffffffffffff0000) + result1;
-                            }
-                            32 => {
-                                result1 = (value0 & 0xffffffff) | (value1 & 0xffffffff);
-                                result2 = (value0 & 0xffffffff00000000) + result1;
-                            }
-                            64 => { 
-                                result1 = value0 | value1;
-                                result2 = result1;
-                            }
-                            _ => unreachable!(""),
-                        }
-
-                        if self.cfg.test_mode {
-                            if result2 != inline::or(value0, value1) {
-                                panic!("0x{:x} should be 0x{:x}", result2, inline::or(value0, value1));
-                            }
-                        }
-
-                        self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
-                        self.flags.f_of = false;
-                        self.flags.f_cf = false;
-
-                        if !self.set_operand_value(&ins, 0, result2) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Sal => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if ins.op_count() == 1 { // 1 param
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.sal1p64(value0),
-                                32 => self.flags.sal1p32(value0),
-                                16 => self.flags.sal1p16(value0),
-                                8  => self.flags.sal1p8(value0),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::sal(value0, 1, sz) {
-                                    panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, 1, sz));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-
-                        } else { // 2 params
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.sal2p64(value0, value1),
-                                32 => self.flags.sal2p32(value0, value1),
-                                16 => self.flags.sal2p16(value0, value1),
-                                8  => self.flags.sal2p8(value0, value1),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::sal(value0, value1, sz) {
-                                    panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, value1, sz));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        }
-                    }
-
-                    Mnemonic::Sar => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if ins.op_count() == 1 { // 1 param
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.sar1p64(value0),
-                                32 => self.flags.sar1p32(value0),
-                                16 => self.flags.sar1p16(value0),
-                                8  => self.flags.sar1p8(value0),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::sar1p(value0, sz, self.flags.f_cf) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar1p(value0, sz, self.flags.f_cf));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-
-                        } else { // 2 params
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.sar2p64(value0, value1),
-                                32 => self.flags.sar2p32(value0, value1),
-                                16 => self.flags.sar2p16(value0, value1),
-                                8  => self.flags.sar2p8(value0, value1),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::sar2p(value0, value1, sz, self.flags.f_cf) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::sar2p(value0, value1, sz, self.flags.f_cf));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        }
-                    }
-
-                    Mnemonic::Shl => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if ins.op_count() == 1 { // 1 param
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.shl1p64(value0),
-                                32 => self.flags.shl1p32(value0),
-                                16 => self.flags.shl1p16(value0),
-                                8  => self.flags.shl1p8(value0),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::shl(value0, 1, sz) {
-                                    panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, 1, sz));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-
-                        } else { // 2 params
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.shl2p64(value0, value1),
-                                32 => self.flags.shl2p32(value0, value1),
-                                16 => self.flags.shl2p16(value0, value1),
-                                8  => self.flags.shl2p8(value0, value1),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::shl(value0, value1, sz) {
-                                    panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, value1, sz));
-                                }
-                            }
-
-                            //println!("0x{:x}: 0x{:x} SHL 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        }
-                    }
-
-                    Mnemonic::Shr => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if ins.op_count() == 1 { // 1 param
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.shr1p64(value0),
-                                32 => self.flags.shr1p32(value0),
-                                16 => self.flags.shr1p16(value0),
-                                8  => self.flags.shr1p8(value0),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::shr(value0, 1, sz) {
-                                    panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, 1, sz));
-                                }
-                            }
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        } else { // 2 params
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let sz = self.get_operand_sz(&ins, 0);
-                            let result = match sz {
-                                64 => self.flags.shr2p64(value0, value1),
-                                32 => self.flags.shr2p32(value0, value1),
-                                16 => self.flags.shr2p16(value0, value1),
-                                8  => self.flags.shr2p8(value0, value1),
-                                _  => panic!("weird size")
-                            };
-
-                            if self.cfg.test_mode {
-                                if result != inline::shr(value0, value1, sz) {
-                                    panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, value1, sz));
-                                }
-                            }
-
-                            //println!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        }
-                    }
-
-                    Mnemonic::Ror => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let result:u64;
-                        let sz = self.get_operand_sz(&ins, 0);
-
-
-                        if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.ror(value0, 1, sz);
-
-                            if self.cfg.test_mode {
-                                if result != inline::ror(value0, 1, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, 1, sz))
-                                }
-                            }
-
-                        } else { // 2 params
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.ror(value0, value1, sz);
-
-                            if self.cfg.test_mode {
-                                if result != inline::ror(value0, value1, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, value1, sz))
-                                }
-                            }
-
-                        }
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                        self.flags.calc_flags(result, sz);
-                    }
-
-                    Mnemonic::Rcr => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let result:u64;
-                        let sz = self.get_operand_sz(&ins, 0);
-
-
-                        if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rcr(value0, 1, sz);
-
-                        } else { // 2 params
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rcr(value0, value1, sz);
-                        }
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                        self.flags.calc_flags(result, sz);
-                    }
-
-                    Mnemonic::Rol => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let result:u64;
-                        let sz = self.get_operand_sz(&ins, 0);
-
-
-                        if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rol(value0, 1, sz);
-
-                            if self.cfg.test_mode {
-                                if result != inline::rol(value0, 1, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, 1, sz));
-                                }
-                            }
-
-                        } else { // 2 params
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rol(value0, value1, sz);
-
-                            if self.cfg.test_mode {
-                                if result != inline::rol(value0, value1, sz) {
-                                    panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, value1, sz));
-                                }
-                            }
-                        }
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                        self.flags.calc_flags(result, sz as u8);
-                    }
-
-                    Mnemonic::Rcl => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2);
-
-                        let result:u64;
-                        let sz = self.get_operand_sz(&ins, 0) + 1;
-
-                        if ins.op_count() == 1 { // 1 param
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rcl(value0, 1, sz);
-
-                        } else { // 2 params
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            result = self.rcl(value0, value1, sz);
-                        }
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                        self.flags.calc_flags(result, sz as u8 -1);
-                    }
-
-
-                    Mnemonic::Mul => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        match self.get_operand_sz(&ins, 0) {
-                            64 => self.mul64(value0),
-                            32 => self.mul32(value0),
-                            16 => self.mul16(value0),
-                            8  => self.mul8(value0),
-                            _ => unimplemented!("wrong size"),
-                        }
-                    }
-
-                    Mnemonic::Div => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        match self.get_operand_sz(&ins, 0) {
-                            64 => self.div64(value0),
-                            32 => self.div32(value0),
-                            16 => self.div16(value0),
-                            8  => self.div8(value0),
-                            _ => unimplemented!("wrong size"),
-                        }
-                    }
-
-                    Mnemonic::Idiv => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        match self.get_operand_sz(&ins, 0) {
-                            64 => self.idiv64(value0),
-                            32 => self.idiv32(value0),
-                            16 => self.idiv16(value0),
-                            8  => self.idiv8(value0),
-                            _ => unimplemented!("wrong size"),
-                        }
-                    }
-
-                    Mnemonic::Imul => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
-
-                        if ins.op_count() == 1 { // 1 param
-
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            match self.get_operand_sz(&ins, 0) {
-                                64 => self.imul64p1(value0),
-                                32 => self.imul32p1(value0),
-                                16 => self.imul16p1(value0),
-                                8  => self.imul8p1(value0),
-                                _ => unimplemented!("wrong size"),
-                            }
-
-                        } else if ins.op_count() == 2 { // 2 params
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let result = match self.get_operand_sz(&ins, 0) {
-                                64 => self.flags.imul64p2(value0, value1),
-                                32 => self.flags.imul32p2(value0, value1),
-                                16 => self.flags.imul16p2(value0, value1),
-                                8  => self.flags.imul8p2(value0, value1),
-                                _ => unimplemented!("wrong size"),
-                            };
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        } else { // 3 params
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value2 = match self.get_operand_value(&ins, 2, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let result = match self.get_operand_sz(&ins, 0) {
-                                64 => self.flags.imul64p2(value1, value2),
-                                32 => self.flags.imul32p2(value1, value2),
-                                16 => self.flags.imul16p2(value1, value2),
-                                8  => self.flags.imul8p2(value1, value2),
-                                _ => unimplemented!("wrong size"),
-                            };
-
-                            if !self.set_operand_value(&ins, 0, result) {
-                                break;
-                            }
-
-                        }
-                    }
-
-                    Mnemonic::Bt | Mnemonic::Bts | Mnemonic::Btr | Mnemonic::Btc => {
-                        self.show_instruction(&self.colors.green, &ins);
-                        assert!(ins.op_count() == 2);
-
-                        let bit = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        self.flags.f_cf = (value & (1 << bit)) == 1;
-                    }
-
-                    Mnemonic::Bsf => {
-                        self.show_instruction(&self.colors.green, &ins);
-                        assert!(ins.op_count() == 2);
-
-                        let src = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let mut bitpos: u8 = 0;
-                        let mut dest: u64 = 0;
-
-                        while bitpos < sz && get_bit!(src, bitpos) == 0 {
-                            dest += 1;
-                            bitpos += 1;
-                        }
-                        dest -= 1;
-
-                        if dest == sz as u64 {
-                            self.flags.f_cf = true;
-                        } else {
-                            self.flags.f_cf = false;
-                        }
-
-                        if dest == 0 {
-                            self.flags.f_zf = true;
-                        } else {
-                            self.flags.f_zf = false;
-                        }
-
-                        if !self.set_operand_value(&ins, 0, dest) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Bsr => {
-                        self.show_instruction(&self.colors.green, &ins);
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let mut bitpos: u8 = sz-1;
-                        let mut dest: u64 = 0;
-
-                        while bitpos <= 0 && get_bit!(value1, bitpos) == 0 {
-                            dest += 1;
-                            bitpos -= 1;
-                        }
-
-                        if dest != sz as u64 {
-                            self.flags.f_cf = true;
-                        } else {
-                            self.flags.f_cf = false;
-                        }
-
-                        if dest == 0 {
-                            self.flags.f_zf = true;
-                        } else {
-                            self.flags.f_zf = false;
-                        }
-
-                        if !self.set_operand_value(&ins, 0, dest) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Bswap => {
-                        self.show_instruction(&self.colors.green, &ins);
-                        assert!(ins.op_count() == 1);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1;
-                        let sz = self.get_operand_sz(&ins, 0);
-
-                        if sz == 32 {
-                            value1 = (value0 & 0x00000000_000000ff) << 24 | (value0 & 0x00000000_0000ff00) << 8 |
-                                (value0 & 0x00000000_00ff0000) >> 8 | (value0 & 0x00000000_ff000000) >> 24 |
-                                (value0 & 0xffffffff_00000000);
-
-                        } else if sz == 64 {
-                            value1 = (value0 & 0xff000000_00000000) >> 56 | (value0 & 0x00ff0000_00000000) >> 40 |
-                                (value0 & 0x0000ff00_00000000) >> 24 | (value0 & 0x000000ff_00000000) >> 8 |
-                                (value0 & 0x00000000_ff000000) << 8 | (value0 & 0x00000000_00ff0000) << 24 |
-                                (value0 & 0x00000000_0000ff00) << 40 | (value0 & 0x00000000_000000ff) << 56;
-
-                        } else if sz == 16 {
-                            value1 = (value0 & 0x00000000_000000ff) << 8 | (value0 & 0x00000000_0000ff00) >> 8;
-
-                        } else {
-                            unimplemented!("bswap <16bits makes no sense, isn't it?");
-                        }
-
-                        /*
-                        for i in 0..sz {
-                            let bit = get_bit!(value0, i);
-                            set_bit!(value1, sz-i-1, bit);
-                        }*/
-
-                        if !self.set_operand_value(&ins, 0, value1) {
-                            break;
-                        }
-
-                    }
-
-                    Mnemonic::Xadd => {
-                        self.show_instruction(&self.colors.green, &ins);
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if !self.set_operand_value(&ins, 1, value0) {
-                            break;
-                        }
-
-                        let res:u64 = match self.get_operand_sz(&ins, 1) {
-                            64 => self.flags.add64(value0, value1),
-                            32 => self.flags.add32(value0, value1),
-                            16 => self.flags.add16(value0, value1),
-                            8  => self.flags.add8(value0, value1),
-                            _  => unreachable!("weird size")
-                        };
-
-                        if !self.set_operand_value(&ins, 0, res) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Movsxd => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let result:u64 = value1 as u32 as i32 as i64 as u64;
-
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Movsx => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        assert!((sz0 == 16 && sz1 == 8) || 
-                            (sz0 == 32 && sz1 == 8) || 
-                            (sz0 == 32 && sz1 == 16) ||
-                            (sz0 == 64 && sz1 == 32) ||
-                            (sz0 == 64 && sz1 == 16) ||
-                            (sz0 == 64 && sz1 == 8));
-
-
-                        let mut result:u64 = 0;
-
-                        if sz0 == 16 {
-                            assert!(sz1 == 8);
-                            result = value1 as u8 as i8 as i16 as u16 as u64;
-                        } else if sz0 == 32 {
-                            if sz1 == 8 {
-                                result = value1 as u8 as i8 as i64 as u64;
-                            } else if sz1 == 16 {
-                                result = value1 as u8 as i8 as i16 as u16 as u64;
-                            }
-                        } else if sz0 == 64 {
-                            if sz1 == 8 {
-                                result = value1 as u8 as i8 as i64 as u64;
-                            } else if sz1 == 16 {
-                                result = value1 as u16 as i16 as i64 as u64;
-                            } else if sz1 == 32 {
-                                result = value1 as u32 as i32 as i64 as u64;
-                            }
-                        }
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                    }
-
-                    Mnemonic::Movzx => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        assert!((sz0 == 16 && sz1 == 8) || 
-                            (sz0 == 32 && sz1 == 8) || 
-                            (sz0 == 32 && sz1 == 16) ||
-                            (sz0 == 64 && sz1 == 32) ||
-                            (sz0 == 64 && sz1 == 16) ||
-                            (sz0 == 64 && sz1 == 8));
-
-
-                        let result:u64;
-
-
-                        result = value1;
-
-                        //println!("0x{:x}: MOVZX 0x{:x}", ins.ip32(), result);
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-
-                    }
-
-                    Mnemonic::Movsb => {
-                        
-                        if self.cfg.is_64bits {
-                            if ins.has_rep_prefix() {
-                                let mut first_iteration = true;
-                                loop {
-                                    if first_iteration || self.cfg.verbose >= 3 {
-                                        self.show_instruction(&self.colors.light_cyan, &ins);
-                                    }
-                                    if !first_iteration {
-                                        self.pos += 1;
-                                    }
-
-                                    let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
-                                    self.maps.write_byte(self.regs.rdi, val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.rsi += 1;
-                                        self.regs.rdi += 1;
-                                    } else {
-                                        self.regs.rsi -= 1;
-                                        self.regs.rdi -= 1;
-                                    }
-
-                                    self.regs.rcx -= 1;
-                                    if self.regs.rcx == 0 { 
-                                        break 
-                                    }
-                                    first_iteration = false;
-                                }
-
-                            } else {
-                                self.show_instruction(&self.colors.light_cyan, &ins);
-
-                                let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
-                                self.maps.write_byte(self.regs.rdi, val);
-                                if !self.flags.f_df {
-                                    self.regs.rsi += 1;
-                                    self.regs.rdi += 1;
-                                } else {
-                                    self.regs.rsi -= 1;
-                                    self.regs.rdi -= 1;
-                                }
-                            }
-                        } else { // 32bits
-
-                            if ins.has_rep_prefix() {
-                                let mut first_iteration = true;
-                                loop {
-                                    if first_iteration || self.cfg.verbose >= 3 {
-                                        self.show_instruction(&self.colors.light_cyan, &ins);
-                                    }
-                                    if !first_iteration {
-                                        self.pos += 1;
-                                    }
-
-                                    let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
-                                    self.maps.write_byte(self.regs.get_edi(), val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() + 1);
-                                        self.regs.set_edi(self.regs.get_edi() + 1);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() - 1);
-                                        self.regs.set_edi(self.regs.get_edi() - 1);
-                                    }
-
-                                    self.regs.set_ecx(self.regs.get_ecx() - 1);
-                                    if self.regs.get_ecx() == 0 { 
-                                        break 
-                                    }
-                                    first_iteration = false;
-                                }
-
-                            } else {
-                                self.show_instruction(&self.colors.light_cyan, &ins);
-
-                                let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
-                                self.maps.write_byte(self.regs.get_edi(), val);
-                                if !self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() + 1);
-                                    self.regs.set_edi(self.regs.get_edi() + 1);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() - 1);
-                                    self.regs.set_edi(self.regs.get_edi() - 1);
-                                }
-                            }
-                        }
-                    }
-
-
-                    Mnemonic::Movsw => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        if self.cfg.is_64bits {
-                            if ins.has_rep_prefix() {
-                                loop {
-                                    let val = self.maps.read_word(self.regs.rsi).expect("cannot read memory"); 
-                                    self.maps.write_word(self.regs.rdi, val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.rsi += 2;
-                                        self.regs.rdi += 2;
-                                    } else {
-                                        self.regs.rsi -= 2;
-                                        self.regs.rdi -= 2;
-                                    }
-
-                                    self.regs.rcx -= 1;
-                                    if self.regs.rcx == 0 { 
-                                        break 
-                                    }
-                                }
-
-                            } else {
-                                let val = self.maps.read_word(self.regs.rsi).expect("cannot read memory"); 
-                                self.maps.write_word(self.regs.rdi, val);
-                                if !self.flags.f_df {
-                                    self.regs.rsi += 2;
-                                    self.regs.rdi += 2;
-                                } else {
-                                    self.regs.rsi -= 2;
-                                    self.regs.rdi -= 2;
-                                }
-                            }
-
-                        } else { // 32bits
-
-                            if ins.has_rep_prefix() {
-                                loop {
-                                    let val = self.maps.read_word(self.regs.get_esi()).expect("cannot read memory"); 
-                                    self.maps.write_word(self.regs.get_edi(), val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() + 2);
-                                        self.regs.set_edi(self.regs.get_edi() + 2);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() - 2);
-                                        self.regs.set_edi(self.regs.get_edi() - 2);
-                                    }
-
-                                    self.regs.set_ecx(self.regs.get_ecx() - 1);
-                                    if self.regs.get_ecx() == 0 { 
-                                        break 
-                                    }
-                                }
-
-                            } else {
-                                let val = self.maps.read_word(self.regs.get_esi()).expect("cannot read memory"); 
-                                self.maps.write_word(self.regs.get_edi(), val);
-                                if !self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() + 2);
-                                    self.regs.set_edi(self.regs.get_edi() + 2);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() - 2);
-                                    self.regs.set_edi(self.regs.get_edi() - 2);
-                                }
-                            }
-                        }
-                    }
-
-                    Mnemonic::Movsd => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        if self.cfg.is_64bits {
-                            if ins.has_rep_prefix() {
-                                loop {
-                                    let val = self.maps.read_dword(self.regs.rsi).expect("cannot read memory"); 
-                                    self.maps.write_dword(self.regs.rdi, val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.rsi += 4;
-                                        self.regs.rdi += 4;
-                                    } else {
-                                        self.regs.rsi -= 4;
-                                        self.regs.rdi -= 4;
-                                    }
-
-                                    self.regs.rcx -= 1;
-                                    if self.regs.rcx == 0 { 
-                                        break 
-                                    }
-                                }
-
-                            } else {
-                                let val = self.maps.read_dword(self.regs.rsi).expect("cannot read memory"); 
-                                self.maps.write_dword(self.regs.rdi, val);
-                                if !self.flags.f_df {
-                                    self.regs.rsi += 4;
-                                    self.regs.rdi += 4;
-                                } else {
-                                    self.regs.rsi -= 4;
-                                    self.regs.rdi -= 4;
-                                }
-                            }
-                        } else { // 32bits
-
-                            if ins.has_rep_prefix() {
-                                loop {
-                                    let val = self.maps.read_dword(self.regs.get_esi()).expect("cannot read memory"); 
-                                    self.maps.write_dword(self.regs.get_edi(), val);
-
-                                    if !self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() + 4);
-                                        self.regs.set_edi(self.regs.get_edi() + 4);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() - 4);
-                                        self.regs.set_edi(self.regs.get_edi() - 4);
-                                    }
-
-                                    self.regs.set_ecx(self.regs.get_ecx() - 1);
-                                    if self.regs.get_ecx() == 0 { 
-                                        break 
-                                    }
-                                }
-
-                            } else {
-                                let val = self.maps.read_dword(self.regs.get_esi()).expect("cannot read memory"); 
-                                self.maps.write_dword(self.regs.get_edi(), val);
-                                if !self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() + 4);
-                                    self.regs.set_edi(self.regs.get_edi() + 4);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() - 4);
-                                    self.regs.set_edi(self.regs.get_edi() - 4);
-                                }
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmova => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_cf && !self.flags.f_zf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovae => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_cf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovb => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_cf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovbe => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_cf || self.flags.f_zf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmove => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_zf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovg => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovge => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf == self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovl => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf != self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovle => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovno => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovne => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_zf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovp => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_pf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    // https://hjlebbink.github.io/x86doc/html/CMOVcc.html
-
-                    Mnemonic::Cmovnp => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_pf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovs => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovns => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_sf {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmovo => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_of {
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Seta  => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_cf && !self.flags.f_zf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setae  => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_cf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setb => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_cf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setbe => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_cf || self.flags.f_zf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Sete => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_zf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setg => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setge => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf == self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setl => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf != self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setle => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_zf ||  self.flags.f_sf != self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setne => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_zf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }   
-
-                    Mnemonic::Setno => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setnp => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_pf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setns => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if !self.flags.f_sf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Seto => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_of {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Setp => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_pf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Sets => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        if self.flags.f_sf {
-                            if !self.set_operand_value(&ins, 0, 1) {
-                                break;
-                            }
-                        } else  {
-                            if !self.set_operand_value(&ins, 0, 0) {
-                                break;
-                            }
-                        }
-                    }
-
-
-                    Mnemonic::Stosb => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-                        
-                        if ins.has_rep_prefix() {
-                            loop {
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }
-
-                                if self.cfg.is_64bits {
-                                    self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
-                                    if self.flags.f_df {
-                                        self.regs.rdi -= 1;
-                                    } else {
-                                        self.regs.rdi += 1;
-                                    }
-                                } else { // 32bits
-                                    self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
-                                    if self.flags.f_df {
-                                        self.regs.set_edi(self.regs.get_edi() - 1);
-                                    } else {
-                                        self.regs.set_edi(self.regs.get_edi() + 1);
-                                    }
-                                }
-
-                                self.regs.rcx -= 1;
-                            }
-
-                        } else {
-
-                            if self.cfg.is_64bits {
-                                self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
-                                if self.flags.f_df {
-                                    self.regs.rdi -= 1;
-                                } else {
-                                    self.regs.rdi += 1;
-                                }
-                            } else { // 32bits
-                                self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
-                                if self.flags.f_df {
-                                    self.regs.set_edi(self.regs.get_edi() - 1);
-                                } else {
-                                    self.regs.set_edi(self.regs.get_edi() + 1);
-                                }
-                            }
-                        }
-                    }
-
-                    Mnemonic::Stosw => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        if self.cfg.is_64bits {
-                            self.maps.write_word(self.regs.rdi, self.regs.get_ax() as u16);
-
-                            if self.flags.f_df {
-                                self.regs.rdi -= 2;
-                            } else {
-                                self.regs.rdi += 2;
-                            }
-                        } else { // 32bits
-                            self.maps.write_word(self.regs.get_edi(), self.regs.get_ax() as u16);
-
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 2);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 2);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Stosd => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        if ins.has_rep_prefix() {                                             
-                            loop {                  
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }                      
-                                 
-                                if self.cfg.is_64bits {
-                                    self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
-                                    if self.flags.f_df {
-                                        self.regs.rdi -= 4;                    
-                                    } else {
-                                        self.regs.rdi += 4;                    
-                                    }
-                                } else { // 32bits
-                                    self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
-                     
-                                    if self.flags.f_df {
-                                        self.regs.set_edi(self.regs.get_edi() - 4);
-                                    } else {
-                                        self.regs.set_edi(self.regs.get_edi() + 4);
-                                    }
-                                }
-
-                                self.regs.rcx -= 1;
-                            }
-                        } else {
-                            if self.cfg.is_64bits {
-                                self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
-
-                                if self.flags.f_df {
-                                    self.regs.rdi -= 4;
-                                } else {
-                                    self.regs.rdi += 4;
-                                }
-                            } else { // 32bits
-                                self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
-
-                                if self.flags.f_df {
-                                    self.regs.set_edi(self.regs.get_edi() - 4);
-                                } else {
-                                    self.regs.set_edi(self.regs.get_edi() + 4);
-                                }
-                            }
-                        }
-                    }
-
-                    Mnemonic::Stosq => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        self.maps.write_qword(self.regs.rdi, self.regs.rax);
-
-                        if self.flags.f_df {
-                            self.regs.rdi -= 8;
-                        } else {
-                            self.regs.rdi += 8;
-                        }
-                        
-                    }
-
-                    Mnemonic::Scasb => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        let value0:u64 = match self.maps.read_byte(self.regs.rdi) {
-                            Some(value) => value.into(),
-                            None => break,
-                        };
-
-                        self.flags.sub8(self.regs.get_al(), value0);
-
-                        if self.cfg.is_64bits {
-                            if self.flags.f_df {                       
-                                self.regs.rdi -= 1;
-                            } else {
-                                self.regs.rdi += 1;
-                            }
-                        } else { // 32bits
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 1);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 1);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Scasw => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        self.flags.sub16(self.regs.get_ax(), value0);
-
-                        if self.cfg.is_64bits {
-                            if self.flags.f_df {                       
-                                self.regs.rdi -= 2;
-                            } else {
-                                self.regs.rdi += 2;
-                            }
-                        } else { // 32bits
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 2);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 2);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Scasd => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        self.flags.sub32(self.regs.get_eax(), value0);
-
-                        if self.cfg.is_64bits {
-                            if self.flags.f_df {                       
-                                self.regs.rdi -= 4;
-                            } else {
-                                self.regs.rdi += 4;
-                            }
-                        } else { // 32bits
-                            if self.flags.f_df {
-                                self.regs.set_edi(self.regs.get_edi() - 4);
-                            } else {
-                                self.regs.set_edi(self.regs.get_edi() + 4);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Scasq => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        self.flags.sub64(self.regs.rax, value0);
-
-                        if self.flags.f_df {                       
-                            self.regs.rdi -= 8;
-                        } else {
-                            self.regs.rdi += 8;
-                        }
-                    }
-
-                    Mnemonic::Test => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        if self.break_on_next_cmp {
-                            self.spawn_console();
-                            self.break_on_next_cmp = false;
-                        }
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-
-
-                        let sz = self.get_operand_sz(&ins, 0);
-
-                        self.flags.test(value0, value1, sz);
-                    }
-
-                    Mnemonic::Cmpxchg => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if self.cfg.is_64bits {
-                            if value0 == self.regs.rax {
-                                self.flags.f_zf = true;
-                                if !self.set_operand_value(&ins, 0, value1) {
-                                    break;
-                                }
-                            } else {
-                                self.flags.f_zf = false;
-                                self.regs.rax = value1;
-                            }
-                        } else { // 32bits
-                            if value0 == self.regs.get_eax() {
-                                self.flags.f_zf = true;
-                                if !self.set_operand_value(&ins, 0, value1) {
-                                    break;
-                                }
-                            } else {
-                                self.flags.f_zf = false;
-                                self.regs.set_eax(value1);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cmpxchg8b => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if value0 as u8 == (self.regs.get_al() as u8) {
-                            self.flags.f_zf = true;
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        } else {
-                            self.flags.f_zf = false;
-                            self.regs.set_al(value1 & 0xff);
-                        }
-                    }
-
-
-                    Mnemonic::Cmpxchg16b => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if value0 as u16 == (self.regs.get_ax() as u16) {
-                            self.flags.f_zf = true;
-                            if !self.set_operand_value(&ins, 0, value1) {
-                                break;
-                            }
-                        } else {
-                            self.flags.f_zf = false;
-                            self.regs.set_ax(value1 & 0xffff);
-                        }
-                    }
-
-                    Mnemonic::Cmp => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if !self.step {
-                            if value0 > value1 {
-                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                            } else if value0 < value1 {
-                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                            } else {
-                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                            }
-                        }
-                        
-                        if self.break_on_next_cmp {
-                            self.spawn_console();
-                            self.break_on_next_cmp = false;
-
-                            let value0 = match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            let value1 = match self.get_operand_value(&ins, 1, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if !self.step {
-                                if value0 > value1 {
-                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                } else if value0 < value1 {
-                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                } else {
-                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                }
-                            }
-                        }
-
-                        match self.get_operand_sz(&ins, 0) {
-                            64 => { self.flags.sub64(value0, value1); },
-                            32 => { self.flags.sub32(value0, value1); },
-                            16 => { self.flags.sub16(value0, value1); },
-                            8 => { self.flags.sub8(value0, value1); },
-                            _  => { panic!("wrong size {}", self.get_operand_sz(&ins, 0)); }
-                        }
-
-                    }
-
-                    Mnemonic::Cmpsq => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let mut value0:u64;
-                        let mut value1:u64;
-
-                   
-                        if ins.has_rep_prefix() {
-                            loop {
-                                if self.cfg.is_64bits {
-                                    value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
-                                    value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.rsi -= 8;
-                                        self.regs.rdi -= 8;
-                                    } else {
-                                        self.regs.rsi += 8;
-                                        self.regs.rdi += 8;
-                                    }
-    
-                                } else { // 32bits
-                                    value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
-                                    value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() - 8);
-                                        self.regs.set_edi(self.regs.get_edi() - 8);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() + 8);
-                                        self.regs.set_edi(self.regs.get_edi() + 8);
-                                    }
-                                }
-    
-                                self.flags.sub64(value0, value1);
-    
-                                if value0 > value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else if value0 < value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else {
-                                    if !self.step {  
-                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                    }
-                                }
-   
-
-                                self.regs.rcx -= 1;
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }
-                            }
-
-                        } else { // not rep
-
-                            if self.cfg.is_64bits {
-                                value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
-                                value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.rsi -= 8;
-                                    self.regs.rdi -= 8;
-                                } else {
-                                    self.regs.rsi += 8;
-                                    self.regs.rdi += 8;
-                                }
-
-                            } else { // 32bits
-                                value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
-                                value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() - 8);
-                                    self.regs.set_edi(self.regs.get_edi() - 8);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() + 8);
-                                    self.regs.set_edi(self.regs.get_edi() + 8);
-                                }
-                            }
-
-                            self.flags.sub64(value0, value1);
-
-                            if !self.step {
-                                if value0 > value1 {
-                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                } else if value0 < value1 {
-                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                } else {
-                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                }
-                            }
-
-                        }
-      
-                    }
-
-                    Mnemonic::Cmpsd => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let mut value0:u32;
-                        let mut value1:u32;
-
-                        if ins.has_rep_prefix() {
-                            loop {
-
-                                if self.cfg.is_64bits {
-                                    value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
-                                    value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.rsi -= 4;
-                                        self.regs.rdi -= 4;
-                                    } else {
-                                        self.regs.rsi += 4;
-                                        self.regs.rdi += 4;
-                                    }
-    
-                                } else { // 32bits
-                                    value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
-                                    value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() - 4);
-                                        self.regs.set_edi(self.regs.get_edi() - 4);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() + 4);
-                                        self.regs.set_edi(self.regs.get_edi() + 4);
-                                    }
-                                }
-    
-                                self.flags.sub32(value0 as u64, value1 as u64);
-
-                                if value0 > value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else if value0 < value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                    }
-                                }
-
-                                self.regs.rcx -= 1;
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }
-                            }
-
-                        } else { // no rep
-
-                            if self.cfg.is_64bits {
-                                value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
-                                value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.rsi -= 4;
-                                    self.regs.rdi -= 4;
-                                } else {
-                                    self.regs.rsi += 4;
-                                    self.regs.rdi += 4;
-                                }
-
-                            } else { // 32bits
-                                value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
-                                value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() - 4);
-                                    self.regs.set_edi(self.regs.get_edi() - 4);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() + 4);
-                                    self.regs.set_edi(self.regs.get_edi() + 4);
-                                }
-                            }
-
-                            self.flags.sub32(value0 as u64, value1 as u64);
-
-                            if !self.step {
-                                if value0 > value1 {
-                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                } else if value0 < value1 {
-                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                } else {
-                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                }
-                            }
-                        }
-      
-                    }
-
-                    Mnemonic::Cmpsw => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let mut value0:u16;
-                        let mut value1:u16;
-
-                        if ins.has_rep_prefix() {
-                            loop {
-                                if self.cfg.is_64bits {
-                                    value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
-                                    value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.rsi -= 1;
-                                        self.regs.rdi -= 1;
-                                    } else {
-                                        self.regs.rsi += 1;
-                                        self.regs.rdi += 1;
-                                    }
-    
-                                } else { // 32bits
-                                    value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
-                                    value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() - 2);
-                                        self.regs.set_edi(self.regs.get_edi() - 2);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() + 2);
-                                        self.regs.set_edi(self.regs.get_edi() + 2);
-                                    }
-                                }
-    
-                                self.flags.sub16(value0 as u64, value1 as u64);
-    
-                                if value0 > value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else if value0 < value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                    }
-                                    break;
-                                } else {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                    }
-                                }
-
-
-                                self.regs.rcx -= 1;
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }
-                            }
-
-
-                        } else {  // no rep
-
-                            if self.cfg.is_64bits {
-                                value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
-                                value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.rsi -= 1;
-                                    self.regs.rdi -= 1;
-                                } else {
-                                    self.regs.rsi += 1;
-                                    self.regs.rdi += 1;
-                                }
-
-                            } else { // 32bits
-                                value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
-                                value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() - 2);
-                                    self.regs.set_edi(self.regs.get_edi() - 2);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() + 2);
-                                    self.regs.set_edi(self.regs.get_edi() + 2);
-                                }
-                            }
-
-                            self.flags.sub16(value0 as u64, value1 as u64);
-
-                            if !self.step {
-                                if value0 > value1 {
-                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                } else if value0 < value1 {
-                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                } else {
-                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                }
-                            }   
-                        }
-                    }
-
-                    Mnemonic::Cmpsb => {
-                        self.show_instruction(&self.colors.orange, &ins);
-
-                        let mut value0:u8;
-                        let mut value1:u8;
-
-                        if ins.has_rep_prefix() {
-                            
-                            loop {
-                                if self.cfg.is_64bits {
-                                    value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
-                                    value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.rsi -= 1;
-                                        self.regs.rdi -= 1;
-                                    } else {
-                                        self.regs.rsi += 1;
-                                        self.regs.rdi += 1;
-                                    }
-    
-                                } else { // 32bits
-                                    value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
-                                    value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
-    
-                                    if self.flags.f_df {
-                                        self.regs.set_esi(self.regs.get_esi() - 1);
-                                        self.regs.set_edi(self.regs.get_edi() - 1);
-                                    } else {
-                                        self.regs.set_esi(self.regs.get_esi() + 1);
-                                        self.regs.set_edi(self.regs.get_edi() + 1);
-                                    }
-                                }
-    
-                                self.flags.sub8(value0 as u64, value1 as u64);
-    
-                                if value0 > value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                    }
-                                    assert!(self.flags.f_zf == false);
-                                    break;
-                                } else if value0 < value1 {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                    }
-                                    assert!(self.flags.f_zf == false);
-                                    break;
-                                } else {
-                                    if !self.step { 
-                                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1); 
-                                    }
-                                    assert!(self.flags.f_zf == true);
-                                }
-                                
-                                self.regs.rcx -= 1;
-                                if self.regs.rcx == 0 {
-                                    break;
-                                }
-                            }
-
-                        } else { // no rep
-
-                            if self.cfg.is_64bits {
-                                value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
-                                value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.rsi -= 1;
-                                    self.regs.rdi -= 1;
-                                } else {
-                                    self.regs.rsi += 1;
-                                    self.regs.rdi += 1;
-                                }
-
-                            } else { // 32bits
-                                value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
-                                value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
-
-                                if self.flags.f_df {
-                                    self.regs.set_esi(self.regs.get_esi() - 1);
-                                    self.regs.set_edi(self.regs.get_edi() - 1);
-                                } else {
-                                    self.regs.set_esi(self.regs.get_esi() + 1);
-                                    self.regs.set_edi(self.regs.get_edi() + 1);
-                                }
-                            }
-
-                            self.flags.sub8(value0 as u64, value1 as u64);
-
-                            if !self.step {
-                                if value0 > value1 {
-                                    println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
-                                } else if value0 < value1 {
-                                    println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
-                                } else {
-                                    println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
-                                }
-                            }
-                        }
-                    }
-
-
-                    //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
-                    //          https://c9x.me/x86/html/file_module_x86_id_146.html
-                    //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
-
-                    //esquema global -> https://en.wikipedia.org/wiki/X86_instruction_listings
-                    // test jnle jpe jpo loopz loopnz int 0x80
-
-                    Mnemonic::Jo => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jno => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-                    
-                    Mnemonic::Js => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_sf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jns => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_sf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Je => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_zf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jne => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_zf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jb => {
-          
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_cf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jae => {
-        
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_cf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jbe => {
-         
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_cf || self.flags.f_zf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Ja => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_cf && !self.flags.f_zf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jl => {
-                
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_sf != self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jge => {
-                        
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_sf == self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jle => {
-             
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jg => {
-                
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jp => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.flags.f_pf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jnp => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if !self.flags.f_pf {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jcxz => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.regs.get_cx() == 0 {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jecxz => {
-
-                        assert!(ins.op_count() == 1);
-
-                        if self.regs.get_cx() == 0 {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Jrcxz => {
-                        if self.regs.rcx == 0 {
-                            self.show_instruction_taken(&self.colors.orange, &ins);
-                            let addr =  match self.get_operand_value(&ins, 0, true) {
-                                Some(v) => v,
-                                None => break,
-                            };
-
-                            if self.cfg.is_64bits {
-                                self.set_rip(addr, true);
-                            } else {
-                                self.set_eip(addr, true);
-                            }
-                            break;
-
-                        } else {
-                            self.show_instruction_not_taken(&self.colors.orange, &ins);
-                        }
-                    }
-
-                    Mnemonic::Int3 => {
-                        self.show_instruction(&self.colors.red, &ins);
-                        println!("/!\\ int 3 sigtrap!!!!");
-                        self.exception();
-                        break;
-                    }
-
-                    Mnemonic::Nop => {
-                        self.show_instruction(&self.colors.light_purple, &ins);
-                    }
-
-                    Mnemonic::Mfence|Mnemonic::Lfence|Mnemonic::Sfence => {
-                        self.show_instruction(&self.colors.red, &ins);
-                    }
-
-                    Mnemonic::Cpuid => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        // guloader checks bit31 which is if its hipervisor with command
-                        // https://c9x.me/x86/html/file_module_x86_id_45.html
-                        // TODO: implement 0x40000000 -> get the virtualization vendor
-
-                        if self.cfg.verbose >= 1 {
-                                println!("\tinput value: 0x{:x}", self.regs.rax);
-                        }
-
-                        match self.regs.rax {
-                            0x00 => {
-                                self.regs.rax = 16;
-                                self.regs.rbx = 0x756e6547;
-                                self.regs.rcx = 0x6c65746e;
-                                self.regs.rdx = 0x49656e69;
-                            },
-                            0x01 => {
-                                self.regs.rax = 0x906ed;    // Version Information (Type, Family, Model, and Stepping ID)
-                                self.regs.rbx = 0x5100800;
-                                self.regs.rcx = 0x7ffafbbf;
-                                self.regs.rdx = 0xbfebfbff;  // feature
-                            },
-                            0x02 => {
-                                self.regs.rax = 0x76036301;
-                                self.regs.rbx = 0xf0b5ff;
-                                self.regs.rcx = 0;
-                                self.regs.rdx = 0xc30000;
-                            },
-                            0x03 => {
-                                self.regs.rax = 0;
-                                self.regs.rbx = 0;
-                                self.regs.rcx = 0;
-                                self.regs.rdx = 0;
-                            },
-                            0x04 => {
-                                self.regs.rax = 0;
-                                self.regs.rbx = 0x1c0003f;
-                                self.regs.rcx = 0x3f;
-                                self.regs.rdx = 0;
-                            },
-                            0x05 => {
-                                self.regs.rax = 0x40;
-                                self.regs.rbx = 0x40;
-                                self.regs.rcx = 3;
-                                self.regs.rdx = 0x11142120;
-                            },
-                            0x06 => {
-                                self.regs.rax = 0x27f7;
-                                self.regs.rbx = 2;
-                                self.regs.rcx = 9;
-                                self.regs.rdx = 0;
-                            },
-                            0x07..=0x6d => {
-                                self.regs.rax = 0;
-                                self.regs.rbx = 0;
-                                self.regs.rcx = 0;
-                                self.regs.rdx = 0;
-                            },
-                            0x6e => {
-                                self.regs.rax = 0x960;
-                                self.regs.rbx = 0x1388;
-                                self.regs.rcx = 0x64;
-                                self.regs.rdx = 0;
-                            },
-                            0x80000000 => {
-                                self.regs.rax = 0x80000008;
-                                self.regs.rbx = 0;
-                                self.regs.rcx = 0;
-                                self.regs.rdx = 0;
-                            },
-                            _ => unimplemented!("unimplemented cpuid call 0x{:x}", self.regs.rax),
-                        }
-                    }
-
-                    Mnemonic::Clc => {
-                        self.show_instruction(&self.colors.light_gray, &ins);
-                        self.flags.f_cf = false;
-                    }
-                    
-                    Mnemonic::Rdtsc => {
-                        self.show_instruction(&self.colors.red, &ins);
-                        self.regs.rdx = 0;
-                        self.regs.rax = 0;
-                    }
-
-                    Mnemonic::Loop => {
-                        self.show_instruction(&self.colors.yellow, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let addr = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if addr > 0xffffffff {
-                            if self.regs.rcx == 0 {
-                                self.regs.rcx = 0xffffffffffffffff;
-                            } else {
-                                self.regs.rcx -= 1;
-                            }
-
-                            if self.regs.rcx > 0 {
-                                self.set_rip(addr, false);
-                                break;
-                            }
-                            
-                        } else if addr > 0xffff {
-                            if self.regs.get_ecx() == 0 {
-                                self.regs.set_ecx(0xffffffff);
-                            } else {
-                                self.regs.set_ecx(self.regs.get_ecx() - 1);
-                            }
-
-                            if self.regs.get_ecx() > 0 {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-
-                        } else {
-                            if self.regs.get_cx() == 0 {
-                                self.regs.set_cx(0xffff);
-                            } else {
-                                self.regs.set_cx(self.regs.get_cx() -1);
-                            }
-                
-                            if self.regs.get_cx() > 0 {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-                        }
-                    }
-    
-                    Mnemonic::Loope => {
-                        self.show_instruction(&self.colors.yellow, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let addr = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if addr > 0xffffffff {
-                            if self.regs.rcx == 0 {
-                                self.regs.rcx = 0xffffffffffffffff;
-                            } else {
-                                self.regs.rcx -= 1;
-                            }
-                            
-                            if self.regs.rcx > 0 && self.flags.f_zf {
-                                self.set_rip(addr, false);
-                                break;
-                            }
-                        } else if addr > 0xffff {
-                            if self.regs.get_ecx() == 0 {
-                                self.regs.set_ecx(0xffffffff);
-                            } else {
-                                self.regs.set_ecx(self.regs.get_ecx() - 1);
-                            }
-                            
-                            if self.regs.get_ecx() > 0 && self.flags.f_zf {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-                        } else {
-                            if self.regs.get_cx() == 0 {
-                                self.regs.set_cx(0xffff);
-                            } else {
-                                self.regs.set_cx(self.regs.get_cx() - 1);
-                            }
-                            
-                            if self.regs.get_cx() > 0 && self.flags.f_zf  {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Loopne => {
-                        self.show_instruction(&self.colors.yellow, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let addr = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if addr > 0xffffffff {
-                            if self.regs.rcx == 0 {
-                                self.regs.rcx = 0xffffffffffffffff;
-                            } else {
-                                self.regs.rcx -= 1;
-                            }
-                            
-                            if self.regs.rcx > 0 && !self.flags.f_zf {
-                                self.set_rip(addr, false);
-                                break;
-                            }
-
-                        } else if addr > 0xffff {
-                            if self.regs.get_ecx() == 0 {
-                                self.regs.set_ecx(0xffffffff);
-                            } else {
-                                self.regs.set_ecx(self.regs.get_ecx() - 1);
-                            }
-                            
-                            if self.regs.get_ecx() > 0 && !self.flags.f_zf {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-
-                        } else {
-                            if self.regs.get_cx() == 0 {
-                                self.regs.set_cx(0xffff);
-                            } else {
-                                self.regs.set_cx(self.regs.get_cx() -1);
-                            }
-                            
-                            if self.regs.get_cx() > 0 && !self.flags.f_zf  {
-                                if self.cfg.is_64bits {
-                                    self.set_rip(addr, false);
-                                } else {
-                                    self.set_eip(addr, false);
-                                }
-                                break;
-                            }
-                        }
-                    }
-
-                    Mnemonic::Lea => {
-                        self.show_instruction(&self.colors.light_cyan, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value1 = match self.get_operand_value(&ins, 1, false) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if !self.set_operand_value(&ins, 0, value1) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Leave => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        if self.cfg.is_64bits {
-                            self.regs.rsp = self.regs.rbp;
-                            self.regs.rbp = self.stack_pop64(true);
-                        } else {
-                            self.regs.set_esp(self.regs.get_ebp());
-                            let val = self.stack_pop32(true);
-                            self.regs.set_ebp(val as u64);
-                        }
-                    }
-
-                    Mnemonic::Int => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        assert!(ins.op_count() == 1);
-
-                        let interrupt = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        match interrupt {
-                            0x80 => syscall32::gateway(self),
-                            _ => unimplemented!("interrupt {}", interrupt),
-                        }
-                    }
-
-                    Mnemonic::Syscall => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        syscall64::gateway(self);
-                    }
-
-                    Mnemonic::Std => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        self.flags.f_df = true;
-                    }
-
-                    Mnemonic::Stc => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        self.flags.f_cf = true;
-                    }
-
-                    Mnemonic::Cmc => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        self.flags.f_cf = !self.flags.f_cf;
-                    }
-
-                    Mnemonic::Cld => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        self.flags.f_df = false;
-                    }
-
-                    Mnemonic::Lodsq => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-                        //TODO: crash if arrive to zero or max value
-                        
-                        if self.cfg.is_64bits {
-                            let val = match self.maps.read_qword(self.regs.rsi) {
-                                Some(v) => v,
-                                None => panic!("lodsq: memory read error"),
-                            };
-
-                            self.regs.rax = val;
-                            if self.flags.f_df {
-                                self.regs.rsi -= 8; 
-                            } else {
-                                self.regs.rsi += 8;
-                            }
-
-                        } else {
-                            unreachable!("lodsq dont exists in 32bit");
-                        }
-                    }
-
-                    Mnemonic::Lodsd => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-                        //TODO: crash if arrive to zero or max value
-                        
-                        if self.cfg.is_64bits {
-                            let val = match self.maps.read_dword(self.regs.rsi) {
-                                Some(v) => v,
-                                None => panic!("lodsd: memory read error"),
-                            };
-
-                            self.regs.set_eax(val as u64);
-                            if self.flags.f_df {
-                                self.regs.rsi -= 4; 
-                            } else {
-                                self.regs.rsi += 4;
-                            }
-
-                        } else {
-
-                            let val = match self.maps.read_dword(self.regs.get_esi()) {
-                                Some(v) => v,
-                                None => panic!("lodsd: memory read error"),
-                            };
-
-                            self.regs.set_eax(val as u64);
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 4);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 4);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Lodsw => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-                        //TODO: crash if rsi arrive to zero or max value
-                        
-                        if self.cfg.is_64bits {
-                            let val = match self.maps.read_word(self.regs.rsi) {
-                                Some(v) => v,
-                                None => panic!("lodsw: memory read error 0x{:x}", self.regs.rsi),
-                            };
-
-                            self.regs.set_ax(val as u64);
-                            if self.flags.f_df {
-                                self.regs.rsi -= 2;
-                            } else {
-                                self.regs.rsi += 2;
-                            }
-
-                        } else {
-
-                            let val = match self.maps.read_word(self.regs.get_esi()) {
-                                Some(v) => v,
-                                None => panic!("lodsw: memory read error"),
-                            };
-
-                            self.regs.set_ax(val as u64);
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 2);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 2);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Lodsb => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-                        //TODO: crash if arrive to zero or max value
-                        
-                        if self.cfg.is_64bits {
-                            let val = match self.maps.read_byte(self.regs.rsi) {
-                                Some(v) => v,
-                                None => {
-                                    println!("lodsb: memory read error");
-                                    self.spawn_console();
-                                    0
-                                }
-                            };
-
-                            self.regs.set_al(val as u64);
-                            if self.flags.f_df {
-                                self.regs.rsi -= 1;
-                            } else {
-                                self.regs.rsi += 1;
-                            }
-
-                        } else {
-
-                            let val = match self.maps.read_byte(self.regs.get_esi()) {
-                                Some(v) => v,
-                                None => {   
-                                    println!("lodsb: memory read error");
-                                    self.spawn_console();
-                                    0
-                                }
-                            };
-
-                            self.regs.set_al(val as u64);
-                            if self.flags.f_df {
-                                self.regs.set_esi(self.regs.get_esi() - 1);
-                            } else {
-                                self.regs.set_esi(self.regs.get_esi() + 1);
-                            }
-                        }
-                    }
-
-                    Mnemonic::Cbw => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let sigextend = self.regs.get_al() as u8 as i8 as i16 as u16;
-                        self.regs.set_ax(sigextend as u64);
-                    }
-
-                    Mnemonic::Cwde => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
-                        
-                        self.regs.set_eax(sigextend as u64);
-                    }
-
-                    Mnemonic::Cwd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
-                        self.regs.set_ax((sigextend & 0x0000ffff) as u64);
-                        self.regs.set_dx(((sigextend & 0xffff0000) >> 16) as u64); 
-                    }
-        
-
-                    ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
-                     
-                    Mnemonic::Ffree => {
-                        self.show_instruction(&self.colors.green, &ins);
-                  
-                        match ins.op_register(0) {
-                            Register::ST0 => self.fpu.clear_st(0),
-                            Register::ST1 => self.fpu.clear_st(1),
-                            Register::ST2 => self.fpu.clear_st(2),
-                            Register::ST3 => self.fpu.clear_st(3),
-                            Register::ST4 => self.fpu.clear_st(4),
-                            Register::ST5 => self.fpu.clear_st(5),
-                            Register::ST6 => self.fpu.clear_st(6),
-                            Register::ST7 => self.fpu.clear_st(7),
-                            _  => unimplemented!("impossible case"),
-                        }
-                       
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fnstenv => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let addr = match self.get_operand_value(&ins, 0, false) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        if self.cfg.is_64bits {
-                            let env = self.fpu.get_env64();
-
-                            for i in 0..4 {
-                                self.maps.write_qword(addr+(i*4), env[i as usize]);
-                            }
-
-                        } else {
-
-                            let env = self.fpu.get_env32();
-                            for i in 0..4 {
-                                self.maps.write_dword(addr+(i*4), env[i as usize]);
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-    
-                    Mnemonic::Fld => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldz => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(0.0);
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fld1 => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(1.0);
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldpi => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(std::f32::consts::PI);
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldl2t => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(10f32.log2());
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldlg2 => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(2f32.log10());
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldln2 => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(2f32.log(std::f32::consts::E));
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fldl2e => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        self.fpu.push(std::f32::consts::E.log2());
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmove => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if self.flags.f_zf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovb => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if self.flags.f_cf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovbe => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if self.flags.f_cf || self.flags.f_zf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovu => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if self.flags.f_pf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovnb => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if !self.flags.f_cf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovne => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if !self.flags.f_zf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovnbe => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if !self.flags.f_cf && !self.flags.f_zf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fcmovnu => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        if !self.flags.f_pf {
-                            match ins.op_register(0) {
-                                Register::ST0 => self.fpu.move_to_st0(0),
-                                Register::ST1 => self.fpu.move_to_st0(1),
-                                Register::ST2 => self.fpu.move_to_st0(2),
-                                Register::ST3 => self.fpu.move_to_st0(3),
-                                Register::ST4 => self.fpu.move_to_st0(4),
-                                Register::ST5 => self.fpu.move_to_st0(5),
-                                Register::ST6 => self.fpu.move_to_st0(6),
-                                Register::ST7 => self.fpu.move_to_st0(7),
-                                _  => unimplemented!("impossible case"),
-                            }
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Fxch => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        match ins.op_register(1) {  
-                            Register::ST0 => self.fpu.xchg_st(0),  
-                            Register::ST1 => self.fpu.xchg_st(1),  
-                            Register::ST2 => self.fpu.xchg_st(2),  
-                            Register::ST3 => self.fpu.xchg_st(3),  
-                            Register::ST4 => self.fpu.xchg_st(4),  
-                            Register::ST5 => self.fpu.xchg_st(5),  
-                            Register::ST6 => self.fpu.xchg_st(6),  
-                            Register::ST7 => self.fpu.xchg_st(7),  
-                            _  => unimplemented!("impossible case"),  
-                        }
-
-                        self.fpu.set_ip(self.regs.rip);
-                    }
-
-                    Mnemonic::Popf => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        let flags:u16 = match self.maps.read_word(self.regs.rsp) {
-                            Some(v) => v,
-                            None => {
-                                eprintln!("popf cannot read the stack");
-                                self.exception();
-                                break;
-                            }
-                        };
-
-                        let flags2:u32 = (self.flags.dump() & 0xffff0000) + (flags as u32);
-                        self.flags.load(flags2);
-                        self.regs.rsp += 2;
-                    }
-
-                    Mnemonic::Popfd => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        
-                        let flags = self.stack_pop32(true);
-                        self.flags.load(flags);
-                    }
-
-
-                    Mnemonic::Popfq => {
-                        self.show_instruction(&self.colors.blue, &ins);
-                        
-                        let rflags = self.stack_pop64(true);
-                        // TODO: rflags
-                    }
-                
-
-                    Mnemonic::Daa => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let old_al = self.regs.get_al();
-                        let old_cf = self.flags.f_cf;
-                        self.flags.f_cf = false;
-                        
-                        if (self.regs.get_al() & 0x0f > 9) || self.flags.f_af  {
-                            let sum = self.regs.get_al() + 6;
-                            self.regs.set_al(sum & 0xff);
-                            if sum > 0xff {
-                                self.flags.f_cf = true;
-                            } else {
-                                self.flags.f_cf = old_cf;
-                            }
-                        
-                            self.flags.f_af = true;
-                        } else {
-                            self.flags.f_af = false;
-                        }
-
-                        if old_al > 0x99 || old_cf {
-                            self.regs.set_al(self.regs.get_al() + 0x60);
-                            self.flags.f_cf = true;
-                        } else {
-                            self.flags.f_cf = false;
-                        }
-
-                    }
-
-                    Mnemonic::Shld => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let counter = match self.get_operand_value(&ins, 2, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let (result, undef) = self.shld(value0, value1, counter, sz);
-
-                        if self.cfg.test_mode && !undef {
-                            if result != inline::shld(value0, value1, counter, sz) {
-                                panic!("SHLD 0x{:x} should be 0x{:x}", result, inline::shld(value0, value1, counter, sz));
-                            }
-                        }
-
-                        //println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
-
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Shrd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let counter = match self.get_operand_value(&ins, 2, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let sz = self.get_operand_sz(&ins, 0);
-                        let (result, undef) = self.shrd(value0, value1, counter, sz);
-                        
-                        //println!("0x{:x} SHRD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
-                        if self.cfg.test_mode && !undef {
-                            if result != inline::shrd(value0, value1, counter, sz) {
-                                panic!("SHRD 0x{:x} should be 0x{:x}", result, inline::shrd(value0, value1, counter, sz));
-                            }
-                        }
-                        
-                        if !self.set_operand_value(&ins, 0, result) {
-                            break;
-                        }
-                    }
-
-
-                    Mnemonic::Sysenter => {
-                        println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip(), self.out, self.colors.nc);
-                        return;
-                    }
-
-                    //// SSE XMM //// 
-                    // scalar: only gets the less significative part.
-                    // scalar simple: only 32b less significative part.
-                    // scalar double: only 54b less significative part.
-                    // packed: compute all parts.
-                    // packed double: 
-                    //
-
-
-                    Mnemonic::Pxor => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
-
-                        let result:u128 = value0 ^ value1;
-                        self.flags.calc_flags(result as u64, 32);
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Xorps => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff) ^ (value1 & 0xffffffff);
-                        let b:u128 = (value0 & 0xffffffff_00000000) ^ (value1 & 0xffffffff_00000000);
-                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000);
-                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000_00000000); 
-
-                        let result:u128 = a | b | c | d;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Xorpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff_ffffffff) ^ (value1 & 0xffffffff_ffffffff);
-                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) ^ (value1 & 0xffffffff_ffffffff_00000000_00000000);
-                        let result:u128 = a | b;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-                   
-                    // movlpd: packed double, movlps: packed simple, cvtsi2sd: int to scalar double 32b to 64b,
-                    // cvtsi2ss: int to scalar single copy 32b to 32b, movd: doubleword move
-                    Mnemonic::Movlpd | Mnemonic::Movlps | Mnemonic::Cvtsi2sd | Mnemonic::Cvtsi2ss | Mnemonic::Movd => {
-                        self.show_instruction(&self.colors.cyan, &ins);
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        if sz0 == 128 && sz1 == 128 {
-                           let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
-                           self.set_operand_xmm_value_128(&ins, 0, value1);
-
-                        } else if sz0 == 128 && sz1 == 32 {
-                            let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
-
-                        } else if sz0 == 32 && sz1 == 128 {
-                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
-                            self.set_operand_value(&ins, 0, value1 as u64);
-
-                        } else if sz0 == 128 && sz1 == 64 {
-                            let addr = self.get_operand_value(&ins, 1, false).expect("error getting the address");
-                            let value1 = self.maps.read_qword(addr).expect("error getting qword");
-                            self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
-
-                        } else if sz0 == 64 && sz1 == 128 {
-                            let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
-                            self.set_operand_value(&ins, 0, value1 as u64);
-
-                        } else {
-                            panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
-                        }
-                    }
-
-
-                    Mnemonic::Movdqa => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        assert!(ins.op_count() == 2);
-
-                        let sz0 = self.get_operand_sz(&ins, 0);
-                        let sz1 = self.get_operand_sz(&ins, 1);
-
-                        if sz0 == 32 && sz1 == 128 {
-                            let xmm = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
-                            let addr = self.get_operand_value(&ins, 0, false).expect("error getting address");
-                            //println!("addr: 0x{:x} value: 0x{:x}", addr, xmm);
-                            self.maps.write_dword(addr, ((xmm & 0xffffffff_00000000_00000000_00000000) >> (12*8)) as u32 );
-                            self.maps.write_dword(addr+4, ((xmm & 0xffffffff_00000000_00000000) >> (8*8)) as u32 );
-                            self.maps.write_dword(addr+8, ((xmm & 0xffffffff_00000000) >> (4*8)) as u32 );
-                            self.maps.write_dword(addr+12, (xmm & 0xffffffff) as u32 );
-
-                        } else if sz0 == 128 && sz1 == 32 {
-                            let addr = self.get_operand_value(&ins, 1, false).expect("error reading address in movdqa");
-                            let b1 = match self.maps.read_dword(addr) {
-                                Some(v) => v,
-                                None => panic!("error reading b1 in movdqa"),
-                            };
-                            let b2 = match self.maps.read_dword(addr+4) {
-                                Some(v) => v,
-                                None => panic!("error reading b2 in movdqa"),
-                            };
-                            let b3 = match self.maps.read_dword(addr+8) {
-                                Some(v) => v,
-                                None => panic!("error reading b3 in movdqa"),
-                            };
-                            let b4 = match self.maps.read_dword(addr+12) {
-                                Some(v) => v,
-                                None => panic!("error reading b4 in movdqa"),
-                            };
-
-                            let r1 :u128 = b1 as u128;
-                            let r2 :u128 = b2 as u128;
-                            let r3 :u128 = b3 as u128;
-                            let r4 :u128 = b4 as u128;
-
-                            self.set_operand_xmm_value_128(&ins, 0, r1 << (12*8) | r2 << (8*8) | r3 << (4*8) | r4);
-
-                        } else {
-                            println!("sz0: {}  sz1: {}\n", sz0, sz1);
-                            unimplemented!("movdqa");
-                        }
-                    }
-                    
-
-                    Mnemonic::Andpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u128 = value0 & value1;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Orpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u128 = value0 | value1;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Addps => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff) + (value1 & 0xffffffff);
-                        let b:u128 = (value0 & 0xffffffff_00000000) + (value1 & 0xffffffff_00000000);
-                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000);
-                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000_00000000); 
-
-                        let result:u128 = a | b | c | d;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Addpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff_ffffffff) + (value1 & 0xffffffff_ffffffff);
-                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) + (value1 & 0xffffffff_ffffffff_00000000_00000000);
-                        let result:u128 = a | b;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Addsd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u64 = value0 as u64 + value1 as u64;
-                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    Mnemonic::Addss => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u32 = value0 as u32 + value1 as u32;
-                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    Mnemonic::Subps => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff) - (value1 & 0xffffffff);
-                        let b:u128 = (value0 & 0xffffffff_00000000) - (value1 & 0xffffffff_00000000);
-                        let c:u128 = (value0 & 0xffffffff_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000);
-                        let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000_00000000); 
-
-                        let result:u128 = a | b | c | d;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Subpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff_ffffffff) - (value1 & 0xffffffff_ffffffff);
-                        let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) - (value1 & 0xffffffff_ffffffff_00000000_00000000);
-                        let result:u128 = a | b;
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Subsd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u64 = value0 as u64 - value1 as u64;
-                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    Mnemonic::Subss => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u32 = value0 as u32 - value1 as u32;
-                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    Mnemonic::Mulpd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let left:u128 = ((value0 & 0xffffffffffffffff0000000000000000)>>64) * ((value1 & 0xffffffffffffffff0000000000000000)>>64);
-                        let right:u128 = (value0 & 0xffffffffffffffff) * (value1 & 0xffffffffffffffff);
-                        let result:u128 = left << 64 | right; 
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Mulps => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let a:u128 = (value0 & 0xffffffff) * (value1 & 0xffffffff);
-                        let b:u128 = (value0 & 0xffffffff00000000) * (value1 & 0xffffffff00000000);
-                        let c:u128 = (value0 & 0xffffffff0000000000000000) * (value1 & 0xffffffff0000000000000000);
-                        let d:u128 = (value0 & 0xffffffff000000000000000000000000) * (value1 & 0xffffffff000000000000000000000000);
-
-                        let result:u128 = a | b | c | d; 
-
-                        self.set_operand_xmm_value_128(&ins, 0, result);
-                    }
-
-                    Mnemonic::Mulsd => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u64 = value0 as u64 * value1 as u64;
-                        let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    Mnemonic::Mulss => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
-                        let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
-
-                        let result:u32 = value0 as u32 * value1 as u32;
-                        let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
-                        self.set_operand_xmm_value_128(&ins, 0, r128);
-                    }
-
-                    // end SSE
-
-
-                    Mnemonic::Arpl => {
-                        self.show_instruction(&self.colors.green, &ins);
-
-                        let value0 = match self.get_operand_value(&ins, 0, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        let value1 = match self.get_operand_value(&ins, 1, true) {
-                            Some(v) => v,
-                            None => break,
-                        };
-
-                        self.flags.f_zf = value1 < value0;
-
-                        self.set_operand_value(&ins, 1, value0);
-                    }
-
-                    Mnemonic::Pushf => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        let val:u16 = (self.flags.dump() & 0xffff) as u16;
-
-                        self.regs.rsp -= 2;
-
-                        if !self.maps.write_word(self.regs.rsp, val) {
-                            println!("/!\\ exception writing word at rsp 0x{:x}", self.regs.rsp);
-                            self.exception();
-                            break;
-                        }
-                    }
-
-                    Mnemonic::Pushfd => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        let flags = self.flags.dump();
-                        self.stack_push32(flags); // 32bits only instruction
-                    }
-
-                    Mnemonic::Pushfq => {
-                        self.show_instruction(&self.colors.blue, &ins);
-
-                        // internal reserved register RFLAGS not very documented 
-                        if self.cfg.is_64bits { // 64bits only instruction
-                            self.stack_push64(0x00000346);
-                        } else {
-                            self.stack_push32(0x00000346);
-                        }
-                    }
-
-                    Mnemonic::Bound => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        let val0_src = self.get_operand_value(&ins, 0, true);
-
-                    }
-
-                    Mnemonic::Lahf => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        self.regs.set_ah((self.flags.dump() & 0xff).into());
-                    }
-
-
-                    Mnemonic::Salc => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        if self.flags.f_cf {
-                            self.regs.set_al(1);
-                        } else {
-                            self.regs.set_al(0);
-                        }
-                    }
-
-
-                    ////   Ring0  ////
-                    
-                    Mnemonic::Rdmsr => {
-                        self.show_instruction(&self.colors.red, &ins);
-
-                        match self.regs.rcx {
-                            0x176 => {
-                                self.regs.rdx = 0;
-                                self.regs.rax = self.cfg.code_base_addr + 0x42;
-                            },
-                            _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.rcx),
-                        }
-
-                    }                    
-
-                    _ =>  {
-                        if self.cfg.is_64bits {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip(), self.out, self.colors.nc);
-                        } else {
-                            println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), self.out, self.colors.nc);
-                        }
-                        
-                        println!("unimplemented or invalid instruction.");
-                        self.spawn_console();
-                        //unimplemented!("unimplemented instruction");
-                    },
-
-                } // end mnemonics
+                self.emulate_instruction(&ins, sz);
+       
 
                 if self.cfg.trace_regs {
                     if self.cfg.is_64bits {
@@ -8036,6 +3341,11 @@ impl Emu {
                     } else {
                         // TODO: self.diff_pre_op_post_op_registers_32bits();
                     }
+                }
+
+                if self.force_reload {
+                    self.force_reload = false;
+                    break;
                 }
 
                 if self.cfg.is_64bits {
@@ -8058,5 +3368,4811 @@ impl Emu {
         }  // end infinite loop, the unique way of exit is console quit `q` 
 
     } // end run
+
+
+
+    //////////// EMULATE INSTRUCTION ////////////
+
+
+
+    fn emulate_instruction(&mut self, ins:&Instruction, instruction_sz:usize) {
+        match ins.mnemonic() {
+
+            Mnemonic::Jmp => {
+                self.show_instruction(&self.colors.yellow, &ins);
+
+                if ins.op_count() != 1 {
+                    unimplemented!("weird variant of jmp");
+                }
+
+                let addr = match self.get_operand_value(&ins, 0, true) {
+                    Some(a) => a,
+                    None => return,
+                };
+
+                if self.cfg.is_64bits {
+                    self.set_rip(addr, false);
+                } else {
+                    self.set_eip(addr, false);
+                }
+                return;
+            }
+
+            Mnemonic::Call => {
+                self.show_instruction(&self.colors.yellow, &ins);
+
+                if ins.op_count() != 1 {
+                    unimplemented!("weird variant of call");
+                }
+
+                let addr = match self.get_operand_value(&ins, 0, true) {
+                    Some(a) => a,
+                    None => return,
+                };
+
+                if self.cfg.is_64bits {
+                    self.stack_push64(self.regs.rip + instruction_sz as u64);
+                    self.set_rip(addr, false);
+                } else {
+                    self.stack_push32(self.regs.get_eip() as u32 + instruction_sz as u32);
+                    self.set_eip(addr, false);
+                }
+                return;
+            }
+
+            Mnemonic::Push => {
+
+                let value = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.show_instruction_pushpop(&self.colors.blue, &ins, value);
+
+                if self.cfg.is_64bits {
+                    self.stack_push64(value);
+                } else {
+                    self.stack_push32(to32!(value));
+                }
+            }
+
+            Mnemonic::Pop => {
+
+                let value:u64;
+
+                if self.cfg.is_64bits { 
+                    value = self.stack_pop64(true);
+                } else {
+                    value = self.stack_pop32(true) as u64;
+                }
+
+                self.show_instruction_pushpop(&self.colors.blue, &ins, value);
+
+                if !self.set_operand_value(&ins, 0, value) {
+                    return;
+                }
+            }
+
+            Mnemonic::Pushad => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                // only 32bits instruction
+                let tmp_esp = self.regs.get_esp() as u32;
+                self.stack_push32(self.regs.get_eax() as u32);
+                self.stack_push32(self.regs.get_ecx() as u32);
+                self.stack_push32(self.regs.get_edx() as u32);
+                self.stack_push32(self.regs.get_ebx() as u32);
+                self.stack_push32(tmp_esp);
+                self.stack_push32(self.regs.get_ebp() as u32);
+                self.stack_push32(self.regs.get_esi() as u32);
+                self.stack_push32(self.regs.get_edi() as u32);
+            }
+
+            Mnemonic::Popad => {
+                self.show_instruction(&self.colors.blue, &ins);
+                let mut poped:u64;
+
+                // only 32bits instruction
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_edi(poped);
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_esi(poped);
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_ebp(poped);
+
+                self.regs.set_esp(self.regs.get_esp() + 4); // skip esp
+
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_ebx(poped);
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_edx(poped);
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_ecx(poped);
+                poped = self.stack_pop32(false) as u64;
+                self.regs.set_eax(poped);
+            }
+
+            Mnemonic::Cdqe => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                self.regs.rax = self.regs.get_eax() as u32 as i32 as i64 as u64; // sign extend
+            }
+
+            Mnemonic::Cdq => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                let num:i64 = self.regs.get_eax() as u32 as i32 as i64; // sign-extend
+                let unum:u64 = num as u64;
+                self.regs.set_edx((unum & 0xffffffff00000000) >> 32);
+                self.regs.set_eax(unum & 0xffffffff);
+            }
+
+            Mnemonic::Cqo => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                let sigextend:u128 = self.regs.rax as u64 as i64 as i128 as u128;
+                self.regs.rdx = ((sigextend & 0xffffffff_ffffffff_00000000_00000000) >> 64) as u64
+            }
+
+            Mnemonic::Ret => {
+                let ret_addr:u64;
+
+                if self.cfg.is_64bits {
+                    ret_addr = self.stack_pop64(false); // return address
+                } else {
+                    ret_addr = self.stack_pop32(false) as u64; // return address
+                }
+
+                self.show_instruction_ret(&self.colors.yellow, &ins, ret_addr);
+
+                if self.run_until_ret {
+                    return; //TODO: fix this
+                }
+
+                if self.break_on_next_return {
+                    self.break_on_next_return = false;
+                    self.spawn_console();
+                }
+
+                if ins.op_count() > 0 {
+                    let mut arg = self.get_operand_value(&ins, 0, true).expect("weird crash on ret");
+                    // apply stack compensation of ret operand
+
+                    if self.cfg.is_64bits {
+
+                        if arg % 8 != 0 {
+                            panic!("weird ret argument!");
+                        }
+
+                        arg /= 8;
+
+                        for _ in 0..arg {
+                            self.stack_pop64(false);
+                        }
+
+                    } else {
+
+                        if arg % 4 != 0 {
+                            panic!("weird ret argument!");
+                        }
+
+                        arg /= 4;
+
+                        for _ in 0..arg {
+                            self.stack_pop32(false);
+                        }
+                    }
+                }
+
+                if self.eh_ctx != 0 {
+                    exception::exit(self);
+                    return;
+                }
+
+                if self.cfg.is_64bits {
+                    self.set_rip(ret_addr, false);                        
+                } else {
+                    self.set_eip(ret_addr, false);                        
+                }
+
+                return;
+            }
+
+            Mnemonic::Xchg => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v)  => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v)  => v,
+                    None => return,
+                };
+
+                if !self.set_operand_value(&ins, 0, value1) { 
+                    return;
+                }
+                if !self.set_operand_value(&ins, 1, value0) {
+                    return;
+                }
+            }
+
+            Mnemonic::Mov => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if !self.set_operand_value(&ins, 0, value1) {
+                    return;
+                }
+            }
+
+            Mnemonic::Xor => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 2);
+                assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let result = value0 ^ value1;
+
+                if self.cfg.test_mode {
+                    if result != inline::xor(value0, value1) {
+                        panic!("0x{:x} should be 0x{:x}", result, inline::xor(value0, value1));
+                    }
+                }
+
+                self.flags.calc_flags(result, sz);
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+            }
+
+            Mnemonic::Add => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res:u64 = match self.get_operand_sz(&ins, 1) {
+                    64 => self.flags.add64(value0, value1),
+                    32 => self.flags.add32(value0, value1),
+                    16 => self.flags.add16(value0, value1),
+                    8  => self.flags.add8(value0, value1),
+                    _  => unreachable!("weird size")
+                };
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                }
+
+            }
+
+            Mnemonic::Adc => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let cf:u64;
+                if self.flags.f_cf {
+                    cf = 1
+                } else {
+                    cf = 0;
+                }
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res:u64;
+                match self.get_operand_sz(&ins, 1) {
+                    64 => res = self.flags.add64(value0, value1 + cf),
+                    32 => res = self.flags.add32(value0, value1 + cf),
+                    16 => res = self.flags.add16(value0, value1 + cf),
+                    8  => res = self.flags.add8(value0, value1 + cf),
+                    _  => unreachable!("weird size")
+                }
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                }                        
+
+            }
+
+            Mnemonic::Sbb => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let cf:u64;
+                if self.flags.f_cf {
+                    cf = 1;
+                } else {
+                    cf = 0;
+                }
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res:u64;
+                match self.get_operand_sz(&ins, 1) {
+                    64 => res = self.flags.sub64(value0, value1 + cf),
+                    32 => res = self.flags.sub32(value0, value1 + cf),
+                    16 => res = self.flags.sub16(value0, value1 + cf),
+                    8  => res = self.flags.sub8(value0, value1 + cf),
+                    _  => panic!("weird size")
+                }
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                } 
+
+            }
+
+            Mnemonic::Sub => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res:u64;
+                match self.get_operand_sz(&ins, 0) {
+                    64 => res = self.flags.sub64(value0, value1),
+                    32 => res = self.flags.sub32(value0, value1),
+                    16 => res = self.flags.sub16(value0, value1),
+                    8  => res = self.flags.sub8(value0, value1),
+                    _  => panic!("weird size")
+                }
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                } 
+
+            }
+
+            Mnemonic::Inc => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res = match self.get_operand_sz(&ins, 0) {
+                    64 => self.flags.inc64(value0),
+                    32 => self.flags.inc32(value0),
+                    16 => self.flags.inc16(value0),
+                    8  => self.flags.inc8(value0),
+                    _  => panic!("weird size")
+                };
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                } 
+            }
+
+            Mnemonic::Dec => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let res = match self.get_operand_sz(&ins, 0) {
+                    64 => self.flags.dec64(value0),
+                    32 => self.flags.dec32(value0),
+                    16 => self.flags.dec16(value0),
+                    8  => self.flags.dec8(value0),
+                    _  => panic!("weird size")
+                };
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                } 
+            }
+
+            Mnemonic::Neg => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let res = match sz {
+                    64 => self.flags.neg64(value0),
+                    32 => self.flags.neg32(value0),
+                    16 => self.flags.neg16(value0),
+                    8  => self.flags.neg8(value0),
+                    _  => panic!("weird size")
+                };
+
+                if self.cfg.test_mode {
+                    if res != inline::neg(value0, sz) {
+                        panic!("0x{:x} should be 0x{:x}", res, inline::neg(value0, sz));
+                    }
+                }
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                }
+            }
+
+            Mnemonic::Not => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let val:u64;
+
+                /*let mut ival = value0 as i32;
+                ival = !ival;*/
+
+                let sz = self.get_operand_sz(&ins, 0);
+                match sz {
+                    64 => {
+                        let mut ival = value0 as i64;
+                        ival = !ival;
+                        val = ival as u64;
+                    }
+                    32 => {
+                        let mut ival = value0 as u32 as i32;
+                        ival = !ival;
+                        val = value0 & 0xffffffff_00000000 | ival as u32 as u64;
+                    }
+                    16 => {
+                        let mut ival = value0 as u16 as i16;
+                        ival = !ival;
+                        val = value0 & 0xffffffff_ffff0000 | ival as u16 as u64;
+                    }
+                    8 => {
+                        let mut ival = value0 as u8 as i8;
+                        ival = !ival;
+                        val = value0 & 0xffffffff_ffffff00 | ival as u8 as u64;
+                    }
+                    _ => unimplemented!("weird"),
+                }
+
+                if self.cfg.test_mode {
+                    if val != inline::not(value0, sz) {
+                        panic!("0x{:x} should be 0x{:x}", val, inline::not(value0, sz));
+                    }
+                }
+
+                if !self.set_operand_value(&ins, 0, val) {
+                    return;
+                }
+            }
+
+            Mnemonic::And => {  
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let result1:u64;
+                let result2:u64;
+
+                match sz {
+                    8 => {
+                        result1 = (value0 & 0xff) & (value1 & 0xff);
+                        result2 = (value0 & 0xffffffffffffff00) + result1;
+                    }
+                    16 => {
+                        result1 = (value0 & 0xffff) & (value1 & 0xffff);
+                        result2 = (value0 & 0xffffffffffff0000) + result1;
+                    }
+                    32 => {
+                        result1 = (value0 & 0xffffffff) & (value1 & 0xffffffff);
+                        result2 = (value0 & 0xffffffff00000000) + result1;
+                    }
+                    64 => { 
+                        result1 = value0 & value1;
+                        result2 = result1;
+                    }
+                    _ => unreachable!(""),
+                }
+
+                if self.cfg.test_mode {
+                    if result2 != inline::and(value0, value1) {
+                        panic!("0x{:x} should be 0x{:x}", result2, inline::and(value0, value1));
+                    }
+                }
+
+                self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
+                self.flags.f_of = false;
+                self.flags.f_cf = false;
+
+                if !self.set_operand_value(&ins, 0, result2) {
+                    return;
+                }
+            }
+
+            Mnemonic::Or => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 2);
+                assert!(self.get_operand_sz(&ins, 0) == self.get_operand_sz(&ins, 1));
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let result1:u64;
+                let result2:u64;
+
+                match sz {
+                    8 => {
+                        result1 = (value0 & 0xff) | (value1 & 0xff);
+                        result2 = (value0 & 0xffffffffffffff00) + result1;
+                    }
+                    16 => {
+                        result1 = (value0 & 0xffff) | (value1 & 0xffff);
+                        result2 = (value0 & 0xffffffffffff0000) + result1;
+                    }
+                    32 => {
+                        result1 = (value0 & 0xffffffff) | (value1 & 0xffffffff);
+                        result2 = (value0 & 0xffffffff00000000) + result1;
+                    }
+                    64 => { 
+                        result1 = value0 | value1;
+                        result2 = result1;
+                    }
+                    _ => unreachable!(""),
+                }
+
+                if self.cfg.test_mode {
+                    if result2 != inline::or(value0, value1) {
+                        panic!("0x{:x} should be 0x{:x}", result2, inline::or(value0, value1));
+                    }
+                }
+
+                self.flags.calc_flags(result1, self.get_operand_sz(&ins, 0));
+                self.flags.f_of = false;
+                self.flags.f_cf = false;
+
+                if !self.set_operand_value(&ins, 0, result2) {
+                    return;
+                }
+            }
+
+            Mnemonic::Sal => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if ins.op_count() == 1 { // 1 param
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.sal1p64(value0),
+                        32 => self.flags.sal1p32(value0),
+                        16 => self.flags.sal1p16(value0),
+                        8  => self.flags.sal1p8(value0),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::sal(value0, 1, sz) {
+                            panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, 1, sz));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+
+                } else { // 2 params
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.sal2p64(value0, value1),
+                        32 => self.flags.sal2p32(value0, value1),
+                        16 => self.flags.sal2p16(value0, value1),
+                        8  => self.flags.sal2p8(value0, value1),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::sal(value0, value1, sz) {
+                            panic!("sal1p 0x{:x} should be 0x{:x}", result, inline::sal(value0, value1, sz));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                }
+            }
+
+            Mnemonic::Sar => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if ins.op_count() == 1 { // 1 param
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.sar1p64(value0),
+                        32 => self.flags.sar1p32(value0),
+                        16 => self.flags.sar1p16(value0),
+                        8  => self.flags.sar1p8(value0),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::sar1p(value0, sz, self.flags.f_cf) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::sar1p(value0, sz, self.flags.f_cf));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+
+                } else { // 2 params
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.sar2p64(value0, value1),
+                        32 => self.flags.sar2p32(value0, value1),
+                        16 => self.flags.sar2p16(value0, value1),
+                        8  => self.flags.sar2p8(value0, value1),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::sar2p(value0, value1, sz, self.flags.f_cf) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::sar2p(value0, value1, sz, self.flags.f_cf));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                }
+            }
+
+            Mnemonic::Shl => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if ins.op_count() == 1 { // 1 param
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.shl1p64(value0),
+                        32 => self.flags.shl1p32(value0),
+                        16 => self.flags.shl1p16(value0),
+                        8  => self.flags.shl1p8(value0),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::shl(value0, 1, sz) {
+                            panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, 1, sz));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+
+                } else { // 2 params
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.shl2p64(value0, value1),
+                        32 => self.flags.shl2p32(value0, value1),
+                        16 => self.flags.shl2p16(value0, value1),
+                        8  => self.flags.shl2p8(value0, value1),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::shl(value0, value1, sz) {
+                            panic!("SHL 0x{:x} should be 0x{:x}", result, inline::shl(value0, value1, sz));
+                        }
+                    }
+
+                    //println!("0x{:x}: 0x{:x} SHL 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                }
+            }
+
+            Mnemonic::Shr => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if ins.op_count() == 1 { // 1 param
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.shr1p64(value0),
+                        32 => self.flags.shr1p32(value0),
+                        16 => self.flags.shr1p16(value0),
+                        8  => self.flags.shr1p8(value0),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::shr(value0, 1, sz) {
+                            panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, 1, sz));
+                        }
+                    }
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                } else { // 2 params
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
+                        64 => self.flags.shr2p64(value0, value1),
+                        32 => self.flags.shr2p32(value0, value1),
+                        16 => self.flags.shr2p16(value0, value1),
+                        8  => self.flags.shr2p8(value0, value1),
+                        _  => panic!("weird size")
+                    };
+
+                    if self.cfg.test_mode {
+                        if result != inline::shr(value0, value1, sz) {
+                            panic!("SHR 0x{:x} should be 0x{:x}", result, inline::shr(value0, value1, sz));
+                        }
+                    }
+
+                    //println!("0x{:x} SHR 0x{:x} >> 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, result);
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                }
+            }
+
+            Mnemonic::Ror => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let result:u64;
+                let sz = self.get_operand_sz(&ins, 0);
+
+
+                if ins.op_count() == 1 { // 1 param
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.ror(value0, 1, sz);
+
+                    if self.cfg.test_mode {
+                        if result != inline::ror(value0, 1, sz) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, 1, sz))
+                        }
+                    }
+
+                } else { // 2 params
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.ror(value0, value1, sz);
+
+                    if self.cfg.test_mode {
+                        if result != inline::ror(value0, value1, sz) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::ror(value0, value1, sz))
+                        }
+                    }
+
+                }
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+                self.flags.calc_flags(result, sz);
+            }
+
+            Mnemonic::Rcr => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let result:u64;
+                let sz = self.get_operand_sz(&ins, 0);
+
+
+                if ins.op_count() == 1 { // 1 param
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rcr(value0, 1, sz);
+
+                } else { // 2 params
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rcr(value0, value1, sz);
+                }
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+                self.flags.calc_flags(result, sz);
+            }
+
+            Mnemonic::Rol => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let result:u64;
+                let sz = self.get_operand_sz(&ins, 0);
+
+
+                if ins.op_count() == 1 { // 1 param
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rol(value0, 1, sz);
+
+                    if self.cfg.test_mode {
+                        if result != inline::rol(value0, 1, sz) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, 1, sz));
+                        }
+                    }
+
+                } else { // 2 params
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rol(value0, value1, sz);
+
+                    if self.cfg.test_mode {
+                        if result != inline::rol(value0, value1, sz) {
+                            panic!("0x{:x} should be 0x{:x}", result, inline::rol(value0, value1, sz));
+                        }
+                    }
+                }
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+                self.flags.calc_flags(result, sz as u8);
+            }
+
+            Mnemonic::Rcl => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2);
+
+                let result:u64;
+                let sz = self.get_operand_sz(&ins, 0) + 1;
+
+                if ins.op_count() == 1 { // 1 param
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rcl(value0, 1, sz);
+
+                } else { // 2 params
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    result = self.rcl(value0, value1, sz);
+                }
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+                self.flags.calc_flags(result, sz as u8 -1);
+            }
+
+
+            Mnemonic::Mul => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                match self.get_operand_sz(&ins, 0) {
+                    64 => self.mul64(value0),
+                    32 => self.mul32(value0),
+                    16 => self.mul16(value0),
+                    8  => self.mul8(value0),
+                    _ => unimplemented!("wrong size"),
+                }
+            }
+
+            Mnemonic::Div => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                match self.get_operand_sz(&ins, 0) {
+                    64 => self.div64(value0),
+                    32 => self.div32(value0),
+                    16 => self.div16(value0),
+                    8  => self.div8(value0),
+                    _ => unimplemented!("wrong size"),
+                }
+            }
+
+            Mnemonic::Idiv => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                match self.get_operand_sz(&ins, 0) {
+                    64 => self.idiv64(value0),
+                    32 => self.idiv32(value0),
+                    16 => self.idiv16(value0),
+                    8  => self.idiv8(value0),
+                    _ => unimplemented!("wrong size"),
+                }
+            }
+
+            Mnemonic::Imul => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                assert!(ins.op_count() == 1 || ins.op_count() == 2 || ins.op_count() == 3);
+
+                if ins.op_count() == 1 { // 1 param
+
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    match self.get_operand_sz(&ins, 0) {
+                        64 => self.imul64p1(value0),
+                        32 => self.imul32p1(value0),
+                        16 => self.imul16p1(value0),
+                        8  => self.imul8p1(value0),
+                        _ => unimplemented!("wrong size"),
+                    }
+
+                } else if ins.op_count() == 2 { // 2 params
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let result = match self.get_operand_sz(&ins, 0) {
+                        64 => self.flags.imul64p2(value0, value1),
+                        32 => self.flags.imul32p2(value0, value1),
+                        16 => self.flags.imul16p2(value0, value1),
+                        8  => self.flags.imul8p2(value0, value1),
+                        _ => unimplemented!("wrong size"),
+                    };
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                } else { // 3 params
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value2 = match self.get_operand_value(&ins, 2, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let result = match self.get_operand_sz(&ins, 0) {
+                        64 => self.flags.imul64p2(value1, value2),
+                        32 => self.flags.imul32p2(value1, value2),
+                        16 => self.flags.imul16p2(value1, value2),
+                        8  => self.flags.imul8p2(value1, value2),
+                        _ => unimplemented!("wrong size"),
+                    };
+
+                    if !self.set_operand_value(&ins, 0, result) {
+                        return;
+                    }
+
+                }
+            }
+
+            Mnemonic::Bt | Mnemonic::Bts | Mnemonic::Btr | Mnemonic::Btc => {
+                self.show_instruction(&self.colors.green, &ins);
+                assert!(ins.op_count() == 2);
+
+                let bit = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.flags.f_cf = (value & (1 << bit)) == 1;
+            }
+
+            Mnemonic::Bsf => {
+                self.show_instruction(&self.colors.green, &ins);
+                assert!(ins.op_count() == 2);
+
+                let src = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let mut bitpos: u8 = 0;
+                let mut dest: u64 = 0;
+
+                while bitpos < sz && get_bit!(src, bitpos) == 0 {
+                    dest += 1;
+                    bitpos += 1;
+                }
+                dest -= 1;
+
+                if dest == sz as u64 {
+                    self.flags.f_cf = true;
+                } else {
+                    self.flags.f_cf = false;
+                }
+
+                if dest == 0 {
+                    self.flags.f_zf = true;
+                } else {
+                    self.flags.f_zf = false;
+                }
+
+                if !self.set_operand_value(&ins, 0, dest) {
+                    return;
+                }
+            }
+
+            Mnemonic::Bsr => {
+                self.show_instruction(&self.colors.green, &ins);
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let mut bitpos: u8 = sz-1;
+                let mut dest: u64 = 0;
+
+                while bitpos <= 0 && get_bit!(value1, bitpos) == 0 {
+                    dest += 1;
+                    bitpos -= 1;
+                }
+
+                if dest != sz as u64 {
+                    self.flags.f_cf = true;
+                } else {
+                    self.flags.f_cf = false;
+                }
+
+                if dest == 0 {
+                    self.flags.f_zf = true;
+                } else {
+                    self.flags.f_zf = false;
+                }
+
+                if !self.set_operand_value(&ins, 0, dest) {
+                    return;
+                }
+            }
+
+            Mnemonic::Bswap => {
+                self.show_instruction(&self.colors.green, &ins);
+                assert!(ins.op_count() == 1);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1;
+                let sz = self.get_operand_sz(&ins, 0);
+
+                if sz == 32 {
+                    value1 = (value0 & 0x00000000_000000ff) << 24 | (value0 & 0x00000000_0000ff00) << 8 |
+                        (value0 & 0x00000000_00ff0000) >> 8 | (value0 & 0x00000000_ff000000) >> 24 |
+                        (value0 & 0xffffffff_00000000);
+
+                } else if sz == 64 {
+                    value1 = (value0 & 0xff000000_00000000) >> 56 | (value0 & 0x00ff0000_00000000) >> 40 |
+                        (value0 & 0x0000ff00_00000000) >> 24 | (value0 & 0x000000ff_00000000) >> 8 |
+                        (value0 & 0x00000000_ff000000) << 8 | (value0 & 0x00000000_00ff0000) << 24 |
+                        (value0 & 0x00000000_0000ff00) << 40 | (value0 & 0x00000000_000000ff) << 56;
+
+                } else if sz == 16 {
+                    value1 = (value0 & 0x00000000_000000ff) << 8 | (value0 & 0x00000000_0000ff00) >> 8;
+
+                } else {
+                    unimplemented!("bswap <16bits makes no sense, isn't it?");
+                }
+
+                /*
+                for i in 0..sz {
+                    let bit = get_bit!(value0, i);
+                    set_bit!(value1, sz-i-1, bit);
+                }*/
+
+                if !self.set_operand_value(&ins, 0, value1) {
+                    return;
+                }
+
+            }
+
+            Mnemonic::Xadd => {
+                self.show_instruction(&self.colors.green, &ins);
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if !self.set_operand_value(&ins, 1, value0) {
+                    return;
+                }
+
+                let res:u64 = match self.get_operand_sz(&ins, 1) {
+                    64 => self.flags.add64(value0, value1),
+                    32 => self.flags.add32(value0, value1),
+                    16 => self.flags.add16(value0, value1),
+                    8  => self.flags.add8(value0, value1),
+                    _  => unreachable!("weird size")
+                };
+
+                if !self.set_operand_value(&ins, 0, res) {
+                    return;
+                }
+            }
+
+            Mnemonic::Movsxd => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let result:u64 = value1 as u32 as i32 as i64 as u64;
+
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+            }
+
+            Mnemonic::Movsx => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz0 = self.get_operand_sz(&ins, 0);
+                let sz1 = self.get_operand_sz(&ins, 1);
+
+                assert!((sz0 == 16 && sz1 == 8) || 
+                    (sz0 == 32 && sz1 == 8) || 
+                    (sz0 == 32 && sz1 == 16) ||
+                    (sz0 == 64 && sz1 == 32) ||
+                    (sz0 == 64 && sz1 == 16) ||
+                    (sz0 == 64 && sz1 == 8));
+
+
+                let mut result:u64 = 0;
+
+                if sz0 == 16 {
+                    assert!(sz1 == 8);
+                    result = value1 as u8 as i8 as i16 as u16 as u64;
+                } else if sz0 == 32 {
+                    if sz1 == 8 {
+                        result = value1 as u8 as i8 as i64 as u64;
+                    } else if sz1 == 16 {
+                        result = value1 as u8 as i8 as i16 as u16 as u64;
+                    }
+                } else if sz0 == 64 {
+                    if sz1 == 8 {
+                        result = value1 as u8 as i8 as i64 as u64;
+                    } else if sz1 == 16 {
+                        result = value1 as u16 as i16 as i64 as u64;
+                    } else if sz1 == 32 {
+                        result = value1 as u32 as i32 as i64 as u64;
+                    }
+                }
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+            }
+
+            Mnemonic::Movzx => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz0 = self.get_operand_sz(&ins, 0);
+                let sz1 = self.get_operand_sz(&ins, 1);
+
+                assert!((sz0 == 16 && sz1 == 8) || 
+                    (sz0 == 32 && sz1 == 8) || 
+                    (sz0 == 32 && sz1 == 16) ||
+                    (sz0 == 64 && sz1 == 32) ||
+                    (sz0 == 64 && sz1 == 16) ||
+                    (sz0 == 64 && sz1 == 8));
+
+
+                let result:u64;
+
+
+                result = value1;
+
+                //println!("0x{:x}: MOVZX 0x{:x}", ins.ip32(), result);
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+
+            }
+
+            Mnemonic::Movsb => {
+                
+                if self.cfg.is_64bits {
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
+                            self.maps.write_byte(self.regs.rdi, val);
+
+                            if !self.flags.f_df {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            } else {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            }
+
+                            self.regs.rcx -= 1;
+                            if self.regs.rcx == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let val = self.maps.read_byte(self.regs.rsi).expect("cannot read memory"); 
+                        self.maps.write_byte(self.regs.rdi, val);
+                        if !self.flags.f_df {
+                            self.regs.rsi += 1;
+                            self.regs.rdi += 1;
+                        } else {
+                            self.regs.rsi -= 1;
+                            self.regs.rdi -= 1;
+                        }
+                    }
+                } else { // 32bits
+
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
+                            self.maps.write_byte(self.regs.get_edi(), val);
+
+                            if !self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            }
+
+                            self.regs.set_ecx(self.regs.get_ecx() - 1);
+                            if self.regs.get_ecx() == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+
+                        let val = self.maps.read_byte(self.regs.get_esi()).expect("cannot read memory"); 
+                        self.maps.write_byte(self.regs.get_edi(), val);
+                        if !self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() + 1);
+                            self.regs.set_edi(self.regs.get_edi() + 1);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() - 1);
+                            self.regs.set_edi(self.regs.get_edi() - 1);
+                        }
+                    }
+                }
+            }
+
+
+            Mnemonic::Movsw => {
+
+                if self.cfg.is_64bits {
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_word(self.regs.rsi).expect("cannot read memory"); 
+                            self.maps.write_word(self.regs.rdi, val);
+
+                            if !self.flags.f_df {
+                                self.regs.rsi += 2;
+                                self.regs.rdi += 2;
+                            } else {
+                                self.regs.rsi -= 2;
+                                self.regs.rdi -= 2;
+                            }
+
+                            self.regs.rcx -= 1;
+                            if self.regs.rcx == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+                        let val = self.maps.read_word(self.regs.rsi).expect("cannot read memory"); 
+                        self.maps.write_word(self.regs.rdi, val);
+                        if !self.flags.f_df {
+                            self.regs.rsi += 2;
+                            self.regs.rdi += 2;
+                        } else {
+                            self.regs.rsi -= 2;
+                            self.regs.rdi -= 2;
+                        }
+                    }
+
+                } else { // 32bits
+
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_word(self.regs.get_esi()).expect("cannot read memory"); 
+                            self.maps.write_word(self.regs.get_edi(), val);
+
+                            if !self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() + 2);
+                                self.regs.set_edi(self.regs.get_edi() + 2);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() - 2);
+                                self.regs.set_edi(self.regs.get_edi() - 2);
+                            }
+
+                            self.regs.set_ecx(self.regs.get_ecx() - 1);
+                            if self.regs.get_ecx() == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+                        let val = self.maps.read_word(self.regs.get_esi()).expect("cannot read memory"); 
+                        self.maps.write_word(self.regs.get_edi(), val);
+                        if !self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() + 2);
+                            self.regs.set_edi(self.regs.get_edi() + 2);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() - 2);
+                            self.regs.set_edi(self.regs.get_edi() - 2);
+                        }
+                    }
+                }
+            }
+
+            Mnemonic::Movsd => {
+
+                if self.cfg.is_64bits {
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_dword(self.regs.rsi).expect("cannot read memory"); 
+                            self.maps.write_dword(self.regs.rdi, val);
+
+                            if !self.flags.f_df {
+                                self.regs.rsi += 4;
+                                self.regs.rdi += 4;
+                            } else {
+                                self.regs.rsi -= 4;
+                                self.regs.rdi -= 4;
+                            }
+
+                            self.regs.rcx -= 1;
+                            if self.regs.rcx == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+                        let val = self.maps.read_dword(self.regs.rsi).expect("cannot read memory"); 
+                        self.maps.write_dword(self.regs.rdi, val);
+                        if !self.flags.f_df {
+                            self.regs.rsi += 4;
+                            self.regs.rdi += 4;
+                        } else {
+                            self.regs.rsi -= 4;
+                            self.regs.rdi -= 4;
+                        }
+                    }
+                } else { // 32bits
+
+                    if ins.has_rep_prefix() {
+                        let mut first_iteration = true;
+                        loop {
+                            if first_iteration || self.cfg.verbose >= 3 {
+                                self.show_instruction(&self.colors.light_cyan, &ins);
+                            }
+                            if !first_iteration {
+                                self.pos += 1;
+                            }
+
+                            let val = self.maps.read_dword(self.regs.get_esi()).expect("cannot read memory"); 
+                            self.maps.write_dword(self.regs.get_edi(), val);
+
+                            if !self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() + 4);
+                                self.regs.set_edi(self.regs.get_edi() + 4);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() - 4);
+                                self.regs.set_edi(self.regs.get_edi() - 4);
+                            }
+
+                            self.regs.set_ecx(self.regs.get_ecx() - 1);
+                            if self.regs.get_ecx() == 0 { 
+                                return 
+                            }
+                            first_iteration = false;
+                        }
+
+                    } else {
+                        self.show_instruction(&self.colors.light_cyan, &ins);
+                        let val = self.maps.read_dword(self.regs.get_esi()).expect("cannot read memory"); 
+                        self.maps.write_dword(self.regs.get_edi(), val);
+                        if !self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() + 4);
+                            self.regs.set_edi(self.regs.get_edi() + 4);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() - 4);
+                            self.regs.set_edi(self.regs.get_edi() - 4);
+                        }
+                    }
+                }
+            }
+
+            Mnemonic::Cmova => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_cf && !self.flags.f_zf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovae => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_cf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovb => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_cf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovbe => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_cf || self.flags.f_zf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmove => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_zf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovg => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovge => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf == self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovl => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf != self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovle => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovno => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovne => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_zf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovp => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_pf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            // https://hjlebbink.github.io/x86doc/html/CMOVcc.html
+
+            Mnemonic::Cmovnp => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_pf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovs => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovns => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_sf {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Cmovo => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_of {
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Seta  => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_cf && !self.flags.f_zf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setae  => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_cf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setb => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_cf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setbe => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_cf || self.flags.f_zf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Sete => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_zf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setg => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setge => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf == self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setl => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf != self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setle => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_zf ||  self.flags.f_sf != self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setne => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_zf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }   
+
+            Mnemonic::Setno => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setnp => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_pf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setns => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if !self.flags.f_sf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Seto => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_of {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Setp => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_pf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Sets => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                if self.flags.f_sf {
+                    if !self.set_operand_value(&ins, 0, 1) {
+                        return;
+                    }
+                } else  {
+                    if !self.set_operand_value(&ins, 0, 0) {
+                        return;
+                    }
+                }
+            }
+
+
+            Mnemonic::Stosb => {
+                
+                if ins.has_rep_prefix() {
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.regs.rcx == 0 {
+                            return;
+                        }
+
+                        if self.cfg.is_64bits {
+                            self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
+                            if self.flags.f_df {
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rdi += 1;
+                            }
+                        } else { // 32bits
+                            self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
+                            if self.flags.f_df {
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
+                        }
+
+                        self.regs.rcx -= 1;
+                        first_iteration = false;
+                    }
+
+                } else {
+
+                    if self.cfg.is_64bits {
+                        self.maps.write_byte(self.regs.rdi, self.regs.get_al() as u8);
+                        if self.flags.f_df {
+                            self.regs.rdi -= 1;
+                        } else {
+                            self.regs.rdi += 1;
+                        }
+                    } else { // 32bits
+                        self.maps.write_byte(self.regs.get_edi(), self.regs.get_al() as u8);
+                        if self.flags.f_df {
+                            self.regs.set_edi(self.regs.get_edi() - 1);
+                        } else {
+                            self.regs.set_edi(self.regs.get_edi() + 1);
+                        }
+                    }
+                }
+            }
+
+            Mnemonic::Stosw => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                if self.cfg.is_64bits {
+                    self.maps.write_word(self.regs.rdi, self.regs.get_ax() as u16);
+
+                    if self.flags.f_df {
+                        self.regs.rdi -= 2;
+                    } else {
+                        self.regs.rdi += 2;
+                    }
+                } else { // 32bits
+                    self.maps.write_word(self.regs.get_edi(), self.regs.get_ax() as u16);
+
+                    if self.flags.f_df {
+                        self.regs.set_edi(self.regs.get_edi() - 2);
+                    } else {
+                        self.regs.set_edi(self.regs.get_edi() + 2);
+                    }
+                }
+            }
+
+            Mnemonic::Stosd => {
+
+                if ins.has_rep_prefix() {                                             
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.regs.rcx == 0 {
+                            return;
+                        }                      
+                        
+                        if self.cfg.is_64bits {
+                            self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
+                            if self.flags.f_df {
+                                self.regs.rdi -= 4;                    
+                            } else {
+                                self.regs.rdi += 4;                    
+                            }
+                        } else { // 32bits
+                            self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
+            
+                            if self.flags.f_df {
+                                self.regs.set_edi(self.regs.get_edi() - 4);
+                            } else {
+                                self.regs.set_edi(self.regs.get_edi() + 4);
+                            }
+                        }
+
+                        self.regs.rcx -= 1;
+                        first_iteration = false;
+                    }
+                } else {
+                    self.show_instruction(&self.colors.light_cyan, &ins);
+                    if self.cfg.is_64bits {
+                        self.maps.write_dword(self.regs.rdi, self.regs.get_eax() as u32);
+
+                        if self.flags.f_df {
+                            self.regs.rdi -= 4;
+                        } else {
+                            self.regs.rdi += 4;
+                        }
+                    } else { // 32bits
+                        self.maps.write_dword(self.regs.get_edi(), self.regs.get_eax() as u32);
+
+                        if self.flags.f_df {
+                            self.regs.set_edi(self.regs.get_edi() - 4);
+                        } else {
+                            self.regs.set_edi(self.regs.get_edi() + 4);
+                        }
+                    }
+                }
+            }
+
+            Mnemonic::Stosq => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                self.maps.write_qword(self.regs.rdi, self.regs.rax);
+
+                if self.flags.f_df {
+                    self.regs.rdi -= 8;
+                } else {
+                    self.regs.rdi += 8;
+                }
+                
+            }
+
+            Mnemonic::Scasb => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                let value0:u64 = match self.maps.read_byte(self.regs.rdi) {
+                    Some(value) => value.into(),
+                    None => return,
+                };
+
+                self.flags.sub8(self.regs.get_al(), value0);
+
+                if self.cfg.is_64bits {
+                    if self.flags.f_df {                       
+                        self.regs.rdi -= 1;
+                    } else {
+                        self.regs.rdi += 1;
+                    }
+                } else { // 32bits
+                    if self.flags.f_df {
+                        self.regs.set_edi(self.regs.get_edi() - 1);
+                    } else {
+                        self.regs.set_edi(self.regs.get_edi() + 1);
+                    }
+                }
+            }
+
+            Mnemonic::Scasw => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.flags.sub16(self.regs.get_ax(), value0);
+
+                if self.cfg.is_64bits {
+                    if self.flags.f_df {                       
+                        self.regs.rdi -= 2;
+                    } else {
+                        self.regs.rdi += 2;
+                    }
+                } else { // 32bits
+                    if self.flags.f_df {
+                        self.regs.set_edi(self.regs.get_edi() - 2);
+                    } else {
+                        self.regs.set_edi(self.regs.get_edi() + 2);
+                    }
+                }
+            }
+
+            Mnemonic::Scasd => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.flags.sub32(self.regs.get_eax(), value0);
+
+                if self.cfg.is_64bits {
+                    if self.flags.f_df {                       
+                        self.regs.rdi -= 4;
+                    } else {
+                        self.regs.rdi += 4;
+                    }
+                } else { // 32bits
+                    if self.flags.f_df {
+                        self.regs.set_edi(self.regs.get_edi() - 4);
+                    } else {
+                        self.regs.set_edi(self.regs.get_edi() + 4);
+                    }
+                }
+            }
+
+            Mnemonic::Scasq => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.flags.sub64(self.regs.rax, value0);
+
+                if self.flags.f_df {                       
+                    self.regs.rdi -= 8;
+                } else {
+                    self.regs.rdi += 8;
+                }
+            }
+
+            Mnemonic::Test => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                if self.break_on_next_cmp {
+                    self.spawn_console();
+                    self.break_on_next_cmp = false;
+                }
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+
+
+                let sz = self.get_operand_sz(&ins, 0);
+
+                self.flags.test(value0, value1, sz);
+            }
+
+            Mnemonic::Cmpxchg => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if self.cfg.is_64bits {
+                    if value0 == self.regs.rax {
+                        self.flags.f_zf = true;
+                        if !self.set_operand_value(&ins, 0, value1) {
+                            return;
+                        }
+                    } else {
+                        self.flags.f_zf = false;
+                        self.regs.rax = value1;
+                    }
+                } else { // 32bits
+                    if value0 == self.regs.get_eax() {
+                        self.flags.f_zf = true;
+                        if !self.set_operand_value(&ins, 0, value1) {
+                            return;
+                        }
+                    } else {
+                        self.flags.f_zf = false;
+                        self.regs.set_eax(value1);
+                    }
+                }
+            }
+
+            Mnemonic::Cmpxchg8b => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if value0 as u8 == (self.regs.get_al() as u8) {
+                    self.flags.f_zf = true;
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                } else {
+                    self.flags.f_zf = false;
+                    self.regs.set_al(value1 & 0xff);
+                }
+            }
+
+
+            Mnemonic::Cmpxchg16b => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if value0 as u16 == (self.regs.get_ax() as u16) {
+                    self.flags.f_zf = true;
+                    if !self.set_operand_value(&ins, 0, value1) {
+                        return;
+                    }
+                } else {
+                    self.flags.f_zf = false;
+                    self.regs.set_ax(value1 & 0xffff);
+                }
+            }
+
+            Mnemonic::Cmp => {
+                self.show_instruction(&self.colors.orange, &ins);
+
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if !self.step {
+                    if value0 > value1 {
+                        println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                    } else if value0 < value1 {
+                        println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                    } else {
+                        println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                    }
+                }
+                
+                if self.break_on_next_cmp {
+                    self.spawn_console();
+                    self.break_on_next_cmp = false;
+
+                    let value0 = match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    let value1 = match self.get_operand_value(&ins, 1, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if !self.step {
+                        if value0 > value1 {
+                            println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                        } else if value0 < value1 {
+                            println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                        } else {
+                            println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                        }
+                    }
+                }
+
+                match self.get_operand_sz(&ins, 0) {
+                    64 => { self.flags.sub64(value0, value1); },
+                    32 => { self.flags.sub32(value0, value1); },
+                    16 => { self.flags.sub16(value0, value1); },
+                    8 => { self.flags.sub8(value0, value1); },
+                    _  => { panic!("wrong size {}", self.get_operand_sz(&ins, 0)); }
+                }
+
+            }
+
+            Mnemonic::Cmpsq => {
+
+                let mut value0:u64;
+                let mut value1:u64;
+
+        
+                if ins.has_rep_prefix() {
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.cfg.is_64bits {
+                            value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
+                            value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 8;
+                                self.regs.rdi -= 8;
+                            } else {
+                                self.regs.rsi += 8;
+                                self.regs.rdi += 8;
+                            }
+
+                        } else { // 32bits
+                            value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
+                            value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 8);
+                                self.regs.set_edi(self.regs.get_edi() - 8);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 8);
+                                self.regs.set_edi(self.regs.get_edi() + 8);
+                            }
+                        }
+
+                        self.flags.sub64(value0, value1);
+
+                        if value0 > value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else if value0 < value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else {
+                            if !self.step {  
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+
+
+                        self.regs.rcx -= 1;
+                        if self.regs.rcx == 0 {
+                            return;
+                        }
+
+                        first_iteration = false;
+                    }
+
+                } else { // not rep
+
+                    self.show_instruction(&self.colors.orange, &ins);
+
+                    if self.cfg.is_64bits {
+                        value0 = self.maps.read_qword(self.regs.rsi).expect("cannot read esi");
+                        value1 = self.maps.read_qword(self.regs.rdi).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.rsi -= 8;
+                            self.regs.rdi -= 8;
+                        } else {
+                            self.regs.rsi += 8;
+                            self.regs.rdi += 8;
+                        }
+
+                    } else { // 32bits
+                        value0 = self.maps.read_qword(self.regs.get_esi()).expect("cannot read esi");
+                        value1 = self.maps.read_qword(self.regs.get_edi()).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() - 8);
+                            self.regs.set_edi(self.regs.get_edi() - 8);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() + 8);
+                            self.regs.set_edi(self.regs.get_edi() + 8);
+                        }
+                    }
+
+                    self.flags.sub64(value0, value1);
+
+                    if !self.step {
+                        if value0 > value1 {
+                            println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                        } else if value0 < value1 {
+                            println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                        } else {
+                            println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                        }
+                    }
+
+                }
+
+            }
+
+            Mnemonic::Cmpsd => {
+                let mut value0:u32;
+                let mut value1:u32;
+
+                if ins.has_rep_prefix() {
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.cfg.is_64bits {
+                            value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
+                            value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 4;
+                                self.regs.rdi -= 4;
+                            } else {
+                                self.regs.rsi += 4;
+                                self.regs.rdi += 4;
+                            }
+
+                        } else { // 32bits
+                            value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
+                            value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 4);
+                                self.regs.set_edi(self.regs.get_edi() - 4);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 4);
+                                self.regs.set_edi(self.regs.get_edi() + 4);
+                            }
+                        }
+
+                        self.flags.sub32(value0 as u64, value1 as u64);
+
+                        if value0 > value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else if value0 < value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+
+                        self.regs.rcx -= 1;
+                        if self.regs.rcx == 0 {
+                            return;
+                        }
+
+                        first_iteration = false;
+                    }
+
+                } else { // no rep
+
+                    self.show_instruction(&self.colors.light_cyan, &ins);
+
+                    if self.cfg.is_64bits {
+                        value0 = self.maps.read_dword(self.regs.rsi).expect("cannot read esi");
+                        value1 = self.maps.read_dword(self.regs.rdi).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.rsi -= 4;
+                            self.regs.rdi -= 4;
+                        } else {
+                            self.regs.rsi += 4;
+                            self.regs.rdi += 4;
+                        }
+
+                    } else { // 32bits
+                        value0 = self.maps.read_dword(self.regs.get_esi()).expect("cannot read esi");
+                        value1 = self.maps.read_dword(self.regs.get_edi()).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() - 4);
+                            self.regs.set_edi(self.regs.get_edi() - 4);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() + 4);
+                            self.regs.set_edi(self.regs.get_edi() + 4);
+                        }
+                    }
+
+                    self.flags.sub32(value0 as u64, value1 as u64);
+
+                    if !self.step {
+                        if value0 > value1 {
+                            println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                        } else if value0 < value1 {
+                            println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                        } else {
+                            println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                        }
+                    }
+                }
+
+            }
+
+            Mnemonic::Cmpsw => {
+                let mut value0:u16;
+                let mut value1:u16;
+
+                if ins.has_rep_prefix() {
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.cfg.is_64bits {
+                            value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
+                            value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
+                        } else { // 32bits
+                            value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
+                            value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 2);
+                                self.regs.set_edi(self.regs.get_edi() - 2);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 2);
+                                self.regs.set_edi(self.regs.get_edi() + 2);
+                            }
+                        }
+
+                        self.flags.sub16(value0 as u64, value1 as u64);
+
+                        if value0 > value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else if value0 < value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            }
+                            return;
+                        } else {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                            }
+                        }
+
+
+                        self.regs.rcx -= 1;
+                        if self.regs.rcx == 0 {
+                            return;
+                        }
+
+                        first_iteration = false;
+                    }
+
+
+                } else {  // no rep
+
+                    self.show_instruction(&self.colors.light_cyan, &ins);
+
+                    if self.cfg.is_64bits {
+                        value0 = self.maps.read_word(self.regs.rsi).expect("cannot read esi");
+                        value1 = self.maps.read_word(self.regs.rdi).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.rsi -= 1;
+                            self.regs.rdi -= 1;
+                        } else {
+                            self.regs.rsi += 1;
+                            self.regs.rdi += 1;
+                        }
+
+                    } else { // 32bits
+                        value0 = self.maps.read_word(self.regs.get_esi()).expect("cannot read esi");
+                        value1 = self.maps.read_word(self.regs.get_edi()).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() - 2);
+                            self.regs.set_edi(self.regs.get_edi() - 2);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() + 2);
+                            self.regs.set_edi(self.regs.get_edi() + 2);
+                        }
+                    }
+
+                    self.flags.sub16(value0 as u64, value1 as u64);
+
+                    if !self.step {
+                        if value0 > value1 {
+                            println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                        } else if value0 < value1 {
+                            println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                        } else {
+                            println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                        }
+                    }   
+                }
+            }
+
+            Mnemonic::Cmpsb => {
+                let mut value0:u8;
+                let mut value1:u8;
+
+                if ins.has_rep_prefix() {
+                    let mut first_iteration = true;
+                    loop {
+                        if first_iteration || self.cfg.verbose >= 3 {
+                            self.show_instruction(&self.colors.light_cyan, &ins);
+                        }
+                        if !first_iteration {
+                            self.pos += 1;
+                        }
+
+                        if self.cfg.is_64bits {
+                            value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
+                            value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.rsi -= 1;
+                                self.regs.rdi -= 1;
+                            } else {
+                                self.regs.rsi += 1;
+                                self.regs.rdi += 1;
+                            }
+
+                        } else { // 32bits
+                            value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
+                            value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+
+                            if self.flags.f_df {
+                                self.regs.set_esi(self.regs.get_esi() - 1);
+                                self.regs.set_edi(self.regs.get_edi() - 1);
+                            } else {
+                                self.regs.set_esi(self.regs.get_esi() + 1);
+                                self.regs.set_edi(self.regs.get_edi() + 1);
+                            }
+                        }
+
+                        self.flags.sub8(value0 as u64, value1 as u64);
+
+                        if value0 > value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                            }
+                            assert!(self.flags.f_zf == false);
+                            return;
+                        } else if value0 < value1 {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                            }
+                            assert!(self.flags.f_zf == false);
+                            return;
+                        } else {
+                            if !self.step { 
+                                println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1); 
+                            }
+                            assert!(self.flags.f_zf == true);
+                        }
+                        
+                        self.regs.rcx -= 1;
+                        if self.regs.rcx == 0 {
+                            return;
+                        }
+
+                        first_iteration = false;
+                    }
+
+                } else { // no rep
+
+                    self.show_instruction(&self.colors.light_cyan, &ins);
+
+                    if self.cfg.is_64bits {
+                        value0 = self.maps.read_byte(self.regs.rsi).expect("cannot read esi");
+                        value1 = self.maps.read_byte(self.regs.rdi).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.rsi -= 1;
+                            self.regs.rdi -= 1;
+                        } else {
+                            self.regs.rsi += 1;
+                            self.regs.rdi += 1;
+                        }
+
+                    } else { // 32bits
+                        value0 = self.maps.read_byte(self.regs.get_esi()).expect("cannot read esi");
+                        value1 = self.maps.read_byte(self.regs.get_edi()).expect("cannot read edi");
+
+                        if self.flags.f_df {
+                            self.regs.set_esi(self.regs.get_esi() - 1);
+                            self.regs.set_edi(self.regs.get_edi() - 1);
+                        } else {
+                            self.regs.set_esi(self.regs.get_esi() + 1);
+                            self.regs.set_edi(self.regs.get_edi() + 1);
+                        }
+                    }
+
+                    self.flags.sub8(value0 as u64, value1 as u64);
+
+                    if !self.step {
+                        if value0 > value1 {
+                            println!("\tcmp: 0x{:x} > 0x{:x}", value0, value1);
+                        } else if value0 < value1 {
+                            println!("\tcmp: 0x{:x} < 0x{:x}", value0, value1);
+                        } else {
+                            println!("\tcmp: 0x{:x} == 0x{:x}", value0, value1);
+                        }
+                    }
+                }
+            }
+
+
+            //branches: https://web.itu.edu.tr/kesgin/mul06/intel/instr/jxx.html
+            //          https://c9x.me/x86/html/file_module_x86_id_146.html
+            //          http://unixwiz.net/techtips/x86-jumps.html <---aqui
+
+            //esquema global -> https://en.wikipedia.org/wiki/X86_instruction_listings
+            // test jnle jpe jpo loopz loopnz int 0x80
+
+            Mnemonic::Jo => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jno => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+            
+            Mnemonic::Js => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_sf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jns => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_sf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Je => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_zf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jne => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_zf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jb => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_cf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jae => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_cf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jbe => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_cf || self.flags.f_zf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Ja => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_cf && !self.flags.f_zf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jl => {
+        
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_sf != self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jge => {
+                
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_sf == self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jle => {
+    
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_zf || self.flags.f_sf != self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jg => {
+        
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_zf && self.flags.f_sf == self.flags.f_of {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jp => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.flags.f_pf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jnp => {
+
+                assert!(ins.op_count() == 1);
+
+                if !self.flags.f_pf {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jcxz => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.regs.get_cx() == 0 {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jecxz => {
+
+                assert!(ins.op_count() == 1);
+
+                if self.regs.get_cx() == 0 {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Jrcxz => {
+                if self.regs.rcx == 0 {
+                    self.show_instruction_taken(&self.colors.orange, &ins);
+                    let addr =  match self.get_operand_value(&ins, 0, true) {
+                        Some(v) => v,
+                        None => return,
+                    };
+
+                    if self.cfg.is_64bits {
+                        self.set_rip(addr, true);
+                    } else {
+                        self.set_eip(addr, true);
+                    }
+                    return;
+
+                } else {
+                    self.show_instruction_not_taken(&self.colors.orange, &ins);
+                }
+            }
+
+            Mnemonic::Int3 => {
+                self.show_instruction(&self.colors.red, &ins);
+                println!("/!\\ int 3 sigtrap!!!!");
+                self.exception();
+                return;
+            }
+
+            Mnemonic::Nop => {
+                self.show_instruction(&self.colors.light_purple, &ins);
+            }
+
+            Mnemonic::Mfence|Mnemonic::Lfence|Mnemonic::Sfence => {
+                self.show_instruction(&self.colors.red, &ins);
+            }
+
+            Mnemonic::Cpuid => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                // guloader checks bit31 which is if its hipervisor with command
+                // https://c9x.me/x86/html/file_module_x86_id_45.html
+                // TODO: implement 0x40000000 -> get the virtualization vendor
+
+                if self.cfg.verbose >= 1 {
+                        println!("\tinput value: 0x{:x}", self.regs.rax);
+                }
+
+                match self.regs.rax {
+                    0x00 => {
+                        self.regs.rax = 16;
+                        self.regs.rbx = 0x756e6547;
+                        self.regs.rcx = 0x6c65746e;
+                        self.regs.rdx = 0x49656e69;
+                    },
+                    0x01 => {
+                        self.regs.rax = 0x906ed;    // Version Information (Type, Family, Model, and Stepping ID)
+                        self.regs.rbx = 0x5100800;
+                        self.regs.rcx = 0x7ffafbbf;
+                        self.regs.rdx = 0xbfebfbff;  // feature
+                    },
+                    0x02 => {
+                        self.regs.rax = 0x76036301;
+                        self.regs.rbx = 0xf0b5ff;
+                        self.regs.rcx = 0;
+                        self.regs.rdx = 0xc30000;
+                    },
+                    0x03 => {
+                        self.regs.rax = 0;
+                        self.regs.rbx = 0;
+                        self.regs.rcx = 0;
+                        self.regs.rdx = 0;
+                    },
+                    0x04 => {
+                        self.regs.rax = 0;
+                        self.regs.rbx = 0x1c0003f;
+                        self.regs.rcx = 0x3f;
+                        self.regs.rdx = 0;
+                    },
+                    0x05 => {
+                        self.regs.rax = 0x40;
+                        self.regs.rbx = 0x40;
+                        self.regs.rcx = 3;
+                        self.regs.rdx = 0x11142120;
+                    },
+                    0x06 => {
+                        self.regs.rax = 0x27f7;
+                        self.regs.rbx = 2;
+                        self.regs.rcx = 9;
+                        self.regs.rdx = 0;
+                    },
+                    0x07..=0x6d => {
+                        self.regs.rax = 0;
+                        self.regs.rbx = 0;
+                        self.regs.rcx = 0;
+                        self.regs.rdx = 0;
+                    },
+                    0x6e => {
+                        self.regs.rax = 0x960;
+                        self.regs.rbx = 0x1388;
+                        self.regs.rcx = 0x64;
+                        self.regs.rdx = 0;
+                    },
+                    0x80000000 => {
+                        self.regs.rax = 0x80000008;
+                        self.regs.rbx = 0;
+                        self.regs.rcx = 0;
+                        self.regs.rdx = 0;
+                    },
+                    _ => unimplemented!("unimplemented cpuid call 0x{:x}", self.regs.rax),
+                }
+            }
+
+            Mnemonic::Clc => {
+                self.show_instruction(&self.colors.light_gray, &ins);
+                self.flags.f_cf = false;
+            }
+            
+            Mnemonic::Rdtsc => {
+                self.show_instruction(&self.colors.red, &ins);
+                self.regs.rdx = 0;
+                self.regs.rax = 0;
+            }
+
+            Mnemonic::Loop => {
+                self.show_instruction(&self.colors.yellow, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let addr = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if addr > 0xffffffff {
+                    if self.regs.rcx == 0 {
+                        self.regs.rcx = 0xffffffffffffffff;
+                    } else {
+                        self.regs.rcx -= 1;
+                    }
+
+                    if self.regs.rcx > 0 {
+                        self.set_rip(addr, false);
+                        return;
+                    }
+                    
+                } else if addr > 0xffff {
+                    if self.regs.get_ecx() == 0 {
+                        self.regs.set_ecx(0xffffffff);
+                    } else {
+                        self.regs.set_ecx(self.regs.get_ecx() - 1);
+                    }
+
+                    if self.regs.get_ecx() > 0 {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+
+                } else {
+                    if self.regs.get_cx() == 0 {
+                        self.regs.set_cx(0xffff);
+                    } else {
+                        self.regs.set_cx(self.regs.get_cx() -1);
+                    }
+        
+                    if self.regs.get_cx() > 0 {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Loope => {
+                self.show_instruction(&self.colors.yellow, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let addr = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if addr > 0xffffffff {
+                    if self.regs.rcx == 0 {
+                        self.regs.rcx = 0xffffffffffffffff;
+                    } else {
+                        self.regs.rcx -= 1;
+                    }
+                    
+                    if self.regs.rcx > 0 && self.flags.f_zf {
+                        self.set_rip(addr, false);
+                        return;
+                    }
+                } else if addr > 0xffff {
+                    if self.regs.get_ecx() == 0 {
+                        self.regs.set_ecx(0xffffffff);
+                    } else {
+                        self.regs.set_ecx(self.regs.get_ecx() - 1);
+                    }
+                    
+                    if self.regs.get_ecx() > 0 && self.flags.f_zf {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+                } else {
+                    if self.regs.get_cx() == 0 {
+                        self.regs.set_cx(0xffff);
+                    } else {
+                        self.regs.set_cx(self.regs.get_cx() - 1);
+                    }
+                    
+                    if self.regs.get_cx() > 0 && self.flags.f_zf  {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Loopne => {
+                self.show_instruction(&self.colors.yellow, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let addr = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if addr > 0xffffffff {
+                    if self.regs.rcx == 0 {
+                        self.regs.rcx = 0xffffffffffffffff;
+                    } else {
+                        self.regs.rcx -= 1;
+                    }
+                    
+                    if self.regs.rcx > 0 && !self.flags.f_zf {
+                        self.set_rip(addr, false);
+                        return;
+                    }
+
+                } else if addr > 0xffff {
+                    if self.regs.get_ecx() == 0 {
+                        self.regs.set_ecx(0xffffffff);
+                    } else {
+                        self.regs.set_ecx(self.regs.get_ecx() - 1);
+                    }
+                    
+                    if self.regs.get_ecx() > 0 && !self.flags.f_zf {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+
+                } else {
+                    if self.regs.get_cx() == 0 {
+                        self.regs.set_cx(0xffff);
+                    } else {
+                        self.regs.set_cx(self.regs.get_cx() -1);
+                    }
+                    
+                    if self.regs.get_cx() > 0 && !self.flags.f_zf  {
+                        if self.cfg.is_64bits {
+                            self.set_rip(addr, false);
+                        } else {
+                            self.set_eip(addr, false);
+                        }
+                        return;
+                    }
+                }
+            }
+
+            Mnemonic::Lea => {
+                self.show_instruction(&self.colors.light_cyan, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value1 = match self.get_operand_value(&ins, 1, false) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if !self.set_operand_value(&ins, 0, value1) {
+                    return;
+                }
+            }
+
+            Mnemonic::Leave => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                if self.cfg.is_64bits {
+                    self.regs.rsp = self.regs.rbp;
+                    self.regs.rbp = self.stack_pop64(true);
+                } else {
+                    self.regs.set_esp(self.regs.get_ebp());
+                    let val = self.stack_pop32(true);
+                    self.regs.set_ebp(val as u64);
+                }
+            }
+
+            Mnemonic::Int => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                assert!(ins.op_count() == 1);
+
+                let interrupt = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                match interrupt {
+                    0x80 => syscall32::gateway(self),
+                    _ => unimplemented!("interrupt {}", interrupt),
+                }
+            }
+
+            Mnemonic::Syscall => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                syscall64::gateway(self);
+            }
+
+            Mnemonic::Std => {
+                self.show_instruction(&self.colors.blue, &ins);
+                self.flags.f_df = true;
+            }
+
+            Mnemonic::Stc => {
+                self.show_instruction(&self.colors.blue, &ins);
+                self.flags.f_cf = true;
+            }
+
+            Mnemonic::Cmc => {
+                self.show_instruction(&self.colors.blue, &ins);
+                self.flags.f_cf = !self.flags.f_cf;
+            }
+
+            Mnemonic::Cld => {
+                self.show_instruction(&self.colors.blue, &ins);
+                self.flags.f_df = false;
+            }
+
+            Mnemonic::Lodsq => {
+                self.show_instruction(&self.colors.cyan, &ins);
+                //TODO: crash if arrive to zero or max value
+                
+                if self.cfg.is_64bits {
+                    let val = match self.maps.read_qword(self.regs.rsi) {
+                        Some(v) => v,
+                        None => panic!("lodsq: memory read error"),
+                    };
+
+                    self.regs.rax = val;
+                    if self.flags.f_df {
+                        self.regs.rsi -= 8; 
+                    } else {
+                        self.regs.rsi += 8;
+                    }
+
+                } else {
+                    unreachable!("lodsq dont exists in 32bit");
+                }
+            }
+
+            Mnemonic::Lodsd => {
+                self.show_instruction(&self.colors.cyan, &ins);
+                //TODO: crash if arrive to zero or max value
+                
+                if self.cfg.is_64bits {
+                    let val = match self.maps.read_dword(self.regs.rsi) {
+                        Some(v) => v,
+                        None => panic!("lodsd: memory read error"),
+                    };
+
+                    self.regs.set_eax(val as u64);
+                    if self.flags.f_df {
+                        self.regs.rsi -= 4; 
+                    } else {
+                        self.regs.rsi += 4;
+                    }
+
+                } else {
+
+                    let val = match self.maps.read_dword(self.regs.get_esi()) {
+                        Some(v) => v,
+                        None => panic!("lodsd: memory read error"),
+                    };
+
+                    self.regs.set_eax(val as u64);
+                    if self.flags.f_df {
+                        self.regs.set_esi(self.regs.get_esi() - 4);
+                    } else {
+                        self.regs.set_esi(self.regs.get_esi() + 4);
+                    }
+                }
+            }
+
+            Mnemonic::Lodsw => {
+                self.show_instruction(&self.colors.cyan, &ins);
+                //TODO: crash if rsi arrive to zero or max value
+                
+                if self.cfg.is_64bits {
+                    let val = match self.maps.read_word(self.regs.rsi) {
+                        Some(v) => v,
+                        None => panic!("lodsw: memory read error 0x{:x}", self.regs.rsi),
+                    };
+
+                    self.regs.set_ax(val as u64);
+                    if self.flags.f_df {
+                        self.regs.rsi -= 2;
+                    } else {
+                        self.regs.rsi += 2;
+                    }
+
+                } else {
+
+                    let val = match self.maps.read_word(self.regs.get_esi()) {
+                        Some(v) => v,
+                        None => panic!("lodsw: memory read error"),
+                    };
+
+                    self.regs.set_ax(val as u64);
+                    if self.flags.f_df {
+                        self.regs.set_esi(self.regs.get_esi() - 2);
+                    } else {
+                        self.regs.set_esi(self.regs.get_esi() + 2);
+                    }
+                }
+            }
+
+            Mnemonic::Lodsb => {
+                self.show_instruction(&self.colors.cyan, &ins);
+                //TODO: crash if arrive to zero or max value
+                
+                if self.cfg.is_64bits {
+                    let val = match self.maps.read_byte(self.regs.rsi) {
+                        Some(v) => v,
+                        None => {
+                            println!("lodsb: memory read error");
+                            self.spawn_console();
+                            0
+                        }
+                    };
+
+                    self.regs.set_al(val as u64);
+                    if self.flags.f_df {
+                        self.regs.rsi -= 1;
+                    } else {
+                        self.regs.rsi += 1;
+                    }
+
+                } else {
+
+                    let val = match self.maps.read_byte(self.regs.get_esi()) {
+                        Some(v) => v,
+                        None => {   
+                            println!("lodsb: memory read error");
+                            self.spawn_console();
+                            0
+                        }
+                    };
+
+                    self.regs.set_al(val as u64);
+                    if self.flags.f_df {
+                        self.regs.set_esi(self.regs.get_esi() - 1);
+                    } else {
+                        self.regs.set_esi(self.regs.get_esi() + 1);
+                    }
+                }
+            }
+
+            Mnemonic::Cbw => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let sigextend = self.regs.get_al() as u8 as i8 as i16 as u16;
+                self.regs.set_ax(sigextend as u64);
+            }
+
+            Mnemonic::Cwde => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
+                
+                self.regs.set_eax(sigextend as u64);
+            }
+
+            Mnemonic::Cwd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let sigextend = self.regs.get_ax() as u16 as i16 as i32 as u32;
+                self.regs.set_ax((sigextend & 0x0000ffff) as u64);
+                self.regs.set_dx(((sigextend & 0xffff0000) >> 16) as u64); 
+            }
+
+
+            ///// FPU /////  https://github.com/radare/radare/blob/master/doc/xtra/fpu
+            
+            Mnemonic::Ffree => {
+                self.show_instruction(&self.colors.green, &ins);
+        
+                match ins.op_register(0) {
+                    Register::ST0 => self.fpu.clear_st(0),
+                    Register::ST1 => self.fpu.clear_st(1),
+                    Register::ST2 => self.fpu.clear_st(2),
+                    Register::ST3 => self.fpu.clear_st(3),
+                    Register::ST4 => self.fpu.clear_st(4),
+                    Register::ST5 => self.fpu.clear_st(5),
+                    Register::ST6 => self.fpu.clear_st(6),
+                    Register::ST7 => self.fpu.clear_st(7),
+                    _  => unimplemented!("impossible case"),
+                }
+            
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fnstenv => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let addr = match self.get_operand_value(&ins, 0, false) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                if self.cfg.is_64bits {
+                    let env = self.fpu.get_env64();
+
+                    for i in 0..4 {
+                        self.maps.write_qword(addr+(i*4), env[i as usize]);
+                    }
+
+                } else {
+
+                    let env = self.fpu.get_env32();
+                    for i in 0..4 {
+                        self.maps.write_dword(addr+(i*4), env[i as usize]);
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fld => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldz => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(0.0);
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fld1 => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(1.0);
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldpi => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(std::f32::consts::PI);
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldl2t => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(10f32.log2());
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldlg2 => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(2f32.log10());
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldln2 => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(2f32.log(std::f32::consts::E));
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fldl2e => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                self.fpu.push(std::f32::consts::E.log2());
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmove => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if self.flags.f_zf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovb => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if self.flags.f_cf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovbe => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if self.flags.f_cf || self.flags.f_zf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovu => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if self.flags.f_pf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovnb => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if !self.flags.f_cf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovne => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if !self.flags.f_zf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovnbe => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if !self.flags.f_cf && !self.flags.f_zf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fcmovnu => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                if !self.flags.f_pf {
+                    match ins.op_register(0) {
+                        Register::ST0 => self.fpu.move_to_st0(0),
+                        Register::ST1 => self.fpu.move_to_st0(1),
+                        Register::ST2 => self.fpu.move_to_st0(2),
+                        Register::ST3 => self.fpu.move_to_st0(3),
+                        Register::ST4 => self.fpu.move_to_st0(4),
+                        Register::ST5 => self.fpu.move_to_st0(5),
+                        Register::ST6 => self.fpu.move_to_st0(6),
+                        Register::ST7 => self.fpu.move_to_st0(7),
+                        _  => unimplemented!("impossible case"),
+                    }
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Fxch => {
+                self.show_instruction(&self.colors.blue, &ins);
+                match ins.op_register(1) {  
+                    Register::ST0 => self.fpu.xchg_st(0),  
+                    Register::ST1 => self.fpu.xchg_st(1),  
+                    Register::ST2 => self.fpu.xchg_st(2),  
+                    Register::ST3 => self.fpu.xchg_st(3),  
+                    Register::ST4 => self.fpu.xchg_st(4),  
+                    Register::ST5 => self.fpu.xchg_st(5),  
+                    Register::ST6 => self.fpu.xchg_st(6),  
+                    Register::ST7 => self.fpu.xchg_st(7),  
+                    _  => unimplemented!("impossible case"),  
+                }
+
+                self.fpu.set_ip(self.regs.rip);
+            }
+
+            Mnemonic::Popf => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                let flags:u16 = match self.maps.read_word(self.regs.rsp) {
+                    Some(v) => v,
+                    None => {
+                        eprintln!("popf cannot read the stack");
+                        self.exception();
+                        return;
+                    }
+                };
+
+                let flags2:u32 = (self.flags.dump() & 0xffff0000) + (flags as u32);
+                self.flags.load(flags2);
+                self.regs.rsp += 2;
+            }
+
+            Mnemonic::Popfd => {
+                self.show_instruction(&self.colors.blue, &ins);
+                
+                let flags = self.stack_pop32(true);
+                self.flags.load(flags);
+            }
+
+
+            Mnemonic::Popfq => {
+                self.show_instruction(&self.colors.blue, &ins);
+                
+                let rflags = self.stack_pop64(true);
+                // TODO: rflags
+            }
+        
+
+            Mnemonic::Daa => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let old_al = self.regs.get_al();
+                let old_cf = self.flags.f_cf;
+                self.flags.f_cf = false;
+                
+                if (self.regs.get_al() & 0x0f > 9) || self.flags.f_af  {
+                    let sum = self.regs.get_al() + 6;
+                    self.regs.set_al(sum & 0xff);
+                    if sum > 0xff {
+                        self.flags.f_cf = true;
+                    } else {
+                        self.flags.f_cf = old_cf;
+                    }
+                
+                    self.flags.f_af = true;
+                } else {
+                    self.flags.f_af = false;
+                }
+
+                if old_al > 0x99 || old_cf {
+                    self.regs.set_al(self.regs.get_al() + 0x60);
+                    self.flags.f_cf = true;
+                } else {
+                    self.flags.f_cf = false;
+                }
+
+            }
+
+            Mnemonic::Shld => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let counter = match self.get_operand_value(&ins, 2, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let (result, undef) = self.shld(value0, value1, counter, sz);
+
+                if self.cfg.test_mode && !undef {
+                    if result != inline::shld(value0, value1, counter, sz) {
+                        panic!("SHLD 0x{:x} should be 0x{:x}", result, inline::shld(value0, value1, counter, sz));
+                    }
+                }
+
+                //println!("0x{:x} SHLD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
+
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+            }
+
+            Mnemonic::Shrd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let counter = match self.get_operand_value(&ins, 2, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let sz = self.get_operand_sz(&ins, 0);
+                let (result, undef) = self.shrd(value0, value1, counter, sz);
+                
+                //println!("0x{:x} SHRD 0x{:x}, 0x{:x}, 0x{:x} = 0x{:x}", ins.ip32(), value0, value1, counter, result);
+                if self.cfg.test_mode && !undef {
+                    if result != inline::shrd(value0, value1, counter, sz) {
+                        panic!("SHRD 0x{:x} should be 0x{:x}", result, inline::shrd(value0, value1, counter, sz));
+                    }
+                }
+                
+                if !self.set_operand_value(&ins, 0, result) {
+                    return;
+                }
+            }
+
+
+            Mnemonic::Sysenter => {
+                println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip(), self.out, self.colors.nc);
+                return;
+            }
+
+            //// SSE XMM //// 
+            // scalar: only gets the less significative part.
+            // scalar simple: only 32b less significative part.
+            // scalar double: only 54b less significative part.
+            // packed: compute all parts.
+            // packed double: 
+            //
+
+
+            Mnemonic::Pxor => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting xmm value1");
+
+                let result:u128 = value0 ^ value1;
+                self.flags.calc_flags(result as u64, 32);
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Xorps => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff) ^ (value1 & 0xffffffff);
+                let b:u128 = (value0 & 0xffffffff_00000000) ^ (value1 & 0xffffffff_00000000);
+                let c:u128 = (value0 & 0xffffffff_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000);
+                let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) ^ (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                let result:u128 = a | b | c | d;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Xorpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff_ffffffff) ^ (value1 & 0xffffffff_ffffffff);
+                let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) ^ (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                let result:u128 = a | b;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+        
+            // movlpd: packed double, movlps: packed simple, cvtsi2sd: int to scalar double 32b to 64b,
+            // cvtsi2ss: int to scalar single copy 32b to 32b, movd: doubleword move
+            Mnemonic::Movlpd | Mnemonic::Movlps | Mnemonic::Cvtsi2sd | Mnemonic::Cvtsi2ss | Mnemonic::Movd => {
+                self.show_instruction(&self.colors.cyan, &ins);
+
+                let sz0 = self.get_operand_sz(&ins, 0);
+                let sz1 = self.get_operand_sz(&ins, 1);
+
+                if sz0 == 128 && sz1 == 128 {
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
+                self.set_operand_xmm_value_128(&ins, 0, value1);
+
+                } else if sz0 == 128 && sz1 == 32 {
+                    let value1 = self.get_operand_value(&ins, 1, true).expect("error getting value1");
+                    self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
+
+                } else if sz0 == 32 && sz1 == 128 {
+                    let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value1"); 
+                    self.set_operand_value(&ins, 0, value1 as u64);
+
+                } else if sz0 == 128 && sz1 == 64 {
+                    let addr = self.get_operand_value(&ins, 1, false).expect("error getting the address");
+                    let value1 = self.maps.read_qword(addr).expect("error getting qword");
+                    self.set_operand_xmm_value_128(&ins, 0, value1 as u128);
+
+                } else if sz0 == 64 && sz1 == 128 {
+                    let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
+                    self.set_operand_value(&ins, 0, value1 as u64);
+
+                } else {
+                    panic!("SSE with other size combinations sz0:{} sz1:{}", sz0, sz1);
+                }
+            }
+
+
+            Mnemonic::Movdqa => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                assert!(ins.op_count() == 2);
+
+                let sz0 = self.get_operand_sz(&ins, 0);
+                let sz1 = self.get_operand_sz(&ins, 1);
+
+                if sz0 == 32 && sz1 == 128 {
+                    let xmm = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting xmm value");
+                    let addr = self.get_operand_value(&ins, 0, false).expect("error getting address");
+                    //println!("addr: 0x{:x} value: 0x{:x}", addr, xmm);
+                    self.maps.write_dword(addr, ((xmm & 0xffffffff_00000000_00000000_00000000) >> (12*8)) as u32 );
+                    self.maps.write_dword(addr+4, ((xmm & 0xffffffff_00000000_00000000) >> (8*8)) as u32 );
+                    self.maps.write_dword(addr+8, ((xmm & 0xffffffff_00000000) >> (4*8)) as u32 );
+                    self.maps.write_dword(addr+12, (xmm & 0xffffffff) as u32 );
+
+                } else if sz0 == 128 && sz1 == 32 {
+                    let addr = self.get_operand_value(&ins, 1, false).expect("error reading address in movdqa");
+                    let b1 = match self.maps.read_dword(addr) {
+                        Some(v) => v,
+                        None => panic!("error reading b1 in movdqa"),
+                    };
+                    let b2 = match self.maps.read_dword(addr+4) {
+                        Some(v) => v,
+                        None => panic!("error reading b2 in movdqa"),
+                    };
+                    let b3 = match self.maps.read_dword(addr+8) {
+                        Some(v) => v,
+                        None => panic!("error reading b3 in movdqa"),
+                    };
+                    let b4 = match self.maps.read_dword(addr+12) {
+                        Some(v) => v,
+                        None => panic!("error reading b4 in movdqa"),
+                    };
+
+                    let r1 :u128 = b1 as u128;
+                    let r2 :u128 = b2 as u128;
+                    let r3 :u128 = b3 as u128;
+                    let r4 :u128 = b4 as u128;
+
+                    self.set_operand_xmm_value_128(&ins, 0, r1 << (12*8) | r2 << (8*8) | r3 << (4*8) | r4);
+
+                } else {
+                    println!("sz0: {}  sz1: {}\n", sz0, sz1);
+                    unimplemented!("movdqa");
+                }
+            }
+            
+
+            Mnemonic::Andpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u128 = value0 & value1;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Orpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u128 = value0 | value1;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Addps => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff) + (value1 & 0xffffffff);
+                let b:u128 = (value0 & 0xffffffff_00000000) + (value1 & 0xffffffff_00000000);
+                let c:u128 = (value0 & 0xffffffff_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000);
+                let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) + (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                let result:u128 = a | b | c | d;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Addpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff_ffffffff) + (value1 & 0xffffffff_ffffffff);
+                let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) + (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                let result:u128 = a | b;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Addsd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u64 = value0 as u64 + value1 as u64;
+                let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            Mnemonic::Addss => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u32 = value0 as u32 + value1 as u32;
+                let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            Mnemonic::Subps => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff) - (value1 & 0xffffffff);
+                let b:u128 = (value0 & 0xffffffff_00000000) - (value1 & 0xffffffff_00000000);
+                let c:u128 = (value0 & 0xffffffff_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000);
+                let d:u128 = (value0 & 0xffffffff_00000000_00000000_00000000) - (value1 & 0xffffffff_00000000_00000000_00000000); 
+
+                let result:u128 = a | b | c | d;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Subpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff_ffffffff) - (value1 & 0xffffffff_ffffffff);
+                let b:u128 = (value0 & 0xffffffff_ffffffff_00000000_00000000) - (value1 & 0xffffffff_ffffffff_00000000_00000000);
+                let result:u128 = a | b;
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Subsd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u64 = value0 as u64 - value1 as u64;
+                let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            Mnemonic::Subss => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u32 = value0 as u32 - value1 as u32;
+                let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            Mnemonic::Mulpd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let left:u128 = ((value0 & 0xffffffffffffffff0000000000000000)>>64) * ((value1 & 0xffffffffffffffff0000000000000000)>>64);
+                let right:u128 = (value0 & 0xffffffffffffffff) * (value1 & 0xffffffffffffffff);
+                let result:u128 = left << 64 | right; 
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Mulps => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let a:u128 = (value0 & 0xffffffff) * (value1 & 0xffffffff);
+                let b:u128 = (value0 & 0xffffffff00000000) * (value1 & 0xffffffff00000000);
+                let c:u128 = (value0 & 0xffffffff0000000000000000) * (value1 & 0xffffffff0000000000000000);
+                let d:u128 = (value0 & 0xffffffff000000000000000000000000) * (value1 & 0xffffffff000000000000000000000000);
+
+                let result:u128 = a | b | c | d; 
+
+                self.set_operand_xmm_value_128(&ins, 0, result);
+            }
+
+            Mnemonic::Mulsd => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u64 = value0 as u64 * value1 as u64;
+                let r128:u128 = (value0 & 0xffffffffffffffff0000000000000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            Mnemonic::Mulss => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = self.get_operand_xmm_value_128(&ins, 0, true).expect("error getting value0");
+                let value1 = self.get_operand_xmm_value_128(&ins, 1, true).expect("error getting velue1");
+
+                let result:u32 = value0 as u32 * value1 as u32;
+                let r128:u128 = (value0 & 0xffffffffffffffffffffffff00000000) + result as u128; 
+                self.set_operand_xmm_value_128(&ins, 0, r128);
+            }
+
+            // end SSE
+
+
+            Mnemonic::Arpl => {
+                self.show_instruction(&self.colors.green, &ins);
+
+                let value0 = match self.get_operand_value(&ins, 0, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                let value1 = match self.get_operand_value(&ins, 1, true) {
+                    Some(v) => v,
+                    None => return,
+                };
+
+                self.flags.f_zf = value1 < value0;
+
+                self.set_operand_value(&ins, 1, value0);
+            }
+
+            Mnemonic::Pushf => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                let val:u16 = (self.flags.dump() & 0xffff) as u16;
+
+                self.regs.rsp -= 2;
+
+                if !self.maps.write_word(self.regs.rsp, val) {
+                    println!("/!\\ exception writing word at rsp 0x{:x}", self.regs.rsp);
+                    self.exception();
+                    return;
+                }
+            }
+
+            Mnemonic::Pushfd => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                let flags = self.flags.dump();
+                self.stack_push32(flags); // 32bits only instruction
+            }
+
+            Mnemonic::Pushfq => {
+                self.show_instruction(&self.colors.blue, &ins);
+
+                // internal reserved register RFLAGS not very documented 
+                if self.cfg.is_64bits { // 64bits only instruction
+                    self.stack_push64(0x00000346);
+                } else {
+                    self.stack_push32(0x00000346);
+                }
+            }
+
+            Mnemonic::Bound => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                let val0_src = self.get_operand_value(&ins, 0, true);
+
+            }
+
+            Mnemonic::Lahf => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                self.regs.set_ah((self.flags.dump() & 0xff).into());
+            }
+
+
+            Mnemonic::Salc => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                if self.flags.f_cf {
+                    self.regs.set_al(1);
+                } else {
+                    self.regs.set_al(0);
+                }
+            }
+
+
+            ////   Ring0  ////
+            
+            Mnemonic::Rdmsr => {
+                self.show_instruction(&self.colors.red, &ins);
+
+                match self.regs.rcx {
+                    0x176 => {
+                        self.regs.rdx = 0;
+                        self.regs.rax = self.cfg.code_base_addr + 0x42;
+                    },
+                    _ => unimplemented!("/!\\ unimplemented rdmsr with value {}", self.regs.rcx),
+                }
+
+            }                    
+
+            _ =>  {
+                if self.cfg.is_64bits {
+                    println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip(), self.out, self.colors.nc);
+                } else {
+                    println!("{}{} 0x{:x}: {}{}", self.colors.red, self.pos, ins.ip32(), self.out, self.colors.nc);
+                }
+                
+                println!("unimplemented or invalid instruction.");
+                self.spawn_console();
+                //unimplemented!("unimplemented instruction");
+            },
+
+
+        }
+
+    }
 
 }

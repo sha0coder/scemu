@@ -16,4 +16,5 @@ pub fn exit(emu: &mut emu::Emu) {
     ctx.load(emu.eh_ctx, &mut emu.maps);
     ctx.sync(&mut emu.regs);
     emu.eh_ctx = 0;
+    emu.force_reload = true;
 }
