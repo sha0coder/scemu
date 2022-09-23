@@ -35,6 +35,7 @@ use pe32::PE32;
 use pe64::PE64;
 use maps::Maps;
 use flags::Flags;
+use atty::Stream;
 use colors::Colors;
 use eflags::Eflags;
 use regs64::Regs64;
@@ -198,6 +199,13 @@ impl Emu {
     }
 
     pub fn init(&mut self) {
+
+        if !atty::is(Stream::Stdout) {
+            self.cfg.nocolors = true;
+            self.colors.disable();
+            self.cfg.console_enabled = false;
+        }
+
         
         println!("initializing regs");
         self.regs.clear::<64>();
@@ -1902,6 +1910,10 @@ impl Emu {
     }
 
     pub fn spawn_console(&mut self) {
+        if !self.cfg.console_enabled {
+            std::process::exit(1);
+        }
+
         let con = Console::new();
         loop {
             let cmd = con.cmd();
