@@ -200,14 +200,14 @@ impl Emu {
 
     pub fn init_registers32(&mut self) {
         // set all to 0
-        self.regs.eax = 0x0000000000000000;
-        self.regs.ebx = 0x0000000000000000;
-        self.regs.ecx = 0x0000000000000000;
-        self.regs.edx = 0x0000000000000000;
-        self.regs.ebp = 0x0000000000000000;
-        self.regs.esp = 0x0000000000000000;
-        self.regs.esi = 0x0000000000000000;
-        self.regs.edi = 0x0000000000000000;
+        self.regs.rax = 0x0000000000000000;
+        self.regs.rbx = 0x0000000000000000;
+        self.regs.rcx = 0x0000000000000000;
+        self.regs.rdx = 0x0000000000000000;
+        self.regs.rbp = 0x0000000000000000;
+        self.regs.rsp = 0x0000000000000000;
+        self.regs.rsi = 0x0000000000000000;
+        self.regs.rdi = 0x0000000000000000;
     }
 
     pub fn init_registers64(&mut self) {
