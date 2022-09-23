@@ -512,6 +512,209 @@ pub fn shrd(a:u64, b:u64, c:u64, bits:u8) -> u64 {
     r
 }
 
+pub fn div(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
+    let r_rax:u64;
+    let r_rdx:u64;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("div {}", in(reg) a);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        32 => {
+            let a32 = a as u32;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("div {:e}", in(reg) a32);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        16 => {
+            let a16 = a as u16;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("div {:x}", in(reg) a16);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        8 => {
+            let a8 = a as u8;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("div {}", in(reg_byte) a8);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        _ => unimplemented!("weird case"),
+    }
+    
+    (r_rdx, r_rax)
+}
+
+
+pub fn idiv(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
+    let r_rax:u64;
+    let r_rdx:u64;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("idiv {}", in(reg) a);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        32 => {
+            let a32 = a as u32;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("idiv {:e}", in(reg) a32);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        16 => {
+            let a16 = a as u16;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("idiv {:x}", in(reg) a16);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        8 => {
+            let a8 = a as u8;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("idiv {}", in(reg_byte) a8);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        _ => unimplemented!("weird case"),
+    }
+    
+    (r_rdx, r_rax)
+}
+
+
+pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
+    let r_rax:u64;
+    let r_rdx:u64;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("mul {}", in(reg) a);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        32 => {
+            let a32 = a as u32;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("mul {:e}", in(reg) a32);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        16 => {
+            let a16 = a as u16;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("mul {:x}", in(reg) a16);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        8 => {
+            let a8 = a as u8;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("mul {}", in(reg_byte) a8);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        _ => unimplemented!("weird case"),
+    }
+    
+    (r_rdx, r_rax)
+}
+
+
+pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
+    let r_rax:u64;
+    let r_rdx:u64;
+
+    match bits {
+        64 => {
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("imul {}", in(reg) a);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        32 => {
+            let a32 = a as u32;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("imul {:e}", in(reg) a32);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        16 => {
+            let a16 = a as u16;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("imul {:x}", in(reg) a16);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        8 => {
+            let a8 = a as u8;
+            unsafe {   
+                asm!("mov rax, {}", in(reg) rax);
+                asm!("mov rdx, {}", in(reg) rdx);
+                asm!("imul {}", in(reg_byte) a8);
+                asm!("mov {}, rdx", out(reg) r_rdx);
+                asm!("mov {}, rax", out(reg) r_rax);
+            }   
+        }
+        _ => unimplemented!("weird case"),
+    }
+    
+    (r_rdx, r_rax)
+}
+
 pub fn bswap(a:u64, b:u64) -> u64 {
     let mut r:u64 = a;
     unsafe {   
