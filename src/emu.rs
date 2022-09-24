@@ -238,7 +238,6 @@ impl Emu {
             self.cfg.console_enabled = false;
         }
 
-
         println!("initializing regs");
         self.regs.clear::<64>();
         self.regs.rand();

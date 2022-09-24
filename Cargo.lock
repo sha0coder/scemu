@@ -457,6 +457,7 @@ name = "scemu"
 version = "0.4.5"
 dependencies = [
  "attohttpc",
+ "atty",
  "clap",
  "ctrlc",
  "iced-x86",
