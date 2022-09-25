@@ -522,8 +522,7 @@ pub fn div(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("div {}", in(reg) a);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         32 => {
@@ -532,8 +531,7 @@ pub fn div(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("div {:e}", in(reg) a32);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         16 => {
@@ -542,8 +540,7 @@ pub fn div(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("div {:x}", in(reg) a16);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         8 => {
@@ -552,8 +549,7 @@ pub fn div(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("div {}", in(reg_byte) a8);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         _ => unimplemented!("weird case"),
@@ -573,8 +569,7 @@ pub fn idiv(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("idiv {}", in(reg) a);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         32 => {
@@ -583,8 +578,7 @@ pub fn idiv(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("idiv {:e}", in(reg) a32);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         16 => {
@@ -593,8 +587,7 @@ pub fn idiv(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("idiv {:x}", in(reg) a16);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         8 => {
@@ -603,8 +596,7 @@ pub fn idiv(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("idiv {}", in(reg_byte) a8);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         _ => unimplemented!("weird case"),
@@ -624,8 +616,7 @@ pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("mul {}", in(reg) a);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         32 => {
@@ -634,8 +625,7 @@ pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("mul {:e}", in(reg) a32);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         16 => {
@@ -644,8 +634,7 @@ pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("mul {:x}", in(reg) a16);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         8 => {
@@ -654,8 +643,7 @@ pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("mul {}", in(reg_byte) a8);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         _ => unimplemented!("weird case"),
@@ -665,7 +653,7 @@ pub fn mul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
 }
 
 
-pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
+pub fn imul1p(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
     let r_rax:u64;
     let r_rdx:u64;
 
@@ -675,8 +663,7 @@ pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("imul {}", in(reg) a);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         32 => {
@@ -685,8 +672,7 @@ pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("imul {:e}", in(reg) a32);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         16 => {
@@ -695,8 +681,7 @@ pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("imul {:x}", in(reg) a16);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         8 => {
@@ -705,8 +690,7 @@ pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
                 asm!("mov rax, {}", in(reg) rax);
                 asm!("mov rdx, {}", in(reg) rdx);
                 asm!("imul {}", in(reg_byte) a8);
-                asm!("mov {}, rdx", out(reg) r_rdx);
-                asm!("mov {}, rax", out(reg) r_rax);
+                asm!("mov rsi, rax", "mov rdi, rdx", out("rsi") r_rax, out("rdi") r_rdx);
             }   
         }
         _ => unimplemented!("weird case"),
@@ -714,6 +698,81 @@ pub fn imul(a:u64, rax:u64, rdx:u64, bits:u8) -> (u64, u64) {
     
     (r_rdx, r_rax)
 }
+
+pub fn imul2p(a:u64, b:u64, bits:u8) -> u64 {
+    let r:u64;
+
+    match bits {
+        64 => {
+            let mut aa = a;
+            unsafe {   
+                asm!("imul {}, {}", inout(reg) aa, in(reg) b);
+            }   
+            r = aa;
+        }
+        32 => {
+            let mut a32 = a as u32;
+            let b32 = b as u32;
+            unsafe {   
+                asm!("imul {:e}, {:e}", inout(reg) a32, in(reg) b32);
+            }   
+            r = a32 as u64;
+        }
+        16 => {
+            let mut a16 = a as u16;
+            let b16 = b as u16;
+            unsafe {   
+                asm!("imul {:x}, {:x}", inout(reg) a16, in(reg) b16);
+            }
+            r = a16 as u64;
+        }
+        8 => {
+            panic!("imul of 2params and 8 bits doesn't exist");
+        }
+        _ => unimplemented!("weird case"),
+    }
+
+    r
+}
+
+/*
+pub fn imul3p(b:u64, c:u64, bits:u8) -> u64 {
+    let r:u64;
+
+    match bits {
+        64 => {
+            let a64:u64;
+            unsafe {   
+                asm!("imul {}, {}, {}", out(reg) a64, in(reg) b, in(reg) c);
+            }   
+            r = a64;
+        }
+        32 => {
+            let a32:u32;
+            let b32 = b as u32;
+            let c32 = c as u32;
+            unsafe {   
+                asm!("imul {:e}, {:e}, {:e}", out(reg) a32, in(reg) b32, in(reg) c32);
+            }   
+            r = a32 as u64;
+        }
+        16 => {
+            let a16:u16;
+            let b16 = b as u16;
+            let c16 = c as u16;
+            unsafe {   
+                asm!("imul {:x}, {:x}, {:x}", out(reg) a16, in(reg) b16, in(reg) c16);
+            }
+            r = a16 as u64;
+        }
+        8 => {
+            panic!("imul of 3params and 8 bits doesn't exist");
+        }
+        _ => unimplemented!("weird case"),
+    }
+
+    r
+}*/
 
 pub fn bswap(a:u64, b:u64) -> u64 {
     let mut r:u64 = a;
