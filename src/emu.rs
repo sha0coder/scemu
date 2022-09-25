@@ -4849,6 +4849,12 @@ impl Emu {
                     unimplemented!("bswap <16bits makes no sense, isn't it?");
                 }
 
+                if self.cfg.test_mode {
+                    if value1 != inline::bswap(value0, sz) {
+                        panic!("bswap test failed, 0x{:x} should be 0x{:x}", value1, inline::bswap(value0, sz));
+                    }
+                }
+
                 /*
                 for i in 0..sz {
                     let bit = get_bit!(value0, i);

@@ -774,11 +774,29 @@ pub fn imul3p(b:u64, c:u64, bits:u8) -> u64 {
     r
 }*/
 
-pub fn bswap(a:u64, b:u64) -> u64 {
+pub fn bswap(a:u64, bits:u8) -> u64 {
     let mut r:u64 = a;
-    unsafe {   
-        asm!("bswap {}, {}", inout(reg) r, in(reg) b);
-    }   
+
+    match bits {
+        64 => {
+            unsafe {
+                asm!("bswap {}", inout(reg) r);
+            }
+        }
+        32 => {
+            let mut a32 = a as u32;
+            unsafe {
+                asm!("bswap {:e}", inout(reg) a32);
+            }
+            r = a32 as u64;
+        }
+        16 => {
+            r = 0;
+        }
+        _ => {
+            unimplemented!("doesnt exist this bswap");
+        }
+    }
     
     r
 }
