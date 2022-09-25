@@ -4771,12 +4771,10 @@ impl Emu {
                         (value0 & 0x00000000_0000ff00) << 40 | (value0 & 0x00000000_000000ff) << 56;
 
                 } else if sz == 16 {
-                    value1 = value0;
+                    value1 = 0;
                     if self.cfg.verbose >= 1 {
                         println!("/!\\ bswap of 16bits has undefined behaviours");
                     }
-                    //value1 = (value0 & 0x00000000_000000ff) << 8 | (value0 & 0x00000000_0000ff00) >> 8;
-
                 } else {
                     unimplemented!("bswap <16bits makes no sense, isn't it?");
                 }
