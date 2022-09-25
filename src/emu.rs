@@ -4542,12 +4542,26 @@ impl Emu {
                     None => return,
                 };
 
-                match self.get_operand_sz(&ins, 0) {
+                let pre_rax = self.regs.rax;
+                let pre_rdx = self.regs.rdx;
+
+                let sz = self.get_operand_sz(&ins, 0);
+                match sz {
                     64 => self.mul64(value0),
                     32 => self.mul32(value0),
                     16 => self.mul16(value0),
                     8  => self.mul8(value0),
                     _ => unimplemented!("wrong size"),
+                }
+
+                if self.cfg.test_mode {
+                    let (post_rdx, post_rax) = inline::mul(value0, pre_rax, pre_rdx, sz);
+                    if post_rax != self.regs.rax || post_rdx != self.regs.rdx {
+                        println!("sz: {} value0: 0x{:x} pre_rax: 0x{:x} pre_rdx: 0x{:x}", sz, value0, pre_rax, pre_rdx);
+                        println!("mul rax is 0x{:x} and should be 0x{:x}", self.regs.rax, post_rax); 
+                        println!("mul rdx is 0x{:x} and should be 0x{:x}", self.regs.rdx, post_rdx); 
+                        panic!("inline asm test failed");
+                    }
                 }
             }
 
@@ -4561,12 +4575,26 @@ impl Emu {
                     None => return,
                 };
 
-                match self.get_operand_sz(&ins, 0) {
+                let pre_rax = self.regs.rax;
+                let pre_rdx = self.regs.rdx;
+
+                let sz = self.get_operand_sz(&ins, 0);
+                match sz {
                     64 => self.div64(value0),
                     32 => self.div32(value0),
                     16 => self.div16(value0),
                     8  => self.div8(value0),
                     _ => unimplemented!("wrong size"),
+                }
+
+                if self.cfg.test_mode {
+                    let (post_rdx, post_rax) = inline::div(value0, pre_rax, pre_rdx, sz);
+                    if post_rax != self.regs.rax || post_rdx != self.regs.rdx {
+                        println!("sz: {} value0: 0x{:x} pre_rax: 0x{:x} pre_rdx: 0x{:x}", sz, value0, pre_rax, pre_rdx);
+                        println!("div rax is 0x{:x} and should be 0x{:x}", self.regs.rax, post_rax); 
+                        println!("div rdx is 0x{:x} and should be 0x{:x}", self.regs.rdx, post_rdx); 
+                        panic!("inline asm test failed");
+                    }
                 }
             }
 
@@ -4580,12 +4608,26 @@ impl Emu {
                     None => return,
                 };
 
-                match self.get_operand_sz(&ins, 0) {
+                let pre_rax = self.regs.rax;
+                let pre_rdx = self.regs.rdx;
+
+                let sz = self.get_operand_sz(&ins, 0);
+                match sz {
                     64 => self.idiv64(value0),
                     32 => self.idiv32(value0),
                     16 => self.idiv16(value0),
                     8  => self.idiv8(value0),
                     _ => unimplemented!("wrong size"),
+                }
+
+                if self.cfg.test_mode {
+                    let (post_rdx, post_rax) = inline::idiv(value0, pre_rax, pre_rdx, sz);
+                    if post_rax != self.regs.rax || post_rdx != self.regs.rdx {
+                        println!("sz: {} value0: 0x{:x} pre_rax: 0x{:x} pre_rdx: 0x{:x}", sz, value0, pre_rax, pre_rdx);
+                        println!("idiv rax is 0x{:x} and should be 0x{:x}", self.regs.rax, post_rax); 
+                        println!("idiv rdx is 0x{:x} and should be 0x{:x}", self.regs.rdx, post_rdx); 
+                        panic!("inline asm test failed");
+                    }
                 }
             }
 
@@ -4601,12 +4643,26 @@ impl Emu {
                         None => return,
                     };
 
-                    match self.get_operand_sz(&ins, 0) {
+                    let pre_rax = self.regs.rax;
+                    let pre_rdx = self.regs.rdx;
+
+                    let sz = self.get_operand_sz(&ins, 0);
+                    match sz {
                         64 => self.imul64p1(value0),
                         32 => self.imul32p1(value0),
                         16 => self.imul16p1(value0),
                         8  => self.imul8p1(value0),
                         _ => unimplemented!("wrong size"),
+                    }
+
+                    if self.cfg.test_mode {
+                        let (post_rdx, post_rax) = inline::imul1p(value0, pre_rax, pre_rdx, sz);
+                        if post_rax != self.regs.rax || post_rdx != self.regs.rdx {
+                            println!("sz: {} value0: 0x{:x} pre_rax: 0x{:x} pre_rdx: 0x{:x}", sz, value0, pre_rax, pre_rdx);
+                            println!("imul1p rax is 0x{:x} and should be 0x{:x}", self.regs.rax, post_rax); 
+                            println!("imul1p rdx is 0x{:x} and should be 0x{:x}", self.regs.rdx, post_rdx); 
+                            panic!("inline asm test failed");
+                        }
                     }
 
                 } else if ins.op_count() == 2 { // 2 params
@@ -4620,13 +4676,20 @@ impl Emu {
                         None => return,
                     };
 
-                    let result = match self.get_operand_sz(&ins, 0) {
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
                         64 => self.flags.imul64p2(value0, value1),
                         32 => self.flags.imul32p2(value0, value1),
                         16 => self.flags.imul16p2(value0, value1),
                         8  => self.flags.imul8p2(value0, value1),
                         _ => unimplemented!("wrong size"),
                     };
+
+                    if self.cfg.test_mode {
+                        if result != inline::imul2p(value0, value1, sz) {
+                            panic!("imul{}p2 gives 0x{:x} and should be 0x{:x}", sz, result, inline::imul2p(value0, value1, sz));
+                        }
+                    }
 
                     if !self.set_operand_value(&ins, 0, result) {
                         return;
@@ -4644,13 +4707,20 @@ impl Emu {
                         None => return,
                     };
 
-                    let result = match self.get_operand_sz(&ins, 0) {
+                    let sz = self.get_operand_sz(&ins, 0);
+                    let result = match sz {
                         64 => self.flags.imul64p2(value1, value2),
                         32 => self.flags.imul32p2(value1, value2),
                         16 => self.flags.imul16p2(value1, value2),
                         8  => self.flags.imul8p2(value1, value2),
                         _ => unimplemented!("wrong size"),
                     };
+
+                    if self.cfg.test_mode {
+                        if result != inline::imul2p(value1, value2, sz) {
+                            panic!("imul{}p3 gives 0x{:x} and should be 0x{:x}", sz, result, inline::imul2p(value1, value2, sz));
+                        }
+                    }
 
                     if !self.set_operand_value(&ins, 0, result) {
                         return;
