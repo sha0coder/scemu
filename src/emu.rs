@@ -3973,7 +3973,8 @@ impl Emu {
                     32 => {
                         let mut ival = value0 as u32 as i32;
                         ival = !ival;
-                        val = value0 & 0xffffffff_00000000 | ival as u32 as u64;
+                        //val = value0 & 0xffffffff_00000000 | ival as u32 as u64;
+                        val = ival as u32 as u64;
                     }
                     16 => {
                         let mut ival = value0 as u16 as i16;
