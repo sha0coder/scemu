@@ -246,6 +246,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5916d2ae698f6de9bfb891ad7a8d65c09d232dc58cc4ac433c7da3b2fd84bc2b"
 
 [[package]]
+name = "libscemu"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e109f151cc63d64030949cfa50f9bb9ed760cec457b8a8aa685d67d70173a760"
+dependencies = [
+ "attohttpc",
+ "atty",
+ "ctrlc",
+ "iced-x86",
+ "lazy_static",
+ "md5",
+ "rand",
+ "scan_fmt",
+]
+
+[[package]]
 name = "log"
 version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -454,17 +470,10 @@ dependencies = [
 
 [[package]]
 name = "scemu"
-version = "0.4.5"
+version = "0.5.0"
 dependencies = [
- "attohttpc",
- "atty",
  "clap",
- "ctrlc",
- "iced-x86",
- "lazy_static",
- "md5",
- "rand",
- "scan_fmt",
+ "libscemu",
 ]
 
 [[package]]

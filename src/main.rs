@@ -1,14 +1,10 @@
 extern crate clap;
 
-mod emu;
-mod config;
-
-use emu::Emu;
-use config::Config;
+use libscemu::emu32;
+use libscemu::emu64;
 use clap::{Arg, App};
 
 fn main() {
-    let mut cfg = Config::new();
     let matches = App::new("SCEMU emulator for malware")
                     .version(env!("CARGO_PKG_VERSION"))
                     .author("@sha0coder")
@@ -115,98 +111,99 @@ fn main() {
                     .get_matches();
 
 
+
+
     if !matches.is_present("filename") {
         println!("the filename is mandatory, try -f <FILENAME> or --help");
     }
+
+    let mut emu:libscemu::emu::Emu;
+
+    if matches.is_present("64bits") {
+        emu = emu64();
+    } else {
+        emu = emu32();
+    }
+
     
     let filename = matches.value_of("filename").expect("please enter the filename.").to_string();
-    cfg.filename = filename.clone();
+    emu.cfg.filename = filename.clone();
 
-    cfg.verbose = matches.occurrences_of("verbose") as u32;
-    if cfg.verbose == 0 {
+    emu.cfg.verbose = matches.occurrences_of("verbose") as u32;
+    emu.set_verbose(emu.cfg.verbose);
+    if emu.cfg.verbose == 0 {
         println!("use -vv to see the assembly code emulated, and -v to see the messages");
     }
     
-    cfg.trace_mem = matches.is_present("memory");
-    cfg.trace_regs = matches.is_present("registers");
+    emu.cfg.trace_mem = matches.is_present("memory");
+    emu.cfg.trace_regs = matches.is_present("registers");
 
     if matches.is_present("register") {
-        cfg.trace_reg = true;
+        emu.cfg.trace_reg = true;
         let regs:String = matches.value_of("register").expect("select the register example: eax,ebx").to_string();
-        cfg.reg_names = regs.split(',').into_iter().map(|x| x.to_string()).collect();
+        emu.cfg.reg_names = regs.split(',').into_iter().map(|x| x.to_string()).collect();
     }
 
     if matches.is_present("console") {
-        cfg.console = true;
-        cfg.console_num = u64::from_str_radix(matches.value_of("console").expect("select the number of moment to inspect"), 10).expect("select a valid number to spawn console");
+        emu.cfg.console = true;
+        emu.cfg.console_num = u64::from_str_radix(matches.value_of("console").expect("select the number of moment to inspect"), 10).expect("select a valid number to spawn console");
+        emu.spawn_console_at(emu.cfg.console_num);
     }
 
-    cfg.loops = matches.is_present("loops");
-    cfg.nocolors = matches.is_present("nocolors");
-
-    let mut disable_ctrlc = false;
-    if cfg.nocolors {
-        disable_ctrlc = true;
-    }
+    emu.cfg.loops = matches.is_present("loops");
+    emu.cfg.nocolors = matches.is_present("nocolors");
 
     if matches.is_present("string") {
-        cfg.trace_string = true;
-        cfg.string_addr = u64::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
+        emu.cfg.trace_string = true;
+        emu.cfg.string_addr = u64::from_str_radix(matches.value_of("string").expect("select the address of the string").trim_start_matches("0x"), 16).expect("invalid address");
     }
 
     if matches.is_present("inspect") {
-        cfg.inspect = true;
-        cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
+        emu.cfg.inspect = true;
+        emu.cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
     }
 
-    if matches.is_present("64bits") {
-        cfg.is_64bits = true;
-    }
 
     if matches.is_present("maps") {
-        cfg.maps_folder = matches.value_of("maps").expect("specify the maps folder").to_string();
+        emu.set_maps_folder( matches.value_of("maps").expect("specify the maps folder") );
     } else {  // if maps is not selected, by default ...
-        if cfg.is_64bits {
-            cfg.maps_folder = "maps64/".to_string();
+        if emu.cfg.is_64bits {
+            emu.set_maps_folder("maps64/");
         } else {
-            cfg.maps_folder = "maps32/".to_string();
+            emu.set_maps_folder("maps32/");
         }
     }
 
+    emu.init();
+
     if matches.is_present("endpoint") {
-        emu::endpoint::warning();
-        cfg.endpoint = true;
+        //TODO: emu::endpoint::warning();
+        emu.cfg.endpoint = true;
     }
     if matches.is_present("console_addr") {
-        cfg.console2 = true;
-        cfg.console_addr = u64::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
+        emu.cfg.console2 = true;
+        emu.cfg.console_addr = u64::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
+        emu.spawn_console_at_addr(emu.cfg.console_addr);
     }
     if matches.is_present("entry_point") {
-        cfg.entry_point = u64::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
+        emu.cfg.entry_point = u64::from_str_radix(matches.value_of("entry_point").expect("select the entry point address -a").trim_start_matches("0x"), 16).expect("invalid address");
     }
     if matches.is_present("code_base_address") {
-        cfg.code_base_addr = u64::from_str_radix(matches.value_of("code_base_address").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
+        emu.cfg.code_base_addr = u64::from_str_radix(matches.value_of("code_base_address").expect("select the code base address -b").trim_start_matches("0x"), 16).expect("invalid address");
         if !matches.is_present("entry_point") {
             eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
             std::process::exit(1);
         }
     }
     if matches.is_present("stack_trace") {
-        cfg.stack_trace = true;
+        emu.cfg.stack_trace = true;
     }
     if matches.is_present("test_mode") {
-        cfg.test_mode = true;
+        emu.cfg.test_mode = true;
     }
 
-    let mut emu = Emu::new();
-    
-    emu.set_config(cfg);
-    emu.init();
     emu.load_code(&filename);
-    if disable_ctrlc {
-        emu.disable_ctrlc();
-    }
-
+    emu.enable_ctrlc();
     emu.run(0);
 }
 
