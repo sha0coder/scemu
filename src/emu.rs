@@ -198,36 +198,18 @@ impl Emu {
         assert!(stack.inside(self.regs.rbp));
     }
 
-    pub fn init_registers32(&mut self) {
-        // set all to 0
-        self.regs.rax = 0x0000000000000000;
-        self.regs.rbx = 0x0000000000000000;
-        self.regs.rcx = 0x0000000000000000;
-        self.regs.rdx = 0x0000000000000000;
-        self.regs.rbp = 0x0000000000000000;
-        self.regs.rsp = 0x0000000000000000;
-        self.regs.rsi = 0x0000000000000000;
-        self.regs.rdi = 0x0000000000000000;
-    }
-
-    pub fn init_registers64(&mut self) {
-        // set all to 0
-        self.regs.rax = 0x0000000000000000;
-        self.regs.rbx = 0x0000000000000000;
-        self.regs.rcx = 0x0000000000000000;
-        self.regs.rdx = 0x0000000000000000;
-        self.regs.rsp = 0x0000000000000000;
-        self.regs.rbp = 0x0000000000000000;
-        self.regs.rsi = 0x0000000000000000;
-        self.regs.rdi = 0x0000000000000000;
-        self.regs.r8 = 0x0000000000000000;
-        self.regs.r9 = 0x0000000000000000;
-        self.regs.r10 = 0x0000000000000000;
-        self.regs.r11 = 0x0000000000000000;
-        self.regs.r12 = 0x0000000000000000;
-        self.regs.r13 = 0x0000000000000000;
-        self.regs.r14 = 0x0000000000000000;
-        self.regs.r15 = 0x0000000000000000;
+    pub fn init_regs_dts9_patcherv(&mut self) {
+        // DTS9_PatcherV.exe
+        self.regs.rax = 0x00000001448A76A4;
+        self.regs.rbx = 0x000000007FFE0385;
+        self.regs.rcx = 0x0000000140000000;
+        self.regs.rdx = 0x0000000000000001;
+        self.regs.rsi = 0x0000000000000001;
+        self.regs.rdi = 0x000000007FFE0384;
+        self.regs.r10 = 0x000000007FFE0384;
+        self.regs.r11 = 0x0000000000000246;
+        self.regs.r12 = 0x00000001448A76A4;
+        self.regs.r14 = 0x0000000140000000;
     }
 
     pub fn init(&mut self) {
@@ -240,19 +222,18 @@ impl Emu {
 
         println!("initializing regs");
         self.regs.clear::<64>();
-        self.regs.rand();
+        //self.regs.rand();
 
         if self.cfg.is_64bits {
             self.regs.rip = self.cfg.entry_point;
             self.maps.is_64bits = true;
-            self.init_registers64();
+            self.init_regs_dts9_patcherv();
             self.init_mem64();
             self.init_stack64();
 
         } else { // 32bits
             self.regs.sanitize32();
             self.regs.set_eip(self.cfg.entry_point);
-            self.init_registers32();
             self.init_mem32();
             self.init_stack32();
         }
