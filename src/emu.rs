@@ -6,21 +6,21 @@
 #![allow(clippy::assertions_on_constants)]
 
 
-mod flags;
-mod eflags;
+pub mod flags;
+pub mod eflags;
 pub mod maps;
 pub mod regs64;
-mod console;
+pub mod console;
 pub mod colors;
 pub mod constants;
 mod winapi32;
 mod winapi64;
-mod fpu;
+pub mod fpu;
 pub mod context32;
 pub mod context64;
 pub mod syscall32;
 pub mod syscall64;
-mod breakpoint;
+pub mod breakpoint;
 pub mod endpoint;
 pub mod structures;
 mod exception;
@@ -88,24 +88,24 @@ pub struct Emu {
     pub regs: Regs64,
     pub pre_op_regs: Regs64,
     pub post_op_regs: Regs64,
-    flags: Flags,
-    eflags: Eflags,
-    fpu: FPU,
+    pub flags: Flags,
+    pub eflags: Eflags,
+    pub fpu: FPU,
     pub maps: Maps,
     exp: u64,
     break_on_alert: bool,
-    bp: Breakpoint,
-    seh: u64,
-    veh: u64,
+    pub bp: Breakpoint,
+    pub seh: u64,
+    pub veh: u64,
     eh_ctx: u32,
-    cfg: Config,
+    pub cfg: Config,
     colors: Colors,
     pos: u64,
     force_break: bool,
     force_reload: bool,
-    tls_callbacks: Vec<u64>,
-    tls: Vec<u32>,
-    fls: Vec<u32>,
+    pub tls_callbacks: Vec<u64>,
+    pub tls: Vec<u32>,
+    pub fls: Vec<u32>,
     step: bool,
     out: String,
     main_thread_cont: u64,
@@ -155,6 +155,21 @@ impl Emu {
         }
     }
 
+    // select the folder with maps32 or maps64 depending the arch, make sure to do init after this.
+    pub fn set_maps_folder(&mut self, folder:&str) {
+        self.cfg.maps_folder = folder.to_string();
+    }
+
+    // spawn a console on the instruction number, ie: 1 at the beginning.
+    pub fn spawn_console_at(&mut self, exp:u64) {
+        self.exp = exp;
+    }
+
+    pub fn spawn_console_at_addr(&mut self, addr:u64) {
+        self.cfg.console2 = true;
+        self.cfg.console_addr = addr;
+    }
+
     pub fn enable_ctrlc(&mut self) {
         self.enabled_ctrlc = true;
     }
@@ -162,6 +177,11 @@ impl Emu {
     pub fn disable_ctrlc(&mut self) {
         self.enabled_ctrlc = false;
     }
+
+    pub fn set_verbose(&mut self, n:u32) {
+        self.cfg.verbose = n;
+    }
+
 
     pub fn init_stack32(&mut self) {
         let stack = self.maps.get_mem("stack");
