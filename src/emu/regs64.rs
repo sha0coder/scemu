@@ -4,8 +4,8 @@ use rand;
 
 macro_rules! set_reg32 {
     ($reg:expr, $val:expr) => (
-        $reg &= 0xffffffff00000000;
-        $reg |= ($val & 0x00000000ffffffff);
+        //$reg &= 0xffffffff00000000;
+        $reg = ($val & 0x00000000ffffffff);
     )
 }
 
