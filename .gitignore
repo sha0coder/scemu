@@ -1,3 +1,4 @@
+.DS_Store
 target/
 shellcodes32/
 shellcodes64/
@@ -5,3 +6,7 @@ x
 *.swp
 *.idb
 test/
+libscemu/
+scripts/scemu-errors.json
+scripts/scemu-output.txt
+scripts/DTS9_PatcherV.exe

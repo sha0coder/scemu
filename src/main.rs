@@ -110,9 +110,6 @@ fn main() {
                         .takes_value(false))
                     .get_matches();
 
-
-
-
     if !matches.is_present("filename") {
         println!("the filename is mandatory, try -f <FILENAME> or --help");
     }
