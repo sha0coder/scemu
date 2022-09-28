@@ -121,8 +121,10 @@ fn main() {
 
     if matches.is_present("64bits") {
         emu = emu64();
+        emu.cfg.is_64bits = true;
     } else {
         emu = emu32();
+        emu.cfg.is_64bits = false;
     }
 
     
