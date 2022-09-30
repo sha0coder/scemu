@@ -153,8 +153,8 @@ const run = async () => {
           instructionErrors.push({
             index: x,
             message: 'newValue mismatch',
-            x64dbg: x64dbgRegisterChange.previousValue,
-            scemu: scemuRegisterChange.previousValue
+            x64dbg: x64dbgRegisterChange.newValue,
+            scemu: scemuRegisterChange.newValue
           })
         }
       } else {
@@ -182,8 +182,8 @@ const run = async () => {
           instructionErrors.push({
             index: x,
             message: 'newValue mismatch',
-            x64dbg: x64dbgRegisterChange.previousValue,
-            scemu: scemuRegisterChange.previousValue
+            x64dbg: x64dbgRegisterChange.newValue,
+            scemu: scemuRegisterChange.newValue
           })
         }
       } else {
