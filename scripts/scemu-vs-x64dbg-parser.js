@@ -30,6 +30,9 @@ const parseX64DbgRegisterChanges = (input) => {
       previousValue: BigInt(`0x${result[2]}`).toString(16),
       newValue: BigInt(`0x${result[3]}`).toString(16)
     }
+  }).filter(registerChange => {
+    // filter out 0th instruction setting the instructions to their own values?
+    return registerChange.previousValue !== registerChange.newValue
   })
   registerChanges.sort((a, b) => {
     if (a.registerName < b.registerName) {
@@ -119,7 +122,7 @@ const run = async () => {
     const scemuLine = scemuLines[i]
     if (!scemuLine) {
       fs.writeFileSync('/Users/brandonros/Desktop/scemu/scripts/scemu-errors.json', JSON.stringify(errors, undefined, 2))
-      throw new Error(`x64dbg exited before ${x64dbgLine.rip}`)
+      throw new Error(`scemu exited before ${x64dbgLine.rip}`)
     }
     const instructionErrors = []
     // rip mismatch
@@ -169,24 +172,7 @@ const run = async () => {
     for (let x = 0; x < scemuLine.registerChanges.length; ++x) {
       const scemuRegisterChange = scemuLine.registerChanges[x]
       const x64dbgRegisterChange = x64dbgLine.registerChanges.find(x64dbgRegisterChange => scemuRegisterChange.registerName === x64dbgRegisterChange.registerName)
-      if (x64dbgRegisterChange) {
-        if (x64dbgRegisterChange.previousValue !== scemuRegisterChange.previousValue) {
-          instructionErrors.push({
-            index: x,
-            message: 'previousValue mismatch',
-            x64dbg: x64dbgRegisterChange.previousValue,
-            scemu: scemuRegisterChange.previousValue
-          })
-        }
-        if (x64dbgRegisterChange.newValue !== scemuRegisterChange.newValue) {
-          instructionErrors.push({
-            index: x,
-            message: 'newValue mismatch',
-            x64dbg: x64dbgRegisterChange.newValue,
-            scemu: scemuRegisterChange.newValue
-          })
-        }
-      } else {
+      if (!x64dbgRegisterChange) {
         instructionErrors.push({
           index: x,
           message: 'unmatchedRegisterChange mismatch (scemu but not x64dbg)',
