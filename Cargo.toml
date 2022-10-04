@@ -8,4 +8,4 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
-libscemu = "0.7.0"
+libscemu = "0.7.1"
