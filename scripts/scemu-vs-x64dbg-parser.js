@@ -132,6 +132,7 @@ const run = async () => {
       })
       errors.push({
         i,
+        iHex: i.toString(16),
         x64dbgLine,
         scemuLine,
         instructionErrors
@@ -183,6 +184,7 @@ const run = async () => {
     if (instructionErrors.length > 0) {
       errors.push({
         i,
+        iHex: i.toString(16),
         x64dbgLine,
         scemuLine,
         instructionErrors
