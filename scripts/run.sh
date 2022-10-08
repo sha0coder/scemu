@@ -8,6 +8,5 @@ cargo run \
   -vvv \
   --regs \
   --memory \
-  --inspect 'qword ptr [rsp]' \
   -f ./shellcodes64/DTS9_PatcherV.exe > ./scripts/scemu-output.txt
 node ./scripts/scemu-vs-x64dbg-parser.js

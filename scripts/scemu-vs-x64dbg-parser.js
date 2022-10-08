@@ -49,10 +49,34 @@ const parseX64DbgMemoryChanges = (input) => {
   if (!input) {
     return []
   }
-  // TODO: parse more
-  return [
-    input
-  ]
+  const memoryPattern = /([A-Z0-9]+): ([A-Z0-9]+)-> ([A-Z0-9]+)/g
+  const groups = Array.from(input.matchAll(memoryPattern))
+  const results = []
+  for (let i = 0; i < groups.length; ++i) {
+    const group = groups[i]
+    const address = BigInt(`0x${group[1]}`).toString(16)
+    const previousValue = BigInt(`0x${group[2]}`).toString(16)
+    const newValue = BigInt(`0x${group[3]}`).toString(16)
+    results.push({
+      address,
+      previousValue,
+      newValue
+    })
+  }
+  return results
+}
+
+const parseScemuMemoryChanges = (memTraceLines) => {
+  if (memTraceLines.length === 0) {
+    return []
+  }
+  return memTraceLines.map(memTraceLine => {
+    return {
+      address: memTraceLine.address,
+      previousValue: 0, // TODO
+      newValue: memTraceLine.value
+    }
+  })
 }
 
 const run = async () => {
@@ -67,25 +91,56 @@ const run = async () => {
         memoryChanges
       }
     })
-  const linePattern = /diff_reg: rip = ([0-9a-fA-F]+)/
+  const memTraceLinePattern = /mem_trace: pos = ([0-9a-fA-F]+) rip = ([0-9a-fA-F]+) op = ([a-z]+) bits = ([0-9]+) address = 0x([0-9a-fA-F]+) value = 0x([0-9a-fA-F]+) name = '.*'/
+  const diffRegLinePattern = /diff_reg: pos = ([0-9a-fA-F]+) rip = ([0-9a-fA-F]+)/
   const changesPattern = /([a-z0-9]+) ([0-9a-fA-F]+) -> ([0-9a-fA-F]+);/g
-  const scemuLines = fs.readFileSync('./scripts/scemu-output.txt').toString()
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.indexOf('diff_reg') !== -1)
-    .map(line => {
-      const lineMatchResults = line.match(linePattern)
+  const scemuInput = fs.readFileSync('./scripts/scemu-output.txt').toString()
+  const scemuSplitInput = scemuInput.split('\n')
+  const scemuSplitInputTrimmed = scemuSplitInput.map(line => line.trim())
+  const scemuDiffRegLines = scemuSplitInputTrimmed.filter(line => line.indexOf('diff_reg') !== -1)
+  const scemuMemTraceLines = scemuSplitInputTrimmed.filter(line => line.indexOf('mem_trace') !== -1)
+  const mappedScemuMemTraceLines = scemuMemTraceLines
+    .map(memTraceLine => {
+      const lineMatchResults = memTraceLine.match(memTraceLinePattern)
       if (!lineMatchResults) {
-        throw new Error(`Failed to match: ${line}`)
+        throw new Error(`Failed to match: ${memTraceLine}`)
       }
-      const rip = parseInt(lineMatchResults[1], 16).toString(16)
-      const registerChangesMatchGroups = Array.from(line.matchAll(changesPattern))
+      const position = parseInt(lineMatchResults[1], 10).toString(16)
+      const rip = parseInt(lineMatchResults[2], 16).toString(16)
+      const operation = lineMatchResults[3]
+      const bits = parseInt(lineMatchResults[4], 10).toString(16)
+      const address = BigInt(`0x${lineMatchResults[5]}`).toString(16)
+      const value = BigInt(`0x${lineMatchResults[6]}`).toString(16)
+      return {
+        position,
+        rip,
+        operation,
+        bits,
+        address,
+        value
+      }
+    })
+    .filter(mappedMemTraceLine => mappedMemTraceLine.operation === 'write') // filter out reads
+  const scemuLines = scemuDiffRegLines
+    .map(diffRegLine => {
+      const lineMatchResults = diffRegLine.match(diffRegLinePattern)
+      if (!lineMatchResults) {
+        throw new Error(`Failed to match: ${diffRegLine}`)
+      }
+      const position = parseInt(lineMatchResults[1], 10).toString(16)
+      const rip = parseInt(lineMatchResults[2], 16).toString(16)
+      const memTraceLines = mappedScemuMemTraceLines.filter(mappedScemuMemTraceLine => mappedScemuMemTraceLine.position === position && mappedScemuMemTraceLine.rip === mappedScemuMemTraceLine.rip)
+      const registerChangesMatchGroups = Array.from(diffRegLine.matchAll(changesPattern))
       if (!registerChangesMatchGroups || registerChangesMatchGroups.length === 0) {
         return {
-          rawLine: line,
+          rawLine: {
+            diffRegLine,
+            memTraceLines
+          },
+          position,
           rip,
           registerChanges: [],
-          memoryChanges: [] // TODO
+          memoryChanges: parseScemuMemoryChanges(memTraceLines)
         }
       }
       const registerChanges = []
@@ -108,12 +163,14 @@ const run = async () => {
         return 0
       })
       return {
-        rawLine: line,
+        rawLine: {
+          diffRegLine,
+          memTraceLines
+        },
+        position,
         rip,
         registerChanges,
-        memoryChanges: [
-          // TODO
-        ]
+        memoryChanges: parseScemuMemoryChanges(memTraceLines)
       }
     })
   const errors = []
@@ -178,6 +235,47 @@ const run = async () => {
           index: x,
           message: 'unmatchedRegisterChange mismatch (scemu but not x64dbg)',
           scemu: scemuRegisterChange.registerName
+        })
+      }
+    }
+    // memory change mismatches (x64dbg)
+    for (let x = 0; x < x64dbgLine.memoryChanges.length; ++x) {
+      const x64dbgMemoryChange = x64dbgLine.memoryChanges[x]
+      const scemuMemoryChange = scemuLine.memoryChanges.find(scemuMemoryChange => scemuMemoryChange.address === x64dbgMemoryChange.address)
+      if (scemuMemoryChange) {
+        if (x64dbgMemoryChange.previousValue !== scemuMemoryChange.previousValue) {
+          instructionErrors.push({
+            index: x,
+            message: 'previousValue mismatch',
+            x64dbg: x64dbgMemoryChange.previousValue,
+            scemu: scemuMemoryChange.previousValue
+          })
+        }
+        if (x64dbgMemoryChange.newValue !== scemuMemoryChange.newValue) {
+          instructionErrors.push({
+            index: x,
+            message: 'newValue mismatch',
+            x64dbg: x64dbgMemoryChange.newValue,
+            scemu: scemuMemoryChange.newValue
+          })
+        }
+      } else {
+        instructionErrors.push({
+          index: x,
+          message: 'unmatchedMemoryChange mismatch (x64dbg but not scemu)',
+          x64dbg: x64dbgMemoryChange.address
+        })
+      }
+    }
+    // memory change mismatches (scemu)
+    for (let x = 0; x < scemuLine.memoryChanges.length; ++x) {
+      const scemuMemoryChange = scemuLine.memoryChanges[x]
+      const x64dbgMemoryChange = x64dbgLine.memoryChanges.find(x64dbgMemoryChange => scemuMemoryChange.address === x64dbgMemoryChange.address)
+      if (!x64dbgMemoryChange) {
+        instructionErrors.push({
+          index: x,
+          message: 'unmatchedMemoryChange mismatch (scemu but not x64dbg)',
+          scemu: scemuMemoryChange.address
         })
       }
     }
