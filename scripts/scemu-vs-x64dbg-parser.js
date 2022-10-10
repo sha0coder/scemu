@@ -112,6 +112,7 @@ const run = async () => {
       const address = BigInt(`0x${lineMatchResults[5]}`).toString(16)
       const value = BigInt(`0x${lineMatchResults[6]}`).toString(16)
       return {
+        rawLine: memTraceLine,
         position,
         rip,
         operation,
@@ -239,7 +240,7 @@ const run = async () => {
       }
     }
     // memory change mismatches (x64dbg)
-    for (let x = 0; x < x64dbgLine.memoryChanges.length; ++x) {
+    /*for (let x = 0; x < x64dbgLine.memoryChanges.length; ++x) {
       const x64dbgMemoryChange = x64dbgLine.memoryChanges[x]
       const scemuMemoryChange = scemuLine.memoryChanges.find(scemuMemoryChange => scemuMemoryChange.address === x64dbgMemoryChange.address)
       if (scemuMemoryChange) {
@@ -278,7 +279,7 @@ const run = async () => {
           scemu: scemuMemoryChange.address
         })
       }
-    }
+    }*/
     if (instructionErrors.length > 0) {
       errors.push({
         i,

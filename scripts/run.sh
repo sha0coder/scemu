@@ -1,7 +1,15 @@
 #!/bin/sh
+
 export RUST_BACKTRACE=1
+
+TARGET=x86_64-pc-windows-msvc
+if [[ $OSTYPE == "darwin21" ]]
+then
+  TARGET="x86_64-apple-darwin"
+fi
+
 cargo run \
-  --target x86_64-apple-darwin \
+  --target $TARGET \
   --release \
   -- \
   -6 \
