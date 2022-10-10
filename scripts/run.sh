@@ -6,6 +6,8 @@ TARGET=x86_64-pc-windows-msvc
 if [[ $OSTYPE == "darwin21" ]]
 then
   TARGET="x86_64-apple-darwin"
+elif [[ $OSTYPE == "linux-gnu" ]]
+  TARGET="x86_64-unknown-linux-gnu"
 fi
 
 cargo run \
