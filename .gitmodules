@@ -1,3 +1,0 @@
-[submodule "libscemu"]
-	path = libscemu
-	url = git@github.com:brandonros/libscemu.git
