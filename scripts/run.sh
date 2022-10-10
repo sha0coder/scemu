@@ -7,6 +7,7 @@ if [[ $OSTYPE == "darwin21" ]]
 then
   TARGET="x86_64-apple-darwin"
 elif [[ $OSTYPE == "linux-gnu" ]]
+then
   TARGET="x86_64-unknown-linux-gnu"
 fi
 
