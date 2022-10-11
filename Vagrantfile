@@ -4,9 +4,11 @@
 # shared folders: first password is same as host OS / username needs to be host OS username / second password is same password as host OS
 # wait for it to come up
 # vagrant ssh
-# sudo apk add curl gcc nodejs openssl-dev
+# sudo apk add curl gcc nodejs openssl-dev npm
 # curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 # source "$HOME/.cargo/env"
+# cd /mnt/scripts
+# npm install
 # cd /mnt
 # ./scripts/run.sh
 Vagrant.configure("2") do |config|

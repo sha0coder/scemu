@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 if [[ "$OSTYPE" == "darwin21" ]]
 then
   TARGET="x86_64-apple-darwin"
