@@ -1,15 +1,25 @@
-#!/bin/sh
+#!/bin/bash
 
-export RUST_BACKTRACE=1
+set -e
 
-TARGET=x86_64-pc-windows-msvc
-if [[ $OSTYPE == "darwin21" ]]
+if [[ "$OSTYPE" == "darwin21" ]]
 then
   TARGET="x86_64-apple-darwin"
-elif [[ $OSTYPE == "linux-gnu" ]]
+elif [[ "$OSTYPE" == "linux-gnu" ]]
 then
   TARGET="x86_64-unknown-linux-gnu"
+elif [[ "$OSTYPE" == "linux-musl" ]]
+then
+  TARGET="x86_64-unknown-linux-musl"
+elif [[ "$OSTYPE" == "msys" ]]
+then
+  TARGET="x86_64-pc-windows-msvc"
+else
+  echo "unknown OSTYPE: $OSTYPE"
+  exit
 fi
+
+export RUST_BACKTRACE=1
 
 cargo run \
   --target $TARGET \
