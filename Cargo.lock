@@ -247,9 +247,9 @@ checksum = "5916d2ae698f6de9bfb891ad7a8d65c09d232dc58cc4ac433c7da3b2fd84bc2b"
 
 [[package]]
 name = "libscemu"
-version = "0.7.34"
+version = "0.7.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73dd6915e2912d9cabe4c456d6b440f7fb3db348ec069b6fc1d7783c78ff136d"
+checksum = "4274bddc446954db67d34cfadcffb0b408962ef06bde5ca7e004aedcb939bc79"
 dependencies = [
  "attohttpc",
  "atty",
