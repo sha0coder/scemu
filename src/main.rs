@@ -108,6 +108,10 @@ fn main() {
                         .long("test")
                         .help("test mode")
                         .takes_value(false))
+                    .arg(Arg::with_name("banzai")
+                         .long("banzai")
+                         .help("skip unimplemented instructions, and keep up emulating what can be emulated")
+                         .takes_value(false))
                     .get_matches();
 
 
@@ -163,6 +167,10 @@ fn main() {
     if matches.is_present("inspect") {
         emu.cfg.inspect = true;
         emu.cfg.inspect_seq = matches.value_of("inspect").expect("select the address in the way 'dword ptr [eax + 0xa]'").to_string();
+    }
+
+    if matches.is_present("banzai") {
+        emu.cfg.skip_unimplemented = true;
     }
 
 
