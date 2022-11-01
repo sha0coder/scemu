@@ -93,12 +93,28 @@ const run = async () => {
     })
   const memTraceLinePattern = /mem_trace: pos = ([0-9a-fA-F]+) rip = ([0-9a-fA-F]+) op = ([a-z]+) bits = ([0-9]+) address = 0x([0-9a-fA-F]+) value = 0x([0-9a-fA-F]+) name = '.*'/
   const diffRegLinePattern = /diff_reg: pos = ([0-9a-fA-F]+) rip = ([0-9a-fA-F]+)/
-  const changesPattern = /([a-z0-9]+) ([0-9a-fA-F]+) -> ([0-9a-fA-F]+);/g
+  const diffFlagsLinePattern = /diff_flags: pos = ([0-9a-fA-F]+) rip = ([0-9a-fA-F]+)/
+  const registerChangesPattern = /([a-z0-9]+) ([0-9a-fA-F]+) -> ([0-9a-fA-F]+);/g
   const scemuInput = fs.readFileSync('./scripts/scemu-output.txt').toString()
   const scemuSplitInput = scemuInput.split('\n')
   const scemuSplitInputTrimmed = scemuSplitInput.map(line => line.trim())
   const scemuDiffRegLines = scemuSplitInputTrimmed.filter(line => line.indexOf('diff_reg') !== -1)
   const scemuMemTraceLines = scemuSplitInputTrimmed.filter(line => line.indexOf('mem_trace') !== -1)
+  const scemuDiffFlagsLines = scemuSplitInputTrimmed.filter(line => line.indexOf('diff_flags') !== -1)
+  const mappedScemuDiffFlagLines = scemuDiffFlagsLines
+    .map(diffFlagLine => {
+      const lineMatchResults = diffFlagLine.match(diffFlagsLinePattern)
+      if (!lineMatchResults) {
+        throw new Error(`Failed to match: ${diffFlagLine}`)
+      }
+      const position = parseInt(lineMatchResults[1], 10).toString(16)
+      const rip = parseInt(lineMatchResults[2], 16).toString(16)
+      return {
+        rawLine: diffFlagLine,
+        position,
+        rip
+      }
+    })
   const mappedScemuMemTraceLines = scemuMemTraceLines
     .map(memTraceLine => {
       const lineMatchResults = memTraceLine.match(memTraceLinePattern)
@@ -130,12 +146,14 @@ const run = async () => {
       }
       const position = parseInt(lineMatchResults[1], 10).toString(16)
       const rip = parseInt(lineMatchResults[2], 16).toString(16)
-      const memTraceLines = mappedScemuMemTraceLines.filter(mappedScemuMemTraceLine => mappedScemuMemTraceLine.position === position && mappedScemuMemTraceLine.rip === mappedScemuMemTraceLine.rip)
-      const registerChangesMatchGroups = Array.from(diffRegLine.matchAll(changesPattern))
+      const memTraceLines = mappedScemuMemTraceLines.filter(mappedScemuMemTraceLine => mappedScemuMemTraceLine.position === position && mappedScemuMemTraceLine.rip === rip)
+      const diffFlagLines = mappedScemuDiffFlagLines.filter(mappedScemuDiffFlagLine => mappedScemuDiffFlagLine.position === position && mappedScemuDiffFlagLine.rip === rip)
+      const registerChangesMatchGroups = Array.from(diffRegLine.matchAll(registerChangesPattern))
       if (!registerChangesMatchGroups || registerChangesMatchGroups.length === 0) {
         return {
           rawLine: {
             diffRegLine,
+            diffFlagLines,
             memTraceLines
           },
           position,
@@ -166,6 +184,7 @@ const run = async () => {
       return {
         rawLine: {
           diffRegLine,
+          diffFlagLines,
           memTraceLines
         },
         position,
@@ -190,7 +209,6 @@ const run = async () => {
       })
       errors.push({
         i,
-        iHex: i.toString(16),
         x64dbgLine,
         scemuLine,
         instructionErrors
@@ -283,7 +301,6 @@ const run = async () => {
     if (instructionErrors.length > 0) {
       errors.push({
         i,
-        iHex: i.toString(16),
         x64dbgLine,
         scemuLine,
         instructionErrors
