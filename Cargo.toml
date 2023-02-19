@@ -1,6 +1,6 @@
 [package]
 name = "scemu"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["sha0coder"]
 edition = "2018"
 
@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
-libscemu = "0.10.5"
-#libscemu = { path = "/home/sha0/src/libscemu/" 
+libscemu = "0.10.8"
+#libscemu = { path = "/home/sha0/src/libscemu/" }
