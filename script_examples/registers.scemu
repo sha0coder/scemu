@@ -1,0 +1,18 @@
+
+
+; show regiters
+r
+r rax
+
+
+; change registers
+rc rax 0x1
+rc rbx result
+rc rcx rax
+
+
+if rax == 0x1
+p yeah
+endif
+
+

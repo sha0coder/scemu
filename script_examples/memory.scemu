@@ -1,0 +1,67 @@
+; set verbose
+sv 3 
+cls
+
+
+n
+p reading memory:
+mr dword ptr [ebp + 8]
+
+mw 0xe115c dword ptr [ebp + 8]
+p memory changed
+
+p reading memory again:
+mr dword ptr [ebp + 8]
+
+
+; last memory or register read is in result variable
+
+if result == 0
+q
+endif
+
+
+; writting bytes to memory
+mwb 0x112233 A1 B3 C0 FF 00
+mwb rax A1 B3 C0 FF 00
+
+; viewing the bytes
+md 0x112233
+
+push rax
+push 0x11223344
+
+; extract the 0x11223344 to result variable
+pop
+
+; print result variable
+pr
+
+
+
+; dump string
+mds 0x112233
+
+; dump wide string
+mdw 0x112233
+
+; memory dump to disk
+mdd 0x112233 1024 /tmp/blob.bin
+
+; save all maps allocated by the malware to folder
+mdda /tmp/allocs/
+
+
+; search
+sb mymap A1 FF 00 C3
+sba A1 FF 00 C3
+ss data http://
+ssa http://
+
+
+; crawl linked list pointed by rax
+ll rax
+
+
+
+p done

@@ -112,6 +112,12 @@ fn main() {
                          .long("banzai")
                          .help("skip unimplemented instructions, and keep up emulating what can be emulated")
                          .takes_value(false))
+                    .arg(Arg::with_name("script")
+                        .long("script")
+                        .short("x")
+                        .help("launch an emulation script, see scripts_examples folder")
+                        .takes_value(true)
+                        .value_name("SCRIPT"))
                     .get_matches();
 
 
@@ -213,7 +219,18 @@ fn main() {
     }
 
     emu.load_code(&filename);
-    emu.enable_ctrlc();
-    emu.run(0);
+
+
+    if matches.is_present("script") {
+        emu.disable_ctrlc();
+        let mut script = libscemu::emu::script::Script::new();
+        script.load(matches.value_of("script").expect("select a script filename"));
+        script.run(&mut emu);
+    } else {
+        emu.enable_ctrlc();
+        emu.run(0);
+    }
+
+
 }
 

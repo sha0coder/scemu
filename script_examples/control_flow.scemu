@@ -1,0 +1,25 @@
+; some flow control basics
+
+; set verbose
+sv 3
+
+
+; next
+p emualte 2 steps
+n
+n
+
+; show ip 
+r rip
+
+if rip > 0x7f000000
+console
+endif
+
+
+eip 0xe115c
+bi 20
+c
+
+p instruction 20 is not emulated yet
+s

@@ -1,0 +1,17 @@
+; set verbose
+sv 3 
+
+p starting emulation.
+
+bi 3
+c
+
+p ok it stoped emulating
+mr dword ptr [ebp + 8]
+mw 0xe115c dword ptr [ebp + 8]
+mr dword ptr [ebp + 8]
+
+c
+bp 44
+r rax
+q

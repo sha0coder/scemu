@@ -1,0 +1,30 @@
+
+
+; 5 emulation steps
+
+set 0x5
+loop
+pr
+n
+endloop
+p end.
+
+; result: 0x5
+; 1 0xe115c: push  ebp ;0x22f000 
+; result: 0x4
+; 2 0xe115d: mov   ebp,esp
+; result: 0x3
+; 3 0xe115f: add   esp,0FFFFFED0h
+; result: 0x2
+; 4 0xe1165: mov   eax,[ebp+8]
+; result: 0x1
+; 5 0xe1168: mov   [ebp-78h],eax
+; end.
+
+
+; call a function with a decremental variable
+set eax
+loop
+call 0x11223344 result
+endloop
+
