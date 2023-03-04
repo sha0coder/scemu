@@ -1,4 +1,7 @@
 ```
+; target/release/scemu -f ~/samples/danabot/2023-02-20/unpacked/stage2_e0000.bin -b 0xe0000 -a 0xe115c -vv -x script_examples/test.scemu 
+
+
 ; most of addresses and values has to be numbers like 0x123 or registers or the result varible
 ; except for sizes or amounts
 
