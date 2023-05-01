@@ -261,7 +261,6 @@ set 0x3
 loop 
 
 ; end loop
-
 endloop
 
 ; neable script tracing

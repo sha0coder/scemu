@@ -1,0 +1,9 @@
+
+rc eax 0x0
+rc eip 0x01E7AF08
+ba 0x01E7AF1B
+c
+n
+console
+
+

@@ -1,0 +1,22 @@
+; danabot extract
+
+sba C7 43 18 40 7E 05 00
+rc eip result
+
+;d eip 100
+
+mc buff 1024
+rc ebx result
+
+set 0xa
+loop
+n
+endloop
+
+p IP Addresses:
+mr dword ptr [ebx + 0x6A]
+mr dword ptr [ebx + 0x72]
+mr dword ptr [ebx + 0x7A]
+mr dword ptr [ebx + 0x82]
+;md ebx
+console

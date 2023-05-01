@@ -1,0 +1,17 @@
+
+;call 0x0B01253
+;sv 0
+
+
+set 0xfff
+loop
+ba 0x0B0457F
+c
+bc
+;r eax
+mds eax
+n
+pr
+endloop
+
+console

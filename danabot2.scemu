@@ -1,0 +1,19 @@
+
+; target/release/scemu -f ~/samples/danabot/2023-03-10-Loader/unpacked/rundll32_exe_PID974_Qruhaepdediwhf.dll_1370000_x86.dll  -a 0x1ca1254 -vv -x danabot2.scemu -vv
+
+
+
+sv 3 
+mca danabot_stack 0x1e1f000 69633
+ml danabot_stack /home/sha0/samples/danabot/2023-03-10/unpacked/stack_01E1F000.bin
+p infection prepared
+bi 6106
+c
+mw 0x1e1f000 dword ptr [ebp + 0x8]
+bi 27571
+c
+mw 0x1 dword ptr [0x187F98D]
+bi 186092
+c
+mw 0x0 dword ptr [0x187F98D]
+console

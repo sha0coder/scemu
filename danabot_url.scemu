@@ -1,0 +1,10 @@
+ba 0x1e75c09
+call 0x0200F26C 0x0
+n
+n
+mw 0x1 dword ptr [0x2489DC4]
+c
+console
+
+
+
