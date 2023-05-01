@@ -1,6 +1,11 @@
 # scemu
 x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
+## Automation
+
+Python apps https://pypi.org/search/?q=pyscemu
+Rust apps https://crates.io/crates/libscemu
+
 ## Features
 - 📦 rust safety, good for malware. 
 	- All dependencies are in rust.
@@ -27,13 +32,17 @@ x86 32/64bits emulator, for securely emulating malware and other stuff.
 - non debugged cpuid.
 - 32bits and 64bits shellcode emulation.
 - pe32 and pe64 executables emulation.
-- tests with known payloads:
+- fully emulation with known payloads:
 	- metasploit shellcodes.
 	- metasploit encoders.
 	- cobalt strike.
 	- shellgen.
 	- guloader (not totally for now, but arrive further than the debugger)
     - mars stealer pe32.
+- partial emulation with complex malware functions:
+    - guloader
+    - xloader
+    - danabot
 
 ## TODO
     - convert it on a library, and a tool that uses the lib, for a programatic usage.
