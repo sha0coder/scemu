@@ -1,3 +1,7 @@
+
+# use pyscemu from pip instead of this plugin scripting
+
+
 ```
 ; target/release/scemu -f ~/samples/danabot/2023-02-20/unpacked/stage2_e0000.bin -b 0xe0000 -a 0xe115c -vv -x script_examples/test.scemu 
 
