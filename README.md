@@ -4,6 +4,7 @@ x86 32/64bits emulator, for securely emulating malware and other stuff.
 ## Automation
 
 Python apps https://pypi.org/search/?q=pyscemu
+
 Rust apps https://crates.io/crates/libscemu
 
 ## Features
