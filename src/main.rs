@@ -228,9 +228,6 @@ fn main() {
         script.run(&mut emu);
     } else {
         emu.enable_ctrlc();
-        emu.run(None);
+        emu.run(None).unwrap();
     }
-
-
 }
-
