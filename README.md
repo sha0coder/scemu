@@ -45,11 +45,21 @@ Rust apps https://crates.io/crates/libscemu
     - xloader
     - danabot
 
+## pyscemu vs malware
+- raccoon, strings decryption
+- vidar, strings decryption
+- xloader, total decry
+- lokibot, api deobfuscatiuon
+- mars unpacking and getting ioc
+- shikata decoding and getting ioc
+- danabot get strings
+
 ## TODO
-    - convert it on a library, and a tool that uses the lib, for a programatic usage.
-	- more fpu
-	- more mmx
-    - support more complex malwares
+    - elf64 
+    - guloader
+    - more winapi implementations and banzai mode.
+    - more cpu instructions
+
 
 ## Usage
 ```
