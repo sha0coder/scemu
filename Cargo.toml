@@ -1,6 +1,6 @@
 [package]
 name = "scemu"
-version = "0.6.7"
+version = "0.6.8"
 authors = ["sha0coder"]
 edition = "2018"
 
