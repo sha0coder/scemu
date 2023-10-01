@@ -2,7 +2,7 @@
 x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
 ## Some Videos
-https://www.youtube.com/@JesusOlmos-wm8ch
+https://www.youtube.com/@JesusOlmos-wm8ch/videos
 
 ## Automation
 
