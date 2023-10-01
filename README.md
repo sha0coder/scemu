@@ -1,6 +1,9 @@
 # scemu
 x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
+## Some Videos
+https://www.youtube.com/@JesusOlmos-wm8ch
+
 ## Automation
 
 Python apps https://pypi.org/search/?q=pyscemu
