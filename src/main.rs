@@ -75,11 +75,13 @@ fn main() {
                         .help("monitor memory like: -i 'dword ptr [ebp + 0x24]")
                         .value_name("DIRECTION")
                         .takes_value(true))
+                    /*
                     .arg(Arg::with_name("endpoint")
                         .short("e")
                         .long("endpoint")
                         .help("perform communications with the endpoint, use tor or vpn!")
-                        .takes_value(false))
+                        .takes_value(false))*/
+
                     .arg(Arg::with_name("console_addr")
                         .short("C")
                         .long("console_addr")
@@ -196,6 +198,7 @@ fn main() {
         //TODO: emu::endpoint::warning();
         emu.cfg.endpoint = true;
     }
+
     if matches.is_present("console_addr") {
         emu.cfg.console2 = true;
         emu.cfg.console_addr = u64::from_str_radix(matches.value_of("console_addr").expect("select the address to spawn console with -C").trim_start_matches("0x"), 16).expect("invalid address");
