@@ -8,6 +8,11 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
+<<<<<<< HEAD
 libscemu = "0.17.1"
 #libscemu = { path = "/home/sha0/src/libscemu/" }
+=======
+#libscemu = "0.16.7"
+libscemu = { path = "/home/sha0/src/libscemu/" }
+>>>>>>> ed36c34113e24b9a1e43d89b5f6170a7cf94daec
 #libscemu = { path = "/Users/sha0coder/src/libscemu/" }

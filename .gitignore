@@ -9,3 +9,4 @@ test/
 scripts/scemu-output.txt
 scripts/scemu-errors.json
 scripts/node_modules/
+Cargo.lock

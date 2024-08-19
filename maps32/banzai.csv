@@ -15225,3 +15225,5 @@ ZwSinglePhaseReject,2
 ZwUnloadDriver,1
 ZwUnmapViewOfSection,2
 ZwWriteFile,9
+__set_app_type,1
+__p__fmode,0
