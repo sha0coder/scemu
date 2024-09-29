@@ -15227,3 +15227,5 @@ ZwUnmapViewOfSection,2
 ZwWriteFile,9
 __set_app_type,1
 __p__fmode,0
+ConvertStringSecurityDescriptorToSecurityDescriptorA,4
+_strupr,1
