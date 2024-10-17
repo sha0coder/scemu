@@ -18,19 +18,21 @@ Rust apps https://crates.io/crates/libscemu
 	- 2,000,000 instructions/second
 	- 379,000 instructions/second printing every instruction -vv.
 - powered by iced-x86 rust dissasembler awesome library.
+- commandline tool, rust library, and python library.
 - iteration detector.
 - memory and register tracking.
 - colorized.
 - stop at specific moment and explore the state or modify it.
-- 180 CPU instructions implemented.
-- 121 winapi 32bits implemented of 6 dlls.
-- 75 winapi 64bits implemented of 8 dlls.
+- 339 CPU instructions implemented.
+- 260 winapi 32bits implemented of 15 dlls.
+- 204 winapi 64bits implemented of 10 dlls.
 - all linux syscalls.
 - SEH chains.
 - vectored exception handler.
 - PEB, TEB structures.
 - dynamic linking.
 - IAT binding.
+- delay loading.
 - memory allocator.
 - react with int3.
 - non debugged cpuid.
@@ -56,12 +58,6 @@ Rust apps https://crates.io/crates/libscemu
 - mars unpacking and getting ioc
 - shikata decoding and getting ioc
 - danabot get strings
-
-## TODO
-    - elf64 
-    - guloader
-    - more winapi implementations and banzai mode.
-    - more cpu instructions
 
 
 ## Usage
