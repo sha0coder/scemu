@@ -2,6 +2,7 @@ target/
 .gitconfig
 shellcodes32/
 shellcodes64/
+.DS_Store
 x
 *.swp
 *.idb
