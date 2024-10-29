@@ -15229,3 +15229,6 @@ __set_app_type,1
 __p__fmode,0
 ConvertStringSecurityDescriptorToSecurityDescriptorA,4
 _strupr,1
+_initterm,2
+_set_invalid_parameter_handler,1
+_crt_atexit,1
