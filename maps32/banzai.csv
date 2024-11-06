@@ -15232,3 +15232,6 @@ _strupr,1
 _initterm,2
 _set_invalid_parameter_handler,1
 _crt_atexit,1
+lstrcatW,2
+lstrlenW,1
+shell32.text,1
