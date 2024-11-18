@@ -1,6 +1,8 @@
 # scemu
 x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
+![SCEMU Logo](./pics/scemu_logo.png)
+
 ## Some Videos
 https://www.youtube.com/@JesusOlmos-wm8ch/videos
 
