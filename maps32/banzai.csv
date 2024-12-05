@@ -15235,3 +15235,6 @@ _crt_atexit,1
 lstrcatW,2
 lstrlenW,1
 shell32.text,1
+GetFileVersionInfoSizeA,2
+GetFileVersionInfoA,4
+VerQueryValueA,4
