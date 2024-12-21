@@ -15238,3 +15238,4 @@ shell32.text,1
 GetFileVersionInfoSizeA,2
 GetFileVersionInfoA,4
 VerQueryValueA,4
+GetWindowsDirectoryA,2
