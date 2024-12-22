@@ -226,7 +226,7 @@ fn main() {
             .expect("Failed to create trace file");
         writeln!(
             trace_file,
-            "Index,Address,Bytes,Disassembly,Registers,Memory,Comments"
+            r#""Index","Address","Bytes","Disassembly","Registers","Memory","Comments""#
         ).expect("Failed to write trace file header");
         emu.cfg.trace_file = Some(trace_file);
     }
