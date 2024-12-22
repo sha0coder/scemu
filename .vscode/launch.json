@@ -1,0 +1,30 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug scemu with DLL",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=scemu",
+                    "--package=scemu"
+                ],
+                "filter": {
+                    "name": "scemu",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "-vv",
+                "--64bits",
+                "--maps", "scemu/maps64",
+                "--trace", "/tmp/output.csv",
+                "--memory",
+                "--filename", "/Users/Brandon/Desktop/enigma/surprise.dll"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
