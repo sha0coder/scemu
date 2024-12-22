@@ -8,7 +8,6 @@ cargo run --target x86_64-apple-darwin \
     -- \
     -vv \
     --64bits \
-    --maps ./maps64 \
     --trace /tmp/output.csv \
     --memory \
     --base 0x00007FFBEE4B0000 \
@@ -29,4 +28,5 @@ cargo run --target x86_64-apple-darwin \
     --r13 0x1FC18C72DC0 \
     --r14 0x7FFBEE4B0000 \
     --r15 0x0 \
+    --stack_address 0x98EB5DD000 \
     --filename ~/Desktop/enigma/surprise.dll

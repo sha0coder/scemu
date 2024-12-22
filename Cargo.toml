@@ -12,4 +12,4 @@ clap = "2.33.3"
 #libscemu = { path = "/home/sha0/src/libscemu/" }
 #libscemu = { path = "/Users/sha0coder/src/libscemu/" }
 #libscemu = { path = "/Users/jesus/src/libscemu/" }
-libscemu = { path = "/Users/brandon/Desktop/libscemu" }
+libscemu = { path = "/Users/brandon/Desktop/scemu/libscemu" }
