@@ -8,8 +8,10 @@ edition = "2018"
 
 [dependencies]
 clap = "2.33.3"
+env_logger = "0.11.6"
 libscemu = "0.19.1"
 #libscemu = { path = "/home/sha0/src/libscemu/" }
 #libscemu = { path = "/Users/sha0coder/src/libscemu/" }
 #libscemu = { path = "/Users/jesus/src/libscemu/" }
 #libscemu = { path = "/Users/brandon/Desktop/scemu/libscemu" }
+log = "0.4.22"

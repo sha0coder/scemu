@@ -32,6 +32,8 @@ macro_rules! match_register_arg {
 }
 
 fn main() {
+    env_logger::init();
+
     let matches = App::new("SCEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
@@ -179,7 +181,7 @@ fn main() {
         .get_matches();
 
     if !matches.is_present("filename") {
-        println!("the filename is mandatory, try -f <FILENAME> or --help");
+        log::error!("the filename is mandatory, try -f <FILENAME> or --help");
     }
 
     let mut emu: libscemu::emu::Emu;
@@ -204,7 +206,7 @@ fn main() {
     emu.cfg.verbose = matches.occurrences_of("verbose") as u32;
     emu.set_verbose(emu.cfg.verbose);
     if emu.cfg.verbose == 0 {
-        println!("use -vv to see the assembly code emulated, and -v to see the messages");
+        log::info!("use -vv to see the assembly code emulated, and -v to see the messages");
     }
 
     // tracing
@@ -295,7 +297,7 @@ fn main() {
         )
         .expect("invalid address");
         if !matches.is_present("entry_point") {
-            eprintln!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
+            log::error!("if the code base is selected, you have to select the entry point ie -b 0x600000 -a 0x600000");
             std::process::exit(1);
         }
     }
