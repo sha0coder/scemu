@@ -65,7 +65,7 @@ Rust apps https://crates.io/crates/libscemu
 
 ## Usage
 ```
-SCEMU emulator for Shellcodes 0.4.0   32bits and 64bits
+SCEMU emulator for malware 0.7.10
 @sha0coder
 
 USAGE:
@@ -73,13 +73,14 @@ USAGE:
 
 FLAGS:
     -6, --64bits      enable 64bits architecture emulation
-    -e, --endpoint    perform communications with the endpoint, use tor or vpn!
+        --banzai      skip unimplemented instructions, and keep up emulating what can be emulated
     -h, --help        Prints help information
     -l, --loops       show loop interations, it is slow.
     -m, --memory      trace all the memory accesses read and write.
     -n, --nocolors    print without colors for redirectin to a file >out
     -r, --regs        print the register values in every step.
     -p, --stack       trace stack on push/pop
+    -t, --test        test mode
     -V, --version     Prints version information
     -v, --verbose     -vv for view the assembly, -v only messages, without verbose only see the api calls and goes
                       faster
@@ -92,9 +93,29 @@ OPTIONS:
     -f, --filename <FILE>              set the shellcode binary file.
     -i, --inspect <DIRECTION>          monitor memory like: -i 'dword ptr [ebp + 0x24]
     -M, --maps <PATH>                  select the memory maps folder
+        --mxcsr <MXCSR>                set mxcsr register
+        --r10 <R10>                    set r10 register
+        --r11 <R11>                    set r11 register
+        --r12 <R12>                    set r12 register
+        --r13 <R13>                    set r13 register
+        --r14 <R14>                    set r14 register
+        --r15 <R15>                    set r15 register
+        --r8 <R8>                      set r8 register
+        --r9 <R9>                      set r9 register
+        --rax <RAX>                    set rax register
+        --rbp <RBP>                    set rbp register
+        --rbx <RBX>                    set rbx register
+        --rcx <RCX>                    set rcx register
+        --rdi <RDI>                    set rdi register
+        --rdx <RDX>                    set rdx register
     -R, --reg <REGISTER1,REGISTER2>    trace a specific register in every step, value and content
+        --rflags <RFLAGS>              set rflags register
+        --rsi <RSI>                    set rsi register
+        --rsp <RSP>                    set rsp register
+    -x, --script <SCRIPT>              launch an emulation script, see scripts_examples folder
+        --stack_address <ADDRESS>      set stack address
     -s, --string <ADDRESS>             monitor string on a specific address
-
+    -T, --trace <TRACE_FILENAME>       output trace to specified file
 ```
 
 ## Some use cases
