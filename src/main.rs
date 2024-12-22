@@ -174,6 +174,7 @@ fn main() {
         .arg(register_arg!("r13"))
         .arg(register_arg!("r14"))
         .arg(register_arg!("r15"))
+        .arg(register_arg!("rflags"))
         .get_matches();
 
     if !matches.is_present("filename") {
@@ -327,10 +328,22 @@ fn main() {
     match_register_arg!(matches, emu, "r13");
     match_register_arg!(matches, emu, "r14");
     match_register_arg!(matches, emu, "r15");
+    if matches.is_present("rflags") {
+        let value = u64::from_str_radix(
+            matches
+                .value_of("rflags")
+                .expect("select the rflags register")
+                .trim_start_matches("0x"),
+            16,
+        )
+        .expect("invalid address");
+        emu.flags.load(value as u32);
+    }
 
     // init
     let clear_registers = false; // TODO: this needs to be more dynamic, like if we have a register set via args or not
-    emu.init(clear_registers);
+    let clear_flags = false; // TODO: this needs to be more dynamic, like if we have a flag set via args or not
+    emu.init(clear_registers, clear_flags);
 
     // endpoint
     if matches.is_present("endpoint") {
