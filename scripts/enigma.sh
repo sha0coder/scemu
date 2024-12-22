@@ -29,5 +29,4 @@ cargo run --target x86_64-apple-darwin \
     --r13 0x1FC18C72DC0 \
     --r14 0x7FFBEE4B0000 \
     --r15 0x0 \
-    --rflags 0x344 \
     --filename ~/Desktop/enigma/surprise.dll

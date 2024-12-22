@@ -169,7 +169,6 @@ fn main() {
         .arg(register_arg!("r13"))
         .arg(register_arg!("r14"))
         .arg(register_arg!("r15"))
-        .arg(register_arg!("rflags"))
         .get_matches();
 
     if !matches.is_present("filename") {
@@ -341,7 +340,6 @@ fn main() {
     match_register_arg!(matches, emu, "r13");
     match_register_arg!(matches, emu, "r14");
     match_register_arg!(matches, emu, "r15");
-    match_register_arg!(matches, emu, "rflags");
 
     emu.load_code(&filename);
 
