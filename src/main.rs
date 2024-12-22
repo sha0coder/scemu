@@ -5,129 +5,172 @@ use clap::{App, Arg};
 use libscemu::emu32;
 use libscemu::emu64;
 
+macro_rules! register_arg {
+    ($reg:expr) => {
+        Arg::with_name($reg)
+            .long($reg)
+            .help(concat!("set ", $reg, " register"))
+            .takes_value(true)
+            .value_name(&$reg.to_uppercase())
+    }
+}
+
+macro_rules! match_register_arg {
+    ($matches:expr, $emu:expr, $reg:expr) => {
+        if $matches.is_present($reg) {
+            let value = u64::from_str_radix(
+                $matches
+                    .value_of($reg)
+                    .expect(concat!("select the ", $reg, " register"))
+                    .trim_start_matches("0x"),
+                16,
+            )
+            .expect("invalid address");
+            $emu.regs.set_reg_by_name($reg, value);
+        }
+    }
+}
+
 fn main() {
     let matches = App::new("SCEMU emulator for malware")
-                    .version(env!("CARGO_PKG_VERSION"))
-                    .author("@sha0coder")
-                    .arg(Arg::with_name("filename")
-                        .short("f")
-                        .long("filename")
-                        .value_name("FILE")
-                        .help("set the shellcode binary file.")
-                        .takes_value(true))
-                    .arg(Arg::with_name("verbose")
-                        .short("v")
-                        .long("verbose")
-                        .multiple(true)
-                        .help("-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster")
-                        .takes_value(false))
-                    .arg(Arg::with_name("64bits")
-                        .short("6")
-                        .long("64bits")
-                        .help("enable 64bits architecture emulation")
-                        .takes_value(false))
-                    .arg(Arg::with_name("memory")
-                        .short("m")
-                        .long("memory")
-                        .help("trace all the memory accesses read and write.")
-                        .takes_value(false))
-                    .arg(Arg::with_name("maps")
-                        .short("M")
-                        .long("maps")
-                        .help("select the memory maps folder")
-                        .takes_value(true)
-                        .value_name("PATH"))
-                    .arg(Arg::with_name("registers")
-                        .short("r")
-                        .long("regs")
-                        .help("print the register values in every step.")
-                        .takes_value(false))
-                    .arg(Arg::with_name("register")
-                        .short("R")
-                        .long("reg")
-                        .value_name("REGISTER1,REGISTER2")
-                        .help("trace a specific register in every step, value and content")
-                        .takes_value(true))
-                    .arg(Arg::with_name("console")
-                        .short("c")
-                        .long("console")
-                        .help("select in which moment will spawn the console to inspect.")
-                        .value_name("NUMBER")
-                        .takes_value(true))
-                    .arg(Arg::with_name("loops")
-                        .short("l")
-                        .long("loops")
-                        .help("show loop interations, it is slow.")
-                        .takes_value(false))
-                    .arg(Arg::with_name("nocolors")
-                        .short("n")
-                        .long("nocolors")
-                        .help("print without colors for redirectin to a file >out")
-                        .takes_value(false))
-                    .arg(Arg::with_name("string")
-                        .short("s")
-                        .long("string")
-                        .help("monitor string on a specific address")
-                        .value_name("ADDRESS")
-                        .takes_value(true))
-                    .arg(Arg::with_name("inspect")
-                        .short("i")
-                        .long("inspect")
-                        .help("monitor memory like: -i 'dword ptr [ebp + 0x24]")
-                        .value_name("DIRECTION")
-                        .takes_value(true))
-                    /*
-                    .arg(Arg::with_name("endpoint")
-                        .short("e")
-                        .long("endpoint")
-                        .help("perform communications with the endpoint, use tor or vpn!")
-                        .takes_value(false))*/
+        .version(env!("CARGO_PKG_VERSION"))
+        .author("@sha0coder")
+        .arg(Arg::with_name("filename")
+            .short("f")
+            .long("filename")
+            .value_name("FILE")
+            .help("set the shellcode binary file.")
+            .takes_value(true))
+        .arg(Arg::with_name("verbose")
+            .short("v")
+            .long("verbose")
+            .multiple(true)
+            .help("-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster")
+            .takes_value(false))
+        .arg(Arg::with_name("64bits")
+            .short("6")
+            .long("64bits")
+            .help("enable 64bits architecture emulation")
+            .takes_value(false))
+        .arg(Arg::with_name("memory")
+            .short("m")
+            .long("memory")
+            .help("trace all the memory accesses read and write.")
+            .takes_value(false))
+        .arg(Arg::with_name("maps")
+            .short("M")
+            .long("maps")
+            .help("select the memory maps folder")
+            .takes_value(true)
+            .value_name("PATH"))
+        .arg(Arg::with_name("registers")
+            .short("r")
+            .long("regs")
+            .help("print the register values in every step.")
+            .takes_value(false))
+        .arg(Arg::with_name("register")
+            .short("R")
+            .long("reg")
+            .value_name("REGISTER1,REGISTER2")
+            .help("trace a specific register in every step, value and content")
+            .takes_value(true))
+        .arg(Arg::with_name("console")
+            .short("c")
+            .long("console")
+            .help("select in which moment will spawn the console to inspect.")
+            .value_name("NUMBER")
+            .takes_value(true))
+        .arg(Arg::with_name("loops")
+            .short("l")
+            .long("loops")
+            .help("show loop interations, it is slow.")
+            .takes_value(false))
+        .arg(Arg::with_name("nocolors")
+            .short("n")
+            .long("nocolors")
+            .help("print without colors for redirectin to a file >out")
+            .takes_value(false))
+        .arg(Arg::with_name("string")
+            .short("s")
+            .long("string")
+            .help("monitor string on a specific address")
+            .value_name("ADDRESS")
+            .takes_value(true))
+        .arg(Arg::with_name("inspect")
+            .short("i")
+            .long("inspect")
+            .help("monitor memory like: -i 'dword ptr [ebp + 0x24]")
+            .value_name("DIRECTION")
+            .takes_value(true))
+        /*
+        .arg(Arg::with_name("endpoint")
+            .short("e")
+            .long("endpoint")
+            .help("perform communications with the endpoint, use tor or vpn!")
+            .takes_value(false))*/
 
-                    .arg(Arg::with_name("console_addr")
-                        .short("C")
-                        .long("console_addr")
-                        .help("spawn console on first eip = address")
-                        .takes_value(true)
-                        .value_name("ADDRESS"))
-                    .arg(Arg::with_name("entry_point")
-                        .short("a")
-                        .long("entry")
-                        .help("entry point of the shellcode, by default starts from the beginning.")
-                        .takes_value(true)
-                        .value_name("ADDRESS"))
-                    .arg(Arg::with_name("code_base_address")
-                        .short("b")
-                        .long("base")
-                        .help("set base address for code")
-                        .takes_value(true)
-                        .value_name("ADDRESS"))
-                    .arg(Arg::with_name("stack_trace")
-                        .short("p")
-                        .long("stack")
-                        .help("trace stack on push/pop")
-                        .takes_value(false))
-                    .arg(Arg::with_name("test_mode")
-                        .short("t")
-                        .long("test")
-                        .help("test mode")
-                        .takes_value(false))
-                    .arg(Arg::with_name("banzai")
-                         .long("banzai")
-                         .help("skip unimplemented instructions, and keep up emulating what can be emulated")
-                         .takes_value(false))
-                    .arg(Arg::with_name("script")
-                        .long("script")
-                        .short("x")
-                        .help("launch an emulation script, see scripts_examples folder")
-                        .takes_value(true)
-                        .value_name("SCRIPT"))
-                    .arg(Arg::with_name("trace")
-                        .long("trace")
-                        .short("T")
-                        .help("output trace to specified file")
-                        .takes_value(true)
-                        .value_name("TRACE_FILENAME"))
-                    .get_matches();
+        .arg(Arg::with_name("console_addr")
+            .short("C")
+            .long("console_addr")
+            .help("spawn console on first eip = address")
+            .takes_value(true)
+            .value_name("ADDRESS"))
+        .arg(Arg::with_name("entry_point")
+            .short("a")
+            .long("entry")
+            .help("entry point of the shellcode, by default starts from the beginning.")
+            .takes_value(true)
+            .value_name("ADDRESS"))
+        .arg(Arg::with_name("code_base_address")
+            .short("b")
+            .long("base")
+            .help("set base address for code")
+            .takes_value(true)
+            .value_name("ADDRESS"))
+        .arg(Arg::with_name("stack_trace")
+            .short("p")
+            .long("stack")
+            .help("trace stack on push/pop")
+            .takes_value(false))
+        .arg(Arg::with_name("test_mode")
+            .short("t")
+            .long("test")
+            .help("test mode")
+            .takes_value(false))
+        .arg(Arg::with_name("banzai")
+                .long("banzai")
+                .help("skip unimplemented instructions, and keep up emulating what can be emulated")
+                .takes_value(false))
+        .arg(Arg::with_name("script")
+            .long("script")
+            .short("x")
+            .help("launch an emulation script, see scripts_examples folder")
+            .takes_value(true)
+            .value_name("SCRIPT"))
+        .arg(Arg::with_name("trace")
+            .long("trace")
+            .short("T")
+            .help("output trace to specified file")
+            .takes_value(true)
+            .value_name("TRACE_FILENAME"))
+        .arg(register_arg!("rax"))
+        .arg(register_arg!("rbx"))
+        .arg(register_arg!("rcx"))
+        .arg(register_arg!("rdx"))
+        .arg(register_arg!("rsp"))
+        .arg(register_arg!("rbp"))
+        .arg(register_arg!("rsi"))
+        .arg(register_arg!("rdi"))
+        .arg(register_arg!("r8"))
+        .arg(register_arg!("r9"))
+        .arg(register_arg!("r10"))
+        .arg(register_arg!("r11"))
+        .arg(register_arg!("r12"))
+        .arg(register_arg!("r13"))
+        .arg(register_arg!("r14"))
+        .arg(register_arg!("r15"))
+        .arg(register_arg!("rflags"))
+        .get_matches();
 
     if !matches.is_present("filename") {
         println!("the filename is mandatory, try -f <FILENAME> or --help");
@@ -273,7 +316,7 @@ fn main() {
                 .trim_start_matches("0x"),
             16,
         )
-        .expect("invalid address");
+        .expect("invalid address");    
     }
     if matches.is_present("stack_trace") {
         emu.cfg.stack_trace = true;
@@ -281,6 +324,24 @@ fn main() {
     if matches.is_present("test_mode") {
         emu.cfg.test_mode = true;
     }
+
+    match_register_arg!(matches, emu, "rax");
+    match_register_arg!(matches, emu, "rbx");
+    match_register_arg!(matches, emu, "rcx");
+    match_register_arg!(matches, emu, "rdx");
+    match_register_arg!(matches, emu, "rsp");
+    match_register_arg!(matches, emu, "rbp");
+    match_register_arg!(matches, emu, "rsi");
+    match_register_arg!(matches, emu, "rdi");
+    match_register_arg!(matches, emu, "r8");
+    match_register_arg!(matches, emu, "r9");
+    match_register_arg!(matches, emu, "r10");
+    match_register_arg!(matches, emu, "r11");
+    match_register_arg!(matches, emu, "r12");
+    match_register_arg!(matches, emu, "r13");
+    match_register_arg!(matches, emu, "r14");
+    match_register_arg!(matches, emu, "r15");
+    match_register_arg!(matches, emu, "rflags");
 
     emu.load_code(&filename);
 
