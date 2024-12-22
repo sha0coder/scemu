@@ -175,6 +175,7 @@ fn main() {
         .arg(register_arg!("r14"))
         .arg(register_arg!("r15"))
         .arg(register_arg!("rflags"))
+        .arg(register_arg!("mxcsr"))
         .get_matches();
 
     if !matches.is_present("filename") {
@@ -338,6 +339,17 @@ fn main() {
         )
         .expect("invalid address");
         emu.flags.load(value as u32);
+    }
+    if matches.is_present("mxcsr") {
+        let value = u64::from_str_radix(
+            matches
+                .value_of("mxcsr")
+                .expect("select the mxcsr register")
+                .trim_start_matches("0x"),
+            16,
+        )
+        .expect("invalid address");
+        emu.fpu.mxcsr = value as u32;
     }
 
     // init
