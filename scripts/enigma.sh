@@ -3,6 +3,7 @@
 set -x
 
 export RUST_BACKTRACE=1
+export RUST_LOG=info
 
 cargo run --target x86_64-apple-darwin \
     -- \
