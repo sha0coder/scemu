@@ -4,6 +4,7 @@ use std::io::Write as _;
 use clap::{App, Arg};
 use libscemu::emu32;
 use libscemu::emu64;
+use env_logger::Env;
 
 macro_rules! register_arg {
     ($reg:expr) => {
@@ -32,7 +33,8 @@ macro_rules! match_register_arg {
 }
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    //env_logger::init();
 
     let matches = App::new("SCEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
