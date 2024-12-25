@@ -46,6 +46,9 @@ def compare_traces():
         print(f"scemu trace offset: 0x{scemu_offset:x}")
         print(f"x64dbg trace offset: 0x{x64dbg_offset:x}")
 
+        if scemu_offset != x64dbg_offset:
+            raise ValueError(f"Trace offsets do not match: scemu=0x{scemu_offset:x}, x64dbg=0x{x64dbg_offset:x}")
+
         # Add buffer for previous lines
         scemu_prev_lines = [(parse_hex(scemu_row['Index']), 
                         parse_hex(scemu_row['Address'].split()[0]) - scemu_offset, 

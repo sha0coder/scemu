@@ -12,6 +12,7 @@ cargo run --release \
     --64bits \
     --trace /tmp/output.csv \
     --memory \
+    --exit 0x32AC73 \
     --mxcsr 0x1FC00001FA0 \
     --base 0x7FFBF51D0000 \
     --entry 0x7FFBF6205FF0 \
