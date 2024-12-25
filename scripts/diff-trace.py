@@ -53,7 +53,7 @@ def compare_traces():
         x64dbg_prev_lines = [(parse_hex(x64dbg_row['Index']), 
                         parse_hex(x64dbg_row['Address'].split()[0]) - x64dbg_offset, 
                         x64dbg_row)]
-        max_history = 4
+        max_history = 10
 
         # Compare all rows
         for row_num, (scemu_row, x64dbg_row) in enumerate(zip(scemu_reader, x64dbg_reader), start=2):
@@ -71,11 +71,11 @@ def compare_traces():
 
             if scemu_idx != x64dbg_idx or scemu_addr != x64dbg_addr:
                 print(f"\nDifference found at row {row_num}:")
-                print("\nPrevious 4 lines from scemu trace:")
+                print(f"\nPrevious {max_history} lines from scemu trace:")
                 for prev_idx, prev_addr, prev_row in scemu_prev_lines:
                     print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
                     print(f"Full row: {prev_row}")
-                print("\nPrevious 4 lines from x64dbg trace:")
+                print(f"\nPrevious {max_history} lines from x64dbg trace:")
                 for prev_idx, prev_addr, prev_row in x64dbg_prev_lines:
                     print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
                     print(f"Full row: {prev_row}")
