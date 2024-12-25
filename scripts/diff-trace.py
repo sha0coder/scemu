@@ -58,6 +58,11 @@ def compare_traces():
             print(f"Trace 2: Index=0x{idx2:x}, RVA=0x{addr2:x}")
             return
 
+        # Add buffer for previous lines
+        prev_lines1 = []
+        prev_lines2 = []
+        max_history = 4
+
         # Compare remaining rows
         for row_num, (row1, row2) in enumerate(zip(reader1, reader2), start=2):
             idx1 = parse_hex(row1['Index'])
@@ -65,17 +70,27 @@ def compare_traces():
             addr1 = parse_hex(row1['Address'].split()[0]) - offset1
             addr2 = parse_hex(row2['Address'].split()[0]) - offset2
 
-            if row_num % 10000 == 0:
-                print(f"Comparing row {row_num}...")
-                print(f"Trace 1: Index=0x{idx1:x}, RVA=0x{addr1:x}")
-                print(f"Trace 2: Index=0x{idx2:x}, RVA=0x{addr2:x}")
-                print("---")
+            # Store current line in history
+            prev_lines1.append((idx1, addr1, row1))
+            prev_lines2.append((idx2, addr2, row2))
+            if len(prev_lines1) > max_history:
+                prev_lines1.pop(0)
+                prev_lines2.pop(0)
 
             if idx1 != idx2 or addr1 != addr2:
-                print(f"Difference found at row {row_num}:")
+                print(f"\nDifference found at row {row_num}:")
+                print("\nPrevious 4 lines from Trace 1:")
+                for prev_idx, prev_addr, prev_row in prev_lines1:
+                    print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
+                    print(f"Full row: {prev_row}")
+                print("\nPrevious 4 lines from Trace 2:")
+                for prev_idx, prev_addr, prev_row in prev_lines2:
+                    print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
+                    print(f"Full row: {prev_row}")
+                print("\nDifferent lines:")
                 print(f"Trace 1: Index=0x{idx1:x}, RVA=0x{addr1:x}")
                 print(f"Trace 2: Index=0x{idx2:x}, RVA=0x{addr2:x}")
-                print("Raw values:")
+                print("\nRaw values:")
                 print(f"Trace 1: {row1}")
                 print(f"Trace 2: {row2}")
                 return
