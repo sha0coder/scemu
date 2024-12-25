@@ -14,6 +14,7 @@ cargo run --release \
     --memory \
     --base 0x00007FFBEE4B0000 \
     --entry 0x00007FFBEF4E5FF0 \
+    --exit 0x2e7115 \
     --rax 0x7FFBEF4E5FF0 \
     --rbx 0x7FFE0385 \
     --rcx 0x7FFBEE4B0000 \
