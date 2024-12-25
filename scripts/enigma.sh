@@ -12,26 +12,25 @@ cargo run --release \
     --64bits \
     --trace /tmp/output.csv \
     --memory \
-    --base 0x00007FFBEE4B0000 \
-    --entry 0x00007FFBEF4E5FF0 \
-    --exit 0x32ac73 \
-    --rax 0x7FFBEF4E5FF0 \
+    --stack_address 0x98EB5DD000 \
+    --filename ~/Desktop/enigma/surprise.dll \
+    --mxcsr 0x1FC00001FA0 \
+    --base 0x7FFBF51D0000 \
+    --entry 0x7FFBF6205FF0 \
+    --rax 0x7FFBF6205FF0 \
     --rbx 0x7FFE0385 \
-    --rcx 0x7FFBEE4B0000 \
+    --rcx 0x7FFBF51D0000 \
     --rdx 0x1 \
-    --rsp 0x98EB5DDFF8 \
-    --rbp 0x98EB5DE338 \
+    --rsp 0x4FD74FDE78 \
+    --rbp 0x4FD74FE1B8 \
     --rsi 0x1 \
     --rdi 0x7FFE0384 \
     --r8 0x0 \
     --r9 0x0 \
     --r10 0xA440AE23305F3A70 \
-    --r11 0x98EB5DE068 \
-    --r12 0x7FFBEF4E5FF0 \
-    --r13 0x1FC18C72DC0 \
-    --r14 0x7FFBEE4B0000 \
+    --r11 0x4FD74FDEE8 \
+    --r12 0x7FFBF6205FF0 \
+    --r13 0x176DB67A750 \
+    --r14 0x7FFBF51D0000 \
     --r15 0x0 \
-    --stack_address 0x98EB5DD000 \
-    --rflags 0x246 \
-    --mxcsr 0x1FC00001FA0 \
-    --filename ~/Desktop/enigma/surprise.dll
+    --rflags 0x344
