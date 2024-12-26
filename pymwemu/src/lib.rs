@@ -325,24 +325,16 @@ impl Emu {
     /// pop a 32bits value from the stack.
     fn stack_pop32(&mut self) -> PyResult<u32> {
         match self.emu.stack_pop32(false) {
-            Some(v) => {
-                Ok(v)
-            }
-            None => {
-                Err(PyValueError::new_err("popping error"))
-            }
+            Some(v) => Ok(v),
+            None => Err(PyValueError::new_err("popping error")),
         }
     }
 
     /// pop a 64bits value from the stack.
     fn stack_pop64(&mut self) -> PyResult<u64> {
         match self.emu.stack_pop64(false) {
-            Some(v) => {
-                Ok(v)
-            }
-            None => {
-                Err(PyValueError::new_err("popping error"))
-            }
+            Some(v) => Ok(v),
+            None => Err(PyValueError::new_err("popping error")),
         }
     }
 
@@ -501,9 +493,7 @@ impl Emu {
     fn read_128bits_be(&self, addr: u64) -> PyResult<u128> {
         match self.emu.maps.read_128bits_be(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -511,9 +501,7 @@ impl Emu {
     fn read_128bits_le(&self, addr: u64) -> PyResult<u128> {
         match self.emu.maps.read_128bits_le(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -521,9 +509,7 @@ impl Emu {
     fn read_qword(&self, addr: u64) -> PyResult<u64> {
         match self.emu.maps.read_qword(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -531,9 +517,7 @@ impl Emu {
     fn read_dword(&self, addr: u64) -> PyResult<u32> {
         match self.emu.maps.read_dword(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -541,9 +525,7 @@ impl Emu {
     fn read_word(&self, addr: u64) -> PyResult<u16> {
         match self.emu.maps.read_word(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -551,9 +533,7 @@ impl Emu {
     fn read_byte(&self, addr: u64) -> PyResult<u8> {
         match self.emu.maps.read_byte(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err("reading on non allocated address"))
-            }
+            None => Err(PyValueError::new_err("reading on non allocated address")),
         }
     }
 
@@ -620,11 +600,9 @@ impl Emu {
     pub fn get_addr_name(&self, addr: u64) -> PyResult<String> {
         match self.emu.maps.get_addr_name(addr) {
             Some(v) => Ok(v),
-            None => {
-                Err(PyValueError::new_err(
-                    "the address doesnt pertain to an allocated block",
-                ))
-            }
+            None => Err(PyValueError::new_err(
+                "the address doesnt pertain to an allocated block",
+            )),
         }
     }
 

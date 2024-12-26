@@ -122,4 +122,3 @@ fn RegQueryValueExA(emu: &mut emu::Emu) {
     }
     emu.regs.rax = constants::ERROR_SUCCESS;
 }
-

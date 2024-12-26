@@ -296,7 +296,8 @@ pub struct ImageSectionHeader {
 impl ImageSectionHeader {
     pub fn load(raw: &[u8], off: usize) -> ImageSectionHeader {
         let mut name: [u8; IMAGE_SIZEOF_SHORT_NAME] = [0; IMAGE_SIZEOF_SHORT_NAME];
-        name[..(off + IMAGE_SIZEOF_SHORT_NAME - off)].copy_from_slice(&raw[off..(off + IMAGE_SIZEOF_SHORT_NAME)]);
+        name[..(off + IMAGE_SIZEOF_SHORT_NAME - off)]
+            .copy_from_slice(&raw[off..(off + IMAGE_SIZEOF_SHORT_NAME)]);
 
         let off2 = off + IMAGE_SIZEOF_SHORT_NAME;
 
@@ -892,7 +893,7 @@ impl PE32 {
             sect_hdr: sect,
             delay_load_dir,
             image_import_descriptor, //import_dir: importd,
-                                                              //export_dir: exportd,
+                                     //export_dir: exportd,
         }
     }
 
@@ -987,7 +988,6 @@ impl PE32 {
     }
 
     pub fn get_tls_callbacks(&self, vaddr: u32) -> Vec<u64> {
-        
         let mut callbacks: Vec<u64> = Vec::new();
 
         if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {

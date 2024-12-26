@@ -236,15 +236,13 @@ impl Flink {
     }
 
     pub fn get_next_flink(&self, emu: &mut emu::Emu) -> u64 {
-        emu
-            .maps
+        emu.maps
             .read_dword(self.flink_addr)
             .expect("error reading next flink") as u64
     }
 
     pub fn get_prev_flink(&self, emu: &mut emu::Emu) -> u64 {
-        emu
-            .maps
+        emu.maps
             .read_dword(self.flink_addr + 4)
             .expect("error reading prev flink") as u64
     }
@@ -288,8 +286,14 @@ pub fn show_linked_modules(emu: &mut emu::Emu) {
 
     // get last element
     loop {
-        let pe1 = emu.maps.read_byte(flink.mod_base + flink.pe_hdr).unwrap_or_default();
-        let pe2 = emu.maps.read_byte(flink.mod_base + flink.pe_hdr + 1).unwrap_or_default();
+        let pe1 = emu
+            .maps
+            .read_byte(flink.mod_base + flink.pe_hdr)
+            .unwrap_or_default();
+        let pe2 = emu
+            .maps
+            .read_byte(flink.mod_base + flink.pe_hdr + 1)
+            .unwrap_or_default();
         log::info!(
             "0x{:x} {} flink:{:x} blink:{:x} base:{:x} pe_hdr:{:x} {:x}{:x}",
             flink.get_ptr(),
@@ -319,7 +323,6 @@ pub fn update_ldr_entry_base(libname: &str, base: u64, emu: &mut emu::Emu) {
 
 pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
     let mut prev_flink: u64 = 0;
-    
 
     let mut flink = Flink::new(emu);
     flink.load(emu);

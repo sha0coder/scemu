@@ -79,8 +79,6 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         .maps
         .read_dword(size_ptr)
         .expect("bad NtAllocateVirtualMemory size parameter") as u64;
-    
-    
 
     let do_alloc: bool = if addr == 0 {
         true

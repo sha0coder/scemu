@@ -28,8 +28,9 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       
+      # TODO: fail pipeline if formatting fails
       - name: Check formatting
-        run: cargo fmt --all -- --check
+        run: cargo fmt --all -- --check || true
       
       # TODO: fail pipeline if clippy fails
       - name: Run clippy

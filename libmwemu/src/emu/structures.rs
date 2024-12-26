@@ -98,7 +98,7 @@ impl Default for LdrDataTableEntry {
 
 impl LdrDataTableEntry {
     pub fn size() -> usize {
-        100// really 80
+        100 // really 80
     }
 
     pub fn new() -> LdrDataTableEntry {
@@ -554,7 +554,7 @@ pub struct PEB {
 
 impl PEB {
     pub fn size() -> usize {
-        800// TODO: std::mem::size_of_val
+        800 // TODO: std::mem::size_of_val
     }
 
     pub fn new(image_base_addr: u32, ldr: u32, process_parameters: u32) -> PEB {
@@ -722,7 +722,7 @@ pub struct PEB64 {
 
 impl PEB64 {
     pub fn size() -> usize {
-        800// std::mem::size_of_val
+        800 // std::mem::size_of_val
     }
 
     pub fn new(image_base_addr: u64, ldr: u64, process_parameters: u64) -> PEB64 {

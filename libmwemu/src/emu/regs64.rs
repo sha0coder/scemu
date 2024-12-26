@@ -1226,7 +1226,33 @@ impl Regs64 {
     // xmm
 
     pub fn is_xmm(&self, reg: Register) -> bool {
-        let result = matches!(reg, Register::XMM0 | Register::XMM1 | Register::XMM2 | Register::XMM3 | Register::XMM4 | Register::XMM5 | Register::XMM6 | Register::XMM7 | Register::XMM8 | Register::XMM9 | Register::XMM10 | Register::XMM11 | Register::XMM12 | Register::XMM13 | Register::XMM14 | Register::XMM15 | Register::MM0 | Register::MM1 | Register::MM2 | Register::MM3 | Register::MM4 | Register::MM5 | Register::MM6 | Register::MM7);
+        let result = matches!(
+            reg,
+            Register::XMM0
+                | Register::XMM1
+                | Register::XMM2
+                | Register::XMM3
+                | Register::XMM4
+                | Register::XMM5
+                | Register::XMM6
+                | Register::XMM7
+                | Register::XMM8
+                | Register::XMM9
+                | Register::XMM10
+                | Register::XMM11
+                | Register::XMM12
+                | Register::XMM13
+                | Register::XMM14
+                | Register::XMM15
+                | Register::MM0
+                | Register::MM1
+                | Register::MM2
+                | Register::MM3
+                | Register::MM4
+                | Register::MM5
+                | Register::MM6
+                | Register::MM7
+        );
         result
     }
 
@@ -1296,7 +1322,33 @@ impl Regs64 {
     // ymm
 
     pub fn is_ymm(&self, reg: Register) -> bool {
-        let result = matches!(reg, Register::YMM0 | Register::YMM1 | Register::YMM2 | Register::YMM3 | Register::YMM4 | Register::YMM5 | Register::YMM6 | Register::YMM7 | Register::YMM8 | Register::YMM9 | Register::YMM10 | Register::YMM11 | Register::YMM12 | Register::YMM13 | Register::YMM14 | Register::YMM15 | Register::MM0 | Register::MM1 | Register::MM2 | Register::MM3 | Register::MM4 | Register::MM5 | Register::MM6 | Register::MM7);
+        let result = matches!(
+            reg,
+            Register::YMM0
+                | Register::YMM1
+                | Register::YMM2
+                | Register::YMM3
+                | Register::YMM4
+                | Register::YMM5
+                | Register::YMM6
+                | Register::YMM7
+                | Register::YMM8
+                | Register::YMM9
+                | Register::YMM10
+                | Register::YMM11
+                | Register::YMM12
+                | Register::YMM13
+                | Register::YMM14
+                | Register::YMM15
+                | Register::MM0
+                | Register::MM1
+                | Register::MM2
+                | Register::MM3
+                | Register::MM4
+                | Register::MM5
+                | Register::MM6
+                | Register::MM7
+        );
         result
     }
 
@@ -1585,7 +1637,17 @@ impl Regs64 {
     }
 
     pub fn is_fpu(&self, reg: Register) -> bool {
-        matches!(reg, Register::ST0 | Register::ST1 | Register::ST2 | Register::ST3 | Register::ST4 | Register::ST5 | Register::ST6 | Register::ST7)
+        matches!(
+            reg,
+            Register::ST0
+                | Register::ST1
+                | Register::ST2
+                | Register::ST3
+                | Register::ST4
+                | Register::ST5
+                | Register::ST6
+                | Register::ST7
+        )
     }
 
     pub fn get_size(&self, reg: Register) -> u32 {

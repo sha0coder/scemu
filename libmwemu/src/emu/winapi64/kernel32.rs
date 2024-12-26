@@ -242,7 +242,7 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
         }
     }
 
-    0//TODO: use Option<>
+    0 //TODO: use Option<>
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
@@ -274,7 +274,7 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
         }
     }
 
-    (0, String::new(), String::new())//TODO: use Option<>
+    (0, String::new(), String::new()) //TODO: use Option<>
 }
 
 pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
@@ -724,8 +724,10 @@ fn VirtualAlloc(emu: &mut emu::Emu) {
         );
         emu.regs.rax = 0
     } else {
-        let base = emu.maps.alloc(size).unwrap_or_else(|| panic!("kernel32!VirtualAlloc out of memory size:{}",
-            size));
+        let base = emu
+            .maps
+            .alloc(size)
+            .unwrap_or_else(|| panic!("kernel32!VirtualAlloc out of memory size:{}", size));
 
         log::info!(
             "{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}",

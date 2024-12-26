@@ -312,7 +312,6 @@ impl Flags {
 
     pub fn check_overflow_sub_byte(&mut self, a: u64, b: u64) -> i8 {
         let cf = false;
-        
 
         let rs: i16 = if cf {
             (a as i8) as i16 - (b as i8) as i16 - 1
@@ -331,7 +330,6 @@ impl Flags {
 
     pub fn check_overflow_sub_word(&mut self, a: u64, b: u64) -> i16 {
         let cf = false;
-        
 
         let rs: i32 = if cf {
             (a as i16) as i32 - (b as i16) as i32 - 1
@@ -353,7 +351,6 @@ impl Flags {
 
     pub fn check_overflow_sub_qword(&mut self, a: u64, b: u64) -> i64 {
         let cf = false;
-        
 
         let rs: i128 = if cf {
             (a as i64) as i128 - (b as i64) as i128 - 1
@@ -367,7 +364,6 @@ impl Flags {
 
     pub fn check_overflow_sub_dword(&mut self, a: u64, b: u64) -> i32 {
         let cf = false;
-        
 
         let rs: i64 = if cf {
             (a as i32) as i64 - (b as i32) as i64 - 1
@@ -866,7 +862,9 @@ impl Flags {
         self.calc_flags(res, 64);
         if self.f_cf && get_bit!(s64, 63) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s64, 63) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s64, 63) == 0)
+        };
         res
     }
 
@@ -881,7 +879,9 @@ impl Flags {
         self.calc_flags(res, 32);
         if self.f_cf && get_bit!(s32, 31) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s32, 31) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s32, 31) == 0)
+        };
         res
     }
 
@@ -896,7 +896,9 @@ impl Flags {
         self.calc_flags(res, 16);
         if self.f_cf && get_bit!(s16, 15) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s16, 15) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s16, 15) == 0)
+        };
         res
     }
 
@@ -911,7 +913,9 @@ impl Flags {
         self.calc_flags(res, 8);
         if self.f_cf && get_bit!(s8, 7) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s8, 7) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s8, 7) == 0)
+        };
         res
     }
 
@@ -1124,7 +1128,9 @@ impl Flags {
         self.calc_flags(res, 64);
         if self.f_cf && get_bit!(s64, 63) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s64, 63) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s64, 63) == 0)
+        };
         res
     }
 
@@ -1139,7 +1145,9 @@ impl Flags {
         self.calc_flags(res, 32);
         if self.f_cf && get_bit!(s32, 31) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s32, 31) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s32, 31) == 0)
+        };
         res
     }
 
@@ -1154,7 +1162,9 @@ impl Flags {
         self.calc_flags(res, 16);
         if self.f_cf && get_bit!(s16, 15) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s16, 15) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s16, 15) == 0)
+        };
         res
     }
 
@@ -1169,7 +1179,9 @@ impl Flags {
         self.calc_flags(res, 8);
         if self.f_cf && get_bit!(s8, 7) == 1 {
             self.f_of = false;
-        } else { self.f_of = !(!self.f_cf && get_bit!(s8, 7) == 0) };
+        } else {
+            self.f_of = !(!self.f_cf && get_bit!(s8, 7) == 0)
+        };
         res
     }
 

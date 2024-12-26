@@ -385,7 +385,7 @@ impl Maps {
     pub fn sizeof_wide(&self, unicode_str_ptr: u64) -> usize {
         let mut zero = false;
         let mut counter: usize = 0;
-    
+
         for i in 0..usize::MAX {
             let b = self
                 .read_byte(unicode_str_ptr + i as u64)
@@ -400,7 +400,7 @@ impl Maps {
             }
             counter += 1;
         }
-    
+
         0
     }
 
@@ -451,12 +451,8 @@ impl Maps {
         log::info!("--- maps ---");
         for mem in self.maps.iter() {
             let k = mem.get_name();
-            
-            let n = if k.len() < 20 {
-                20 - k.len()
-            } else {
-                1
-            };
+
+            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
             let mut spcs: String = String::new();
             for i in 0..n {
                 spcs.push(' ');
@@ -480,12 +476,8 @@ impl Maps {
         log::info!("--- maps ---");
         for mem in self.maps.iter() {
             let k = mem.get_name();
-            
-            let n = if k.len() < 20 {
-                20 - k.len()
-            } else {
-                1
-            };
+
+            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
             let mut spcs: String = String::new();
             for i in 0..n {
                 spcs.push(' ');

@@ -23,7 +23,6 @@ lazy_static! {
 }
 
 pub fn handler_create(uri: &str) -> u64 {
-    
     let mut handles = HANDLERS.lock().unwrap();
 
     let new_id: u64 = if handles.len() == 0 {
@@ -81,7 +80,6 @@ pub fn handler_get_uri(hndl: u64) -> String {
 }
 
 pub fn socket_create() -> u64 {
-    
     let mut sockets = SOCKETS.lock().unwrap();
 
     let new_socket: u64 = if sockets.len() == 0 {

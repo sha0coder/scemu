@@ -135,7 +135,10 @@ impl Elf64 {
 
     pub fn is_loadable(&self, addr: u64) -> bool {
         for phdr in &self.elf_phdr {
-            if phdr.p_type == constants::PT_LOAD && phdr.p_vaddr > 0 && (phdr.p_vaddr <= addr || addr <= (phdr.p_vaddr + phdr.p_memsz)) {
+            if phdr.p_type == constants::PT_LOAD
+                && phdr.p_vaddr > 0
+                && (phdr.p_vaddr <= addr || addr <= (phdr.p_vaddr + phdr.p_memsz))
+            {
                 //log::info!("vaddr 0x{:x}", phdr.p_vaddr);
                 return true;
             }
@@ -272,7 +275,9 @@ impl Elf64 {
                 for _ in 0..(shdr.sh_size / Elf64Sym::size() as u64) {
                     let mut sym = Elf64Sym::parse(&self.bin, off);
 
-                    if (sym.get_st_type() == STT_FUNC || sym.get_st_type() == STT_OBJECT) && sym.st_value > 0 {
+                    if (sym.get_st_type() == STT_FUNC || sym.get_st_type() == STT_OBJECT)
+                        && sym.st_value > 0
+                    {
                         let off2 = (self.elf_dynstr_off + sym.st_name as u64) as usize;
                         let end = self.bin[off2..]
                             .iter()
@@ -293,8 +298,6 @@ impl Elf64 {
 
                 // map if its vaddr is on a PT_LOAD program
                 if self.is_loadable(shdr.sh_addr) {
-                    
-
                     let map_name: String = if sname == ".text" && !is_lib {
                         //maps.exists_mapname("code") {
                         "code".to_string()

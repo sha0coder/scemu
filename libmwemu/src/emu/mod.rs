@@ -129,7 +129,6 @@ pub struct Emu {
     pub fls: Vec<u32>,
     pub out: String,
     pub instruction: Option<Instruction>,
-    pub instruction_bytes: Vec<u8>,
     pub memory_operations: Vec<MemoryOperation>,
     main_thread_cont: u64,
     gateway_return: u64,
@@ -210,7 +209,6 @@ impl Emu {
             pe64: None,
             pe32: None,
             instruction: None,
-            instruction_bytes: vec![],
             memory_operations: vec![],
             rep: None,
         }
@@ -310,7 +308,6 @@ impl Emu {
     }
 
     pub fn api_addr_to_name(&mut self, addr: u64) -> String {
-        
         let name: String = if self.cfg.is_64bits {
             winapi64::kernel32::resolve_api_addr_to_name(self, addr)
         } else {
@@ -761,8 +758,6 @@ impl Emu {
         for i in 0..pe32.num_of_sections() {
             let ptr = pe32.get_section_ptr(i);
             let sect = pe32.get_section(i);
-            
-            
 
             let sz: u64 = if sect.virtual_size > sect.size_of_raw_data {
                 sect.virtual_size as u64
@@ -905,8 +900,6 @@ impl Emu {
         for i in 0..pe64.num_of_sections() {
             let ptr = pe64.get_section_ptr(i);
             let sect = pe64.get_section(i);
-            
-            
 
             let sz: u64 = if sect.virtual_size > sect.size_of_raw_data {
                 sect.virtual_size as u64
@@ -1554,7 +1547,7 @@ impl Emu {
             let reg = spl[0];
             let sign = spl[1];
             //log::info!("disp --> {}  operand:{}", spl[2], operand);
-            
+
             let disp: u64 = if self.regs.is_reg(spl[2]) {
                 self.regs.get_by_name(spl[2])
             } else {
@@ -1768,8 +1761,6 @@ impl Emu {
             log::debug!("\tmem_trace: pos = {} rip = {:x} op = write bits = {} address = 0x{:x} value = 0x{:x} name = '{}'", self.pos, self.regs.rip, 32, addr, value, name);
         }
 
-        
-
         match bits {
             64 => self.maps.write_qword(addr, value),
             32 => self.maps.write_dword(addr, (value & 0xffffffff) as u32),
@@ -1964,7 +1955,7 @@ impl Emu {
 
     fn rol(&mut self, val: u64, rot2: u64, bits: u32) -> u64 {
         let mut ret: u64 = val;
-        
+
         let rot = if bits == 64 {
             rot2 & 0b111111
         } else {
@@ -1994,7 +1985,7 @@ impl Emu {
 
     fn rcl(&self, val: u64, rot2: u64, bits: u32) -> u64 {
         let mut ret: u128 = val as u128;
-        
+
         let rot = if bits == 64 {
             rot2 & 0b111111
         } else {
@@ -2028,7 +2019,7 @@ impl Emu {
 
     fn ror(&mut self, val: u64, rot2: u64, bits: u32) -> u64 {
         let mut ret: u64 = val;
-        
+
         let rot = if bits == 64 {
             rot2 & 0b111111
         } else {
@@ -2056,7 +2047,7 @@ impl Emu {
 
     fn rcr(&mut self, val: u64, rot2: u64, bits: u32) -> u64 {
         let mut ret: u128 = val as u128;
-        
+
         let rot = if bits == 64 {
             rot2 & 0b111111
         } else {
@@ -3212,7 +3203,6 @@ impl Emu {
                             continue;
                         }
                     };
-                    
 
                     let name: String = if self.cfg.is_64bits {
                         winapi64::kernel32::resolve_api_addr_to_name(self, addr)
@@ -3422,12 +3412,8 @@ impl Emu {
         let map_name = self.maps.get_addr_name(addr).expect("address not mapped");
         let code = self.maps.get_mem(map_name.as_str());
         let block = code.read_from(addr);
-        
-        let bits: u32 = if self.cfg.is_64bits {
-            64
-        } else {
-            32
-        };
+
+        let bits: u32 = if self.cfg.is_64bits { 64 } else { 32 };
         let mut decoder = Decoder::with_ip(bits, block, addr, DecoderOptions::NONE);
         let mut formatter = IntelFormatter::new();
         formatter.options_mut().set_digit_separator("");
@@ -3665,7 +3651,9 @@ impl Emu {
                 if derref {
                     let sz = self.get_operand_sz(ins, noperand);
 
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read { hook_fn(self, self.regs.rip, mem_addr, sz) }
+                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                        hook_fn(self, self.regs.rip, mem_addr, sz)
+                    }
 
                     value = match sz {
                         64 => match self.maps.read_qword(mem_addr) {
@@ -3964,9 +3952,9 @@ impl Emu {
             OpKind::Immediate8to16 => ins.immediate8to16() as u16 as u128,
 
             OpKind::Memory => {
-                let mem_addr = match ins.virtual_address(noperand, 0, |reg, idx, _sz| {
-                    Some(self.regs.get_reg(reg))
-                }) {
+                let mem_addr = match ins
+                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs.get_reg(reg)))
+                {
                     Some(addr) => addr,
                     None => {
                         log::info!("/!\\ xmm exception reading operand");
@@ -3976,7 +3964,9 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read { hook_fn(self, self.regs.rip, mem_addr, 128) }
+                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                        hook_fn(self, self.regs.rip, mem_addr, 128)
+                    }
 
                     let value: u128 = match self.maps.read_128bits_le(mem_addr) {
                         Some(v) => v,
@@ -4002,9 +3992,9 @@ impl Emu {
         match ins.op_kind(noperand) {
             OpKind::Register => self.regs.set_xmm_reg(ins.op_register(noperand), value),
             OpKind::Memory => {
-                let mem_addr = match ins.virtual_address(noperand, 0, |reg, idx, _sz| {
-                    Some(self.regs.get_reg(reg))
-                }) {
+                let mem_addr = match ins
+                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs.get_reg(reg)))
+                {
                     Some(addr) => addr,
                     None => {
                         log::info!("/!\\ exception setting xmm operand.");
@@ -4047,9 +4037,9 @@ impl Emu {
             OpKind::Immediate8to16 => regs64::U256::from(ins.immediate8to16() as u16 as u64),
 
             OpKind::Memory => {
-                let mem_addr = match ins.virtual_address(noperand, 0, |reg, idx, _sz| {
-                    Some(self.regs.get_reg(reg))
-                }) {
+                let mem_addr = match ins
+                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs.get_reg(reg)))
+                {
                     Some(addr) => addr,
                     None => {
                         log::info!("/!\\ xmm exception reading operand");
@@ -4059,7 +4049,9 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read { hook_fn(self, self.regs.rip, mem_addr, 256) }
+                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                        hook_fn(self, self.regs.rip, mem_addr, 256)
+                    }
 
                     let bytes = self.maps.read_bytes(mem_addr, 32);
                     let value = regs64::U256::from_little_endian(bytes);
@@ -4085,9 +4077,9 @@ impl Emu {
         match ins.op_kind(noperand) {
             OpKind::Register => self.regs.set_ymm_reg(ins.op_register(noperand), value),
             OpKind::Memory => {
-                let mem_addr = match ins.virtual_address(noperand, 0, |reg, idx, _sz| {
-                    Some(self.regs.get_reg(reg))
-                }) {
+                let mem_addr = match ins
+                    .virtual_address(noperand, 0, |reg, idx, _sz| Some(self.regs.get_reg(reg)))
+                {
                     Some(addr) => addr,
                     None => {
                         log::info!("/!\\ exception setting xmm operand.");
@@ -4333,7 +4325,7 @@ impl Emu {
         let index = self.pos - 1;
 
         let instruction = self.instruction.unwrap();
-        let instruction_bytes = &self.instruction_bytes;
+        let instruction_bytes: Vec<u8> = vec![]; // TODO
 
         let mut comments = String::new();
 
@@ -4573,7 +4565,6 @@ impl Emu {
         let sz = ins.len();
         let addr = ins.ip();
         let position = decoder.position();
-        let instruction_bytes = block[position - sz..position].to_vec();
 
         // clear
         self.out.clear();
@@ -4582,7 +4573,6 @@ impl Emu {
         // format
         formatter.format(&ins, &mut self.out);
         self.instruction = Some(ins);
-        self.instruction_bytes = instruction_bytes;
 
         // emulate
         let result_ok = self.emulate_instruction(&ins, sz, true);
@@ -4656,8 +4646,6 @@ impl Emu {
                 let mut ins: Instruction = Instruction::default();
                 let mut sz: usize = 0;
                 let mut addr: u64 = 0;
-                //let mut position:usize = 0;
-                //let mut instruction_bytes:Vec<u8> = Vec::new();
 
                 self.rep = None;
                 while decoder.can_decode() {
@@ -4665,8 +4653,6 @@ impl Emu {
                         ins = decoder.decode();
                         sz = ins.len();
                         addr = ins.ip();
-                        //position = decoder.position();
-                        //instruction_bytes = block[position-sz..position].to_vec();
 
                         if end_addr.is_some() && Some(addr) == end_addr {
                             return Ok(self.regs.rip);
@@ -4676,7 +4662,6 @@ impl Emu {
                     self.out.clear();
                     formatter.format(&ins, &mut self.out);
                     self.instruction = Some(ins);
-                    //self.instruction_bytes = instruction_bytes;
                     self.memory_operations.clear();
                     self.pos += 1;
 
@@ -4757,7 +4742,9 @@ impl Emu {
                     //let mut info_factory = InstructionInfoFactory::new();
                     //let info = info_factory.info(&ins);
 
-                    if let Some(hook_fn) = self.hook.hook_on_pre_instruction { hook_fn(self, self.regs.rip, &ins, sz) }
+                    if let Some(hook_fn) = self.hook.hook_on_pre_instruction {
+                        hook_fn(self, self.regs.rip, &ins, sz)
+                    }
 
                     if ins.has_rep_prefix() || ins.has_repe_prefix() || ins.has_repne_prefix() {
                         if self.rep.is_none() {
@@ -4831,7 +4818,9 @@ impl Emu {
                         }
                     }
 
-                    if let Some(hook_fn) = self.hook.hook_on_post_instruction { hook_fn(self, self.regs.rip, &ins, sz, emulation_ok) }
+                    if let Some(hook_fn) = self.hook.hook_on_post_instruction {
+                        hook_fn(self, self.regs.rip, &ins, sz, emulation_ok)
+                    }
 
                     if self.cfg.inspect {
                         self.trace_memory_inspection();
@@ -4946,8 +4935,6 @@ impl Emu {
             }
 
             Mnemonic::Pop => {
-                
-
                 let value: u64 = if self.cfg.is_64bits {
                     match self.stack_pop64(true) {
                         Some(v) => v,
@@ -5048,8 +5035,6 @@ impl Emu {
             }
 
             Mnemonic::Ret => {
-                
-
                 let ret_addr: u64 = if self.cfg.is_64bits {
                     match self.stack_pop64(false) {
                         Some(v) => v,
@@ -5144,7 +5129,6 @@ impl Emu {
 
                 let mut low: u64 = self.regs.get_al();
                 let high: u64 = self.regs.get_ah();
-                
 
                 let imm: u64 = if ins.op_count() == 0 {
                     10
@@ -5334,15 +5318,12 @@ impl Emu {
                     None => return false,
                 };
 
-                
                 let sz = self.get_operand_sz(ins, 1);
                 let res: u64 = match sz {
                     64 => self.flags.sub64(value0, value1.wrapping_add(cf)),
-                    32 => {
-                        self
-                            .flags
-                            .sub32(value0, (value1 & 0xffffffff).wrapping_add(cf))
-                    }
+                    32 => self
+                        .flags
+                        .sub32(value0, (value1 & 0xffffffff).wrapping_add(cf)),
                     16 => self.flags.sub16(value0, (value1 & 0xffff).wrapping_add(cf)),
                     8 => self.flags.sub8(value0, (value1 & 0xff).wrapping_add(cf)),
                     _ => panic!("weird size"),
@@ -5368,7 +5349,6 @@ impl Emu {
                     None => return false,
                 };
 
-                
                 let res: u64 = match self.get_operand_sz(ins, 0) {
                     64 => self.flags.sub64(value0, value1),
                     32 => self.flags.sub32(value0, value1),
@@ -5739,7 +5719,9 @@ impl Emu {
                         _ => panic!("weird size"),
                     };
 
-                    if self.cfg.test_mode && result != inline::sar2p(value0, value1, sz, self.flags.f_cf) {
+                    if self.cfg.test_mode
+                        && result != inline::sar2p(value0, value1, sz, self.flags.f_cf)
+                    {
                         panic!(
                             "0x{:x} should be 0x{:x}",
                             result,
@@ -5932,7 +5914,6 @@ impl Emu {
                         )
                     }
 
-                    
                     let masked_counter = if sz == 64 {
                         value1 & 0b111111
                     } else {
@@ -5994,7 +5975,6 @@ impl Emu {
                     result = self.rcr(value0, value1, sz);
                     self.flags.rcr_of_and_cf(value0, value1, sz);
 
-                    
                     let masked_counter = if sz == 64 {
                         value1 & 0b111111
                     } else {
@@ -6049,12 +6029,7 @@ impl Emu {
                         None => return false,
                     };
 
-                    
-                    let pre_cf = if self.flags.f_cf {
-                        1
-                    } else {
-                        0
-                    };
+                    let pre_cf = if self.flags.f_cf { 1 } else { 0 };
 
                     result = self.rol(value0, value1, sz);
 
@@ -6066,7 +6041,6 @@ impl Emu {
                         );
                     }
 
-                    
                     let masked_counter = if sz == 64 {
                         value1 & 0b111111
                     } else {
@@ -6130,7 +6104,6 @@ impl Emu {
 
                     result = self.rcl(value0, value1, sz);
 
-                    
                     let masked_counter = if sz == 64 {
                         value1 & 0b111111
                     } else {
@@ -6935,8 +6908,6 @@ impl Emu {
                         || (sz0 == 64 && sz1 == 16)
                         || (sz0 == 64 && sz1 == 8)
                 );
-
-                
 
                 let result: u64 = value1;
 
@@ -8007,9 +7978,6 @@ impl Emu {
             }
 
             Mnemonic::Cmpsq => {
-                
-                
-
                 assert!(self.cfg.is_64bits);
 
                 if self.rep.is_some() {
@@ -11374,7 +11342,6 @@ impl Emu {
                             }
                         };
 
-                        
                         if value1 > 15 {
                             value1 = 16;
                         }
@@ -11404,7 +11371,6 @@ impl Emu {
                             }
                         };
 
-                        
                         if value2 > 15 {
                             value2 = 16;
                         }
@@ -11424,8 +11390,7 @@ impl Emu {
                 self.show_instruction(&self.colors.green, ins);
 
                 let value0 = self.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-                let shift_amount =
-                    self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
+                let shift_amount = self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
 
                 let mut result = 0u128;
 
@@ -11446,8 +11411,7 @@ impl Emu {
                 self.show_instruction(&self.colors.green, ins);
 
                 let value0 = self.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-                let shift_amount =
-                    self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
+                let shift_amount = self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
                 let byte_shift = (shift_amount % 16) * 8; // Desplazamiento en bits
 
                 let result = if byte_shift < 128 {
@@ -11463,8 +11427,7 @@ impl Emu {
                 self.show_instruction(&self.colors.green, ins);
 
                 let value0 = self.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-                let shift_amount =
-                    self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
+                let shift_amount = self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
 
                 let mut result = 0u128;
 
@@ -11980,8 +11943,6 @@ impl Emu {
             Mnemonic::Vpbroadcastb => {
                 self.show_instruction(&self.colors.green, ins);
 
-                
-
                 let byte: u8 = match self.get_operand_sz(ins, 1) {
                     128 => {
                         let source = match self.get_operand_xmm_value_128(ins, 1, true) {
@@ -12326,8 +12287,7 @@ impl Emu {
                 self.show_instruction(&self.colors.green, ins);
 
                 let value = self.get_operand_xmm_value_128(ins, 0, true).unwrap_or(0);
-                let shift_amount =
-                    self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
+                let shift_amount = self.get_operand_xmm_value_128(ins, 1, true).unwrap_or(0) as u32;
                 let mut result = 0u128;
 
                 for i in 0..4 {
@@ -13380,8 +13340,6 @@ impl Emu {
                     None => return false,
                 };
 
-                
-
                 let frameTmp = if self.cfg.is_64bits {
                     self.stack_push64(self.regs.rbp);
                     self.regs.rsp
@@ -13465,6 +13423,6 @@ impl Emu {
             }
         }
 
-        true// result_ok
+        true // result_ok
     }
 }

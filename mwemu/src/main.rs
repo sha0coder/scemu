@@ -185,9 +185,10 @@ fn main() {
     if matches.is_present("console") {
         emu.cfg.console = true;
         emu.cfg.console_num = matches
-                .value_of("console")
-                .expect("select the number of moment to inspect").parse::<u64>()
-        .expect("select a valid number to spawn console");
+            .value_of("console")
+            .expect("select the number of moment to inspect")
+            .parse::<u64>()
+            .expect("select a valid number to spawn console");
         emu.spawn_console_at(emu.cfg.console_num);
     }
     emu.cfg.loops = matches.is_present("loops");

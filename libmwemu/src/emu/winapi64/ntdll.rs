@@ -74,8 +74,6 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         .maps
         .read_qword(size_ptr)
         .expect("bad NtAllocateVirtualMemory size parameter");
-    
-    
 
     let do_alloc: bool = if addr == 0 {
         true
@@ -322,7 +320,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs.rcx;
     let flags = emu.regs.rdx;
     let mut size = emu.regs.r8;
-    
+
     let map_name = format!("valloc_{:x}_{}", handle, size);
 
     /*

@@ -340,7 +340,7 @@ impl PE64 {
             sect_hdr: sect,
             delay_load_dir,
             image_import_descriptor, //import_dir: importd,
-                                                              //export_dir: exportd,
+                                     //export_dir: exportd,
         }
     }
 
@@ -430,7 +430,7 @@ impl PE64 {
     }
 
     pub fn get_tls_callbacks(&self, vaddr: u32) -> Vec<u64> {
-         // = PE32::vaddr_to_off(&self.sect_hdr, vaddr) as usize;
+        // = PE32::vaddr_to_off(&self.sect_hdr, vaddr) as usize;
         let mut callbacks: Vec<u64> = Vec::new();
         //if tls_off == 0 {
 

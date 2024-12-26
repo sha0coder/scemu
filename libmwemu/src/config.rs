@@ -1,8 +1,8 @@
 pub struct Config {
-    pub filename: String,       // filename with full path included
-    pub trace_mem: bool,        // show memory operations in every step.
-    pub trace_regs: bool,       // show all the regs in every step.
-    pub trace_reg: bool,        // show value and content of a reg in every step.
+    pub filename: String, // filename with full path included
+    pub trace_mem: bool,  // show memory operations in every step.
+    pub trace_regs: bool, // show all the regs in every step.
+    pub trace_reg: bool,  // show value and content of a reg in every step.
     pub trace_file: Option<std::fs::File>,
     pub trace_start: u64,
     pub reg_names: Vec<String>, // which reg to trace.
