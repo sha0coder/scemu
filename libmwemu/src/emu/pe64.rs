@@ -523,7 +523,7 @@ impl PE64 {
             "IAT binding started image_import_descriptor.len() = {} ...",
             self.image_import_descriptor.len()
         );
-        let mut flipflop = false;
+        let mut flipflop;
 
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
@@ -538,7 +538,6 @@ impl PE64 {
             }
 
             // Walking function names.
-            println!("walking function names");
             let mut off_name =
                 PE32::vaddr_to_off(&self.sect_hdr, iim.original_first_thunk) as usize;
 
@@ -546,13 +545,10 @@ impl PE64 {
             let mut off_addr = PE32::vaddr_to_off(&self.sect_hdr, iim.first_thunk) as usize;
             //off_addr += 8;
 
-            println!("off_name: {}", off_name);
-            println!("off_addr: {}", off_addr);
             flipflop = false;
 
             loop {
                 if self.raw.len() <= off_name + 4 || self.raw.len() <= off_addr + 8 {
-                    println!("breaking1");
                     break;
                 }
 
@@ -564,18 +560,15 @@ impl PE64 {
                     off_name += pe32::HintNameItem::size();
                     //off_addr += 8;
                     if flipflop {
-                        flipflop = false;
                         break;
                     }
                     flipflop = true;
-                    println!("continue2");
                     continue;
                 }
                 flipflop = false;
                 let func_name = PE32::read_string(&self.raw, off2 + 2);
                 let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
-                    println!("breaking2");
                     break;
                 }
 
@@ -584,10 +577,9 @@ impl PE64 {
                 }*/
 
                 let fake_addr = read_u64_le!(self.raw, off_addr);
-                println!(
-                    "writing real_addr: 0x{:x} {} 0x{:x} -> 0x{:x} ",
-                    off_addr, func_name, fake_addr, real_addr
-                );
+
+                //println!("writing real_addr: 0x{:x} {} 0x{:x} -> 0x{:x} ", off_addr, func_name, fake_addr, real_addr);
+
                 write_u64_le!(self.raw, off_addr, real_addr);
 
                 off_name += pe32::HintNameItem::size();
