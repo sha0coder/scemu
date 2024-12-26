@@ -32,4 +32,5 @@ cargo run --target x86_64-apple-darwin \
     --stack_address 0x98EB5DD000 \
     --rflags 0x246 \
     --mxcsr 0x1FC00001FA0 \
-    --filename ~/Desktop/enigma/surprise.dll
+    --filename ~/Downloads/enigma/haspemul.dll
+    #--filename ~/Desktop/enigma/surprise.dll
