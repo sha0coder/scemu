@@ -320,7 +320,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs.rcx;
     let flags = emu.regs.rdx;
     let mut size = emu.regs.r8;
-    let alloc_addr;
+    let alloc_addr: u64;
 
     /*
     if emu.maps.exists_mapname(&map_name) {
