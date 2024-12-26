@@ -1,0 +1,13 @@
+target/
+.gitconfig
+shellcodes32/
+shellcodes64/
+.DS_Store
+x
+*.swp
+*.idb
+test/
+scripts/mwemu-output.txt
+scripts/mwemu-errors.json
+scripts/node_modules/
+Cargo.lock

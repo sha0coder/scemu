@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-X64DBG_TRACE_PATH = '/Users/brandon/Downloads/export-20241222-171939.csv' # x64dbg
+X64DBG_TRACE_PATH = '/Users/brandon/Downloads/export-20241226-135447.csv' # x64dbg
 
 columns = "Index,Address,Bytes,Disassembly,Registers,Memory,Comments"
 
@@ -46,8 +46,15 @@ with open(X64DBG_TRACE_PATH, 'r') as f:
     # calculate base address from entry address
     base_address = entry_address - 0x1035FF0
 
+    # Calculate stack_address based on RSP
+    # Convert RSP hex string to int first
+    rsp_value = int(reg_dict['rsp'], 16)
+    # Round down to nearest page boundary (typically 4KB/0x1000)
+    stack_address = rsp_value & ~0xFFF  # Clear the lowest 12 bits
+
     # Build the command line arguments
     args = [
+        f"--stack_address 0x{stack_address:X}",
         f"--base 0x{base_address:X}",
         f"--entry 0x{entry_address:X}",
         f"--rax 0x{reg_dict['rax']}",

@@ -3,7 +3,7 @@
 import csv
 
 MWEMU_TRACE_PATH = '/tmp/output.csv' # mwemu
-X64DBG_TRACE_PATH = '/Users/brandon/Downloads/export-20241222-171939.csv' # x64dbg
+X64DBG_TRACE_PATH = '/Users/brandon/Downloads/export-20241226-135447.csv' # x64dbg
 EXPECTED_HEADERS = ["Index", "Address", "Bytes", "Disassembly", "Registers", "Memory", "Comments"]
 EXPECTED_BASE = 0x180000000
 EXPECTED_ENTRY = 0x181035FF0
@@ -86,18 +86,10 @@ def compare_traces():
                 print(f"\nDifference found at row {row_num}:")
                 print(f"\nPrevious {max_history} lines from mwemu trace:")
                 for prev_idx, prev_addr, prev_row in mwemu_prev_lines:
-                    print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
-                    print(f"Full row: {prev_row}")
+                    print(f"{prev_row}")
                 print(f"\nPrevious {max_history} lines from x64dbg trace:")
                 for prev_idx, prev_addr, prev_row in x64dbg_prev_lines:
-                    print(f"Index=0x{prev_idx:x}, RVA=0x{prev_addr:x}")
-                    print(f"Full row: {prev_row}")
-                print("\nDifferent lines:")
-                print(f"mwemu trace: Index=0x{mwemu_idx:x}, RVA=0x{mwemu_addr:x}")
-                print(f"x64dbg trace: Index=0x{x64dbg_idx:x}, RVA=0x{x64dbg_addr:x}")
-                print("\nRaw values:")
-                print(f"mwemu trace: {mwemu_row}")
-                print(f"x64dbg trace: {x64dbg_row}")
+                    print(f"{prev_row}")
                 return
             
             lines_processed += 1
