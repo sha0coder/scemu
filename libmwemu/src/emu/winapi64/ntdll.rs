@@ -320,8 +320,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs.rcx;
     let flags = emu.regs.rdx;
     let mut size = emu.regs.r8;
-
-    let map_name = format!("valloc_{:x}_{}", handle, size);
+    let alloc_addr;
 
     /*
     if emu.maps.exists_mapname(&map_name) {
@@ -330,7 +329,6 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
         if size as usize > map.size() {
             map.set_size(size+1024);
         }
-
     } else {
     */
 
@@ -341,9 +339,8 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
         Some(a) => a,
         None => panic!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap"),
     };
-    emu.maps
-        .create_map(&map_name, alloc_addr, size)
-        .expect("ntdll!RtlAllocateHeap cannot create map");
+    let map_name = format!("valloc_{:x}", alloc_addr);
+    emu.maps.create_map(&map_name, alloc_addr, size).expect("ntdll!RtlAllocateHeap cannot create map");
     //}
 
     log::info!(
