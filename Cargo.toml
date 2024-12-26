@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    #"pymwemu",
+    "pymwemu",
     "libmwemu",
     "mwemu"
 ]
