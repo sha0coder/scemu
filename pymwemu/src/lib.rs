@@ -774,7 +774,6 @@ impl Emu {
     }
 
     /// breakpoints
-
     /// show breakpoints
     pub fn bp_show(&self) {
         self.emu.bp.show();
