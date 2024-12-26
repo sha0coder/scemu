@@ -11,7 +11,7 @@ https://www.youtube.com/watch?v=yJ3Bgv3maq0
 
 Python apps https://pypi.org/search/?q=pyscemu
 
-Rust apps https://crates.io/crates/libscemu
+Rust apps https://crates.io/crates/libmwemu
 
 ## Features
 - 📦 rust safety, good for malware. 
