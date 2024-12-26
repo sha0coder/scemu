@@ -7,7 +7,3 @@ x
 *.swp
 *.idb
 test/
-scripts/mwemu-output.txt
-scripts/mwemu-errors.json
-scripts/node_modules/
-Cargo.lock
