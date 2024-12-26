@@ -84,6 +84,7 @@ fn main() {
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(clap_arg!("trace", "T", "trace", "output trace to specified file", "TRACE_FILENAME"))
+        .arg(clap_arg!("trace_start", "t", "trace_start", "start trace at specified position", "TRACE_START"))
         .arg(clap_arg!("rax", "", "rax", "set rax register", "RAX"))
         .arg(clap_arg!("rbx", "", "rbx", "set rbx register", "RBX"))
         .arg(clap_arg!("rcx", "", "rcx", "set rcx register", "RCX"))
@@ -168,6 +169,16 @@ fn main() {
         )
         .expect("Failed to write trace file header");
         emu.cfg.trace_file = Some(trace_file);
+    }
+    if matches.is_present("trace_start") {
+        emu.cfg.trace_start = u64::from_str_radix(
+            matches
+                .value_of("trace_start")
+                .expect("select the trace start address")
+                .trim_start_matches("0x"),
+            16,
+        )
+        .expect("invalid address");
     }
 
     // console

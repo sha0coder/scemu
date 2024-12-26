@@ -4740,7 +4740,7 @@ impl Emu {
                         }
                     }
 
-                    if self.cfg.trace_file.is_some() {
+                    if self.cfg.trace_file.is_some() && self.pos >= self.cfg.trace_start {
                         self.capture_pre_op();
                     }
 
@@ -4837,7 +4837,7 @@ impl Emu {
                         self.trace_memory_inspection();
                     }
 
-                    if self.cfg.trace_file.is_some() {
+                    if self.cfg.trace_file.is_some() && self.pos >= self.cfg.trace_start {
                         self.capture_post_op();
                         self.write_to_trace_file();
                     }
