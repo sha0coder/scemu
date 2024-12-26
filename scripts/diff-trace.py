@@ -38,6 +38,10 @@ def compare_traces():
         # Get first row to calculate offsets
         scemu_row = next(scemu_reader)
         x64dbg_row = next(x64dbg_reader)
+
+        # add Source column to traces
+        scemu_row['Source'] = 'scemu'
+        x64dbg_row['Source'] = 'x64dbg'
         
         # Calculate offsets based on first address
         scemu_offset = calculate_offset(parse_hex(scemu_row['Address'].split()[0]))
@@ -64,6 +68,10 @@ def compare_traces():
             x64dbg_idx = parse_hex(x64dbg_row['Index'])
             scemu_addr = parse_hex(scemu_row['Address'].split()[0]) - scemu_offset
             x64dbg_addr = parse_hex(x64dbg_row['Address'].split()[0]) - x64dbg_offset
+
+            # add Source column to traces
+            scemu_row['Source'] = 'scemu'
+            x64dbg_row['Source'] = 'x64dbg'
 
             # Store current line in history
             scemu_prev_lines.append((scemu_idx, scemu_addr, scemu_row))
