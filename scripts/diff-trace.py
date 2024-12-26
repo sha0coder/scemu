@@ -28,13 +28,15 @@ def compare_traces():
     print(f"Opening files:")
     print(f"scemu trace: {SCEMU_TRACE_PATH}")
     print(f"x64dbg trace: {X64DBG_TRACE_PATH}")
+
+    lines_processed = 0
     
     with open(SCEMU_TRACE_PATH, 'r') as f_scemu, open(X64DBG_TRACE_PATH, 'r') as f_x64dbg:
         print("Files opened successfully")
         
         scemu_reader = csv.DictReader(f_scemu)
         x64dbg_reader = csv.DictReader(f_x64dbg)
-        
+
         # Get first row to calculate offsets
         scemu_row = next(scemu_reader)
         x64dbg_row = next(x64dbg_reader)
@@ -97,6 +99,10 @@ def compare_traces():
                 print(f"scemu trace: {scemu_row}")
                 print(f"x64dbg trace: {x64dbg_row}")
                 return
+            
+            lines_processed += 1
+            if lines_processed % 100000 == 0:
+                print(f"Processed {lines_processed} lines")
 
 if __name__ == '__main__':
     try:
