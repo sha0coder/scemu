@@ -95,14 +95,22 @@ fn RegQueryValueExA(emu: &mut emu::Emu) {
         .read_qword(emu.regs.rsp + 8)
         .expect("error reading api param");
 
-    let value = emu.maps.read_string(value_ptr);
+    let mut value = String::new();
+    if value_ptr > 0 {
+        value = emu.maps.read_string(value_ptr);
+    }
 
     log::info!(
         "{}** {} advapi32!RegQueryValueExA {} {}",
         emu.colors.light_red, emu.pos, value, emu.colors.nc
     );
 
-    emu.maps.write_string(data_out, "some_random_reg_contents");
-    emu.maps.write_qword(datasz_out, 24);
+    if data_out > 0 {
+        emu.maps.write_string(data_out, "some_random_reg_contents");
+    }
+    if datasz_out > 0 {
+        emu.maps.write_qword(datasz_out, 24);
+    }
     emu.regs.rax = constants::ERROR_SUCCESS;
 }
+
