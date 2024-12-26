@@ -11,11 +11,10 @@ repository = "https://github.com/sha0coder/libmwemu"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-iced-x86 = "1.19.0"
+iced-x86 = "1.21.0"
 uint = "0.9.5"
 md5 = "0.7.0"
 lazy_static = "1.4.0"
-#attohttpc = "0.18.0"
 rand = "0.8.4"
 ctrlc = "3.2.2"
 scan_fmt = "0.2.6"
