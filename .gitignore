@@ -7,7 +7,7 @@ x
 *.swp
 *.idb
 test/
-scripts/scemu-output.txt
-scripts/scemu-errors.json
+scripts/mwemu-output.txt
+scripts/mwemu-errors.json
 scripts/node_modules/
 Cargo.lock

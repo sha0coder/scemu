@@ -32,10 +32,10 @@ mod tests {
     fn test() {
         /*
         let mut emu = emu64();
-        emu.set_maps_folder("../scemu/maps64/");
+        emu.set_maps_folder("../mwemu/maps64/");
         emu.cfg.test_mode = false;
         emu.init();
-        emu.load_code("../scemu/shellcodes64/");
+        emu.load_code("../mwemu/shellcodes64/");
         emu.cfg.nocolors = true;
         emu.set_verbose(0);
         emu.cfg.trace_regs = false;

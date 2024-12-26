@@ -1,7 +1,7 @@
-# scemu
+# mwemu
 x86 32/64bits emulator, for securely emulating malware and other stuff. 
 
-![SCEMU Logo](./pics/scemu_logo.png)
+![MWEMU Logo](./pics/mwemu_logo.png)
 
 ## Some Videos
 https://www.youtube.com/@JesusOlmos-wm8ch/videos
@@ -9,7 +9,7 @@ https://www.youtube.com/watch?v=yJ3Bgv3maq0
 
 ## Automation
 
-Python apps https://pypi.org/search/?q=pyscemu
+Python apps https://pypi.org/search/?q=pymwemu
 
 Rust apps https://crates.io/crates/libmwemu
 
@@ -54,7 +54,7 @@ Rust apps https://crates.io/crates/libmwemu
     - xloader
     - danabot
 
-## pyscemu vs malware
+## pymwemu vs malware
 - raccoon, strings decryption
 - vidar, strings decryption
 - xloader, total decrypt, keygen, build url encryption.
@@ -71,11 +71,11 @@ Rust apps https://crates.io/crates/libmwemu
 
 ## Usage
 ```
-SCEMU emulator for malware 0.7.10
+MWEMU emulator for malware 0.7.10
 @sha0coder
 
 USAGE:
-    scemu [FLAGS] [OPTIONS]
+    mwemu [FLAGS] [OPTIONS]
 
 FLAGS:
     -6, --64bits      enable 64bits architecture emulation
@@ -126,7 +126,7 @@ OPTIONS:
 
 ## Some use cases
 
-scemu emulates a simple shellcode detecting the execve() interrupt.
+mwemu emulates a simple shellcode detecting the execve() interrupt.
 ![exploring basic shellcode](pics/basic_shellcode1.png)
 
 We select the line to stop and inspect the memory.

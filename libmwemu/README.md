@@ -1,11 +1,11 @@
 
-# SCEMU the lib
+# MWEMU the lib
 
 
 ## Usage
 
 Download the maps32 or maps64 from:
-https://github.com/sha0coder/scemu
+https://github.com/sha0coder/mwemu
 
 In the example it's on /tmp/ but dont use tmp.
 
@@ -65,7 +65,7 @@ log::info!("return value: 0x{:x}", emu.regs.get_eax());
 emu.maps.dump(param2_out_buff);
 ```
 
-Now it's possible to do hooks on libmwemu but not on pyscemu.
+Now it's possible to do hooks on libmwemu but not on pymwemu.
 
 ```rust
 use libmwemu::emu32;
@@ -116,10 +116,10 @@ fn trace_winapi_call(emu:&mut libmwemu::emu::Emu, ip_addr:u64, api_addr:u64) -> 
 
 fn main() {
     let mut emu = emu32();
-    emu.set_maps_folder("../scemu/maps32/"); // download the maps, ideally from scemu git.
+    emu.set_maps_folder("../mwemu/maps32/"); // download the maps, ideally from mwemu git.
     emu.init();
 
-    emu.load_code("/home/sha0/src/scemu/shellcodes32/mars.exe");
+    emu.load_code("/home/sha0/src/mwemu/shellcodes32/mars.exe");
     emu.hook.on_memory_read(trace_memory_read);
     emu.hook.on_memory_write(trace_memory_write);
     emu.hook.on_interrupt(trace_interrupt);

@@ -1,4 +1,4 @@
-# Using SCEMU programatically
+# Using MWEMU programatically
 
 just modify the main and implement your custom emulation.
 

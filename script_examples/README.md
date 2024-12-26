@@ -1,9 +1,9 @@
 
-# use pyscemu from pip instead of this plugin scripting
+# use pymwemu from pip instead of this plugin scripting
 
 
 ```
-; target/release/scemu -f ~/samples/danabot/2023-02-20/unpacked/stage2_e0000.bin -b 0xe0000 -a 0xe115c -vv -x script_examples/test.scemu 
+; target/release/mwemu -f ~/samples/danabot/2023-02-20/unpacked/stage2_e0000.bin -b 0xe0000 -a 0xe115c -vv -x script_examples/test.mwemu 
 
 
 ; most of addresses and values has to be numbers like 0x123 or registers or the result varible

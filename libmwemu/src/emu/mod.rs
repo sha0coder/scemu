@@ -456,7 +456,7 @@ impl Emu {
         if !self.cfg.is_64bits {
             let mut rdr = ReaderBuilder::new()
                 .from_path(&format!("{}/banzai.csv", self.cfg.maps_folder))
-                .expect("banzai.csv not found on maps folder, please download last scemu maps");
+                .expect("banzai.csv not found on maps folder, please download last mwemu maps");
 
             for result in rdr.records() {
                 let record = result.expect("error parsing banzai.csv");

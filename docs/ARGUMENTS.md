@@ -7,7 +7,7 @@
 The unique required parameter is the shellcode `-f` or `--file`.
 
 ```
-target/release/scemu -f path/shellcode.bin
+target/release/mwemu -f path/shellcode.bin
 ```
 
 But it will try to locate the maps files in "maps/" if the maps are not there see "Memory maps" chapter.
@@ -15,7 +15,7 @@ But it will try to locate the maps files in "maps/" if the maps are not there se
 
 ## Memory maps
 
-scemu looks for the memory maps folder in "maps/"  but also can be configured with `-M` or `--maps` 
+mwemu looks for the memory maps folder in "maps/"  but also can be configured with `-M` or `--maps` 
 
 The maps are TEB and PEB and other structures, and also memory headers and library code mapped in different memory maps.
 
@@ -159,12 +159,12 @@ The tool can be used with grep to filter the output, for example for see only th
 To analyze the logic of the algorithm you can use this filter:
 
 ```bash
-target/release/scemu -f shellcode.bin -vv | egrep '(j|cmp|test)'
+target/release/mwemu -f shellcode.bin -vv | egrep '(j|cmp|test)'
 ```
 
-Or for correlating the ghidra/ida/radare functions with scemu use a call filter.
+Or for correlating the ghidra/ida/radare functions with mwemu use a call filter.
 
 ```bash
-target/release/scemu -f shellcode.bin -vv | grep 'call'
+target/release/mwemu -f shellcode.bin -vv | grep 'call'
 ```
 

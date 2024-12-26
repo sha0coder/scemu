@@ -1,4 +1,4 @@
-; target/release/scemu -f ~/samples/RacoonStealer/2022-10-18/AnyDesk_dump_SCY.bin -b 0x400000
+; target/release/mwemu -f ~/samples/RacoonStealer/2022-10-18/AnyDesk_dump_SCY.bin -b 0x400000
 
 
 ;bi 38859

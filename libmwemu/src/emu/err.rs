@@ -15,7 +15,7 @@ impl ScemuError {
 
 impl std::fmt::Display for ScemuError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "SCEMU Error: {}", self.message)
+        write!(f, "MWEMU Error: {}", self.message)
     }
 }
 

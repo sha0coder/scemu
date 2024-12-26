@@ -12,7 +12,7 @@ It programs a veh and triggers multiple times with int3.
 At the end of the veh routine, a cleanup is triggered that restores the contect which 
 has been modified by the malware altering the execution flow in this way.
 
-Thats not a problem for scemu.
+Thats not a problem for mwemu.
 
 ## Cpuid
 

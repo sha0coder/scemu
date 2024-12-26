@@ -64,7 +64,7 @@ fn main() {
         })
         .init();
 
-    let matches = App::new("SCEMU emulator for malware")
+    let matches = App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
         .arg(clap_arg!("filename", "f", "filename", "set the shellcode binary file.", "FILE"))
