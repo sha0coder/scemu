@@ -29,6 +29,12 @@ pub struct Config {
     pub trace_file: Option<std::fs::File>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Config {
     pub fn new() -> Config {
         Config {

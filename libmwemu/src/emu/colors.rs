@@ -20,6 +20,12 @@ pub struct Colors {
     pub clear_screen: String,
 }
 
+impl Default for Colors {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Colors {
     pub fn new() -> Colors {
         Colors {

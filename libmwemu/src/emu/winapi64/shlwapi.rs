@@ -14,7 +14,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 pub fn PathIsContentTypeW(emu: &mut emu::Emu) {

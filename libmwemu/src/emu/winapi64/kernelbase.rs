@@ -19,7 +19,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 pub fn PathCombineA(emu: &mut emu::Emu) {
@@ -36,7 +36,7 @@ pub fn PathCombineA(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if dst != 0 && path1 != "" && path2 != "" {
+    if dst != 0 && !path1.is_empty() && !path2.is_empty() {
         emu.maps.write_string(dst, &format!("{}\\{}", path1, path2));
     }
 

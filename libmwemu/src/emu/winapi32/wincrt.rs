@@ -14,7 +14,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn set_invalid_parameter_handler(emu: &mut emu::Emu) {

@@ -21,7 +21,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn StartServiceCtrlDispatcherA(emu: &mut emu::Emu) {

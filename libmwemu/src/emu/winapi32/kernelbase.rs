@@ -23,7 +23,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -33,7 +33,7 @@ lazy_static! {
     static ref LAST_ERROR: Mutex<u32> = Mutex::new(0);
 }
 
-//// kernelbase API ////
+/// kernelbase API ////
 
 fn LoadStringW(emu: &mut emu::Emu) {
     let hndl = emu

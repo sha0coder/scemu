@@ -28,7 +28,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -134,7 +134,7 @@ pub fn InternetConnectA(emu: &mut emu::Emu) {
     let passw_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!InternetConnectA cannot read passw_ptr") as u64;
+        .expect("wininet!InternetConnectA cannot read passw_ptr");
     let service = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
@@ -194,7 +194,7 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
     let passw_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!InternetConnectW cannot read passw_ptr") as u64;
+        .expect("wininet!InternetConnectW cannot read passw_ptr");
     let service = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
@@ -254,15 +254,15 @@ fn HttpOpenRequestA(emu: &mut emu::Emu) {
     let referrer_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!HttpOpenRequestA cannot read referrer_ptr") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read referrer_ptr");
     let access_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("wininet!HttpOpenRequestA cannot read access_ptr") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read access_ptr");
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp + 16)
-        .expect("wininet!HttpOpenRequestA cannot read flags") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read flags");
     let ctx = emu
         .maps
         .read_qword(emu.regs.rsp + 24)
@@ -340,15 +340,15 @@ fn HttpOpenRequestW(emu: &mut emu::Emu) {
     let referrer_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!HttpOpenRequestW cannot read referrer_ptr") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read referrer_ptr");
     let access_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("wininet!HttpOpenRequestW cannot read access_ptr") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read access_ptr");
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp + 16)
-        .expect("wininet!HttpOpenRequestW cannot read flags") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read flags");
     let ctx = emu
         .maps
         .read_qword(emu.regs.rsp + 24)

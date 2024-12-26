@@ -18,7 +18,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn MessageBoxA(emu: &mut emu::Emu) {
@@ -197,7 +197,7 @@ fn wsprintfA(emu: &mut emu::Emu) {
                     Some('s') => {
                         let addr = args[arg_index];
                         let s = emu.maps.read_string(addr);
-                        if s != "" {
+                        if !s.is_empty() {
                             result.push_str(&s);
                         } else {
                             result.push_str("<invalid string>");

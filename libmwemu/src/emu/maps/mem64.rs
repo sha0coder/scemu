@@ -18,6 +18,12 @@ pub struct Mem64 {
     pub mem: Vec<u8>,
 }
 
+impl Default for Mem64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Mem64 {
     pub fn new() -> Mem64 {
         Mem64 {
@@ -29,7 +35,7 @@ impl Mem64 {
     }
 
     pub fn get_name(&self) -> String {
-        return self.mem_name.clone();
+        self.mem_name.clone()
     }
 
     pub fn set_name(&mut self, name: &str) {
@@ -37,7 +43,7 @@ impl Mem64 {
     }
 
     pub fn get_mem(&self) -> Vec<u8> {
-        return self.mem.clone();
+        self.mem.clone()
     }
 
     pub fn alloc(&mut self, amount: usize) {
@@ -67,9 +73,7 @@ impl Mem64 {
         if self.mem.len() < sz {
             panic!("memcpy: {} < {}", self.mem.len(), sz);
         }
-        for i in 0..sz {
-            self.mem[i] = ptr[i];
-        }
+        self.mem[..sz].copy_from_slice(&ptr[..sz]);
     }
 
     pub fn inside(&self, addr: u64) -> bool {
@@ -111,16 +115,16 @@ impl Mem64 {
         if sz > max_sz {
             sz = max_sz;
         }*/
-        return self.mem.get(idx..max_sz).unwrap();
+        self.mem.get(idx..max_sz).unwrap()
     }
 
     pub fn read_bytes(&self, addr: u64, sz: usize) -> &[u8] {
         let idx = (addr - self.base_addr) as usize;
-        let sz2 = idx as usize + sz;
+        let sz2 = idx + sz;
         if sz2 > self.mem.len() {
             return &[0; 0];
         }
-        return self.mem.get(idx..sz2).unwrap();
+        self.mem.get(idx..sz2).unwrap()
     }
 
     pub fn read_byte(&self, addr: u64) -> u8 {
@@ -165,9 +169,7 @@ impl Mem64 {
 
     pub fn write_bytes(&mut self, addr: u64, bs: &[u8]) {
         let idx = (addr - self.base_addr) as usize;
-        for i in 0..bs.len() {
-            self.mem[idx + i] = bs[i];
-        }
+        self.mem[idx..(bs.len() + idx)].copy_from_slice(&bs[..]);
     }
 
     pub fn write_word(&mut self, addr: u64, value: u16) {
@@ -244,7 +246,7 @@ impl Mem64 {
 
     pub fn load_chunk(&mut self, filename: &str, off: u64, sz: usize) -> bool {
         // log::info!("loading chunk: {} {} {}", filename, off, sz);
-        let mut f = match File::open(&filename) {
+        let mut f = match File::open(filename) {
             Ok(f) => f,
             Err(_) => {
                 return false;
@@ -265,7 +267,7 @@ impl Mem64 {
 
     pub fn load(&mut self, filename: &str) -> bool {
         // log::info!("loading map: {}", filename);
-        let f = match File::open(&filename) {
+        let f = match File::open(filename) {
             Ok(f) => f,
             Err(_) => {
                 return false;
@@ -283,7 +285,7 @@ impl Mem64 {
 
     pub fn save(&self, addr: u64, size: usize, filename: String) {
         let idx = (addr - self.base_addr) as usize;
-        let sz2 = idx as usize + size;
+        let sz2 = idx + size;
         if sz2 > self.mem.len() {
             log::info!("size too big, map size is {}  sz2:{}", self.mem.len(), sz2);
             return;

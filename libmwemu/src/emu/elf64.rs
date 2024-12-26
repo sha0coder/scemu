@@ -81,7 +81,7 @@ pub struct Elf64 {
 impl Elf64 {
     pub fn parse(filename: &str) -> Result<Elf64, MwemuError> {
         let mut mem: Mem64 = Mem64::new();
-        if !mem.load(&filename) {
+        if !mem.load(filename) {
             return Err(MwemuError::new("cannot open elf binary"));
         }
         let bin = mem.get_mem();
@@ -135,16 +135,12 @@ impl Elf64 {
 
     pub fn is_loadable(&self, addr: u64) -> bool {
         for phdr in &self.elf_phdr {
-            if phdr.p_type == constants::PT_LOAD {
-                if phdr.p_vaddr > 0
-                    && (phdr.p_vaddr <= addr || addr <= (phdr.p_vaddr + phdr.p_memsz))
-                {
-                    //log::info!("vaddr 0x{:x}", phdr.p_vaddr);
-                    return true;
-                }
+            if phdr.p_type == constants::PT_LOAD && phdr.p_vaddr > 0 && (phdr.p_vaddr <= addr || addr <= (phdr.p_vaddr + phdr.p_memsz)) {
+                //log::info!("vaddr 0x{:x}", phdr.p_vaddr);
+                return true;
             }
         }
-        return false;
+        false
     }
 
     pub fn get_section_name(&self, offset: usize) -> String {
@@ -154,13 +150,13 @@ impl Elf64 {
             .unwrap_or(self.elf_strtab.len() - offset);
         let s = std::str::from_utf8(&self.elf_strtab[offset..offset + end])
             .expect("error reading elf64 shstrtab");
-        return s.to_string();
+        s.to_string()
     }
 
     pub fn sym_get_addr_from_name(&self, name: &str) -> Option<u64> {
         for sym in self.elf_dynsym.iter() {
             log::info!("{} == {}", &sym.st_dynstr_name, name);
-            if &sym.st_dynstr_name == name {
+            if sym.st_dynstr_name == name {
                 return Some(sym.st_value);
             }
         }
@@ -173,7 +169,7 @@ impl Elf64 {
                 return sym.st_dynstr_name.clone();
             }
         }
-        return String::new();
+        String::new()
     }
 
     /*
@@ -208,19 +204,15 @@ impl Elf64 {
                         vaddr = phdr.p_vaddr + LIBC_BASE;
                     } else if name.contains("ld-linux") {
                         vaddr = phdr.p_vaddr + LD_BASE;
-                    } else {
-                        if dyn_link {
-                            vaddr = phdr.p_vaddr + ELF64_DYN_BASE;
-                        } else {
-                            unreachable!("static with lib???");
-                        }
-                    }
-                } else {
-                    if dyn_link {
+                    } else if dyn_link {
                         vaddr = phdr.p_vaddr + ELF64_DYN_BASE;
                     } else {
-                        vaddr = phdr.p_vaddr; // + ELF64_STA_BASE;
+                        unreachable!("static with lib???");
                     }
+                } else if dyn_link {
+                    vaddr = phdr.p_vaddr + ELF64_DYN_BASE;
+                } else {
+                    vaddr = phdr.p_vaddr; // + ELF64_STA_BASE;
                 }
 
                 let map = maps
@@ -278,21 +270,19 @@ impl Elf64 {
                 let mut off = shdr.sh_offset as usize;
 
                 for _ in 0..(shdr.sh_size / Elf64Sym::size() as u64) {
-                    let mut sym = Elf64Sym::parse(&self.bin, off as usize);
+                    let mut sym = Elf64Sym::parse(&self.bin, off);
 
-                    if sym.get_st_type() == STT_FUNC || sym.get_st_type() == STT_OBJECT {
-                        if sym.st_value > 0 {
-                            let off2 = (self.elf_dynstr_off + sym.st_name as u64) as usize;
-                            let end = self.bin[off2..]
-                                .iter()
-                                .position(|&c| c == 0)
-                                .unwrap_or(self.bin.len());
-                            if let Ok(string) = std::str::from_utf8(&self.bin[off2..(end + off2)]) {
-                                sym.st_dynstr_name = string.to_string();
-                            }
-
-                            self.elf_dynsym.push(sym);
+                    if (sym.get_st_type() == STT_FUNC || sym.get_st_type() == STT_OBJECT) && sym.st_value > 0 {
+                        let off2 = (self.elf_dynstr_off + sym.st_name as u64) as usize;
+                        let end = self.bin[off2..]
+                            .iter()
+                            .position(|&c| c == 0)
+                            .unwrap_or(self.bin.len());
+                        if let Ok(string) = std::str::from_utf8(&self.bin[off2..(end + off2)]) {
+                            sym.st_dynstr_name = string.to_string();
                         }
+
+                        self.elf_dynsym.push(sym);
                     }
                     off += Elf64Sym::size();
                 }
@@ -303,16 +293,16 @@ impl Elf64 {
 
                 // map if its vaddr is on a PT_LOAD program
                 if self.is_loadable(shdr.sh_addr) {
-                    let map_name: String;
+                    
 
-                    if sname == ".text" && !is_lib {
+                    let map_name: String = if sname == ".text" && !is_lib {
                         //maps.exists_mapname("code") {
-                        map_name = "code".to_string();
+                        "code".to_string()
                     } else {
-                        map_name = format!("{}{}", name, sname); //self.get_section_name(shdr.sh_name as usize));
-                    }
+                        format!("{}{}", name, sname) //self.get_section_name(shdr.sh_name as usize));
+                    };
                     if sname == ".init" {
-                        self.init = Some(shdr.sh_addr.into());
+                        self.init = Some(shdr.sh_addr);
                     }
 
                     //log::info!("loading map {} 0x{:x} sz:{}", &map_name, shdr.sh_addr, shdr.sh_size);
@@ -328,7 +318,7 @@ impl Elf64 {
                     }
 
                     let mem = maps
-                        .create_map(&map_name, base, shdr.sh_size.into())
+                        .create_map(&map_name, base, shdr.sh_size)
                         .expect("cannot create map from load_programs elf64");
 
                     let mut end_off = (shdr.sh_offset + shdr.sh_size) as usize;
@@ -439,7 +429,7 @@ impl Elf64 {
             }
         }
 
-        return libs;
+        libs
     }
 
     pub fn is_elf64(filename: &str) -> bool {
@@ -619,7 +609,7 @@ impl Elf64Sym {
     }
 
     pub fn size() -> usize {
-        return 24;
+        24
     }
 
     pub fn get_st_type(&self) -> u8 {

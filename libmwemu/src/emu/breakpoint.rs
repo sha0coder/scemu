@@ -6,6 +6,12 @@ pub struct Breakpoint {
     mem_write_addr: u64,
 }
 
+impl Default for Breakpoint {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Breakpoint {
     pub fn new() -> Breakpoint {
         Breakpoint {
@@ -39,19 +45,19 @@ impl Breakpoint {
     }
 
     pub fn get_bp(&self) -> u64 {
-        return self.addr;
+        self.addr
     }
 
     pub fn get_mem_read(&self) -> u64 {
-        return self.mem_read_addr;
+        self.mem_read_addr
     }
 
     pub fn get_mem_write(&self) -> u64 {
-        return self.mem_write_addr;
+        self.mem_write_addr
     }
 
     pub fn get_instruction(&self) -> u64 {
-        return self.instruction;
+        self.instruction
     }
 
     pub fn show(&self) {

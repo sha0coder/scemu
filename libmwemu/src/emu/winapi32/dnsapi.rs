@@ -17,7 +17,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn DnsQuery_A(emu: &mut emu::Emu) {

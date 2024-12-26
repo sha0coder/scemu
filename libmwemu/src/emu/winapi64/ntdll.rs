@@ -49,7 +49,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
@@ -69,32 +69,32 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
     let addr = emu
         .maps
         .read_qword(addr_ptr)
-        .expect("bad NtAllocateVirtualMemory address parameter") as u64;
+        .expect("bad NtAllocateVirtualMemory address parameter");
     let size = emu
         .maps
         .read_qword(size_ptr)
-        .expect("bad NtAllocateVirtualMemory size parameter") as u64;
-    let do_alloc: bool;
-    let alloc_addr: u64;
+        .expect("bad NtAllocateVirtualMemory size parameter");
+    
+    
 
-    if addr == 0 {
-        do_alloc = true;
+    let do_alloc: bool = if addr == 0 {
+        true
     } else {
-        do_alloc = emu.maps.is_mapped(addr);
-    }
+        emu.maps.is_mapped(addr)
+    };
 
     if size == 0 {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
-    if do_alloc {
-        alloc_addr = match emu.maps.alloc(size) {
+    let alloc_addr: u64 = if do_alloc {
+        match emu.maps.alloc(size) {
             Some(a) => a,
             None => panic!("/!\\ out of memory cannot allocate ntdll!NtAllocateVirtualMemory "),
-        };
+        }
     } else {
-        alloc_addr = addr;
-    }
+        addr
+    };
 
     log::info!(
         "{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}",
@@ -322,7 +322,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     let handle = emu.regs.rcx;
     let flags = emu.regs.rdx;
     let mut size = emu.regs.r8;
-    let alloc_addr;
+    
     let map_name = format!("valloc_{:x}_{}", handle, size);
 
     /*
@@ -339,7 +339,7 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
     if size < 1024 {
         size = 1024
     }
-    alloc_addr = match emu.maps.alloc(size) {
+    let alloc_addr = match emu.maps.alloc(size) {
         Some(a) => a,
         None => panic!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap"),
     };
@@ -439,7 +439,7 @@ fn NtGetTickCount(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     let tick = kernel32::TICK.lock().unwrap();
-    emu.regs.rax = *tick as u64;
+    emu.regs.rax = *tick;
 }
 
 fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
@@ -506,19 +506,17 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                 dos_path_name_ptr,
                 emu.maps.sizeof_wide(dos_path_name_ptr) * 2,
             );
-        } else {
-            if emu.cfg.verbose >= 1 {
-                log::info!(
-                    "/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map",
-                    dst_map_name
-                );
-                log::info!(
-                    "memcpy1 0x{:x} <- 0x{:x}  sz: {}",
-                    dos_path_unicode_ptr,
-                    dos_path_name_ptr,
-                    emu.maps.sizeof_wide(dos_path_name_ptr) * 2
-                );
-            }
+        } else if emu.cfg.verbose >= 1 {
+            log::info!(
+                "/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map",
+                dst_map_name
+            );
+            log::info!(
+                "memcpy1 0x{:x} <- 0x{:x}  sz: {}",
+                dos_path_unicode_ptr,
+                dos_path_name_ptr,
+                emu.maps.sizeof_wide(dos_path_name_ptr) * 2
+            );
         }
     }
 
@@ -537,7 +535,7 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                 emu.maps.sizeof_wide(dos_path_name_ptr) * 2,
             );
         } else {
-            let addr = match emu.maps.alloc(255) {
+            match emu.maps.alloc(255) {
                 Some(a) => {
                     let mem = emu
                         .maps
@@ -633,8 +631,8 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
     let name = emu
         .maps
         .get_addr_name(base_addr)
-        .unwrap_or_else(|| String::new());
-    if name == "" {
+        .unwrap_or_else(String::new);
+    if name.is_empty() {
         if emu.cfg.verbose >= 1 {
             log::info!("map not allocated, so cannot free it.");
         }
@@ -730,7 +728,7 @@ fn NtClose(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if uri == "" {
+    if uri.is_empty() {
         emu.regs.rax = constants::STATUS_INVALID_HANDLE;
     } else {
         emu.regs.rax = constants::STATUS_SUCCESS;
@@ -934,7 +932,7 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
 
     emu.maps.memcpy(path_ptr, dll_name_ptr, dll_name.len());
 
-    let handle = helper::handler_create(&dll_name) as u64;
+    let handle = helper::handler_create(&dll_name);
     emu.maps.write_qword(out_hndl, handle);
 
     emu.regs.rax = 1;

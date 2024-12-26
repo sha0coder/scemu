@@ -38,7 +38,7 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         _ => panic!("/!\\ trying to execute on {} at 0x{:x}", name, addr),
     };
 
-    if unimplemented_api.len() > 0 {
+    if !unimplemented_api.is_empty() {
         log::info!(
             "{}({}, {}, {}, {}) (unimplemented)",
             unimplemented_api,

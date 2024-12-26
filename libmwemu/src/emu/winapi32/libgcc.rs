@@ -15,7 +15,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn __register_frame_info(emu: &mut emu::Emu) {

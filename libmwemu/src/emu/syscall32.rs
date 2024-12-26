@@ -75,7 +75,7 @@ pub fn gateway(emu: &mut emu::Emu) {
         5 => {
             let file_path = emu.maps.read_string(emu.regs.rbx);
             let fd = helper::socket_create();
-            emu.regs.rax = fd as u64;
+            emu.regs.rax = fd;
             log::info!(
                 "{}** {} syscall open() file: {} fd:{} {}",
                 emu.colors.light_red,

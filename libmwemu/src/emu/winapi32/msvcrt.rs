@@ -30,7 +30,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn _initterm_e(emu: &mut emu::Emu) {

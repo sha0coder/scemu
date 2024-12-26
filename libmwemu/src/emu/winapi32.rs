@@ -44,14 +44,14 @@ pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
         "iphlpapi.text" => iphlpapi::gateway(addr, emu),
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
-        "not_loaded" => emu.pe32.as_ref().unwrap().import_addr_to_name(addr as u32),
+        "not_loaded" => emu.pe32.as_ref().unwrap().import_addr_to_name(addr),
         _ => {
             log::info!("/!\\ trying to execute on {} at 0x{:x}", name, addr);
             name.clone()
         }
     };
 
-    if unimplemented_api.len() > 0 {
+    if !unimplemented_api.is_empty() {
         let params = emu.banzai.get_params(&unimplemented_api);
         log::info!("{} {} parameters", unimplemented_api, params);
 

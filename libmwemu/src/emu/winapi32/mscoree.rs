@@ -12,7 +12,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 pub fn _CorExeMain(emu: &mut emu::Emu) {

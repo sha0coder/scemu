@@ -184,7 +184,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -194,7 +194,7 @@ lazy_static! {
     static ref LAST_ERROR: Mutex<u32> = Mutex::new(0);
 }
 
-//// kernel32 API ////
+/// kernel32 API ////
 
 pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let mut flink = peb32::Flink::new(emu);
@@ -202,21 +202,19 @@ pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let first_ptr = flink.get_ptr();
 
     loop {
-        if flink.mod_name.to_lowercase().contains(module) {
-            if flink.export_table_rva > 0 {
-                for i in 0..flink.num_of_funcs {
-                    if flink.pe_hdr == 0 {
-                        continue;
-                    }
-
-                    let ordinal = flink.get_function_ordinal(emu, i);
-                    log::info!(
-                        "0x{:x} {}!{}",
-                        ordinal.func_va,
-                        &flink.mod_name,
-                        &ordinal.func_name
-                    );
+        if flink.mod_name.to_lowercase().contains(module) && flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
                 }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                log::info!(
+                    "0x{:x} {}!{}",
+                    ordinal.func_va,
+                    &flink.mod_name,
+                    &ordinal.func_name
+                );
             }
         }
         flink.next(emu);
@@ -253,7 +251,7 @@ pub fn resolve_api_addr_to_name(emu: &mut emu::Emu, addr: u64) -> String {
         }
     }
 
-    return "".to_string();
+    "".to_string()
 }
 
 pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
@@ -284,7 +282,7 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
         }
     }
 
-    return 0; //TODO: use Option<>
+    0//TODO: use Option<>
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
@@ -316,7 +314,7 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
         }
     }
 
-    return (0, String::new(), String::new()); //TODO: use Option<>
+    (0, String::new(), String::new())//TODO: use Option<>
 }
 
 pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
@@ -348,7 +346,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
         }
     }
 
-    return "function not found".to_string();
+    "function not found".to_string()
 }
 
 fn GetProcAddress(emu: &mut emu::Emu) {
@@ -413,7 +411,7 @@ fn GetProcAddress(emu: &mut emu::Emu) {
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     let mut dll = libname.to_string().to_lowercase();
 
-    if dll.len() == 0 {
+    if dll.is_empty() {
         emu.regs.rax = 0;
         return 0;
     }
@@ -423,7 +421,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     }
 
     let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push_str("/");
+    dll_path.push('/');
     dll_path.push_str(&dll);
 
     match peb32::get_module_base(&dll, emu) {
@@ -433,22 +431,22 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
             if emu.cfg.verbose > 0 {
                 log::info!("dll {} already linked.", dll);
             }*/
-            return base;
+            base
         }
         None => {
             // do link
             if std::path::Path::new(dll_path.as_str()).exists() {
                 let (base, pe_off) = emu.load_pe32(&dll_path, false, 0);
                 peb32::dynamic_link_module(base as u64, pe_off, &dll, emu);
-                return base as u64;
+                base as u64
             } else {
                 if emu.cfg.verbose > 0 {
                     log::info!("dll {} not found.", dll_path);
                 }
-                return 0;
+                0
             }
         }
-    };
+    }
 }
 
 fn LoadLibraryA(emu: &mut emu::Emu) {
@@ -2466,10 +2464,7 @@ fn HeapAlloc(emu: &mut emu::Emu) {
         .read_dword(emu.regs.get_esp() + 8)
         .expect("kernel32!HeapAlloc cannot read the size") as u64;
 
-    emu.regs.rax = match emu.maps.alloc(size) {
-        Some(sz) => sz,
-        None => 0,
-    };
+    emu.regs.rax = emu.maps.alloc(size).unwrap_or_default();
 
     emu.maps
         .create_map(
@@ -2596,10 +2591,7 @@ fn LocalAlloc(emu: &mut emu::Emu) {
         .read_dword(emu.regs.get_esp() + 4)
         .expect("kernel32!LocalAlloc cannot read size") as u64;
 
-    emu.regs.rax = match emu.maps.alloc(size) {
-        Some(sz) => sz,
-        None => 0,
-    };
+    emu.regs.rax = emu.maps.alloc(size).unwrap_or_default();
 
     emu.maps
         .create_map(
@@ -3344,7 +3336,7 @@ fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let mut wide = String::new();
     for c in utf8.chars() {
         wide.push_str(&format!("{}", c));
-        wide.push_str("\x00");
+        wide.push('\x00');
     }
 
     log::info!(

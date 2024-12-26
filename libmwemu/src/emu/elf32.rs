@@ -40,7 +40,7 @@ pub struct Elf32 {
 impl Elf32 {
     pub fn parse(filename: &str) -> Result<Elf32, MwemuError> {
         let mut mem: Mem64 = Mem64::new();
-        if !mem.load(&filename) {
+        if !mem.load(filename) {
             return Err(MwemuError::new("cannot open elf binary"));
         }
         let bin = mem.get_mem();
@@ -88,7 +88,7 @@ impl Elf32 {
                 }*/
 
                 let mem = maps
-                    .create_map(&format!("code"), phdr.p_vaddr.into(), phdr.p_memsz.into())
+                    .create_map(&"code".to_string(), phdr.p_vaddr.into(), phdr.p_memsz.into())
                     .expect("cannot create code map from load_programs elf32");
                 if phdr.p_filesz > phdr.p_memsz {
                     log::info!("p_filesz > p_memsz bigger in file than in memory.");

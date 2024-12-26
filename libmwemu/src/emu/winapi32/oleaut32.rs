@@ -14,7 +14,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn SysAllocStringLen(emu: &mut emu::Emu) {

@@ -804,7 +804,7 @@ pub fn gateway(emu: &mut emu::Emu) {
             );
 
             if filename == "/etc/ld.so.preload" {
-                emu.regs.rax = constants::ENOENT as u64;
+                emu.regs.rax = constants::ENOENT;
             } else {
                 emu.regs.rax = 0;
             }
@@ -918,7 +918,7 @@ pub fn gateway(emu: &mut emu::Emu) {
             if helper::handler_exist(fd) {
                 let filepath = helper::handler_get_uri(fd);
                 let path = Path::new(&filepath);
-                let metadata = fs::metadata(&path)
+                let metadata = fs::metadata(path)
                     .expect("this file should exist because was opened by kernel64");
                 let file_size = metadata.len();
                 stat.size = file_size as i64;
@@ -945,7 +945,7 @@ pub fn gateway(emu: &mut emu::Emu) {
             let mut stat = structures::Stat::fake();
             let path = Path::new(&filename);
             let metadata =
-                fs::metadata(&path).expect("this file should exist because was opened by kernel64");
+                fs::metadata(path).expect("this file should exist because was opened by kernel64");
             let file_size = metadata.len();
             stat.size = file_size as i64;
             stat.save(stat_ptr, &mut emu.maps);

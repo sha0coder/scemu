@@ -40,7 +40,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -390,10 +390,7 @@ fn setsockopt(emu: &mut emu::Emu) {
         .read_qword(emu.regs.get_esp())
         .expect("ws2_32!setsockopt: error reading optlen");
 
-    let val = match emu.maps.read_dword(optval) {
-        Some(v) => v,
-        None => 0,
-    };
+    let val = emu.maps.read_dword(optval).unwrap_or_default();
 
     log::info!(
         "{}** {} ws2_32!setsockopt  lvl: {} opt: {} val: {} {}",
@@ -421,7 +418,7 @@ fn getsockopt(emu: &mut emu::Emu) {
     let optlen = emu
         .maps
         .read_qword(emu.regs.get_esp())
-        .expect("ws2_32!getsockopt: error reading optlen") as u64;
+        .expect("ws2_32!getsockopt: error reading optlen");
 
     emu.maps.write_dword(optval, 1);
 
@@ -450,7 +447,7 @@ fn WsaAccept(emu: &mut emu::Emu) {
     let callback = emu
         .maps
         .read_qword(emu.regs.get_esp())
-        .expect("ws2_32!WsaAccept: error reading callback") as u64;
+        .expect("ws2_32!WsaAccept: error reading callback");
 
     let bytes = emu.maps.read_string_of_bytes(saddr, len as usize);
 

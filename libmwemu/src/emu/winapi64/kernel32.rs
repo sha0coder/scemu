@@ -146,7 +146,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -162,21 +162,19 @@ pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let first_ptr = flink.get_ptr();
 
     loop {
-        if flink.mod_name.to_lowercase().contains(module) {
-            if flink.export_table_rva > 0 {
-                for i in 0..flink.num_of_funcs {
-                    if flink.pe_hdr == 0 {
-                        continue;
-                    }
-
-                    let ordinal = flink.get_function_ordinal(emu, i);
-                    log::info!(
-                        "0x{:x} {}!{}",
-                        ordinal.func_va,
-                        &flink.mod_name,
-                        &ordinal.func_name
-                    );
+        if flink.mod_name.to_lowercase().contains(module) && flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
                 }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                log::info!(
+                    "0x{:x} {}!{}",
+                    ordinal.func_va,
+                    &flink.mod_name,
+                    &ordinal.func_name
+                );
             }
         }
         flink.next(emu);
@@ -213,7 +211,7 @@ pub fn resolve_api_addr_to_name(emu: &mut emu::Emu, addr: u64) -> String {
         }
     }
 
-    return "".to_string();
+    "".to_string()
 }
 
 pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
@@ -244,7 +242,7 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
         }
     }
 
-    return 0; //TODO: use Option<>
+    0//TODO: use Option<>
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
@@ -276,7 +274,7 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
         }
     }
 
-    return (0, String::new(), String::new()); //TODO: use Option<>
+    (0, String::new(), String::new())//TODO: use Option<>
 }
 
 pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
@@ -295,7 +293,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
 
                 let ordinal = flink.get_function_ordinal(emu, i);
 
-                if ordinal.func_va == addr.into() {
+                if ordinal.func_va == addr {
                     return ordinal.func_name.clone();
                 }
             }
@@ -308,7 +306,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
         }
     }
 
-    return "function not found".to_string();
+    "function not found".to_string()
 }
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
@@ -316,7 +314,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
 
     let mut dll = libname.to_string().to_lowercase();
 
-    if dll.len() == 0 {
+    if dll.is_empty() {
         emu.regs.rax = 0;
         return 0;
     }
@@ -326,7 +324,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     }
 
     let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push_str("/");
+    dll_path.push('/');
     dll_path.push_str(&dll);
 
     match peb64::get_module_base(&dll, emu) {
@@ -336,22 +334,22 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
             if emu.cfg.verbose > 0 {
                 log::info!("dll {} already linked.", dll);
             }*/
-            return base;
+            base
         }
         None => {
             // do link
             if std::path::Path::new(&dll_path).exists() {
                 let (base, pe_off) = emu.load_pe64(&dll_path, false, 0);
-                peb64::dynamic_link_module(base as u64, pe_off, &dll, emu);
-                return base as u64;
+                peb64::dynamic_link_module(base, pe_off, &dll, emu);
+                return base;
             } else {
                 if emu.cfg.verbose > 0 {
                     log::info!("dll {} not found.", dll_path);
                 }
-                return 0;
+                0
             }
         }
-    };
+    }
 }
 
 fn LoadLibraryA(emu: &mut emu::Emu) {
@@ -726,10 +724,8 @@ fn VirtualAlloc(emu: &mut emu::Emu) {
         );
         emu.regs.rax = 0
     } else {
-        let base = emu.maps.alloc(size).expect(&format!(
-            "kernel32!VirtualAlloc out of memory size:{}",
-            size
-        ));
+        let base = emu.maps.alloc(size).unwrap_or_else(|| panic!("kernel32!VirtualAlloc out of memory size:{}",
+            size));
 
         log::info!(
             "{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}",
@@ -939,10 +935,7 @@ fn HeapAlloc(emu: &mut emu::Emu) {
     let flags = emu.regs.rdx;
     let size = emu.regs.r8;
 
-    emu.regs.rax = match emu.maps.alloc(size) {
-        Some(sz) => sz,
-        None => 0,
-    };
+    emu.regs.rax = emu.maps.alloc(size).unwrap_or_default();
 
     emu.maps
         .create_map(
@@ -997,11 +990,11 @@ fn CreateThread(emu: &mut emu::Emu) {
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("kernel32!CreateThread cannot read flags") as u64;
+        .expect("kernel32!CreateThread cannot read flags");
     let tid_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("kernel32!CreateThread cannot read tid_ptr") as u64;
+        .expect("kernel32!CreateThread cannot read tid_ptr");
 
     if tid_ptr > 0 {
         emu.maps.write_dword(tid_ptr, 0x123);
@@ -2483,7 +2476,7 @@ fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let mut wide = String::new();
     for c in utf8.chars() {
         wide.push_str(&format!("{}", c));
-        wide.push_str("\x00");
+        wide.push('\x00');
     }
 
     log::info!(
@@ -2694,7 +2687,7 @@ fn lstrcpyW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if s.len() == 0 {
+    if s.is_empty() {
         emu.regs.rax = 0;
     } else {
         emu.regs.rax = dst;
@@ -2719,7 +2712,7 @@ fn lstrcpy(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if s.len() == 0 {
+    if s.is_empty() {
         emu.regs.rax = 0;
     } else {
         emu.regs.rax = dst;

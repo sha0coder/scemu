@@ -185,7 +185,7 @@ pub struct TlsDirectory64 {
 }
 
 impl TlsDirectory64 {
-    pub fn load(raw: &Vec<u8>, off: usize) -> TlsDirectory64 {
+    pub fn load(raw: &[u8], off: usize) -> TlsDirectory64 {
         TlsDirectory64 {
             tls_data_start: read_u64_le!(raw, off),
             tls_data_end: read_u64_le!(raw, off + 8),
@@ -209,7 +209,7 @@ pub struct DelayLoadIAT {
 }
 
 impl DelayLoadIAT {
-    fn load(raw: &Vec<u8>, off: usize) -> DelayLoadIAT {
+    fn load(raw: &[u8], off: usize) -> DelayLoadIAT {
         DelayLoadIAT {
             name_ptr: read_u32_le!(raw, off),
             iat_addr: read_u64_le!(raw, off + 4),
@@ -246,7 +246,7 @@ impl PE64 {
             return false;
         }
 
-        return true;
+        true
     }
 
     pub fn load(filename: &str) -> PE64 {
@@ -332,20 +332,20 @@ impl PE64 {
         }
 
         PE64 {
-            raw: raw,
-            dos: dos,
-            fh: fh,
-            nt: nt,
-            opt: opt,
+            raw,
+            dos,
+            fh,
+            nt,
+            opt,
             sect_hdr: sect,
-            delay_load_dir: delay_load_dir,
-            image_import_descriptor: image_import_descriptor, //import_dir: importd,
+            delay_load_dir,
+            image_import_descriptor, //import_dir: importd,
                                                               //export_dir: exportd,
         }
     }
 
     pub fn size(&self) -> u64 {
-        return self.raw.len() as u64;
+        self.raw.len() as u64
     }
 
     pub fn mem_size(&self) -> usize {
@@ -358,7 +358,7 @@ impl PE64 {
                 sz += sect.size_of_raw_data as usize;
             }
         }
-        return sz;
+        sz
     }
 
     pub fn is_dll(&self) -> bool {
@@ -366,11 +366,11 @@ impl PE64 {
     }
 
     pub fn get_raw(&self) -> &[u8] {
-        return &self.raw[0..self.raw.len()];
+        &self.raw[0..self.raw.len()]
     }
 
     pub fn get_headers(&self) -> &[u8] {
-        return &self.raw[0..self.opt.size_of_headers as usize];
+        &self.raw[0..self.opt.size_of_headers as usize]
     }
 
     pub fn clear(&mut self) {
@@ -379,7 +379,7 @@ impl PE64 {
     }
 
     pub fn num_of_sections(&self) -> usize {
-        return self.sect_hdr.len();
+        self.sect_hdr.len()
     }
 
     pub fn get_section_ptr_by_name(&self, name: &str) -> &[u8] {
@@ -396,7 +396,7 @@ impl PE64 {
     }
 
     pub fn get_section(&self, id: usize) -> &pe32::ImageSectionHeader {
-        return &self.sect_hdr[id];
+        &self.sect_hdr[id]
     }
 
     pub fn get_section_ptr(&self, id: usize) -> &[u8] {
@@ -422,15 +422,15 @@ impl PE64 {
             return &self.raw[off..];
         }
         let section_ptr = &self.raw[off..off + sz];
-        return section_ptr;
+        section_ptr
     }
 
     pub fn get_section_vaddr(&self, id: usize) -> u32 {
-        return self.sect_hdr[id].virtual_address;
+        self.sect_hdr[id].virtual_address
     }
 
     pub fn get_tls_callbacks(&self, vaddr: u32) -> Vec<u64> {
-        let tls_off; // = PE32::vaddr_to_off(&self.sect_hdr, vaddr) as usize;
+         // = PE32::vaddr_to_off(&self.sect_hdr, vaddr) as usize;
         let mut callbacks: Vec<u64> = Vec::new();
         //if tls_off == 0 {
 
@@ -444,7 +444,7 @@ impl PE64 {
         let align = self.opt.file_alignment;
 
         //tls_off = (entry_tls - (iat + align)) as usize;
-        tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
+        let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
 
         let tls = TlsDirectory64::load(&self.raw, tls_off);
         tls.print();
@@ -468,7 +468,7 @@ impl PE64 {
         log::info!("Delay load binding started ...");
         for i in 0..self.delay_load_dir.len() {
             let dld = &self.delay_load_dir[i];
-            if dld.name.len() == 0 {
+            if dld.name.is_empty() {
                 continue;
             }
             if emu::winapi64::kernel32::load_library(emu, &dld.name) == 0 {
@@ -528,7 +528,7 @@ impl PE64 {
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
 
-            if iim.name.len() == 0 {
+            if iim.name.is_empty() {
                 continue;
             }
 
@@ -597,7 +597,7 @@ impl PE64 {
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
 
-            if iim.name.len() == 0 {
+            if iim.name.is_empty() {
                 continue;
             }
 
@@ -634,6 +634,6 @@ impl PE64 {
             }
         }
 
-        return String::new();
+        String::new()
     }
 }

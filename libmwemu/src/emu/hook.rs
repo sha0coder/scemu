@@ -25,6 +25,12 @@ pub struct Hook {
     pub hook_on_winapi_call: Option<TypeHookOnWinApiCall>,
 }
 
+impl Default for Hook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Hook {
     pub fn new() -> Hook {
         Hook {

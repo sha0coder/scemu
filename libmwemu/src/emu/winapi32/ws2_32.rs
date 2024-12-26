@@ -39,7 +39,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -119,10 +119,7 @@ fn WsaHtons(emu: &mut emu::Emu) {
 }
 
 fn htons(emu: &mut emu::Emu) {
-    let port: u16 = match emu.maps.read_word(emu.regs.get_esp()) {
-        Some(p) => p,
-        None => 0,
-    };
+    let port: u16 = emu.maps.read_word(emu.regs.get_esp()).unwrap_or_default();
 
     log::info!(
         "{}** {} ws2_32!htons port: {} {}",
@@ -514,10 +511,7 @@ fn setsockopt(emu: &mut emu::Emu) {
         .read_dword(emu.regs.get_esp() + 16)
         .expect("ws2_32!setsockopt: error reading optlen") as u64;
 
-    let val = match emu.maps.read_dword(optval) {
-        Some(v) => v,
-        None => 0,
-    };
+    let val = emu.maps.read_dword(optval).unwrap_or_default();
 
     log::info!(
         "{}** {} ws2_32!setsockopt  lvl: {} opt: {} val: {} {}",

@@ -11,7 +11,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             return apiname;
         }
     }
-    return String::new();
+    String::new()
 }
 
 fn MessageBoxA(emu: &mut emu::Emu) {
