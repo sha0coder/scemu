@@ -121,7 +121,7 @@ impl Elf64 {
         let dynstr: Vec<String> = Vec::new();
 
         Ok(Elf64 {
-            bin: bin,
+            bin,
             elf_hdr: ehdr,
             elf_phdr: ephdr,
             elf_shdr: eshdr,

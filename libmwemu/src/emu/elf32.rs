@@ -48,7 +48,7 @@ impl Elf32 {
         let ehdr: Elf32Ehdr = Elf32Ehdr::parse(&bin);
 
         Ok(Elf32 {
-            bin: bin,
+            bin,
             elf_hdr: ehdr,
             elf_phdr: Vec::new(),
             elf_shdr: Vec::new(),
