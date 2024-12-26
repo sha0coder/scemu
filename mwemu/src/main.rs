@@ -142,7 +142,7 @@ fn main() {
             .value_of("register")
             .expect("select the register example: eax,ebx")
             .to_string();
-        emu.cfg.reg_names = regs.split(',').into_iter().map(|x| x.to_string()).collect();
+        emu.cfg.reg_names = regs.split(',').map(|x| x.to_string()).collect();
     }
     if matches.is_present("string") {
         emu.cfg.trace_string = true;
