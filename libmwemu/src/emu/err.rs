@@ -1,23 +1,23 @@
 use std::error::Error;
 
 #[derive(Debug)]
-pub struct ScemuError {
+pub struct MwemuError {
     pub message: String,
 }
 
-impl ScemuError {
-    pub fn new(message: &str) -> ScemuError {
-        ScemuError {
+impl MwemuError {
+    pub fn new(message: &str) -> MwemuError {
+        MwemuError {
             message: message.to_string(),
         }
     }
 }
 
-impl std::fmt::Display for ScemuError {
+impl std::fmt::Display for MwemuError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "MWEMU Error: {}", self.message)
     }
 }
 
-impl Error for ScemuError {}
+impl Error for MwemuError {}
 

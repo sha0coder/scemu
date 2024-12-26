@@ -45,7 +45,7 @@ use csv::ReaderBuilder;
 use eflags::Eflags;
 use elf32::Elf32;
 use elf64::Elf64;
-use err::ScemuError;
+use err::MwemuError;
 use flags::Flags;
 use fpu::FPU;
 use hook::Hook;
@@ -4186,10 +4186,10 @@ impl Emu {
         self.is_running.store(0, atomic::Ordering::Relaxed);
     }
 
-    pub fn call32(&mut self, addr: u64, args: &[u64]) -> Result<u32, ScemuError> {
+    pub fn call32(&mut self, addr: u64, args: &[u64]) -> Result<u32, MwemuError> {
         if addr == self.regs.get_eip() {
             if addr == 0 {
-                return Err(ScemuError::new(
+                return Err(MwemuError::new(
                     "return address reached after starting the call32, change eip.",
                 ));
             } else {
@@ -4208,10 +4208,10 @@ impl Emu {
         return Ok(self.regs.get_eax() as u32);
     }
 
-    pub fn call64(&mut self, addr: u64, args: &[u64]) -> Result<u64, ScemuError> {
+    pub fn call64(&mut self, addr: u64, args: &[u64]) -> Result<u64, MwemuError> {
         if addr == self.regs.rip {
             if addr == 0 {
-                return Err(ScemuError::new(
+                return Err(MwemuError::new(
                     "return address reached after starting the call64, change rip.",
                 ));
             } else {
@@ -4247,7 +4247,7 @@ impl Emu {
         return Ok(self.regs.rax);
     }
 
-    pub fn run_until_ret(&mut self) -> Result<u64, ScemuError> {
+    pub fn run_until_ret(&mut self) -> Result<u64, MwemuError> {
         self.run_until_ret = true;
         return self.run(None);
     }
@@ -4472,7 +4472,7 @@ impl Emu {
 
     ///  RUN ENGINE ///
 
-    pub fn run(&mut self, end_addr: Option<u64>) -> Result<u64, ScemuError> {
+    pub fn run(&mut self, end_addr: Option<u64>) -> Result<u64, MwemuError> {
         self.is_running.store(1, atomic::Ordering::Relaxed);
         let is_running2 = Arc::clone(&self.is_running);
 
@@ -4511,7 +4511,7 @@ impl Emu {
                             self.regs.rip
                         );
                         self.spawn_console();
-                        return Err(ScemuError::new("cannot read program counter"));
+                        return Err(MwemuError::new("cannot read program counter"));
                     }
                 };
                 let block = code.read_from(self.regs.rip).to_vec();
@@ -4585,7 +4585,7 @@ impl Emu {
                         prev_addr = addr;
                         if repeat_counter == 100 {
                             log::info!("infinite loop!  opcode: {}", ins.op_code().op_code_string());
-                                return Err(ScemuError::new("inifinite loop found"));
+                                return Err(MwemuError::new("inifinite loop found"));
                         }
 
                         if self.cfg.loops {
@@ -4705,7 +4705,7 @@ impl Emu {
                         if self.cfg.console_enabled {
                             self.spawn_console();
                         } else {
-                            return Err(ScemuError::new("emulation error"));
+                            return Err(MwemuError::new("emulation error"));
                         }
                     }
 

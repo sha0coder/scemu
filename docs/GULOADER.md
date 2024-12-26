@@ -1,6 +1,6 @@
 # GuLoader PIC malware (shellcode)
 
-ScEmu is emulating 78,574,913,778 instructions bypassing multiple tricks.
+MwEmu is emulating 78,574,913,778 instructions bypassing multiple tricks.
 
 It start with typical api search algorithms with several loops inside eachother.
 

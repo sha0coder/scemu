@@ -1,4 +1,4 @@
-use super::err::ScemuError;
+use super::err::MwemuError;
 use crate::emu::maps::Maps;
 use super::maps::mem64::Mem64;
 use super::constants;
@@ -83,10 +83,10 @@ pub struct Elf64 {
 }
 
 impl Elf64 {
-    pub fn parse(filename: &str) -> Result<Elf64, ScemuError> {
+    pub fn parse(filename: &str) -> Result<Elf64, MwemuError> {
         let mut mem: Mem64 = Mem64::new();
         if !mem.load(&filename) {
-          return Err(ScemuError::new("cannot open elf binary"));
+          return Err(MwemuError::new("cannot open elf binary"));
         }
         let bin = mem.get_mem(); 
 
