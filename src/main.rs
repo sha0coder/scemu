@@ -2,8 +2,8 @@ extern crate clap;
 
 use std::io::Write as _;
 use clap::{App, Arg};
-use libscemu::emu32;
-use libscemu::emu64;
+use libmwemu::emu32;
+use libmwemu::emu64;
 use env_logger::Env;
 
 macro_rules! match_register_arg {
@@ -64,7 +64,7 @@ fn main() {
         })
         .init();
 
-    let matches = App::new("SCEMU emulator for malware")
+    let matches = App::new("MWEMU emulator for malware")
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
         .arg(clap_arg!("filename", "f", "filename", "set the shellcode binary file.", "FILE"))
@@ -114,7 +114,7 @@ fn main() {
         log::error!("the filename is mandatory, try -f <FILENAME> or --help");
     }
 
-    let mut emu: libscemu::emu::Emu;
+    let mut emu: libmwemu::emu::Emu;
 
     // 32 or 64 bit
     if matches.is_present("64bits") {
@@ -349,7 +349,7 @@ fn main() {
     // script
     if matches.is_present("script") {
         emu.disable_ctrlc();
-        let mut script = libscemu::emu::script::Script::new();
+        let mut script = libmwemu::emu::script::Script::new();
         script.load(
             matches
                 .value_of("script")

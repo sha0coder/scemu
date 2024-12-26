@@ -1,9 +1,0 @@
-; target/release/scemu -f ~/samples/RacoonStealer/2022-10-18/AnyDesk_dump_SCY.bin -b 0x400000
-
-
-;bi 38859
-bi 38911
-call 0x040460D
-c
-;console
-mdda /tmp/raccoon/

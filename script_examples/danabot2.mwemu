@@ -1,5 +1,5 @@
 
-; target/release/scemu -f ~/samples/danabot/2023-03-10-Loader/unpacked/rundll32_exe_PID974_Qruhaepdediwhf.dll_1370000_x86.dll  -a 0x1ca1254 -vv -x danabot2.scemu -vv
+; target/release/mwemu -f ~/samples/danabot/2023-03-10-Loader/unpacked/rundll32_exe_PID974_Qruhaepdediwhf.dll_1370000_x86.dll  -a 0x1ca1254 -vv -x danabot2.mwemu -vv
 
 
 

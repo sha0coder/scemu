@@ -1,0 +1,24 @@
+[package]
+name = "libmwemu"
+version = "0.19.3"
+edition = "2018"
+authors = ["sha0coder"]
+license = "MIT"
+description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
+#email = "sha0 at badchecksum.net"
+documentation = "https://docs.rs/libmwemu/0.4.15/libmwemu/"
+repository = "https://github.com/sha0coder/libmwemu"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+iced-x86 = "1.21.0"
+uint = "0.9.5"
+md5 = "0.7.0"
+lazy_static = "1.4.0"
+rand = "0.8.4"
+ctrlc = "3.2.2"
+scan_fmt = "0.2.6"
+atty = "0.2.14"
+csv = "1.3.0"
+chrono = { version = "0.4", features = ["serde"] }
+log = "0.4.22"

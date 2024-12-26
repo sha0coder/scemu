@@ -5,7 +5,7 @@
 Every line printed  starts with a number that represent an emulation moment, its possible to spawn a console a specific moment doing for example this:
 
 ```bash
-target/release/scemu -f shellcode.bin -vv -c 1000
+target/release/mwemu -f shellcode.bin -vv -c 1000
 ```
 
 This is going to step 1000 instructions and then spawn the console on that moment.
