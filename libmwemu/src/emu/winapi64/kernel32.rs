@@ -31,6 +31,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "Process32First" => Process32First(emu),
         "Process32Next" => Process32Next(emu),
         "LStrCmpI" => LStrCmpI(emu),
+        "lstrcmpiW" => LStrCmpIW(emu),
         "LStrCmpIW" => LStrCmpIW(emu),
         "AreFileApiIsAnsi" => AreFileApiIsAnsi(emu),
         "BeginUpdateResourceA" => BeginUpdateResourceA(emu),
