@@ -48,6 +48,7 @@ Rust apps https://crates.io/crates/libscemu
 	- shellgen.
 	- guloader (not totally for now, but arrive further than the debugger)
     - mars stealer pe32.
+    - bumblebee.
 - partial emulation with complex malware functions:
     - guloader
     - xloader
@@ -56,11 +57,16 @@ Rust apps https://crates.io/crates/libscemu
 ## pyscemu vs malware
 - raccoon, strings decryption
 - vidar, strings decryption
-- xloader, total decry
-- lokibot, api deobfuscatiuon
+- xloader, total decrypt, keygen, build url encryption.
+- lokibot, api deobfuscation
 - mars unpacking and getting ioc
 - shikata decoding and getting ioc
-- danabot get strings
+- danabot strings decryption
+- zloader strings decryption
+- bumblebee unpacking after emulating  25,515,274,634 instructions.
+- enigma loader api deobuscation and drop decryption
+- bugsleep unpack
+- gozi bss decrypt and dga predictor.
 
 
 ## Usage
