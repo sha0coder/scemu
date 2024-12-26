@@ -12,7 +12,4 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.18.1"
 env_logger = "0.11.6"
-libmwemu = "0.19.3"
-#libmwemu = { path = "/home/sha0/src/libmwemu/" }
-#libmwemu = { path = "/Users/sha0coder/src/libmwemu/" }
-#libmwemu = { path = "/Users/jesus/src/libmwemu/" }
+libmwemu = { path = "../libmwemu" }
