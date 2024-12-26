@@ -82,6 +82,7 @@ fn main() {
         //.arg(clap_arg!("endpoint", "e", "endpoint", "perform communications with the endpoint, use tor or vpn!"))
         .arg(clap_arg!("console_addr", "C", "console_addr", "spawn console on first eip = address", "ADDRESS"))
         .arg(clap_arg!("entry_point", "a", "entry", "entry point of the shellcode, by default starts from the beginning.", "ADDRESS"))
+        .arg(clap_arg!("exit_position", "e", "exit", "exit position of the shellcode", "POSITION"))
         .arg(clap_arg!("code_base_address", "b", "base", "set base address for code", "ADDRESS"))
         .arg(clap_arg!("stack_address", "", "stack_address", "set stack address", "ADDRESS"))
         .arg(clap_arg!("stack_trace", "p", "stack", "trace stack on push/pop"))
@@ -318,6 +319,18 @@ fn main() {
             16,
         )
         .expect("invalid address");    
+    }
+
+    // exit position
+    if matches.is_present("exit_position") {
+        emu.cfg.exit_position = u64::from_str_radix(
+            matches
+                .value_of("exit_position")
+                .expect("select the exit position address -e")
+                .trim_start_matches("0x"),
+            16,
+        )
+        .expect("invalid position");    
     }
 
     // stack trace
