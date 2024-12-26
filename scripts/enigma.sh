@@ -9,7 +9,7 @@ cargo run --release \
     --target x86_64-apple-darwin \
     -- \
     --filename ~/Desktop/enigma/surprise.dll \
-    --maps ./mwemu/maps64 \
+    --maps ./maps64 \
     --64bits \
     --trace /tmp/output.csv \
     --memory \
