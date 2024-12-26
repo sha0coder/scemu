@@ -14,7 +14,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         _ => {
             log::info!(
                 "calling unimplemented advapi32 API 0x{:x} {}",
-                addr, apiname
+                addr,
+                apiname
             );
             return apiname;
         }
@@ -60,7 +61,10 @@ fn RegOpenKeyExA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} advapi32!RegOpenKeyExA {} {}",
-        emu.colors.light_red, emu.pos, subkey, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        subkey,
+        emu.colors.nc
     );
 
     emu.maps
@@ -73,7 +77,9 @@ fn RegCloseKey(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} advapi32!RegCloseKey {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     helper::handler_close(hkey);
@@ -99,7 +105,10 @@ fn RegQueryValueExA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} advapi32!RegQueryValueExA {} {}",
-        emu.colors.light_red, emu.pos, value, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        value,
+        emu.colors.nc
     );
 
     emu.maps.write_string(data_out, "some_random_reg_contents");

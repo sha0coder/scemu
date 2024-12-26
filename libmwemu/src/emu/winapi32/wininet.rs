@@ -77,14 +77,19 @@ pub fn InternetOpenA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetOpenA uagent: {} proxy: {} {} {}",
-        emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        uagent,
+        proxy,
+        proxy_bypass,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
         emu.stack_pop32(false);
     }
 
-    /* 
+    /*
     if emu.cfg.endpoint {
         // endpoint mode
         if uagent_ptr != 0 && uagent != "" {
@@ -134,7 +139,12 @@ pub fn InternetOpenW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetOpenW uagent: {} proxy: {} {} {}",
-        emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        uagent,
+        proxy,
+        proxy_bypass,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
@@ -202,7 +212,13 @@ pub fn InternetConnectA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetConnectA host: {} port: {} login: {} passw: {} {}",
-        emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        server,
+        port,
+        login,
+        passw,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(internet_hndl) {
@@ -272,7 +288,13 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetConnectW host: {} port: {} login: {} passw: {} {}",
-        emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        server,
+        port,
+        login,
+        passw,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(internet_hndl) {
@@ -350,7 +372,14 @@ fn HttpOpenRequestA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpOpenRequestA method: {} path: {} ver: {} ref: {} access: {} {}",
-        emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        method,
+        path,
+        version,
+        referrer,
+        access,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(conn_hndl) {
@@ -444,7 +473,14 @@ fn HttpOpenRequestW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpOpenRequestW method: {} path: {} ver: {} ref: {} access: {} {}",
-        emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        method,
+        path,
+        version,
+        referrer,
+        access,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(conn_hndl) {
@@ -503,7 +539,12 @@ fn InternetSetOptionA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetSetOptionA option: 0x{:x} buff: {{{}}} {} {}",
-        emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        option,
+        buffer_content,
+        sbuff,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(inet_hndl) {
@@ -543,7 +584,12 @@ fn InternetSetOptionW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetSetOptionW option: 0x{:x} buff: {{{}}} {} {}",
-        emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        option,
+        buffer_content,
+        sbuff,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(inet_hndl) {
@@ -584,7 +630,11 @@ fn HttpSendRequestA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpSendRequestA hdrs: {} opt: {} {}",
-        emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hdrs,
+        opt,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(req_hndl) {
@@ -631,7 +681,11 @@ fn HttpSendRequestW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpSendRequestW hdrs: {} opt: {} {}",
-        emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hdrs,
+        opt,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(req_hndl) {
@@ -659,7 +713,10 @@ fn InternetErrorDlg(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetErrorDlg err: {} {}",
-        emu.colors.light_red, emu.pos, err, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        err,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
@@ -688,7 +745,11 @@ fn InternetReadFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        bytes_to_read,
+        buff_ptr,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {
@@ -744,7 +805,11 @@ fn HttpQueryInfoA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpQueryInfoA buff: 0x{:x} sz:{} {}",
-        emu.colors.light_red, emu.pos, buff, buff_len, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        buff,
+        buff_len,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
@@ -762,7 +827,10 @@ fn InternetCloseHandle(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetCloseHandle handle: {:x} {}",
-        emu.colors.light_red, emu.pos, handle, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        emu.colors.nc
     );
 
     helper::handler_close(handle);
@@ -771,18 +839,32 @@ fn InternetCloseHandle(emu: &mut emu::Emu) {
 }
 
 fn InternetCrackUrlA(emu: &mut emu::Emu) {
-    let url_ptr = emu.maps.read_dword(emu.regs.get_esp())
+    let url_ptr = emu
+        .maps
+        .read_dword(emu.regs.get_esp())
         .expect("wininet!InternetCrackUrlA error reading url_ptr") as u64;
-    let url_len = emu.maps.read_dword(emu.regs.get_esp() + 4)
+    let url_len = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 4)
         .expect("wininet!InternetCrackUrlA error reading flags");
-    let flags = emu.maps.read_dword(emu.regs.get_esp() + 8)
+    let flags = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 8)
         .expect("wininet!InternetCrackUrlA error reading reserved");
-    let components = emu.maps.read_dword(emu.regs.get_esp() + 12)
+    let components = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 12)
         .expect("wininet!InternetCrackUrlA error reading component");
 
     let url = emu.maps.read_string(url_ptr);
 
-    log::info!("{}** {} wininet!InternetCrackUrlA url: `{}` {}", emu.colors.light_red, emu.pos, url, emu.colors.nc);
+    log::info!(
+        "{}** {} wininet!InternetCrackUrlA url: `{}` {}",
+        emu.colors.light_red,
+        emu.pos,
+        url,
+        emu.colors.nc
+    );
 
     for _ in 0..4 {
         emu.stack_pop32(false);
@@ -791,18 +873,32 @@ fn InternetCrackUrlA(emu: &mut emu::Emu) {
 }
 
 fn InternetCrackUrlW(emu: &mut emu::Emu) {
-    let url_ptr = emu.maps.read_dword(emu.regs.get_esp())
+    let url_ptr = emu
+        .maps
+        .read_dword(emu.regs.get_esp())
         .expect("wininet!InternetCrackUrlW error reading url_ptr") as u64;
-    let url_len = emu.maps.read_dword(emu.regs.get_esp() + 4)
+    let url_len = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 4)
         .expect("wininet!InternetCrackUrlW error reading url_len");
-    let flags = emu.maps.read_dword(emu.regs.get_esp() + 8)
+    let flags = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 8)
         .expect("wininet!InternetCrackUrlW error reading flags");
-    let components = emu.maps.read_dword(emu.regs.get_esp() + 12)
+    let components = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 12)
         .expect("wininet!InternetCrackUrlW error reading components");
 
     let url = emu.maps.read_wide_string(url_ptr);
 
-    log::info!("{}** {} wininet!InternetCrackUrlW url: `{}` {}", emu.colors.light_red, emu.pos, url, emu.colors.nc);
+    log::info!(
+        "{}** {} wininet!InternetCrackUrlW url: `{}` {}",
+        emu.colors.light_red,
+        emu.pos,
+        url,
+        emu.colors.nc
+    );
 
     for _ in 0..4 {
         emu.stack_pop32(false);

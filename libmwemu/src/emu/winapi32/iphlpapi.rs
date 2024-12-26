@@ -6,10 +6,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     match api.as_str() {
         //"LoadLibraryA" => LoadLibraryA(emu),
         _ => {
-            log::info!(
-                "calling unimplemented iphlpapi API 0x{:x} {}",
-                addr, api
-            );
+            log::info!("calling unimplemented iphlpapi API 0x{:x} {}", addr, api);
             return api;
         }
     }

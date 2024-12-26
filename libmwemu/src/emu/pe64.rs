@@ -584,7 +584,10 @@ impl PE64 {
                 }*/
 
                 let fake_addr = read_u64_le!(self.raw, off_addr);
-                println!("writing real_addr: 0x{:x} {} 0x{:x} -> 0x{:x} ", off_addr, func_name, fake_addr, real_addr);
+                println!(
+                    "writing real_addr: 0x{:x} {} 0x{:x} -> 0x{:x} ",
+                    off_addr, func_name, fake_addr, real_addr
+                );
                 write_u64_le!(self.raw, off_addr, real_addr);
 
                 off_name += pe32::HintNameItem::size();
@@ -641,8 +644,4 @@ impl PE64 {
 
         return String::new();
     }
-
 }
-
-
-

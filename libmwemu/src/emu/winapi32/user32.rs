@@ -35,7 +35,11 @@ fn MessageBoxA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} user32!MessageBoxA {} {} {}",
-        emu.colors.light_red, emu.pos, title, msg, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        title,
+        msg,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -58,7 +62,11 @@ fn MessageBoxW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} user32!MessageBoxW {} {} {}",
-        emu.colors.light_red, emu.pos, title, msg, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        title,
+        msg,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -70,7 +78,9 @@ fn MessageBoxW(emu: &mut emu::Emu) {
 fn GetDesktopWindow(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} user32!GetDesktopWindow {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     //emu.regs.rax = 0x11223344; // current window handle
     emu.regs.rax = 0; // no windows handler is more stealthy
@@ -81,10 +91,12 @@ fn wsprintfW(emu: &mut emu::Emu) {}
 fn GetProcessWindowStation(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} user32!GetProcessWindowStation {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
-    emu.regs.rax = 0x1337;  // get handler
+    emu.regs.rax = 0x1337; // get handler
 }
 
 fn GetUserObjectInformationW(emu: &mut emu::Emu) {
@@ -109,18 +121,18 @@ fn GetUserObjectInformationW(emu: &mut emu::Emu) {
         .read_dword(emu.regs.get_esp())
         .expect("user32!GetUserObjectInformationW: error reading title") as u64;
 
-
-
-    log::info!(                                         
-        "{}** {} user32!GetUserObjectInformationW {}",  
-        emu.colors.light_red, emu.pos, emu.colors.nc
+    log::info!(
+        "{}** {} user32!GetUserObjectInformationW {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
         emu.stack_pop32(false);
     }
-        
-    emu.regs.rax = 1;  // get handler
+
+    emu.regs.rax = 1; // get handler
 }
 
 fn CharLowerW(emu: &mut emu::Emu) {
@@ -131,11 +143,14 @@ fn CharLowerW(emu: &mut emu::Emu) {
 
     let s = emu.maps.read_wide_string(ptr_str);
 
-    log::info!(                                         
-        "{}** {} user32!CharLowerW(`{}`) {}",  
-        emu.colors.light_red, emu.pos, s, emu.colors.nc
+    log::info!(
+        "{}** {} user32!CharLowerW(`{}`) {}",
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        emu.colors.nc
     );
-    
+
     emu.maps.write_wide_string(ptr_str, &s.to_lowercase());
 
     emu.stack_pop32(false);
@@ -200,13 +215,15 @@ fn wsprintfA(emu: &mut emu::Emu) {
         }
     }
 
-    emu.maps
-        .write_string(out, &result);
-
+    emu.maps.write_string(out, &result);
 
     log::info!(
         "{}** {} user32!wsprintfA fmt:`{}` out:`{}` {}",
-        emu.colors.light_red, emu.pos, fmt, &result, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        fmt,
+        &result,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);

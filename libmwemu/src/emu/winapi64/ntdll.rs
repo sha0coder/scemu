@@ -98,10 +98,21 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, addr, size, alloc_addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        addr,
+        size,
+        alloc_addr,
+        emu.colors.nc
     );
 
-    emu.maps.create_map(format!("valloc_{:x}", alloc_addr).as_str(), alloc_addr, size).expect("ntdll!NtAllocateVirtualMemory cannot create map");
+    emu.maps
+        .create_map(
+            format!("valloc_{:x}", alloc_addr).as_str(),
+            alloc_addr,
+            size,
+        )
+        .expect("ntdll!NtAllocateVirtualMemory cannot create map");
 
     if !emu.maps.write_qword(addr_ptr, alloc_addr) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
@@ -118,7 +129,11 @@ fn stricmp(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!stricmp  '{}'=='{}'? {}",
-        emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        str1,
+        str2,
+        emu.colors.nc
     );
 
     if str1 == str2 {
@@ -134,7 +149,10 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryVirtualMemory addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        addr,
+        emu.colors.nc
     );
 
     if handle != 0xffffffff {
@@ -183,20 +201,29 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
     let libname = emu.maps.read_wide_string(libname_ptr);
     log::info!(
         "{}** {} ntdll!LdrLoadDll   lib: {} {}",
-        emu.colors.light_red, emu.pos, libname, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        libname,
+        emu.colors.nc
     );
 
     if libname == "user32.dll" {
-        let user32 = emu.maps.create_map("user32", 0x773b0000, 0x1000).expect("ntdll!LdrLoadDll_gul cannot create map");
+        let user32 = emu
+            .maps
+            .create_map("user32", 0x773b0000, 0x1000)
+            .expect("ntdll!LdrLoadDll_gul cannot create map");
         user32.load("maps32/user32.bin");
-        let user32_text = emu.maps.create_map("user32_text", 0x773b1000, 0x1000).expect("ntdll!LdrLoadDll_gul cannot create map");
+        let user32_text = emu
+            .maps
+            .create_map("user32_text", 0x773b1000, 0x1000)
+            .expect("ntdll!LdrLoadDll_gul cannot create map");
         user32_text.load("maps32/user32_text.bin");
 
         if !emu.maps.write_qword(libaddr_ptr, 0x773b0000) {
             panic!("ntdll_LdrLoadDll: cannot write in addr param");
         }
-    } 
-    
+    }
+
     emu.regs.rax = emu::constants::STATUS_SUCCESS;
 }
 
@@ -206,7 +233,11 @@ fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlAddVectoredExceptionHandler  {} callback: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        p1,
+        fptr,
+        emu.colors.nc
     );
 
     emu.veh = fptr;
@@ -219,7 +250,11 @@ fn RtlRemoveVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlRemoveVectoredExceptionHandler  {} callback: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        p1,
+        fptr,
+        emu.colors.nc
     );
 
     emu.veh = 0;
@@ -236,7 +271,9 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll_NtGetContextThread   ctx: {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     let ctx = Context64::new(&emu.regs);
@@ -248,7 +285,9 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
 fn RtlExitUserThread(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} ntdll!RtlExitUserThread   {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.spawn_console();
     std::process::exit(1);
@@ -304,12 +343,19 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
         Some(a) => a,
         None => panic!("/!\\ out of memory cannot allocate ntdll!RtlAllocateHeap"),
     };
-    emu.maps.create_map(&map_name, alloc_addr, size).expect("ntdll!RtlAllocateHeap cannot create map");
+    emu.maps
+        .create_map(&map_name, alloc_addr, size)
+        .expect("ntdll!RtlAllocateHeap cannot create map");
     //}
 
     log::info!(
         "{}** {} ntdll!RtlAllocateHeap  hndl: {:x} sz: {}   =addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, handle, size, alloc_addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        size,
+        alloc_addr,
+        emu.colors.nc
     );
 
     emu.regs.rax = alloc_addr;
@@ -322,7 +368,12 @@ fn RtlQueueWorkItem(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlQueueWorkItem  fptr: 0x{:x} ctx: 0x{:x} flags: {} {}",
-        emu.colors.light_red, emu.pos, fptr, ctx, flags, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        fptr,
+        ctx,
+        flags,
+        emu.colors.nc
     );
 
     if fptr > constants::LIBS_BARRIER64 {
@@ -340,7 +391,11 @@ fn NtWaitForSingleObject(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtWaitForSingleObject  hndl: 0x{:x} timeout: {} {}",
-        emu.colors.light_red, emu.pos, handle, timeout, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        timeout,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0x102; //constants::STATUS_SUCCESS;
@@ -356,7 +411,11 @@ fn sscanf(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!sscanf out_buff: `{}` fmt: `{}` {}",
-        emu.colors.light_red, emu.pos, buffer, fmt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        buffer,
+        fmt,
+        emu.colors.nc
     );
 
     let rust_fmt = fmt
@@ -375,7 +434,9 @@ fn sscanf(emu: &mut emu::Emu) {
 fn NtGetTickCount(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} ntdll!NtGetTickCount {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     let tick = kernel32::TICK.lock().unwrap();
     emu.regs.rax = *tick as u64;
@@ -387,7 +448,9 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryPerformanceCounter {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.maps.write_dword(perf_counter_ptr, 0);
@@ -400,7 +463,11 @@ fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlGetProcessHeaps num: {} out: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, num_of_heaps, out_process_heaps, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        num_of_heaps,
+        out_process_heaps,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -472,7 +539,10 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
         } else {
             let addr = match emu.maps.alloc(255) {
                 Some(a) => {
-                    let mem = emu.maps.create_map("nt_alloc", a, 255).expect("ntdll!RtlDosPathNameToNtPathName_U cannot create map");
+                    let mem = emu
+                        .maps
+                        .create_map("nt_alloc", a, 255)
+                        .expect("ntdll!RtlDosPathNameToNtPathName_U cannot create map");
                     emu.maps.write_dword(nt_path_name_ptr, a as u32);
                     emu.maps.memcpy(
                         a,
@@ -532,7 +602,10 @@ fn NtCreateFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtCreateFile {} {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
 
     if out_hndl_ptr > 0 {
@@ -550,7 +623,10 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlFreeHeap 0x{} {}",
-        emu.colors.light_red, emu.pos, base_addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        base_addr,
+        emu.colors.nc
     );
 
     helper::handler_close(hndl);
@@ -589,7 +665,9 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryInformationFile {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::STATUS_SUCCESS;
@@ -625,7 +703,13 @@ fn NtReadFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtReadFile {} buff: 0x{:x} sz: {} off_var: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, file, buff, len, off, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file,
+        buff,
+        len,
+        off,
+        emu.colors.nc
     );
 
     emu.maps.memset(buff, 0x90, len);
@@ -639,7 +723,11 @@ fn NtClose(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtClose hndl: 0x{:x} uri: {} {}",
-        emu.colors.light_red, emu.pos, hndl, uri, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        uri,
+        emu.colors.nc
     );
 
     if uri == "" {
@@ -655,7 +743,9 @@ fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlInitializeCriticalSectionAndSpinCount {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -673,7 +763,11 @@ fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtProtectVirtualMemory sz: {} {} {}",
-        emu.colors.light_red, emu.pos, sz, prot, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        sz,
+        prot,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::STATUS_SUCCESS
@@ -684,7 +778,9 @@ fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlEnterCriticalSection {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -695,7 +791,9 @@ fn RtlGetVersion(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlGetVersion {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     let versioninfo = emu::structures::OsVersionInfo::new();
@@ -711,7 +809,9 @@ fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlInitializeCriticalSectionEx {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -724,7 +824,12 @@ fn memset(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!memset ptr: 0x{:x} byte: {} count: {} {}",
-        emu.colors.light_red, emu.pos, ptr, byte, count, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr,
+        byte,
+        count,
+        emu.colors.nc
     );
 
     emu.maps.memset(ptr, byte as u8, count as usize);
@@ -737,7 +842,10 @@ fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlSetUnhandledExceptionFilter filter: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, filter, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filter,
+        emu.colors.nc
     );
 
     emu.feh = filter;
@@ -754,7 +862,10 @@ fn RtlCopyMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlCopyMemory {} {}",
-        emu.colors.light_red, emu.pos, s, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        emu.colors.nc
     );
 }
 
@@ -774,7 +885,11 @@ fn RtlReAllocateHeap(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlReAllocateHeap hndl: {:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, hndl, sz, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        sz,
+        emu.colors.nc
     );
 }
 
@@ -785,7 +900,12 @@ fn NtFlushInstructionCache(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtFlushInstructionCache hndl: {:x} 0x{:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, proc_hndl, addr, sz, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        proc_hndl,
+        addr,
+        sz,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -806,7 +926,10 @@ fn LdrGetDllHandleEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!LdrGetDllHandleEx {} {}",
-        emu.colors.light_red, emu.pos, dll_name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dll_name,
+        emu.colors.nc
     );
 
     emu.maps.memcpy(path_ptr, dll_name_ptr, dll_name.len());
@@ -823,10 +946,12 @@ fn NtTerminateThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtTerminateThread {:x} {} {}",
-        emu.colors.light_red, emu.pos, handle, exit_status, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        exit_status,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
 }
-
-

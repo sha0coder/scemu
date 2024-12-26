@@ -36,18 +36,30 @@ lazy_static! {
 //// kernelbase API ////
 
 fn LoadStringW(emu: &mut emu::Emu) {
-    let hndl = emu.maps.read_dword(emu.regs.rsp)
+    let hndl = emu
+        .maps
+        .read_dword(emu.regs.rsp)
         .expect("kernelbase!LoadStringW error reading param");
-    let id = emu.maps.read_dword(emu.regs.rsp+4)
+    let id = emu
+        .maps
+        .read_dword(emu.regs.rsp + 4)
         .expect("kernelbase!LoadStringW error reading param");
-    let buff = emu.maps.read_dword(emu.regs.rsp+8)
+    let buff = emu
+        .maps
+        .read_dword(emu.regs.rsp + 8)
         .expect("kernelbase!LoadStringW error reading param");
-    let len = emu.maps.read_dword(emu.regs.rsp+12)
+    let len = emu
+        .maps
+        .read_dword(emu.regs.rsp + 12)
         .expect("kernelbase!LoadStringW error reading param");
 
     log::info!(
         "{}** {} kernelbase!LoadStringW {} 0x{} {}",
-        emu.colors.light_red, emu.pos, id, buff, emu.colors.nc,
+        emu.colors.light_red,
+        emu.pos,
+        id,
+        buff,
+        emu.colors.nc,
     );
 
     emu.stack_pop32(false);
@@ -58,26 +70,45 @@ fn LoadStringW(emu: &mut emu::Emu) {
 }
 
 fn _initterm(emu: &mut emu::Emu) {
-    let ptr1 = emu.maps.read_dword(emu.regs.rsp)
+    let ptr1 = emu
+        .maps
+        .read_dword(emu.regs.rsp)
         .expect("kernelbase!_initterm error reading param");
-    let ptr2 = emu.maps.read_dword(emu.regs.rsp+4)
+    let ptr2 = emu
+        .maps
+        .read_dword(emu.regs.rsp + 4)
         .expect("kernelbase!_initterm error reading param");
-    log::info!("{}** {} kernelbase!_initterm 0x{:x} 0x{:x} {}", emu.colors.light_red, emu.pos, ptr1, ptr2, emu.colors.nc);
+    log::info!(
+        "{}** {} kernelbase!_initterm 0x{:x} 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        ptr1,
+        ptr2,
+        emu.colors.nc
+    );
     emu.stack_pop32(false);
     emu.stack_pop32(false);
     emu.regs.rax = 0;
 }
 
 fn _initterm_e(emu: &mut emu::Emu) {
-    let ptr1 = emu.maps.read_dword(emu.regs.rsp)
+    let ptr1 = emu
+        .maps
+        .read_dword(emu.regs.rsp)
         .expect("kernelbase!_initterm_e error reading param");
-    let ptr2 = emu.maps.read_dword(emu.regs.rsp+4)
+    let ptr2 = emu
+        .maps
+        .read_dword(emu.regs.rsp + 4)
         .expect("kernelbase!_initterm_e error reading param");
-    log::info!("{}** {} kernelbase!_initterm_e 0x{:x} 0x{:x} {}", emu.colors.light_red, emu.pos, ptr1, ptr2, emu.colors.nc);
+    log::info!(
+        "{}** {} kernelbase!_initterm_e 0x{:x} 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        ptr1,
+        ptr2,
+        emu.colors.nc
+    );
     emu.stack_pop32(false);
     emu.stack_pop32(false);
     emu.regs.rax = 0;
 }
-
-
-

@@ -60,7 +60,6 @@ impl Maps {
     }
 
     pub fn create_map(&mut self, name: &str, base: u64, size: u64) -> Result<&mut Mem64, String> {
-
         //if size == 0 {
         //    return Err(format!("map size cannot be 0"));
         //}

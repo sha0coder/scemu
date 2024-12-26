@@ -909,8 +909,8 @@ impl PE32 {
     }
 
     pub fn mem_size(&self) -> usize {
-        let mut max_va:u32 = 0;
-        let mut max_va_sz:usize = 0;
+        let mut max_va: u32 = 0;
+        let mut max_va_sz: usize = 0;
 
         for i in 0..self.sect_hdr.len() {
             let sect = &self.sect_hdr[i];
@@ -1096,7 +1096,7 @@ impl PE32 {
             "IAT binding started image_import_descriptor.len() = {} ...",
             self.image_import_descriptor.len()
         );
-        
+
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
             if dbg {
@@ -1160,7 +1160,6 @@ impl PE32 {
         log::info!("IAT Bound.");
     }
 
-
     pub fn import_addr_to_name(&self, paddr: u32) -> String {
         let dbg = false;
         if paddr == 0 {
@@ -1207,6 +1206,4 @@ impl PE32 {
         }
         return String::new();
     }
-
-
 }

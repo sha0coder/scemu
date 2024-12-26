@@ -14,10 +14,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CryptStringToBinaryA" => CryptStringToBinaryA(emu),
 
         _ => {
-            log::info!(
-                "calling unimplemented crypt32 API 0x{:x} {}",
-                addr, api
-            );
+            log::info!("calling unimplemented crypt32 API 0x{:x} {}", addr, api);
             return api;
         }
     }
@@ -37,7 +34,11 @@ fn PkiInitializeCriticalSection(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} crypt32!Pki_InitializeCriticalSection flags: {:x} addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, flags, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        flags,
+        addr,
+        emu.colors.nc
     );
 
     for _ in 0..2 {
@@ -96,7 +97,14 @@ fn CryptStringToBinaryA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} crypt32!CryptStringToBinaryA str: 0x{:x} len: {} ptr: {} len: {} {}{}",
-        emu.colors.light_red, emu.pos, string, num_chars, ptr, inout_sz, dflags, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        string,
+        num_chars,
+        ptr,
+        inout_sz,
+        dflags,
+        emu.colors.nc
     );
 
     for _ in 0..7 {

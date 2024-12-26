@@ -14,14 +14,18 @@ pub fn gateway(emu: &mut emu::Emu) {
         0 => {
             log::info!(
                 "{}** {} syscall restart_syscall {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         1 => {
             log::info!(
                 "{}** {} syscall exit()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
             std::process::exit(1);
         }
@@ -29,7 +33,9 @@ pub fn gateway(emu: &mut emu::Emu) {
         2 => {
             log::info!(
                 "{}** {} syscall fork()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
             emu.spawn_console();
         }
@@ -41,7 +47,12 @@ pub fn gateway(emu: &mut emu::Emu) {
             emu.regs.rax = buff;
             log::info!(
                 "{}** {} syscall read() fd: {} buf: 0x{:x} sz: {} {}",
-                emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                fd,
+                buff,
+                sz,
+                emu.colors.nc
             );
         }
 
@@ -52,7 +63,12 @@ pub fn gateway(emu: &mut emu::Emu) {
             emu.regs.rax = sz;
             log::info!(
                 "{}** {} syscall write() fd: {} buf: 0x{:x} sz: {} {}",
-                emu.colors.light_red, emu.pos, fd, buff, sz, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                fd,
+                buff,
+                sz,
+                emu.colors.nc
             );
         }
 
@@ -62,7 +78,11 @@ pub fn gateway(emu: &mut emu::Emu) {
             emu.regs.rax = fd as u64;
             log::info!(
                 "{}** {} syscall open() file: {} fd:{} {}",
-                emu.colors.light_red, emu.pos, file_path, fd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                file_path,
+                fd,
+                emu.colors.nc
             );
         }
 
@@ -70,7 +90,10 @@ pub fn gateway(emu: &mut emu::Emu) {
             let fd = emu.regs.rbx;
             log::info!(
                 "{}** {} syscall close() fd: {}  {}",
-                emu.colors.light_red, emu.pos, fd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                fd,
+                emu.colors.nc
             );
             helper::socket_close(fd);
             //endpoint::sock_close();
@@ -79,28 +102,36 @@ pub fn gateway(emu: &mut emu::Emu) {
         7 => {
             log::info!(
                 "{}** {} syscall waitpid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         8 => {
             log::info!(
                 "{}** {} syscall creat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         9 => {
             log::info!(
                 "{}** {} syscall link()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         10 => {
             log::info!(
                 "{}** {} syscall unlink()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -108,7 +139,10 @@ pub fn gateway(emu: &mut emu::Emu) {
             let cmd = emu.maps.read_string(emu.regs.rbx);
             log::info!(
                 "{}** {} syscall execve()  cmd: {} {}",
-                emu.colors.light_red, emu.pos, cmd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                cmd,
+                emu.colors.nc
             );
             emu.regs.rax = 0;
         }
@@ -117,21 +151,28 @@ pub fn gateway(emu: &mut emu::Emu) {
             let path = emu.maps.read_string(emu.regs.rbx);
             log::info!(
                 "{}** {} syscall chdir() path: {} {}",
-                emu.colors.light_red, emu.pos, path, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                path,
+                emu.colors.nc
             );
         }
 
         13 => {
             log::info!(
                 "{}** {} syscall time()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         14 => {
             log::info!(
                 "{}** {} syscall mknod()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -140,28 +181,38 @@ pub fn gateway(emu: &mut emu::Emu) {
             let perm = emu.regs.rcx;
             log::info!(
                 "{}** {} syscall chmod() file: {} perm: {} {}",
-                emu.colors.light_red, emu.pos, file_path, perm, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                file_path,
+                perm,
+                emu.colors.nc
             );
         }
 
         16 => {
             log::info!(
                 "{}** {} syscall lchown()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         17 => {
             log::info!(
                 "{}** {} syscall break()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         18 => {
             log::info!(
                 "{}** {} syscall oldstat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -169,126 +220,163 @@ pub fn gateway(emu: &mut emu::Emu) {
             let fd = emu.regs.rbx;
             log::info!(
                 "{}** {} syscall lseek()  fd: {} {}",
-                emu.colors.light_red, emu.pos, fd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                fd,
+                emu.colors.nc
             );
         }
 
         20 => {
             log::info!(
                 "{}** {} syscall getpid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         21 => {
             log::info!(
                 "{}** {} syscall mount()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         22 => {
             log::info!(
                 "{}** {} syscall umount()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         23 => {
             log::info!(
                 "{}** {} syscall setuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         24 => {
             log::info!(
                 "{}** {} syscall getuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         25 => {
             log::info!(
                 "{}** {} syscall stime()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         26 => {
             log::info!(
                 "{}** {} syscall ptrace()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         27 => {
             log::info!(
                 "{}** {} syscall alarm()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         28 => {
             log::info!(
                 "{}** {} syscall oldfstat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         29 => {
             log::info!(
                 "{}** {} syscall pause()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         30 => {
             log::info!(
                 "{}** {} syscall utime()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         31 => {
             log::info!(
                 "{}** {} syscall stty()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         32 => {
             log::info!(
                 "{}** {} syscall gtty()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         33 => {
             log::info!(
                 "{}** {} syscall access()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         34 => {
             log::info!(
                 "{}** {} syscall nice()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         35 => {
             log::info!(
                 "{}** {} syscall ftime()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         36 => {
             log::info!(
                 "{}** {} syscall sync()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -297,28 +385,38 @@ pub fn gateway(emu: &mut emu::Emu) {
             let sig = emu.regs.rcx;
             log::info!(
                 "{}** {} syscall kill() pid: {} sig: {} {}",
-                emu.colors.light_red, emu.pos, pid, sig, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                pid,
+                sig,
+                emu.colors.nc
             );
         }
 
         38 => {
             log::info!(
                 "{}** {} syscall rename()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         39 => {
             log::info!(
                 "{}** {} syscall mkdir()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         40 => {
             log::info!(
                 "{}** {} syscall rmdir()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -326,154 +424,199 @@ pub fn gateway(emu: &mut emu::Emu) {
             let fd = emu.regs.rbx;
             log::info!(
                 "{}** {} syscall dup() fd: {} {}",
-                emu.colors.light_red, emu.pos, fd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                fd,
+                emu.colors.nc
             );
         }
 
         42 => {
             log::info!(
                 "{}** {} syscall pipe()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         43 => {
             log::info!(
                 "{}** {} syscall times()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         44 => {
             log::info!(
                 "{}** {} syscall prof()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         45 => {
             log::info!(
                 "{}** {} syscall brk()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         46 => {
             log::info!(
                 "{}** {} syscall setgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         47 => {
             log::info!(
                 "{}** {} syscall getgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         48 => {
             log::info!(
                 "{}** {} syscall signal()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         49 => {
             log::info!(
                 "{}** {} syscall geteuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         50 => {
             log::info!(
                 "{}** {} syscall getegid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         51 => {
             log::info!(
                 "{}** {} syscall acct()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         52 => {
             log::info!(
                 "{}** {} syscall umount2()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         53 => {
             log::info!(
                 "{}** {} syscall lock()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         54 => {
             log::info!(
                 "{}** {} syscall ioctl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         55 => {
             log::info!(
                 "{}** {} syscall fcntl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         56 => {
             log::info!(
                 "{}** {} syscall mpx()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         57 => {
             log::info!(
                 "{}** {} syscall setpgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         58 => {
             log::info!(
                 "{}** {} syscall ulimit()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         59 => {
             log::info!(
                 "{}** {} syscall oldolduname()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         60 => {
             log::info!(
                 "{}** {} syscall umask()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         61 => {
             log::info!(
                 "{}** {} syscall chroot()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         62 => {
             log::info!(
                 "{}** {} syscall ustat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -482,273 +625,353 @@ pub fn gateway(emu: &mut emu::Emu) {
             let new_fd = emu.regs.get_ecx();
             log::info!(
                 "{}** {} syscall dup2() oldfd: {} newfd: {} {}",
-                emu.colors.light_red, emu.pos, old_fd, new_fd, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                old_fd,
+                new_fd,
+                emu.colors.nc
             );
         }
 
         64 => {
             log::info!(
                 "{}** {} syscall getppid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         65 => {
             log::info!(
                 "{}** {} syscall getpgrp()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         66 => {
             log::info!(
                 "{}** {} syscall setsid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         67 => {
             log::info!(
                 "{}** {} syscall sigaction()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         68 => {
             log::info!(
                 "{}** {} syscall sgetmask()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         69 => {
             log::info!(
                 "{}** {} syscall ssetmask()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         70 => {
             log::info!(
                 "{}** {} syscall setreuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         71 => {
             log::info!(
                 "{}** {} syscall setregid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         72 => {
             log::info!(
                 "{}** {} syscall sigsuspend()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         73 => {
             log::info!(
                 "{}** {} syscall sigpending()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         74 => {
             log::info!(
                 "{}** {} syscall sethostname()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         75 => {
             log::info!(
                 "{}** {} syscall setrlimit()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         76 => {
             log::info!(
                 "{}** {} syscall getrlimit()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         77 => {
             log::info!(
                 "{}** {} syscall getrusage()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         78 => {
             log::info!(
                 "{}** {} syscall gettimeofday()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         79 => {
             log::info!(
                 "{}** {} syscall settimeofday()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         80 => {
             log::info!(
                 "{}** {} syscall getgroups()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         81 => {
             log::info!(
                 "{}** {} syscall setgroups()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         82 => {
             log::info!(
                 "{}** {} syscall select()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         83 => {
             log::info!(
                 "{}** {} syscall symlink()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         84 => {
             log::info!(
                 "{}** {} syscall oldlstat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         85 => {
             log::info!(
                 "{}** {} syscall readlink()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         86 => {
             log::info!(
                 "{}** {} syscall uselib()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         87 => {
             log::info!(
                 "{}** {} syscall swapon()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         88 => {
             log::info!(
                 "{}** {} syscall reboot()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         89 => {
             log::info!(
                 "{}** {} syscall readdir()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         90 => {
             log::info!(
                 "{}** {} syscall mmap()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         91 => {
             log::info!(
                 "{}** {} syscall munmap()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         92 => {
             log::info!(
                 "{}** {} syscall truncate()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         93 => {
             log::info!(
                 "{}** {} syscall ftruncate()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         94 => {
             log::info!(
                 "{}** {} syscall fchmod()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         95 => {
             log::info!(
                 "{}** {} syscall fchown()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         96 => {
             log::info!(
                 "{}** {} syscall getpriority()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         97 => {
             log::info!(
                 "{}** {} syscall setpriority()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         98 => {
             log::info!(
                 "{}** {} syscall profil()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         99 => {
             log::info!(
                 "{}** {} syscall statfs()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         100 => {
             log::info!(
                 "{}** {} syscall fstatfs()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         101 => {
             log::info!(
                 "{}** {} syscall ioperm()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -810,7 +1033,13 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall bind() sock: {} fam: {} {}:{} {}",
-                        emu.colors.light_red, emu.pos, sock, fam, sip, port, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        fam,
+                        sip,
+                        port,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -858,7 +1087,13 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall connect() sock: {} fam: {} {}:{} {}",
-                        emu.colors.light_red, emu.pos, sock, fam, sip, port, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        fam,
+                        sip,
+                        port,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -891,7 +1126,11 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall listen() sock: {} conns: {} {}",
-                        emu.colors.light_red, emu.pos, sock, conns, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        conns,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -926,7 +1165,9 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall accept() {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -944,7 +1185,10 @@ pub fn gateway(emu: &mut emu::Emu) {
                         .expect("getsockname() cannot read sock");
                     log::info!(
                         "{}** {} syscall socketcall getsockname() sock: {} {}",
-                        emu.colors.light_red, emu.pos, sock, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        emu.colors.nc
                     );
                     todo!("implement this");
                 }
@@ -952,14 +1196,18 @@ pub fn gateway(emu: &mut emu::Emu) {
                 constants::SYS_GETPEERNAME => {
                     log::info!(
                         "{}** {} syscall socketcall getpeername()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_SOCKETPAIR => {
                     log::info!(
                         "{}** {} syscall socketcall socketpair()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
@@ -983,7 +1231,12 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall send() sock: {} buff: {} len: {} {}",
-                        emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        buf,
+                        len,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -1025,7 +1278,12 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall recv() sock: {} buff: {} len: {}  {}",
-                        emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        buf,
+                        len,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -1100,7 +1358,12 @@ pub fn gateway(emu: &mut emu::Emu) {
                     } else {
                         log::info!(
                             "{}** {} syscall socketcall sendto() sock: {} buff: {} len: {} {}",
-                            emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc
+                            emu.colors.light_red,
+                            emu.pos,
+                            sock,
+                            buf,
+                            len,
+                            emu.colors.nc
                         );
                     }
 
@@ -1149,7 +1412,12 @@ pub fn gateway(emu: &mut emu::Emu) {
 
                     log::info!(
                         "{}** {} syscall socketcall recvfrom() sock: {} buff: {} len: {} {}",
-                        emu.colors.light_red, emu.pos, sock, buf, len, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        sock,
+                        buf,
+                        len,
+                        emu.colors.nc
                     );
 
                     if !helper::socket_exist(sock as u64) {
@@ -1163,7 +1431,9 @@ pub fn gateway(emu: &mut emu::Emu) {
                 constants::SYS_SHUTDOWN => {
                     log::info!(
                         "{}** {} syscall socketcall shutdown()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                     //endpoint::sock_close();
                 }
@@ -1171,49 +1441,63 @@ pub fn gateway(emu: &mut emu::Emu) {
                 constants::SYS_SETSOCKOPT => {
                     log::info!(
                         "{}** {} syscall socketcall setsockopt()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_GETSOCKOPT => {
                     log::info!(
                         "{}** {} syscall socketcall getsockopt()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_SENDMSG => {
                     log::info!(
                         "{}** {} syscall socketcall sendmsg()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_RECVMSG => {
                     log::info!(
                         "{}** {} syscall socketcall recvmsg()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_ACCEPT4 => {
                     log::info!(
                         "{}** {} syscall socketcall accept4()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_RECVMMSG => {
                     log::info!(
                         "{}** {} syscall socketcall recvmsg()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
                 constants::SYS_SENDMMSG => {
                     log::info!(
                         "{}** {} syscall socketcall sendmsg()  {}",
-                        emu.colors.light_red, emu.pos, emu.colors.nc
+                        emu.colors.light_red,
+                        emu.pos,
+                        emu.colors.nc
                     );
                 }
 
@@ -1224,784 +1508,1008 @@ pub fn gateway(emu: &mut emu::Emu) {
         103 => {
             log::info!(
                 "{}** {} syscall syslog()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         104 => {
             log::info!(
                 "{}** {} syscall setitimer()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         105 => {
             log::info!(
                 "{}** {} syscall getitimer()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         106 => {
             log::info!(
                 "{}** {} syscall stat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         107 => {
             log::info!(
                 "{}** {} syscall lstat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         108 => {
             log::info!(
                 "{}** {} syscall fstat()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         109 => {
             log::info!(
                 "{}** {} syscall olduname()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         110 => {
             log::info!(
                 "{}** {} syscall iopl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         111 => {
             log::info!(
                 "{}** {} syscall vhanghup()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         112 => {
             log::info!(
                 "{}** {} syscall idle()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         113 => {
             log::info!(
                 "{}** {} syscall vm86old()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         114 => {
             log::info!(
                 "{}** {} syscall wait4()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         115 => {
             log::info!(
                 "{}** {} syscall swapoff()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         116 => {
             log::info!(
                 "{}** {} syscall sysinfo()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         117 => {
             log::info!(
                 "{}** {} syscall ipc()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         118 => {
             log::info!(
                 "{}** {} syscall fsync()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         119 => {
             log::info!(
                 "{}** {} syscall sigreturn()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         120 => {
             log::info!(
                 "{}** {} syscall clone()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         121 => {
             log::info!(
                 "{}** {} syscall setdomainname()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         122 => {
             log::info!(
                 "{}** {} syscall uname()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         123 => {
             log::info!(
                 "{}** {} syscall modify_ltd()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         124 => {
             log::info!(
                 "{}** {} syscall adjtimex()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         125 => {
             log::info!(
                 "{}** {} syscall mprotect()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         126 => {
             log::info!(
                 "{}** {} syscall sigprocmask()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         127 => {
             log::info!(
                 "{}** {} syscall create_module()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         128 => {
             log::info!(
                 "{}** {} syscall init_module()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         129 => {
             log::info!(
                 "{}** {} syscall delete_module()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         130 => {
             log::info!(
                 "{}** {} syscall get_kernel_syms()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         131 => {
             log::info!(
                 "{}** {} syscall quotactl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         132 => {
             log::info!(
                 "{}** {} syscall getpgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         133 => {
             log::info!(
                 "{}** {} syscall fchdir()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         134 => {
             log::info!(
                 "{}** {} syscall bdflush()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         135 => {
             log::info!(
                 "{}** {} syscall sysfs()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         136 => {
             log::info!(
                 "{}** {} syscall personality()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         137 => {
             log::info!(
                 "{}** {} syscall afs_syscall()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         138 => {
             log::info!(
                 "{}** {} syscall setfsuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         139 => {
             log::info!(
                 "{}** {} syscall setfsgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         140 => {
             log::info!(
                 "{}** {} syscall _llseek()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         141 => {
             log::info!(
                 "{}** {} syscall getdents()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         142 => {
             log::info!(
                 "{}** {} syscall _newselect()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         143 => {
             log::info!(
                 "{}** {} syscall flock()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         144 => {
             log::info!(
                 "{}** {} syscall msync()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         145 => {
             log::info!(
                 "{}** {} syscall readv()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         146 => {
             log::info!(
                 "{}** {} syscall writev()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         147 => {
             log::info!(
                 "{}** {} syscall getsid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         148 => {
             log::info!(
                 "{}** {} syscall fdatasync()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         149 => {
             log::info!(
                 "{}** {} syscall _sysctl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         150 => {
             log::info!(
                 "{}** {} syscall mlock()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         151 => {
             log::info!(
                 "{}** {} syscall munlock()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         152 => {
             log::info!(
                 "{}** {} syscall mlockall()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         153 => {
             log::info!(
                 "{}** {} syscall munlockall()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         154 => {
             log::info!(
                 "{}** {} syscall sched_setparam()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         155 => {
             log::info!(
                 "{}** {} syscall sched_getparam()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         156 => {
             log::info!(
                 "{}** {} syscall sched_setscheduler()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         157 => {
             log::info!(
                 "{}** {} syscall sched_getscheduler()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         158 => {
             log::info!(
                 "{}** {} syscall sched_yield()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         159 => {
             log::info!(
                 "{}** {} syscall sched_get_priority_max()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         160 => {
             log::info!(
                 "{}** {} syscall sched_get_priority_min()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         161 => {
             log::info!(
                 "{}** {} syscall sched_rr_get_inverval()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         162 => {
             log::info!(
                 "{}** {} syscall nanosleep()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         163 => {
             log::info!(
                 "{}** {} syscall mremap()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         164 => {
             log::info!(
                 "{}** {} syscall setresuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         165 => {
             log::info!(
                 "{}** {} syscall getresuid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         166 => {
             log::info!(
                 "{}** {} syscall vm86()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         167 => {
             log::info!(
                 "{}** {} syscall query_module()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         168 => {
             log::info!(
                 "{}** {} syscall poll()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         169 => {
             log::info!(
                 "{}** {} syscall nfsservctrl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         170 => {
             log::info!(
                 "{}** {} syscall setresgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         171 => {
             log::info!(
                 "{}** {} syscall getresgid()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         172 => {
             log::info!(
                 "{}** {} syscall prctl()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         173 => {
             log::info!(
                 "{}** {} syscall rt_sigreturn()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         174 => {
             log::info!(
                 "{}** {} syscall rt_sigcation()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         175 => {
             log::info!(
                 "{}** {} syscall rt_sigprocmask()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         176 => {
             log::info!(
                 "{}** {} syscall rt_sigpending()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         177 => {
             log::info!(
                 "{}** {} syscall rt_sigtimedwait()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         178 => {
             log::info!(
                 "{}** {} syscall rt_sigqueueinfo()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         179 => {
             log::info!(
                 "{}** {} syscall rt_sigsuspend()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         180 => {
             log::info!(
                 "{}** {} syscall pread64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         181 => {
             log::info!(
                 "{}** {} syscall pwrite64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         182 => {
             log::info!(
                 "{}** {} syscall chown()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         183 => {
             log::info!(
                 "{}** {} syscall getcwd()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         184 => {
             log::info!(
                 "{}** {} syscall capget()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         185 => {
             log::info!(
                 "{}** {} syscall capset()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         186 => {
             log::info!(
                 "{}** {} syscall sigaltstack()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         187 => {
             log::info!(
                 "{}** {} syscall sendfile()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         188 => {
             log::info!(
                 "{}** {} syscall getpmsg()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         189 => {
             log::info!(
                 "{}** {} syscall putpmsg()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         190 => {
             log::info!(
                 "{}** {} syscall vfork()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         191 => {
             log::info!(
                 "{}** {} syscall ugetrlimit()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         192 => {
             log::info!(
                 "{}** {} syscall mmap2()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         193 => {
             log::info!(
                 "{}** {} syscall truncate64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         194 => {
             log::info!(
                 "{}** {} syscall ftruncate64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         195 => {
             log::info!(
                 "{}** {} syscall stat64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         196 => {
             log::info!(
                 "{}** {} syscall lstat64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         197 => {
             log::info!(
                 "{}** {} syscall fstat64()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         198 => {
             log::info!(
                 "{}** {} syscall lchown32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         199 => {
             log::info!(
                 "{}** {} syscall getuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         200 => {
             log::info!(
                 "{}** {} syscall getgid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         201 => {
             log::info!(
                 "{}** {} syscall geteuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         202 => {
             log::info!(
                 "{}** {} syscall getegid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         203 => {
             log::info!(
                 "{}** {} syscall getreuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         204 => {
             log::info!(
                 "{}** {} syscall getregid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         205 => {
             log::info!(
                 "{}** {} syscall getgrups32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         206 => {
             log::info!(
                 "{}** {} syscall setgroups32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         207 => {
             log::info!(
                 "{}** {} syscall fchown32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         208 => {
             log::info!(
                 "{}** {} syscall setresuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         209 => {
             log::info!(
                 "{}** {} syscall getresuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         210 => {
             log::info!(
                 "{}** {} syscall setresgid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         211 => {
             log::info!(
                 "{}** {} syscall getresgid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         212 => {
             log::info!(
                 "{}** {} syscall chown32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         213 => {
             log::info!(
                 "{}** {} syscall setuid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
         214 => {
             log::info!(
                 "{}** {} syscall setgid32()  {}",
-                emu.colors.light_red, emu.pos, emu.colors.nc
+                emu.colors.light_red,
+                emu.pos,
+                emu.colors.nc
             );
         }
 
@@ -2449,12 +2957,16 @@ pub fn gateway(emu: &mut emu::Emu) {
             if emu.regs.rax >= data.len() as u64 {
                 log::info!(
                     "{}** interrupt 0x80 bad rax value 0x{:x} {}",
-                    emu.colors.light_red, emu.regs.rax, emu.colors.nc
+                    emu.colors.light_red,
+                    emu.regs.rax,
+                    emu.colors.nc
                 );
             } else {
                 log::info!(
                     "{}** interrupt 0x80 function:{} {}",
-                    emu.colors.light_red, data[emu.regs.rax as usize], emu.colors.nc
+                    emu.colors.light_red,
+                    data[emu.regs.rax as usize],
+                    emu.colors.nc
                 );
             }
         }

@@ -2,25 +2,29 @@ mod advapi32;
 mod crypt32;
 mod dnsapi;
 pub mod helper;
+mod iphlpapi;
 pub mod kernel32;
 mod kernelbase;
+mod libgcc;
 mod mscoree;
 mod msvcrt;
 mod ntdll;
 mod oleaut32;
 mod shlwapi;
 mod user32;
+mod wincrt;
 mod wininet;
 mod ws2_32;
-mod libgcc;
-mod iphlpapi;
-mod wincrt;
 
 use crate::emu;
 
 pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
-    log::info!("winapi32::gateway called with addr: 0x{:x}, name: {}", addr, name);
-    
+    log::info!(
+        "winapi32::gateway called with addr: 0x{:x}, name: {}",
+        addr,
+        name
+    );
+
     emu.regs.sanitize32();
     let unimplemented_api = match name.as_str() {
         "kernel32.text" => kernel32::gateway(addr, emu),
@@ -40,9 +44,7 @@ pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
         "iphlpapi.text" => iphlpapi::gateway(addr, emu),
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
-        "not_loaded" => {
-            emu.pe32.as_ref().unwrap().import_addr_to_name(addr as u32)
-        }
+        "not_loaded" => emu.pe32.as_ref().unwrap().import_addr_to_name(addr as u32),
         _ => {
             log::info!("/!\\ trying to execute on {} at 0x{:x}", name, addr);
             name.clone()

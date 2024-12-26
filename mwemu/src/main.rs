@@ -1,10 +1,10 @@
 extern crate clap;
 
-use std::io::Write as _;
 use clap::{App, Arg};
+use env_logger::Env;
 use libmwemu::emu32;
 use libmwemu::emu64;
-use env_logger::Env;
+use std::io::Write as _;
 
 macro_rules! match_register_arg {
     ($matches:expr, $emu:expr, $reg:expr) => {
@@ -19,7 +19,7 @@ macro_rules! match_register_arg {
             .expect("invalid address");
             $emu.regs.set_reg_by_name($reg, value);
         }
-    }
+    };
 }
 
 macro_rules! clap_arg {
@@ -55,13 +55,7 @@ macro_rules! clap_arg {
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{}",
-                record.args()
-            )
-        })
+        .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
     let matches = App::new("MWEMU emulator for malware")
@@ -166,12 +160,13 @@ fn main() {
             .value_of("trace")
             .expect("specify the trace output file")
             .to_string();
-        let mut trace_file = std::fs::File::create(&trace_filename)
-            .expect("Failed to create trace file");
+        let mut trace_file =
+            std::fs::File::create(&trace_filename).expect("Failed to create trace file");
         writeln!(
             trace_file,
             r#""Index","Address","Bytes","Disassembly","Registers","Memory","Comments""#
-        ).expect("Failed to write trace file header");
+        )
+        .expect("Failed to write trace file header");
         emu.cfg.trace_file = Some(trace_file);
     }
 
@@ -318,7 +313,7 @@ fn main() {
                 .trim_start_matches("0x"),
             16,
         )
-        .expect("invalid address");    
+        .expect("invalid address");
     }
 
     // exit position
@@ -330,7 +325,7 @@ fn main() {
                 .trim_start_matches("0x"),
             16,
         )
-        .expect("invalid position");    
+        .expect("invalid position");
     }
 
     // stack trace
