@@ -21,7 +21,7 @@ Rust apps https://crates.io/crates/libmwemu
 	- zero unsafe{} blocks.
 - ⚡ very fast emulation (much faster than unicorn) 
 	- 2,000,000 instructions/second
-	- 379,000 instructions/second printing every instruction -vv.
+	- 379,000 instructions/second printing every instruction -vvv.
 - powered by iced-x86 rust dissasembler awesome library.
 - commandline tool, rust library, and python library.
 - iteration detector.
