@@ -2,11 +2,11 @@
 
 ## Examples
 
-https://github.com/sha0coder/pymwemu/tree/main/examples
+https://github.com/sha0coder/mwemu/tree/main/pymwemu/examples
 
 ## Documentation
 
-https://github.com/sha0coder/pymwemu/blob/main/DOCUMENTATION.md
+https://github.com/sha0coder/mwemu/blob/main/pymwemu/DOCUMENTATION.md
 
 ## Gpt Assistant
 
@@ -31,10 +31,6 @@ sudo xcode-select --switch /Library/Developer/CommandLineTools
 download maps32 from releases or maps64 better from git:
 https://github.com/sha0coder/mwemu
 
-releases:
-
-https://github.com/sha0coder/mwemu/releases/download/maps/maps32.zip
-https://github.com/sha0coder/mwemu/releases/download/maps/maps64.zip
 
 
 ## Usage
