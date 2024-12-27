@@ -10,7 +10,7 @@ pub struct Handler {
 impl Handler {
     fn new(id: u64, uri: &str) -> Handler {
         Handler {
-            id: id,
+            id,
             uri: uri.to_string(),
             data: vec![],
         }
@@ -23,30 +23,29 @@ lazy_static! {
 }
 
 pub fn handler_create(uri: &str) -> u64 {
-    let new_id: u64;
     let mut handles = HANDLERS.lock().unwrap();
 
-    if handles.len() == 0 {
-        new_id = 1;
+    let new_id: u64 = if handles.len() == 0 {
+        1
     } else {
         let last_id = handles[handles.len() - 1].id;
-        new_id = last_id + 1;
-    }
+        last_id + 1
+    };
 
     let new_handler = Handler::new(new_id, uri);
 
     handles.push(new_handler);
-    return new_id;
+    new_id
 }
 
 pub fn handler_close(hndl: u64) -> bool {
     let mut handles = HANDLERS.lock().unwrap();
-    let idx = match handles.iter().position(|h| (*h).id == hndl) {
+    let idx = match handles.iter().position(|h| h.id == hndl) {
         Some(i) => i,
         None => return false,
     };
     handles.remove(idx);
-    return true;
+    true
 }
 
 pub fn handler_print() {
@@ -58,15 +57,15 @@ pub fn handler_print() {
 
 pub fn handler_exist(hndl: u64) -> bool {
     let handles = HANDLERS.lock().unwrap();
-    match handles.iter().position(|h| (*h).id == hndl) {
-        Some(_) => return true,
-        None => return false,
+    match handles.iter().position(|h| h.id == hndl) {
+        Some(_) => true,
+        None => false,
     }
 }
 
 pub fn handler_put_bytes(hndl: u64, data: &[u8]) {
     let mut handles = HANDLERS.lock().unwrap();
-    match handles.iter().position(|h| (*h).id == hndl) {
+    match handles.iter().position(|h| h.id == hndl) {
         Some(idx) => handles[idx].data = data.to_vec(),
         None => (),
     }
@@ -74,28 +73,27 @@ pub fn handler_put_bytes(hndl: u64, data: &[u8]) {
 
 pub fn handler_get_uri(hndl: u64) -> String {
     let handles = HANDLERS.lock().unwrap();
-    match handles.iter().position(|h| (*h).id == hndl) {
-        Some(idx) => return handles[idx].uri.clone(),
-        None => return String::new(),
+    match handles.iter().position(|h| h.id == hndl) {
+        Some(idx) => handles[idx].uri.clone(),
+        None => String::new(),
     }
 }
 
 pub fn socket_create() -> u64 {
-    let new_socket: u64;
     let mut sockets = SOCKETS.lock().unwrap();
 
-    if sockets.len() == 0 {
+    let new_socket: u64 = if sockets.len() == 0 {
         sockets.push(0); // stdin
         sockets.push(1); // stdout
         sockets.push(2); // stderr
-        new_socket = 3; // first available socket
+        3 // first available socket
     } else {
         let last_socket = sockets[sockets.len() - 1];
-        new_socket = last_socket + 1;
-    }
+        last_socket + 1
+    };
 
     sockets.push(new_socket);
-    return new_socket;
+    new_socket
 }
 
 pub fn socket_close(sock: u64) -> bool {
@@ -105,13 +103,13 @@ pub fn socket_close(sock: u64) -> bool {
         None => return false,
     };
     sockets.remove(idx);
-    return true;
+    true
 }
 
 pub fn socket_exist(sock: u64) -> bool {
     let sockets = SOCKETS.lock().unwrap();
     match sockets.iter().position(|s| *s == sock) {
-        Some(_) => return true,
-        None => return false,
+        Some(_) => true,
+        None => false,
     }
 }

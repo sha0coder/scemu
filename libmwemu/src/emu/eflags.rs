@@ -7,6 +7,12 @@ pub struct Eflags {
     pub id: bool,
 }
 
+impl Default for Eflags {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Eflags {
     pub fn new() -> Eflags {
         Eflags {

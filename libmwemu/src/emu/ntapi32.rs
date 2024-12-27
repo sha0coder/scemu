@@ -34,4 +34,3 @@ pub fn gateway(syscall: u64, argv: u64, emu: &mut emu::Emu) {
         }
     }
 }
-

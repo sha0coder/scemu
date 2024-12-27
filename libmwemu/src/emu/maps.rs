@@ -10,6 +10,12 @@ pub struct Maps {
     pub is_64bits: bool,
 }
 
+impl Default for Maps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Maps {
     pub fn new() -> Maps {
         Maps {
@@ -28,7 +34,7 @@ impl Maps {
                 return Some(map.get_base());
             }
         }
-        return None;
+        None
     }
 
     pub fn exists_mapname(&self, name: &str) -> bool {
@@ -37,30 +43,19 @@ impl Maps {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     // slow, better hold the object
     pub fn get_map_by_name(&self, name: &str) -> Option<&Mem64> {
-        for map in self.maps.iter() {
-            if map.get_name() == name {
-                return Some(map);
-            }
-        }
-        return None;
+        self.maps.iter().find(|&map| map.get_name() == name)
     }
 
     pub fn get_map_by_name_mut(&mut self, name: &str) -> Option<&mut Mem64> {
-        for map in self.maps.iter_mut() {
-            if map.get_name() == name {
-                return Some(map);
-            }
-        }
-        return None;
+        self.maps.iter_mut().find(|map| map.get_name() == name)
     }
 
     pub fn create_map(&mut self, name: &str, base: u64, size: u64) -> Result<&mut Mem64, String> {
-
         //if size == 0 {
         //    return Err(format!("map size cannot be 0"));
         //}
@@ -85,7 +80,7 @@ impl Maps {
             .unwrap_or_else(|e| e);
         self.maps.insert(pos, mem);
 
-        return Ok(self.maps.get_mut(pos).unwrap());
+        Ok(self.maps.get_mut(pos).unwrap())
     }
 
     pub fn write_qword(&mut self, addr: u64, value: u64) -> bool {
@@ -176,7 +171,7 @@ impl Maps {
         //TODO: fix map jump
         for mem in self.maps.iter_mut() {
             if mem.inside(addr) {
-                mem.write_bytes(addr, &data);
+                mem.write_bytes(addr, data);
                 return;
             }
         }
@@ -203,8 +198,8 @@ impl Maps {
             {
                 let mut n: u128 = 0;
                 let bytes = mem.read_bytes(addr, 16);
-                for i in 0..16 {
-                    n |= (bytes[i] as u128) << (i * 8);
+                for (i, byte) in bytes.iter().enumerate().take(16) {
+                    n |= (*byte as u128) << (i * 8);
                 }
                 return Some(n);
             }
@@ -360,21 +355,11 @@ impl Maps {
     }
 
     pub fn get_mem2(&mut self, name: &str) -> Option<&mut Mem64> {
-        for mem in self.maps.iter_mut() {
-            if mem.get_name() == name {
-                return Some(mem);
-            }
-        }
-        None
+        self.maps.iter_mut().find(|mem| mem.get_name() == name)
     }
 
     pub fn get_mem_by_addr(&mut self, addr: u64) -> Option<&mut Mem64> {
-        for mem in self.maps.iter_mut() {
-            if mem.inside(addr) {
-                return Some(mem);
-            }
-        }
-        None
+        self.maps.iter_mut().find(|mem| mem.inside(addr))
     }
 
     pub fn memset(&mut self, addr: u64, b: u8, amount: usize) {
@@ -406,7 +391,7 @@ impl Maps {
                 .read_byte(unicode_str_ptr + i as u64)
                 .expect("maps.sizeof_wide controlled overflow");
             if b == 0 {
-                if zero == true {
+                if zero {
                     return counter / 2;
                 }
                 zero = true;
@@ -432,12 +417,12 @@ impl Maps {
         let bs: Vec<u8> = from.bytes().collect();
         let mut off = 0;
         for bsi in bs.iter() {
-            self.write_byte(to + off as u64, *bsi);
-            self.write_byte(to + off + 1 as u64, 0x00);
+            self.write_byte(to + off, *bsi);
+            self.write_byte(to + off + 1_u64, 0x00);
             off += 2;
         }
-        self.write_byte(to + off as u64, 0x00);
-        self.write_byte(to + off + 1 as u64, 0x00);
+        self.write_byte(to + off, 0x00);
+        self.write_byte(to + off + 1_u64, 0x00);
     }
 
     pub fn write_buffer(&mut self, to: u64, from: &[u8]) {
@@ -466,12 +451,8 @@ impl Maps {
         log::info!("--- maps ---");
         for mem in self.maps.iter() {
             let k = mem.get_name();
-            let n;
-            if k.len() < 20 {
-                n = 20 - k.len();
-            } else {
-                n = 1;
-            }
+
+            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
             let mut spcs: String = String::new();
             for i in 0..n {
                 spcs.push(' ');
@@ -495,12 +476,8 @@ impl Maps {
         log::info!("--- maps ---");
         for mem in self.maps.iter() {
             let k = mem.get_name();
-            let n;
-            if k.len() < 20 {
-                n = 20 - k.len();
-            } else {
-                n = 1;
-            }
+
+            let n = if k.len() < 20 { 20 - k.len() } else { 1 };
             let mut spcs: String = String::new();
             for i in 0..n {
                 spcs.push(' ');
@@ -586,7 +563,7 @@ impl Maps {
                 count += 1;
                 print!("{:02x} ", b);
                 if count >= amount {
-                    println!("");
+                    println!();
                     return;
                 }
             }
@@ -649,7 +626,7 @@ impl Maps {
                 None => break,
             };
 
-            let name = match self.get_addr_name(value.into()) {
+            let name = match self.get_addr_name(value) {
                 Some(v) => v,
                 None => "".to_string(),
             };
@@ -659,7 +636,7 @@ impl Maps {
                 a,
                 value,
                 name,
-                self.filter_replace_string(&self.read_string(value.into()))
+                self.filter_replace_string(&self.read_string(value))
             );
         }
     }
@@ -851,7 +828,7 @@ impl Maps {
                 return 0;
             }
         }
-        return 0;
+        0
     }
 
     // search only one occurence from specific address backward
@@ -882,7 +859,7 @@ impl Maps {
                 return 0;
             }
         }
-        return 0;
+        0
     }
 
     pub fn search_spaced_bytes(&self, sbs: &str, map_name: &str) -> Vec<u64> {
@@ -984,7 +961,7 @@ impl Maps {
                 return addrs;
             }
         }
-        return addrs;
+        addrs
     }
 
     pub fn size(&self) -> usize {
@@ -1145,10 +1122,10 @@ impl Maps {
         for mem in self.maps.iter() {
             if mem.get_name().to_string().starts_with("alloc_") {
                 let mut ppath = path.clone();
-                ppath.push_str("/");
+                ppath.push('/');
                 ppath.push_str(&mem.get_name());
                 ppath.push_str(".bin");
-                mem.save(mem.get_base(), mem.size() as usize, ppath);
+                mem.save(mem.get_base(), mem.size(), ppath);
             }
         }
     }
@@ -1201,7 +1178,7 @@ impl Maps {
         for i in 0..s.len() {
             p = false;
             for j in 0..valid.len() {
-                if sb[i as usize] == valid[j as usize] {
+                if sb[i] == valid[j] {
                     dst.push(sb[i] as char);
                     p = true;
                     break;

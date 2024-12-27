@@ -15,6 +15,12 @@ pub struct Script {
     trace: bool,
 }
 
+impl Default for Script {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Script {
     pub fn new() -> Script {
         Script {
@@ -31,10 +37,8 @@ impl Script {
         let file = File::open(filename).unwrap();
         let buf = BufReader::new(file);
 
-        for line in buf.lines() {
-            if let Ok(line) = line {
-                self.code.push(line);
-            }
+        for line in buf.lines().flatten() {
+            self.code.push(line);
         }
     }
 
@@ -42,7 +46,7 @@ impl Script {
         if arg == "result" {
             return self.result;
         } else if arg.starts_with("0x") {
-            let a = match self.to_hex(&arg) {
+            let a = match self.to_hex(arg) {
                 Some(v) => v,
                 None => {
                     panic!("error in line {}, bad hexa", i);
@@ -50,11 +54,11 @@ impl Script {
             };
             return a;
         }
-        return emu.regs.get_by_name(arg);
+        emu.regs.get_by_name(arg)
     }
 
     pub fn to_int(&self, s: &str) -> Option<u64> {
-        let value: u64 = match u64::from_str_radix(s, 10) {
+        let value: u64 = match s.parse::<u64>() {
             Ok(value) => value,
             Err(_) => return None,
         };
@@ -90,7 +94,7 @@ impl Script {
                 break;
             }
             let line = &self.code[i - 1];
-            if line.len() == 0 || line.starts_with(";") {
+            if line.is_empty() || line.starts_with(";") {
                 continue;
             }
             let args: Vec<&str> = line.split_whitespace().collect();
@@ -138,7 +142,7 @@ impl Script {
                             emu.featured_regs32();
                         }
                     } else {
-                        self.result = emu.regs.get_by_name(&args[1]);
+                        self.result = emu.regs.get_by_name(args[1]);
 
                         match args[1] {
                             "rax" => emu.regs.show_rax(&emu.maps, 0),
@@ -394,7 +398,7 @@ impl Script {
                         log::info!("error in line {}, mc <mapname> <size>", i);
                         return;
                     }
-                    let sz = match self.to_int(&args[2]) {
+                    let sz = match self.to_int(args[2]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad size", i);
@@ -408,7 +412,7 @@ impl Script {
                             return;
                         }
                     };
-                    emu.maps.create_map(&args[1], addr, sz);
+                    emu.maps.create_map(args[1], addr, sz);
                     log::info!("allocated {} at 0x{:x} sz: {}", &args[1], addr, sz);
                     self.result = addr;
                 }
@@ -419,14 +423,14 @@ impl Script {
                         return;
                     }
                     let addr = self.resolve(args[2], i, emu);
-                    let sz = match self.to_int(&args[3]) {
+                    let sz = match self.to_int(args[3]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad size", i);
                             return;
                         }
                     };
-                    emu.maps.create_map(&args[1], addr, sz);
+                    emu.maps.create_map(args[1], addr, sz);
                     log::info!("allocated {} at 0x{:x} sz: {}", &args[1], addr, sz);
                 }
                 "ml" => {
@@ -435,7 +439,7 @@ impl Script {
                         log::info!("error in line {}, `ml` needs mapname and a filename", i);
                         return;
                     }
-                    emu.maps.get_mem(&args[1]).load(&args[2]);
+                    emu.maps.get_mem(args[1]).load(args[2]);
                 }
                 "mn" => {
                     // mn <address>
@@ -496,7 +500,7 @@ impl Script {
 
                     let addr = self.resolve(args[1], i, emu);
 
-                    let num = match self.to_int(&args[2]) {
+                    let num = match self.to_int(args[2]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad number", i);
@@ -515,7 +519,7 @@ impl Script {
 
                     let addr = self.resolve(args[1], i, emu);
 
-                    let num = match self.to_int(&args[2]) {
+                    let num = match self.to_int(args[2]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad number", i);
@@ -564,7 +568,7 @@ impl Script {
 
                     let addr = self.resolve(args[1], i, emu);
 
-                    let sz = match self.to_int(&args[2]) {
+                    let sz = match self.to_int(args[2]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad size", i);
@@ -655,7 +659,7 @@ impl Script {
                         return;
                     }
 
-                    let mem = emu.maps.get_mem(&args[1]);
+                    let mem = emu.maps.get_mem(args[1]);
                     let md5 = mem.md5();
                     log::info!("md5sum: {:x}", md5);
                 }
@@ -673,7 +677,7 @@ impl Script {
                         .collect::<Vec<_>>()
                         .join(" ");
 
-                    let result = match emu.maps.search_string(&kw, &args[1]) {
+                    let result = match emu.maps.search_string(&kw, args[1]) {
                         Some(v) => v,
                         None => {
                             log::info!("string not found");
@@ -707,7 +711,7 @@ impl Script {
                         .collect::<Vec<_>>()
                         .join(" ");
 
-                    if emu.maps.search_spaced_bytes(&bytes, &args[1]).len() == 0 {
+                    if emu.maps.search_spaced_bytes(&bytes, args[1]).len() == 0 {
                         log::info!("bytes not found.");
                     }
                 }
@@ -772,7 +776,7 @@ impl Script {
                         log::info!("error in line {}, `ms` command needs a keyword", i);
                         return;
                     }
-                    emu.maps.print_maps_keyword(&args[1]);
+                    emu.maps.print_maps_keyword(args[1]);
                 }
                 "d" => {
                     // d <addr> <sz>
@@ -783,7 +787,7 @@ impl Script {
 
                     let addr = self.resolve(args[1], i, emu);
 
-                    let sz = match self.to_int(&args[2]) {
+                    let sz = match self.to_int(args[2]) {
                         Some(v) => v,
                         None => {
                             log::info!("error in line {}, bad size", i);
@@ -812,9 +816,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_64bits {
-                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, &args[1]);
+                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, &args[1]);
+                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -835,9 +839,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_64bits {
-                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, &args[1]);
+                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, &args[1]);
+                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -853,9 +857,9 @@ impl Script {
                         return;
                     }
                     if emu.cfg.is_64bits {
-                        emu::winapi64::kernel32::dump_module_iat(emu, &args[1]);
+                        emu::winapi64::kernel32::dump_module_iat(emu, args[1]);
                     } else {
-                        emu::winapi32::kernel32::dump_module_iat(emu, &args[1]);
+                        emu::winapi32::kernel32::dump_module_iat(emu, args[1]);
                     }
                 }
                 "dt" => {

@@ -1,44 +1,59 @@
 use crate::emu;
 use crate::emu::structures::LdrDataTableEntry;
 use crate::emu::structures::OrdinalTable;
+use crate::emu::structures::PebLdrData;
 use crate::emu::structures::PEB;
 use crate::emu::structures::TEB;
-use crate::emu::structures::PebLdrData;
 
 pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
     let ldr_sz = PebLdrData::size();
-    let ldr_addr = emu.maps.lib32_alloc(ldr_sz as u64).expect("cannot alloc the LDR");
-    emu.maps.create_map("ldr", ldr_addr, ldr_sz as u64).expect("cannot create ldr map");
+    let ldr_addr = emu
+        .maps
+        .lib32_alloc(ldr_sz as u64)
+        .expect("cannot alloc the LDR");
+    emu.maps
+        .create_map("ldr", ldr_addr, ldr_sz as u64)
+        .expect("cannot create ldr map");
     let module_entry = create_ldr_entry(emu, 0, 0, "loader.exe", 0, 0) as u32;
     let mut ldr = PebLdrData::new();
     ldr.initializated = 1;
     ldr.in_load_order_module_list.flink = module_entry;
     ldr.in_load_order_module_list.blink = module_entry;
-    ldr.in_memory_order_module_list.flink = module_entry+0x8;
-    ldr.in_memory_order_module_list.blink = module_entry+0x8;
-    ldr.in_initialization_order_module_list.flink = module_entry+0x10;
-    ldr.in_initialization_order_module_list.blink = module_entry+0x10;
+    ldr.in_memory_order_module_list.flink = module_entry + 0x8;
+    ldr.in_memory_order_module_list.blink = module_entry + 0x8;
+    ldr.in_initialization_order_module_list.flink = module_entry + 0x10;
+    ldr.in_initialization_order_module_list.blink = module_entry + 0x10;
     ldr.entry_in_progress = module_entry;
     ldr.save(ldr_addr, &mut emu.maps);
 
-    return ldr_addr;
+    ldr_addr
 }
-
-
 
 pub fn init_peb(emu: &mut emu::Emu) {
     let ldr = init_ldr(emu);
 
-    let peb_addr = emu.maps.lib32_alloc(PEB::size() as u64).expect("cannot alloc the PEB32");
-    let mut peb_map = emu.maps.create_map("peb", peb_addr, PEB::size() as u64).expect("cannot create peb map");
+    let peb_addr = emu
+        .maps
+        .lib32_alloc(PEB::size() as u64)
+        .expect("cannot alloc the PEB32");
+    let peb_map = emu
+        .maps
+        .create_map("peb", peb_addr, PEB::size() as u64)
+        .expect("cannot create peb map");
     let process_parameters = 0x521e20;
     let peb = PEB::new(0, ldr as u32, process_parameters);
-    peb.save(&mut peb_map);
+    peb.save(peb_map);
 
-    let teb_addr = emu.maps.lib32_alloc(TEB::size() as u64).expect("cannot alloc the TEB32");
-    let mut teb_map = emu.maps.create_map("teb", teb_addr, TEB::size() as u64).expect("cannot create teb map");
+    let teb_addr = emu
+        .maps
+        .lib32_alloc(TEB::size() as u64)
+        .expect("cannot alloc the TEB32");
+    let teb_map = emu
+        .maps
+        .create_map("teb", teb_addr, TEB::size() as u64)
+        .expect("cannot create teb map");
     let teb = TEB::new(peb_addr as u32);
-    teb.save(&mut teb_map);
+    teb.save(teb_map);
 }
 
 pub fn update_peb_image_base(emu: &mut emu::Emu, base: u32) {
@@ -67,7 +82,7 @@ impl Flink {
     pub fn new(emu: &mut emu::Emu) -> Flink {
         let peb = emu.maps.get_mem("peb");
         let peb_base = peb.get_base();
-        let ldr = peb.read_dword(peb_base + 0x0c) as u64;  // peb->ldr
+        let ldr = peb.read_dword(peb_base + 0x0c) as u64; // peb->ldr
         let flink = emu
             .maps
             .read_dword(ldr + 0x0c)
@@ -91,7 +106,7 @@ impl Flink {
     }
 
     pub fn get_ptr(&self) -> u64 {
-        return self.flink_addr;
+        self.flink_addr
     }
 
     pub fn set_ptr(&mut self, addr: u64) {
@@ -128,7 +143,7 @@ impl Flink {
         if self.mod_base == 0 || self.flink_addr == 0 {
             return false;
         }
-        return true;
+        true
     }
 
     pub fn get_pe_hdr(&mut self, emu: &mut emu::Emu) {
@@ -143,15 +158,13 @@ impl Flink {
             return;
         }
 
-
         //log::info!("base: 0x{:x} + pe_hdr {} + 0x78 = {}", self.mod_base, self.pe_hdr, self.mod_base + self.pe_hdr + 0x78);
-        self.export_table_rva = match emu.maps
-            .read_dword(self.mod_base + self.pe_hdr + 0x78) {
-                Some(v) => v as u64,
-                None => {
-                    // .expect("error reading export_table_rva") as u64;
-                    return;
-                }
+        self.export_table_rva = match emu.maps.read_dword(self.mod_base + self.pe_hdr + 0x78) {
+            Some(v) => v as u64,
+            None => {
+                // .expect("error reading export_table_rva") as u64;
+                return;
+            }
         };
 
         if self.export_table_rva == 0 {
@@ -164,7 +177,9 @@ impl Flink {
             None => {
                 log::info!(
                     "error reading export_table 0x{:x} = 0x{:x} + 0x{:x}",
-                    self.export_table, self.export_table_rva, self.mod_base
+                    self.export_table,
+                    self.export_table_rva,
+                    self.mod_base
                 );
                 0
             }
@@ -197,7 +212,6 @@ impl Flink {
             emu.spawn_console();
         }
 
-
         ordinal.ordinal_tbl_rva = emu
             .maps
             .read_dword(self.export_table + 0x24)
@@ -222,17 +236,15 @@ impl Flink {
     }
 
     pub fn get_next_flink(&self, emu: &mut emu::Emu) -> u64 {
-        return emu
-            .maps
+        emu.maps
             .read_dword(self.flink_addr)
-            .expect("error reading next flink") as u64;
+            .expect("error reading next flink") as u64
     }
 
     pub fn get_prev_flink(&self, emu: &mut emu::Emu) -> u64 {
-        return emu
-            .maps
+        emu.maps
             .read_dword(self.flink_addr + 4)
-            .expect("error reading prev flink") as u64;
+            .expect("error reading prev flink") as u64
     }
 
     pub fn next(&mut self, emu: &mut emu::Emu) {
@@ -264,7 +276,7 @@ pub fn get_module_base(libname: &str, emu: &mut emu::Emu) -> Option<u64> {
             break;
         }
     }
-    return None;
+    None
 }
 
 pub fn show_linked_modules(emu: &mut emu::Emu) {
@@ -274,14 +286,14 @@ pub fn show_linked_modules(emu: &mut emu::Emu) {
 
     // get last element
     loop {
-        let pe1 = match emu.maps.read_byte(flink.mod_base + flink.pe_hdr) {
-            Some(b) => b,
-            None => 0,
-        };
-        let pe2 = match emu.maps.read_byte(flink.mod_base + flink.pe_hdr + 1) {
-            Some(b) => b,
-            None => 0,
-        };
+        let pe1 = emu
+            .maps
+            .read_byte(flink.mod_base + flink.pe_hdr)
+            .unwrap_or_default();
+        let pe2 = emu
+            .maps
+            .read_byte(flink.mod_base + flink.pe_hdr + 1)
+            .unwrap_or_default();
         log::info!(
             "0x{:x} {} flink:{:x} blink:{:x} base:{:x} pe_hdr:{:x} {:x}{:x}",
             flink.get_ptr(),
@@ -311,7 +323,6 @@ pub fn update_ldr_entry_base(libname: &str, base: u64, emu: &mut emu::Emu) {
 
 pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
     let mut prev_flink: u64 = 0;
-    let next_flink: u64;
 
     let mut flink = Flink::new(emu);
     flink.load(emu);
@@ -322,7 +333,7 @@ pub fn dynamic_unlink_module(libname: &str, emu: &mut emu::Emu) {
     }
 
     flink.next(emu);
-    next_flink = flink.get_ptr();
+    let next_flink: u64 = flink.get_ptr();
 
     // previous flink
     log::info!("prev_flink: 0x{:x}", prev_flink);
@@ -358,22 +369,31 @@ pub fn dynamic_link_module(base: u64, pe_off: u32, libname: &str, emu: &mut emu:
 
     //first_flink = 0x2c18c0;
     //let space_addr = create_ldr_entry(emu, base, pe_off, libname, last_flink, first_flink);
-    let space_addr = create_ldr_entry(emu, base as u32, pe_off, libname, first_flink as u32, next_flink as u32);
-
+    let space_addr = create_ldr_entry(
+        emu,
+        base as u32,
+        pe_off,
+        libname,
+        first_flink as u32,
+        next_flink as u32,
+    );
 
     // point previous flink to this ldr
     emu.maps.write_dword(next_flink, space_addr as u32); // in_load_order_links.flink
-    emu.maps.write_dword(next_flink + 0x08, (space_addr + 0x08) as u32); // in_memory_order_links.flink
-    emu.maps.write_dword(next_flink + 0x10, (space_addr + 0x10) as u32); // in_initialization_order_links.flink
+    emu.maps
+        .write_dword(next_flink + 0x08, (space_addr + 0x08) as u32); // in_memory_order_links.flink
+    emu.maps
+        .write_dword(next_flink + 0x10, (space_addr + 0x10) as u32); // in_initialization_order_links.flink
 
     // blink of first flink will point to last created
     emu.maps.write_dword(first_flink + 4, space_addr as u32); // in_load_order_links.blink
-    emu.maps.write_dword(first_flink + 0x08 + 4, (space_addr + 0x08) as u32); // in_memory_order_links.blink
-    emu.maps.write_dword(first_flink + 0x10 + 4, (space_addr + 0x10) as u32); // in_initialization_order_links.blink
+    emu.maps
+        .write_dword(first_flink + 0x08 + 4, (space_addr + 0x08) as u32); // in_memory_order_links.blink
+    emu.maps
+        .write_dword(first_flink + 0x10 + 4, (space_addr + 0x10) as u32); // in_initialization_order_links.blink
 
     //show_linked_modules(emu);
 }
-
 
 pub fn create_ldr_entry_prev(
     emu: &mut emu::Emu,
@@ -391,9 +411,11 @@ pub fn create_ldr_entry_prev(
         .expect("cannot alloc few bytes to put the LDR for LoadLibraryA");
     let mut lib = libname.to_string();
     lib.push_str(".ldr");
-    let mem = emu.maps.create_map(lib.as_str(), space_addr, sz).expect("cannot create ldr entry map");
+    let mem = emu
+        .maps
+        .create_map(lib.as_str(), space_addr, sz)
+        .expect("cannot create ldr entry map");
     mem.write_byte(space_addr + sz - 1, 0x61);
-
 
     //mem.write_dword(space_addr, next_flink as u32);
     mem.write_dword(space_addr, prev_flink as u32); //0x2c18c0);
@@ -420,7 +442,7 @@ pub fn create_ldr_entry(
     prev_flink: u32,
 ) -> u64 {
     // make space for ldr
-    let sz = (LdrDataTableEntry::size() + 0x40 + (1024*2)) as u64;
+    let sz = (LdrDataTableEntry::size() + 0x40 + (1024 * 2)) as u64;
     let space_addr = emu
         .maps
         .alloc(sz)
@@ -432,29 +454,32 @@ pub fn create_ldr_entry(
         let pe_hdr = emu.maps.read_dword(base as u64 + 0x3c).unwrap() as u64;
         image_sz = emu.maps.read_dword(base as u64 + pe_hdr + 0x50).unwrap() as u64;
     }
-    let mem = emu.maps.create_map(lib.as_str(), space_addr, sz).expect("create_ldr_entry cannot create map");
+    let mem = emu
+        .maps
+        .create_map(lib.as_str(), space_addr, sz)
+        .expect("create_ldr_entry cannot create map");
     mem.write_byte(space_addr + sz - 1, 0x61);
 
-    let full_libname = "C:\\Windows\\System32\\".to_string() + &libname.to_string();
+    let full_libname = "C:\\Windows\\System32\\".to_string() + libname;
     let mut ldr = LdrDataTableEntry::new();
     if next_flink != 0 {
         ldr.in_load_order_links.flink = next_flink;
         ldr.in_load_order_links.blink = prev_flink;
-        ldr.in_memory_order_links.flink = next_flink+0x8;
-        ldr.in_memory_order_links.blink = prev_flink+0x8;
-        ldr.in_initialization_order_links.flink = next_flink+0x10;
-        ldr.in_initialization_order_links.blink = prev_flink+0x10;
-        ldr.hash_links.flink = next_flink+0x44;
-        ldr.hash_links.blink = prev_flink+0x44;
+        ldr.in_memory_order_links.flink = next_flink + 0x8;
+        ldr.in_memory_order_links.blink = prev_flink + 0x8;
+        ldr.in_initialization_order_links.flink = next_flink + 0x10;
+        ldr.in_initialization_order_links.blink = prev_flink + 0x10;
+        ldr.hash_links.flink = next_flink + 0x44;
+        ldr.hash_links.blink = prev_flink + 0x44;
     } else {
         ldr.in_load_order_links.flink = space_addr as u32;
         ldr.in_load_order_links.blink = space_addr as u32;
-        ldr.in_memory_order_links.flink = space_addr as u32+0x8;
-        ldr.in_memory_order_links.blink = space_addr as u32+0x8;
-        ldr.in_initialization_order_links.flink = space_addr as u32+0x10;
-        ldr.in_initialization_order_links.blink = space_addr as u32+0x10;
-        ldr.hash_links.flink = space_addr as u32+0x44;
-        ldr.hash_links.blink = space_addr as u32+0x44;
+        ldr.in_memory_order_links.flink = space_addr as u32 + 0x8;
+        ldr.in_memory_order_links.blink = space_addr as u32 + 0x8;
+        ldr.in_initialization_order_links.flink = space_addr as u32 + 0x10;
+        ldr.in_initialization_order_links.blink = space_addr as u32 + 0x10;
+        ldr.hash_links.flink = space_addr as u32 + 0x44;
+        ldr.hash_links.blink = space_addr as u32 + 0x44;
     }
     ldr.dll_base = base;
     ldr.entry_point = entry_point;
@@ -464,18 +489,24 @@ pub fn create_ldr_entry(
     ldr.full_dll_name.buffer = space_addr as u32 + LdrDataTableEntry::size() as u32;
     ldr.base_dll_name.length = libname.len() as u16 * 2;
     ldr.base_dll_name.maximum_length = libname.len() as u16 * 2 + 2;
-    ldr.base_dll_name.buffer = space_addr as u32 + LdrDataTableEntry::size() as u32 + full_libname.len() as u32 * 2 + 10;
+    ldr.base_dll_name.buffer =
+        space_addr as u32 + LdrDataTableEntry::size() as u32 + full_libname.len() as u32 * 2 + 10;
     ldr.flags = 0;
     ldr.load_count = 0;
     ldr.tls_index = 0;
     ldr.hash_links.flink = next_flink;
     ldr.hash_links.blink = prev_flink;
-    mem.write_wide_string(space_addr as u64 + LdrDataTableEntry::size() as u64, &(full_libname.clone() + "\x00\x00"));
-    mem.write_wide_string(space_addr as u64 + LdrDataTableEntry::size() as u64 + full_libname.len() as u64 * 2 +10, &(libname.to_string() + "\x00"));
+    mem.write_wide_string(
+        space_addr + LdrDataTableEntry::size() as u64,
+        &(full_libname.clone() + "\x00\x00"),
+    );
+    mem.write_wide_string(
+        space_addr + LdrDataTableEntry::size() as u64 + full_libname.len() as u64 * 2 + 10,
+        &(libname.to_string() + "\x00"),
+    );
     ldr.save(space_addr, &mut emu.maps);
 
     // http://terminus.rewolf.pl/terminus/structures/ntdll/_LDR_DATA_TABLE_ENTRY_x64.html
 
     space_addr
 }
-

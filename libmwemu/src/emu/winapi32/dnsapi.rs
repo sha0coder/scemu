@@ -17,7 +17,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn DnsQuery_A(emu: &mut emu::Emu) {
@@ -50,7 +50,10 @@ fn DnsQuery_A(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} dnsapi!DnsQuery_A '{}' {}",
-        emu.colors.light_red, emu.pos, name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -86,7 +89,10 @@ fn DnsQuery_W(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} dnsapi!DnsQuery_W '{}' {}",
-        emu.colors.light_red, emu.pos, name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;

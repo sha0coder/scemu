@@ -20,4 +20,3 @@ impl std::fmt::Display for MwemuError {
 }
 
 impl Error for MwemuError {}
-

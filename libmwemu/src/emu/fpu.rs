@@ -25,6 +25,12 @@ pub struct FPU {
     pub mxcsr: u32,
 }
 
+impl Default for FPU {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FPU {
     pub fn new() -> FPU {
         FPU {
@@ -75,7 +81,7 @@ impl FPU {
     }
 
     pub fn get_ctrl(&self) -> u16 {
-        return self.ctrl;
+        self.ctrl
     }
 
     pub fn set_ip(&mut self, ip: u64) {
@@ -136,18 +142,13 @@ impl FPU {
     }
 
     pub fn get_st(&mut self, i: usize) -> f64 {
-        if self.st_depth == 0 {
-            self.f_c4 = true;
-        } else {
-            self.f_c4 = false;
-        }
-        return self.st[i].clone();
+        self.f_c4 = self.st_depth == 0;
+        return self.st[i];
     }
 
     pub fn xchg_st(&mut self, i: usize) {
-        let tmp = self.st[0];
-        self.st[0] = self.st[i];
-        self.st[i] = tmp;
+        let i = i;
+        self.st.swap(0, i);
     }
 
     pub fn clear_st(&mut self, i: usize) {
@@ -159,11 +160,11 @@ impl FPU {
     }
 
     pub fn add_to_st0(&mut self, i: usize) {
-        self.st[0] = self.st[0] + self.st[i];
+        self.st[0] += self.st[i];
     }
 
     pub fn add(&mut self, i: usize, j: usize) {
-        self.st[i] = self.st[i] + self.st[j];
+        self.st[i] += self.st[j];
     }
 
     pub fn push(&mut self, value: f64) {
@@ -199,16 +200,16 @@ impl FPU {
         self.st[5] = self.st[6];
         self.st[6] = self.st[7];
         self.st[7] = 0.0;
-        return result;
+        result
     }
 
     pub fn fyl2x(&mut self) {
-        self.st[1] = self.st[1] * self.st[0].log2();
+        self.st[1] *= self.st[0].log2();
         self.pop();
     }
 
     pub fn fyl2xp1(&mut self) {
-        self.st[1] = self.st[1] * (self.st[0].log2() + 1.0);
+        self.st[1] *= self.st[0].log2() + 1.0;
         self.pop();
     }
 

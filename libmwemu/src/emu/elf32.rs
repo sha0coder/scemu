@@ -1,7 +1,7 @@
-use super::err::MwemuError;
-use crate::emu::maps::Maps;
-use super::maps::mem64::Mem64;
 use super::constants;
+use super::err::MwemuError;
+use super::maps::mem64::Mem64;
+use crate::emu::maps::Maps;
 use std::fs::File;
 use std::io::Read;
 
@@ -26,10 +26,8 @@ macro_rules! read_u32_le {
     };
 }
 
-
-
-pub const EI_NIDENT:usize = 16;
-pub const ELFCLASS32:u8 = 0x01;
+pub const EI_NIDENT: usize = 16;
+pub const ELFCLASS32: u8 = 0x01;
 
 #[derive(Debug)]
 pub struct Elf32 {
@@ -42,15 +40,15 @@ pub struct Elf32 {
 impl Elf32 {
     pub fn parse(filename: &str) -> Result<Elf32, MwemuError> {
         let mut mem: Mem64 = Mem64::new();
-        if !mem.load(&filename) {
+        if !mem.load(filename) {
             return Err(MwemuError::new("cannot open elf binary"));
         }
         let bin = mem.get_mem();
 
-        let ehdr:Elf32Ehdr = Elf32Ehdr::parse(&bin);
+        let ehdr: Elf32Ehdr = Elf32Ehdr::parse(&bin);
 
         Ok(Elf32 {
-            bin: bin,
+            bin,
             elf_hdr: ehdr,
             elf_phdr: Vec::new(),
             elf_shdr: Vec::new(),
@@ -60,9 +58,9 @@ impl Elf32 {
     pub fn load(&mut self, maps: &mut Maps) {
         maps.clear();
         let mut off = self.elf_hdr.e_phoff as usize;
- 
+
         for _ in 0..self.elf_hdr.e_phnum {
-            let phdr:Elf32Phdr = Elf32Phdr::parse(&self.bin, off);
+            let phdr: Elf32Phdr = Elf32Phdr::parse(&self.bin, off);
             self.elf_phdr.push(phdr);
             off += self.elf_hdr.e_phentsize as usize;
         }
@@ -70,14 +68,13 @@ impl Elf32 {
         off = self.elf_hdr.e_shoff as usize;
 
         for _ in 0..self.elf_hdr.e_shnum {
-            let shdr:Elf32Shdr = Elf32Shdr::parse(&self.bin, off);
+            let shdr: Elf32Shdr = Elf32Shdr::parse(&self.bin, off);
             self.elf_shdr.push(shdr);
             off += self.elf_hdr.e_shentsize as usize;
         }
 
         for phdr in &self.elf_phdr {
             if phdr.p_type == constants::PT_LOAD {
-
                 /*
                 for shdr in &self.elf_shdr {
                     if shdr.sh_addr >= phdr.p_vaddr &&
@@ -90,33 +87,43 @@ impl Elf32 {
                     }
                 }*/
 
-                let mem = maps.create_map(&format!("code"), phdr.p_vaddr.into(), phdr.p_memsz.into()).expect("cannot create code map from load_programs elf32");
-                if phdr.p_filesz >phdr.p_memsz {
+                let mem = maps
+                    .create_map(
+                        &"code".to_string(),
+                        phdr.p_vaddr.into(),
+                        phdr.p_memsz.into(),
+                    )
+                    .expect("cannot create code map from load_programs elf32");
+                if phdr.p_filesz > phdr.p_memsz {
                     log::info!("p_filesz > p_memsz bigger in file than in memory.");
                 }
-                log::info!("segment {} - {}", phdr.p_offset, (phdr.p_offset+phdr.p_filesz));
-                let segment = &self.bin[phdr.p_offset as usize..
-                    (phdr.p_offset + phdr.p_filesz) as usize];
+                log::info!(
+                    "segment {} - {}",
+                    phdr.p_offset,
+                    (phdr.p_offset + phdr.p_filesz)
+                );
+                let segment =
+                    &self.bin[phdr.p_offset as usize..(phdr.p_offset + phdr.p_filesz) as usize];
                 mem.write_bytes(phdr.p_vaddr.into(), segment);
             }
         }
-
     }
 
-    pub fn is_elf32(filename:&str) -> bool {
+    pub fn is_elf32(filename: &str) -> bool {
         //log::info!("checking if elf32: {}", filename);
         let mut fd = File::open(filename).expect("file not found");
         let mut raw = vec![0u8; 5];
         fd.read_exact(&mut raw).expect("couldnt read the file");
 
-        if raw[0] == 0x7f &&
-            raw[1] == b'E' &&
-            raw[2] == b'L' && 
-            raw[3] == b'F' &&
-            raw[4] == ELFCLASS32 {
-                return true;
+        if raw[0] == 0x7f
+            && raw[1] == b'E'
+            && raw[2] == b'L'
+            && raw[3] == b'F'
+            && raw[4] == ELFCLASS32
+        {
+            return true;
         }
-        false 
+        false
     }
 }
 
@@ -139,7 +146,7 @@ pub struct Elf32Ehdr {
 }
 
 impl Elf32Ehdr {
-    pub fn new() -> Elf32Ehdr { 
+    pub fn new() -> Elf32Ehdr {
         Elf32Ehdr {
             e_ident: [0; EI_NIDENT],
             e_type: 0,
@@ -158,7 +165,7 @@ impl Elf32Ehdr {
         }
     }
 
-    pub fn parse(bin: &[u8]) -> Elf32Ehdr { 
+    pub fn parse(bin: &[u8]) -> Elf32Ehdr {
         let off = EI_NIDENT as u64;
         Elf32Ehdr {
             e_ident: [
@@ -212,13 +219,13 @@ impl Elf32Phdr {
     pub fn parse(bin: &[u8], phoff: usize) -> Elf32Phdr {
         Elf32Phdr {
             p_type: read_u32_le!(bin, phoff),
-            p_offset: read_u32_le!(bin, phoff+4),
-            p_vaddr: read_u32_le!(bin, phoff+8),
-            p_paddr: read_u32_le!(bin, phoff+12),
-            p_filesz: read_u32_le!(bin, phoff+16),
-            p_memsz: read_u32_le!(bin, phoff+20),
-            p_flags: read_u32_le!(bin, phoff+24),
-            p_align: read_u32_le!(bin, phoff+28),
+            p_offset: read_u32_le!(bin, phoff + 4),
+            p_vaddr: read_u32_le!(bin, phoff + 8),
+            p_paddr: read_u32_le!(bin, phoff + 12),
+            p_filesz: read_u32_le!(bin, phoff + 16),
+            p_memsz: read_u32_le!(bin, phoff + 20),
+            p_flags: read_u32_le!(bin, phoff + 24),
+            p_align: read_u32_le!(bin, phoff + 28),
         }
     }
 }
@@ -241,17 +248,15 @@ impl Elf32Shdr {
     pub fn parse(bin: &[u8], shoff: usize) -> Elf32Shdr {
         Elf32Shdr {
             sh_name: read_u32_le!(bin, shoff),
-            sh_type: read_u32_le!(bin, shoff+4),
-            sh_flags: read_u32_le!(bin, shoff+8),
-            sh_addr: read_u32_le!(bin, shoff+12),
-            sh_offset: read_u32_le!(bin, shoff+16),
-            sh_size: read_u32_le!(bin, shoff+20),
-            sh_link: read_u32_le!(bin, shoff+24),
-            sh_info: read_u32_le!(bin, shoff+28),
-            sh_addralign: read_u32_le!(bin, shoff+32),
+            sh_type: read_u32_le!(bin, shoff + 4),
+            sh_flags: read_u32_le!(bin, shoff + 8),
+            sh_addr: read_u32_le!(bin, shoff + 12),
+            sh_offset: read_u32_le!(bin, shoff + 16),
+            sh_size: read_u32_le!(bin, shoff + 20),
+            sh_link: read_u32_le!(bin, shoff + 24),
+            sh_info: read_u32_le!(bin, shoff + 28),
+            sh_addralign: read_u32_le!(bin, shoff + 32),
             sh_entsize: read_u32_le!(bin, 36),
         }
     }
 }
-
-

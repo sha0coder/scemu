@@ -11,7 +11,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             return apiname;
         }
     }
-    return String::new();
+    String::new()
 }
 
 fn MessageBoxA(emu: &mut emu::Emu) {
@@ -22,7 +22,11 @@ fn MessageBoxA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} user32!MessageBoxA {} {} {}",
-        emu.colors.light_red, emu.pos, title, msg, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        title,
+        msg,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -31,7 +35,9 @@ fn MessageBoxA(emu: &mut emu::Emu) {
 fn GetDesktopWindow(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} user32!GetDesktopWindow {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     //emu.regs.rax = 0x11223344; // current window handle
     emu.regs.rax = 0; // no windows handler is more stealthy

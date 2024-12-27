@@ -3,6 +3,12 @@ use std::num::ParseIntError;
 
 pub struct Console {}
 
+impl Default for Console {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Console {
     pub fn new() -> Console {
         log::info!("--- console ---");
@@ -42,7 +48,7 @@ impl Console {
             x = x[2..x.len()].to_string();
         }
 
-        return u32::from_str_radix(x.as_str(), 16);
+        u32::from_str_radix(x.as_str(), 16)
     }
 
     pub fn cmd_hex64(&self) -> Result<u64, ParseIntError> {
@@ -54,11 +60,11 @@ impl Console {
             x = x[2..x.len()].to_string();
         }
 
-        return u64::from_str_radix(x.as_str(), 16);
+        u64::from_str_radix(x.as_str(), 16)
     }
 
     pub fn cmd_num(&self) -> Result<u64, ParseIntError> {
-        u64::from_str_radix(self.cmd().as_str(), 10)
+        self.cmd().as_str().parse::<u64>()
     }
 
     /*

@@ -1,10 +1,10 @@
 extern crate clap;
 
-use std::io::Write as _;
 use clap::{App, Arg};
+use env_logger::Env;
 use libmwemu::emu32;
 use libmwemu::emu64;
-use env_logger::Env;
+use std::io::Write as _;
 
 macro_rules! match_register_arg {
     ($matches:expr, $emu:expr, $reg:expr) => {
@@ -19,7 +19,7 @@ macro_rules! match_register_arg {
             .expect("invalid address");
             $emu.regs.set_reg_by_name($reg, value);
         }
-    }
+    };
 }
 
 macro_rules! clap_arg {
@@ -55,13 +55,7 @@ macro_rules! clap_arg {
 
 fn main() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
-        .format(|buf, record| {
-            writeln!(
-                buf,
-                "{}",
-                record.args()
-            )
-        })
+        .format(|buf, record| writeln!(buf, "{}", record.args()))
         .init();
 
     let matches = App::new("MWEMU emulator for malware")
@@ -90,6 +84,7 @@ fn main() {
         .arg(clap_arg!("banzai", "", "banzai", "skip unimplemented instructions, and keep up emulating what can be emulated"))
         .arg(clap_arg!("script", "x", "script", "launch an emulation script, see scripts_examples folder", "SCRIPT"))
         .arg(clap_arg!("trace", "T", "trace", "output trace to specified file", "TRACE_FILENAME"))
+        .arg(clap_arg!("trace_start", "t", "trace_start", "start trace at specified position", "TRACE_START"))
         .arg(clap_arg!("rax", "", "rax", "set rax register", "RAX"))
         .arg(clap_arg!("rbx", "", "rbx", "set rbx register", "RBX"))
         .arg(clap_arg!("rcx", "", "rcx", "set rcx register", "RCX"))
@@ -148,7 +143,7 @@ fn main() {
             .value_of("register")
             .expect("select the register example: eax,ebx")
             .to_string();
-        emu.cfg.reg_names = regs.split(',').into_iter().map(|x| x.to_string()).collect();
+        emu.cfg.reg_names = regs.split(',').map(|x| x.to_string()).collect();
     }
     if matches.is_present("string") {
         emu.cfg.trace_string = true;
@@ -166,25 +161,34 @@ fn main() {
             .value_of("trace")
             .expect("specify the trace output file")
             .to_string();
-        let mut trace_file = std::fs::File::create(&trace_filename)
-            .expect("Failed to create trace file");
+        let mut trace_file =
+            std::fs::File::create(&trace_filename).expect("Failed to create trace file");
         writeln!(
             trace_file,
             r#""Index","Address","Bytes","Disassembly","Registers","Memory","Comments""#
-        ).expect("Failed to write trace file header");
+        )
+        .expect("Failed to write trace file header");
         emu.cfg.trace_file = Some(trace_file);
+    }
+    if matches.is_present("trace_start") {
+        emu.cfg.trace_start = u64::from_str_radix(
+            matches
+                .value_of("trace_start")
+                .expect("select the trace start address")
+                .trim_start_matches("0x"),
+            16,
+        )
+        .expect("invalid address");
     }
 
     // console
     if matches.is_present("console") {
         emu.cfg.console = true;
-        emu.cfg.console_num = u64::from_str_radix(
-            matches
-                .value_of("console")
-                .expect("select the number of moment to inspect"),
-            10,
-        )
-        .expect("select a valid number to spawn console");
+        emu.cfg.console_num = matches
+            .value_of("console")
+            .expect("select the number of moment to inspect")
+            .parse::<u64>()
+            .expect("select a valid number to spawn console");
         emu.spawn_console_at(emu.cfg.console_num);
     }
     emu.cfg.loops = matches.is_present("loops");
@@ -318,7 +322,7 @@ fn main() {
                 .trim_start_matches("0x"),
             16,
         )
-        .expect("invalid address");    
+        .expect("invalid address");
     }
 
     // exit position
@@ -330,7 +334,7 @@ fn main() {
                 .trim_start_matches("0x"),
             16,
         )
-        .expect("invalid position");    
+        .expect("invalid position");
     }
 
     // stack trace

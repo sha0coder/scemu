@@ -28,7 +28,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -61,7 +61,12 @@ pub fn InternetOpenA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetOpenA uagent: {} proxy: {} {} {}",
-        emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        uagent,
+        proxy,
+        proxy_bypass,
+        emu.colors.nc
     );
 
     /*
@@ -102,7 +107,12 @@ pub fn InternetOpenW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetOpenW uagent: {} proxy: {} {} {}",
-        emu.colors.light_red, emu.pos, uagent, proxy, proxy_bypass, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        uagent,
+        proxy,
+        proxy_bypass,
+        emu.colors.nc
     );
 
     /*
@@ -124,7 +134,7 @@ pub fn InternetConnectA(emu: &mut emu::Emu) {
     let passw_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!InternetConnectA cannot read passw_ptr") as u64;
+        .expect("wininet!InternetConnectA cannot read passw_ptr");
     let service = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
@@ -154,7 +164,13 @@ pub fn InternetConnectA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetConnectA host: {} port: {} login: {} passw: {} {}",
-        emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        server,
+        port,
+        login,
+        passw,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(internet_hndl) {
@@ -178,7 +194,7 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
     let passw_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!InternetConnectW cannot read passw_ptr") as u64;
+        .expect("wininet!InternetConnectW cannot read passw_ptr");
     let service = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
@@ -208,7 +224,13 @@ pub fn InternetConnectW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetConnectW host: {} port: {} login: {} passw: {} {}",
-        emu.colors.light_red, emu.pos, server, port, login, passw, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        server,
+        port,
+        login,
+        passw,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(internet_hndl) {
@@ -232,15 +254,15 @@ fn HttpOpenRequestA(emu: &mut emu::Emu) {
     let referrer_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!HttpOpenRequestA cannot read referrer_ptr") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read referrer_ptr");
     let access_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("wininet!HttpOpenRequestA cannot read access_ptr") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read access_ptr");
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp + 16)
-        .expect("wininet!HttpOpenRequestA cannot read flags") as u64;
+        .expect("wininet!HttpOpenRequestA cannot read flags");
     let ctx = emu
         .maps
         .read_qword(emu.regs.rsp + 24)
@@ -270,7 +292,14 @@ fn HttpOpenRequestA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpOpenRequestA method: {} path: {} ver: {} ref: {} access: {} {}",
-        emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        method,
+        path,
+        version,
+        referrer,
+        access,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(conn_hndl) {
@@ -311,15 +340,15 @@ fn HttpOpenRequestW(emu: &mut emu::Emu) {
     let referrer_ptr = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("wininet!HttpOpenRequestW cannot read referrer_ptr") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read referrer_ptr");
     let access_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("wininet!HttpOpenRequestW cannot read access_ptr") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read access_ptr");
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp + 16)
-        .expect("wininet!HttpOpenRequestW cannot read flags") as u64;
+        .expect("wininet!HttpOpenRequestW cannot read flags");
     let ctx = emu
         .maps
         .read_qword(emu.regs.rsp + 24)
@@ -348,7 +377,14 @@ fn HttpOpenRequestW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpOpenRequestW method: {} path: {} ver: {} ref: {} access: {} {}",
-        emu.colors.light_red, emu.pos, method, path, version, referrer, access, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        method,
+        path,
+        version,
+        referrer,
+        access,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(conn_hndl) {
@@ -391,7 +427,12 @@ fn InternetSetOptionA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetSetOptionA option: 0x{:x} buff: {{{}}} {} {}",
-        emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        option,
+        buffer_content,
+        sbuff,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(inet_hndl) {
@@ -415,7 +456,12 @@ fn InternetSetOptionW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetSetOptionW option: 0x{:x} buff: {{{}}} {} {}",
-        emu.colors.light_red, emu.pos, option, buffer_content, sbuff, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        option,
+        buffer_content,
+        sbuff,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(inet_hndl) {
@@ -440,7 +486,11 @@ fn HttpSendRequestA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpSendRequestA hdrs: {} opt: {} {}",
-        emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hdrs,
+        opt,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(req_hndl) {
@@ -471,7 +521,11 @@ fn HttpSendRequestW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!HttpSendRequestW hdrs: {} opt: {} {}",
-        emu.colors.light_red, emu.pos, hdrs, opt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hdrs,
+        opt,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(req_hndl) {
@@ -492,7 +546,10 @@ fn InternetErrorDlg(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetErrorDlg err: {} {}",
-        emu.colors.light_red, emu.pos, err, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        err,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -506,7 +563,11 @@ fn InternetReadFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetReadFile sz: {} buff: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, bytes_to_read, buff_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        bytes_to_read,
+        buff_ptr,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {
@@ -542,7 +603,10 @@ fn InternetReadFileExA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetReadFileExA buff: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, buff_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        buff_ptr,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {
@@ -560,7 +624,10 @@ fn InternetReadFileExW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} wininet!InternetReadFileExW buff: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, buff_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        buff_ptr,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {

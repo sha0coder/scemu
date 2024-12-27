@@ -14,7 +14,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn SysAllocStringLen(emu: &mut emu::Emu) {
@@ -65,7 +65,10 @@ fn SysFreeString(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} oleaut32!SysFreeString  0x{:x} {}",
-        emu.colors.light_red, emu.pos, str_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        str_ptr,
+        emu.colors.nc
     );
 
     //emu.maps.free(&format!("alloc_{:x}", str_ptr));

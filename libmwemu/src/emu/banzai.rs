@@ -4,6 +4,12 @@ pub struct Banzai {
     api_params: HashMap<String, i32>,
 }
 
+impl Default for Banzai {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Banzai {
     pub fn new() -> Self {
         Self {

@@ -9,7 +9,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             return apiname;
         }
     }
-    return String::new();
+    String::new()
 }
 
 fn RealShellExecuteA(emu: &mut emu::Emu) {
@@ -31,7 +31,11 @@ fn RealShellExecuteA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} shell32!RealShellExecuteA {} {} {}",
-        emu.colors.light_red, emu.pos, file, params, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file,
+        params,
+        emu.colors.nc
     );
 
     emu.regs.rax = 34;

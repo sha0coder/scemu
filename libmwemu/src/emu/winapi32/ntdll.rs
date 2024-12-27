@@ -48,7 +48,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
@@ -79,36 +79,45 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         .maps
         .read_dword(size_ptr)
         .expect("bad NtAllocateVirtualMemory size parameter") as u64;
-    let do_alloc: bool;
-    let alloc_addr: u64;
 
-    if addr == 0 {
-        do_alloc = true;
+    let do_alloc: bool = if addr == 0 {
+        true
     } else {
-        do_alloc = emu.maps.is_mapped(addr);
-    }
+        emu.maps.is_mapped(addr)
+    };
 
     if size == 0 {
         panic!("NtAllocateVirtualMemory mapping zero bytes.")
     }
 
-    if do_alloc {
-        alloc_addr = match emu.maps.alloc(size) {
+    let alloc_addr: u64 = if do_alloc {
+        match emu.maps.alloc(size) {
             Some(a) => a,
             None => {
                 panic!("/!\\ out of memory   cannot allocate forntdll!NtAllocateVirtualMemory ")
             }
-        };
+        }
     } else {
-        alloc_addr = addr;
-    }
+        addr
+    };
 
     log::info!(
         "{}** {} ntdll!NtAllocateVirtualMemory  addr: 0x{:x} sz: {} alloc: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, addr, size, alloc_addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        addr,
+        size,
+        alloc_addr,
+        emu.colors.nc
     );
 
-    emu.maps.create_map(format!("valloc_{:x}", alloc_addr).as_str(), alloc_addr, size).expect("ntdll!NtAllocateVirtualMemory cannot create map");
+    emu.maps
+        .create_map(
+            format!("valloc_{:x}", alloc_addr).as_str(),
+            alloc_addr,
+            size,
+        )
+        .expect("ntdll!NtAllocateVirtualMemory cannot create map");
 
     if !emu.maps.write_dword(addr_ptr, alloc_addr as u32) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
@@ -135,7 +144,11 @@ fn stricmp(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!stricmp  '{}'=='{}'? {}",
-        emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        str1,
+        str2,
+        emu.colors.nc
     );
 
     if str1 == str2 {
@@ -161,7 +174,10 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryVirtualMemory addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        addr,
+        emu.colors.nc
     );
 
     if handle != 0xffffffff {
@@ -223,7 +239,10 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
     let libname = emu.maps.read_wide_string(libname_ptr);
     log::info!(
         "{}** {} ntdll!LdrLoadDll   lib: {} {}",
-        emu.colors.light_red, emu.pos, libname, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        libname,
+        emu.colors.nc
     );
 
     let base = kernel32::load_library(emu, &libname);
@@ -236,9 +255,6 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
 }
 
 fn LdrLoadDll_gul(emu: &mut emu::Emu) {
-
-
-
     let path_to_file_ptr = emu
         .maps
         .read_dword(emu.regs.get_esp())
@@ -257,22 +273,32 @@ fn LdrLoadDll_gul(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!LdrLoadDll_gul   lib: {} {} ->{:x} {}",
-        emu.colors.light_red, emu.pos, libname, path, libaddr_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        libname,
+        path,
+        libaddr_ptr,
+        emu.colors.nc
     );
 
-
     if libname == "user32.dll" {
-        let user32 = emu.maps.create_map("user32", 0x773b0000, 0x1000).expect("ntdll!LdrLoadDll_gul cannot create map");
+        let user32 = emu
+            .maps
+            .create_map("user32", 0x773b0000, 0x1000)
+            .expect("ntdll!LdrLoadDll_gul cannot create map");
         user32.load("maps32/user32.bin");
-        let user32_text = emu.maps.create_map("user32_text", 0x773b1000, 0x1000).expect("ntdll!LdrLoadDll_gul cannot create map");
+        let user32_text = emu
+            .maps
+            .create_map("user32_text", 0x773b1000, 0x1000)
+            .expect("ntdll!LdrLoadDll_gul cannot create map");
         user32_text.load("maps32/user32_text.bin");
 
         if !emu.maps.write_dword(libaddr_ptr, 0x773b0000) {
             panic!("ntdll!LdrLoadDll: cannot write in addr param");
         }
     } /*else {
-        emu.maps.write_dword(libaddr_ptr, 0x77570000); // ntdll by default
-    }*/
+          emu.maps.write_dword(libaddr_ptr, 0x77570000); // ntdll by default
+      }*/
 
     for _ in 0..4 {
         emu.stack_pop32(false);
@@ -280,8 +306,8 @@ fn LdrLoadDll_gul(emu: &mut emu::Emu) {
 
     /*
      undo prolog implemented on guloader
-        mov   esp, ebp  
-        pop   ebp  
+        mov   esp, ebp
+        pop   ebp
     */
 
     emu.regs.set_esp(emu.regs.get_ebp());
@@ -292,9 +318,7 @@ fn LdrLoadDll_gul(emu: &mut emu::Emu) {
 
     emu.maps.write_dword(emu.regs.get_ebp() + 0x168, 0x77570000);
     emu.regs.rip = 0x682e5e2;
-
 }
-
 
 fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
     let p1 = emu
@@ -308,7 +332,11 @@ fn RtlVectoredExceptionHandler(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlVectoredExceptionHandler  {} callback: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, p1, fptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        p1,
+        fptr,
+        emu.colors.nc
     );
 
     emu.veh = fptr;
@@ -334,7 +362,9 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll_NtGetContextThread   ctx  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     let ctx = Context32::new(&emu.regs);
@@ -345,11 +375,12 @@ fn NtGetContextThread(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
 }
 
-
 fn RtlExitUserThread(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} ntdll!RtlExitUserThread   {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.spawn_console();
     std::process::exit(1);
@@ -374,7 +405,11 @@ fn sscanf(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!sscanf out_buff: `{}` fmt: `{}` {}",
-        emu.colors.light_red, emu.pos, buffer, fmt, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        buffer,
+        fmt,
+        emu.colors.nc
     );
 
     let rust_fmt = fmt
@@ -403,7 +438,9 @@ fn sscanf(emu: &mut emu::Emu) {
 fn NtGetTickCount(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} ntdll!NtGetTickCount {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     let tick = kernel32::TICK.lock().unwrap();
     emu.regs.rax = *tick as u64;
@@ -422,7 +459,9 @@ fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryPerformanceCounter {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.maps.write_dword(perf_counter_ptr, 0);
@@ -442,7 +481,9 @@ fn RtlGetProcessHeaps(emu: &mut emu::Emu) {
     */
     log::info!(
         "{}** {} ntdll!RtlGetProcessHeaps {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -481,7 +522,10 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlDosPathNameToNtPathName_U {} {}",
-        emu.colors.light_red, emu.pos, dos_path_name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dos_path_name,
+        emu.colors.nc
     );
 
     //TODO: si la variable destino apunta a pila no hacer memcpy, solo si es un alloc_
@@ -504,19 +548,17 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                 dos_path_name_ptr,
                 emu.maps.sizeof_wide(dos_path_name_ptr) * 2,
             );
-        } else {
-            if emu.cfg.verbose >= 1 {
-                log::info!(
-                    "/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map",
-                    dst_map_name
-                );
-                log::info!(
-                    "memcpy1 0x{:x} <- 0x{:x}  sz: {}",
-                    dos_path_unicode_ptr,
-                    dos_path_name_ptr,
-                    emu.maps.sizeof_wide(dos_path_name_ptr) * 2
-                );
-            }
+        } else if emu.cfg.verbose >= 1 {
+            log::info!(
+                "/!\\ ntdll!RtlDosPathNameToNtPathName_U denied dest buffer on {} map",
+                dst_map_name
+            );
+            log::info!(
+                "memcpy1 0x{:x} <- 0x{:x}  sz: {}",
+                dos_path_unicode_ptr,
+                dos_path_name_ptr,
+                emu.maps.sizeof_wide(dos_path_name_ptr) * 2
+            );
         }
     }
 
@@ -535,9 +577,11 @@ fn RtlDosPathNameToNtPathName_U(emu: &mut emu::Emu) {
                 emu.maps.sizeof_wide(dos_path_name_ptr) * 2,
             );
         } else {
-            let addr = match emu.maps.alloc(255) {
+            match emu.maps.alloc(255) {
                 Some(a) => {
-                    emu.maps.create_map("nt_alloc", a, 255).expect("ntdll!RtlDosPathNameToNtPathName_U cannot create map");
+                    emu.maps
+                        .create_map("nt_alloc", a, 255)
+                        .expect("ntdll!RtlDosPathNameToNtPathName_U cannot create map");
                     emu.maps.write_dword(nt_path_name_ptr, a as u32);
                     emu.maps.memcpy(
                         a,
@@ -639,7 +683,10 @@ fn NtCreateFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtCreateFile {} {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
 
     if out_handle_ptr > 0 {
@@ -670,7 +717,10 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlFreeHeap 0x{} {}",
-        emu.colors.light_red, emu.pos, base_addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        base_addr,
+        emu.colors.nc
     );
 
     helper::handler_close(handle);
@@ -682,8 +732,8 @@ fn RtlFreeHeap(emu: &mut emu::Emu) {
     let name = emu
         .maps
         .get_addr_name(base_addr)
-        .unwrap_or_else(|| String::new());
-    if name == "" {
+        .unwrap_or_else(String::new);
+    if name.is_empty() {
         if emu.cfg.verbose >= 1 {
             log::info!("map not allocated, so cannot free it.");
         }
@@ -726,7 +776,9 @@ fn NtQueryInformationFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtQueryInformationFile {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
@@ -754,11 +806,17 @@ fn RtlAllocateHeap(emu: &mut emu::Emu) {
         .maps
         .alloc(size)
         .expect("ntdll!RtlAllocateHeap out of memory");
-    emu.maps.create_map(format!("alloc_{:x}", base).as_str(), base, size).expect("ntdll!RtlAllocateHeap cannot create map");
+    emu.maps
+        .create_map(format!("alloc_{:x}", base).as_str(), base, size)
+        .expect("ntdll!RtlAllocateHeap cannot create map");
 
     log::info!(
         "{}** {} ntdll!RtlAllocateHeap sz: {} addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, size, base, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        size,
+        base,
+        emu.colors.nc
     );
 
     emu.regs.rax = base;
@@ -822,7 +880,13 @@ fn NtReadFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtReadFile {} buff: 0x{:x} sz: {} off_var: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, file, buff, len, off, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file,
+        buff,
+        len,
+        off,
+        emu.colors.nc
     );
 
     for _ in 0..9 {
@@ -844,12 +908,16 @@ fn NtClose(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtClose hndl: 0x{:x} uri: {} {}",
-        emu.colors.light_red, emu.pos, hndl, uri, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        uri,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
 
-    if uri == "" {
+    if uri.is_empty() {
         emu.regs.rax = constants::STATUS_INVALID_HANDLE;
     } else {
         emu.regs.rax = constants::STATUS_SUCCESS;
@@ -868,7 +936,9 @@ fn RtlInitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlInitializeCriticalSectionAndSpinCount {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -901,7 +971,10 @@ fn NtProtectVirtualMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!NtProtectVirtualMemory sz: {} {}",
-        emu.colors.light_red, emu.pos, sz, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        sz,
+        emu.colors.nc
     );
 
     for _ in 0..5 {
@@ -923,7 +996,9 @@ fn CheckRemoteDebuggerPresent(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!CheckRemoteDebuggerPresent  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.maps.write_dword(bool_ptr, 0);
@@ -941,7 +1016,9 @@ fn RtlEnterCriticalSection(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlEnterCriticalSection {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -956,7 +1033,9 @@ fn RtlLeaveCriticalSection(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlLeaveCriticalSection {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -972,7 +1051,9 @@ fn RtlGetVersion(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlGetVersion {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     let versioninfo = emu::structures::OsVersionInfo::new();
@@ -999,7 +1080,9 @@ fn RtlInitializeCriticalSectionEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlInitializeCriticalSectionEx {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -1024,7 +1107,12 @@ fn memset(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!memset ptr: 0x{:x} byte: {} count: {} {}",
-        emu.colors.light_red, emu.pos, ptr, byte, count, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr,
+        byte,
+        count,
+        emu.colors.nc
     );
 
     emu.maps.memset(ptr, byte as u8, count as usize);
@@ -1044,7 +1132,10 @@ fn RtlSetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!RtlSetUnhandledExceptionFilter filter: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, filter, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filter,
+        emu.colors.nc
     );
 
     emu.feh = filter;
@@ -1063,7 +1154,11 @@ fn strlen(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!strlen: `{}` {} {}",
-        emu.colors.light_red, emu.pos, s, l, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        l,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -1073,7 +1168,9 @@ fn strlen(emu: &mut emu::Emu) {
 fn VerSetConditionMask(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} ntdll!strlen: {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.stack_pop32(false);
@@ -1082,7 +1179,6 @@ fn VerSetConditionMask(emu: &mut emu::Emu) {
     emu.regs.rax = 0xffff;
 }
 
-
 fn strcat(emu: &mut emu::Emu) {
     let dst_ptr = emu
         .maps
@@ -1090,7 +1186,7 @@ fn strcat(emu: &mut emu::Emu) {
         .expect("ntdll!strcat error reading dst") as u64;
     let src_ptr = emu
         .maps
-        .read_dword(emu.regs.get_esp()+4)
+        .read_dword(emu.regs.get_esp() + 4)
         .expect("ntdll!strcat error reading src") as u64;
 
     let dst = emu.maps.read_string(dst_ptr);
@@ -1098,7 +1194,11 @@ fn strcat(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} ntdll!strcat: `{}`+`{}` {}",
-        emu.colors.light_red, emu.pos, src, dst, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        dst,
+        emu.colors.nc
     );
 
     let dst_cont_ptr = dst_ptr + dst.len() as u64;
@@ -1116,17 +1216,21 @@ fn memcpy(emu: &mut emu::Emu) {
         .expect("ntdll!strcat error reading dst") as u64;
     let src_ptr = emu
         .maps
-        .read_dword(emu.regs.get_esp()+4)
+        .read_dword(emu.regs.get_esp() + 4)
         .expect("ntdll!strcat error reading src") as u64;
     let count = emu
         .maps
-        .read_dword(emu.regs.get_esp()+8)
+        .read_dword(emu.regs.get_esp() + 8)
         .expect("ntdll!strcat error reading src") as usize;
-
 
     log::info!(
         "{}** {} ntdll!memcpy: 0x{:x} <- 0x{:x} {} {}",
-        emu.colors.light_red, emu.pos, dst_ptr, src_ptr, count, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dst_ptr,
+        src_ptr,
+        count,
+        emu.colors.nc
     );
 
     emu.maps.memcpy(dst_ptr, src_ptr, count);
@@ -1134,5 +1238,4 @@ fn memcpy(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
     emu.stack_pop32(false);
     emu.stack_pop32(false);
-
 }

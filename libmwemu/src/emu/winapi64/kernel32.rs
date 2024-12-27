@@ -139,13 +139,14 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         _ => {
             log::info!(
                 "calling unimplemented kernel32 64bits API 0x{:x} {}",
-                addr, api
+                addr,
+                api
             );
             return api;
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 lazy_static! {
@@ -161,19 +162,19 @@ pub fn dump_module_iat(emu: &mut emu::Emu, module: &str) {
     let first_ptr = flink.get_ptr();
 
     loop {
-        if flink.mod_name.to_lowercase().contains(module) {
-            if flink.export_table_rva > 0 {
-                for i in 0..flink.num_of_funcs {
-                    if flink.pe_hdr == 0 {
-                        continue;
-                    }
-
-                    let ordinal = flink.get_function_ordinal(emu, i);
-                    log::info!(
-                        "0x{:x} {}!{}",
-                        ordinal.func_va, &flink.mod_name, &ordinal.func_name
-                    );
+        if flink.mod_name.to_lowercase().contains(module) && flink.export_table_rva > 0 {
+            for i in 0..flink.num_of_funcs {
+                if flink.pe_hdr == 0 {
+                    continue;
                 }
+
+                let ordinal = flink.get_function_ordinal(emu, i);
+                log::info!(
+                    "0x{:x} {}!{}",
+                    ordinal.func_va,
+                    &flink.mod_name,
+                    &ordinal.func_name
+                );
             }
         }
         flink.next(emu);
@@ -210,7 +211,7 @@ pub fn resolve_api_addr_to_name(emu: &mut emu::Emu, addr: u64) -> String {
         }
     }
 
-    return "".to_string();
+    "".to_string()
 }
 
 pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
@@ -241,7 +242,7 @@ pub fn resolve_api_name(emu: &mut emu::Emu, name: &str) -> u64 {
         }
     }
 
-    return 0; //TODO: use Option<>
+    0 //TODO: use Option<>
 }
 
 pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) {
@@ -273,7 +274,7 @@ pub fn search_api_name(emu: &mut emu::Emu, name: &str) -> (u64, String, String) 
         }
     }
 
-    return (0, String::new(), String::new()); //TODO: use Option<>
+    (0, String::new(), String::new()) //TODO: use Option<>
 }
 
 pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
@@ -292,7 +293,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
 
                 let ordinal = flink.get_function_ordinal(emu, i);
 
-                if ordinal.func_va == addr.into() {
+                if ordinal.func_va == addr {
                     return ordinal.func_name.clone();
                 }
             }
@@ -305,15 +306,15 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u64) -> String {
         }
     }
 
-    return "function not found".to_string();
+    "function not found".to_string()
 }
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     // log::info!("kern32!load_library: {}", libname);
-    
+
     let mut dll = libname.to_string().to_lowercase();
 
-    if dll.len() == 0 {
+    if dll.is_empty() {
         emu.regs.rax = 0;
         return 0;
     }
@@ -323,7 +324,7 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
     }
 
     let mut dll_path = emu.cfg.maps_folder.clone();
-    dll_path.push_str("/");
+    dll_path.push('/');
     dll_path.push_str(&dll);
 
     match peb64::get_module_base(&dll, emu) {
@@ -333,22 +334,22 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
             if emu.cfg.verbose > 0 {
                 log::info!("dll {} already linked.", dll);
             }*/
-            return base;
+            base
         }
         None => {
             // do link
             if std::path::Path::new(&dll_path).exists() {
                 let (base, pe_off) = emu.load_pe64(&dll_path, false, 0);
-                peb64::dynamic_link_module(base as u64, pe_off, &dll, emu);
-                return base as u64;
+                peb64::dynamic_link_module(base, pe_off, &dll, emu);
+                return base;
             } else {
                 if emu.cfg.verbose > 0 {
                     log::info!("dll {} not found.", dll_path);
                 }
-                return 0;
+                0
             }
         }
-    };
+    }
 }
 
 fn LoadLibraryA(emu: &mut emu::Emu) {
@@ -359,7 +360,11 @@ fn LoadLibraryA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dll,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -371,7 +376,11 @@ fn LoadLibraryW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dll,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -383,7 +392,11 @@ fn LoadLibraryExA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!LoadLibraryExA  '{}' =0x{:x} {}",
-        emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dll,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -395,7 +408,11 @@ fn LoadLibraryExW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!LoadLibraryExW '{}' =0x{:x} {}",
-        emu.colors.light_red, emu.pos, dll, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dll,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -452,7 +469,10 @@ fn WinExec(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!WinExec  '{}'  {}",
-        emu.colors.light_red, emu.pos, cmdline, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        cmdline,
+        emu.colors.nc
     );
 
     emu.regs.rax = 32;
@@ -462,7 +482,10 @@ fn GetVersion(emu: &mut emu::Emu) {
     emu.regs.rax = emu::constants::VERSION;
     log::info!(
         "{}** {} kernel32!GetVersion   =0x{:x}  {}",
-        emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -471,7 +494,10 @@ fn GetVersionExW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetVersionExW 0x{:x} {}",
-        emu.colors.light_red, emu.pos, version_info_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        version_info_ptr,
+        emu.colors.nc
     );
 
     let os_version_info = emu::structures::OsVersionInfo::new();
@@ -485,7 +511,10 @@ fn GetVersionExA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetVersionExA 0x{:x} {}",
-        emu.colors.light_red, emu.pos, version_info_ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        version_info_ptr,
+        emu.colors.nc
     );
 
     let os_version_info = emu::structures::OsVersionInfo::new();
@@ -500,7 +529,11 @@ fn CreateToolhelp32Snapshot(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateToolhelp32Snapshot flags: {:x} pid: {} {}",
-        emu.colors.light_red, emu.pos, flags, pid, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        flags,
+        pid,
+        emu.colors.nc
     );
 
     let uri = format!("CreateToolhelp32Snapshot://{}", pid);
@@ -513,7 +546,11 @@ fn Process32First(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!Process32First hndl: {:x} lppe: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        lppe,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(handle) {
@@ -548,7 +585,11 @@ fn Process32Next(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!Process32Next hndl: {:x} lppe: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, handle, lppe, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        lppe,
+        emu.colors.nc
     );
 
     emu.maps.write_string(lppe + 44, "explorer.exe\x00");
@@ -571,13 +612,21 @@ fn LStrCmpI(emu: &mut emu::Emu) {
     if s1 == s2 {
         log::info!(
             "{}** {} kernel32!lstrcmpi `{}` == `{}` {}",
-            emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            s1,
+            s2,
+            emu.colors.nc
         );
         emu.regs.rax = 0;
     } else {
         log::info!(
             "{}** {} kernel32!lstrcmpi `{}` != `{}` {}",
-            emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            s1,
+            s2,
+            emu.colors.nc
         );
         emu.regs.rax = 1;
     }
@@ -593,13 +642,21 @@ fn LStrCmpIW(emu: &mut emu::Emu) {
     if s1 == s2 {
         log::info!(
             "{}** {} kernel32!lstrcmpiW `{}` == `{}` {}",
-            emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            s1,
+            s2,
+            emu.colors.nc
         );
         emu.regs.rax = 0;
     } else {
         log::info!(
             "{}** {} kernel32!lstrcmpiW `{}` != `{}` {}",
-            emu.colors.light_red, emu.pos, s1, s2, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            s1,
+            s2,
+            emu.colors.nc
         );
         emu.regs.rax = 1;
     }
@@ -608,7 +665,9 @@ fn LStrCmpIW(emu: &mut emu::Emu) {
 fn AreFileApiIsAnsi(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!AreFileApiIsAnsi {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -621,7 +680,11 @@ fn BeginUpdateResourceA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!BeginUpdateResourceA `{}` {} {}",
-        emu.colors.light_red, emu.pos, filename, bDeleteExistingResources, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        bDeleteExistingResources,
+        emu.colors.nc
     );
 
     emu.regs.rax = helper::handler_create(&filename);
@@ -634,7 +697,10 @@ fn OpenProcess(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!OpenProcess pid: {} {}",
-        emu.colors.light_red, emu.pos, pid, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        pid,
+        emu.colors.nc
     );
 
     let uri = format!("pid://{}", pid);
@@ -650,21 +716,32 @@ fn VirtualAlloc(emu: &mut emu::Emu) {
     if size == 0 {
         log::info!(
             "{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0 {}",
-            emu.colors.light_red, emu.pos, addr, size, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            addr,
+            size,
+            emu.colors.nc
         );
         emu.regs.rax = 0
     } else {
-        let base = emu.maps.alloc(size).expect(&format!(
-            "kernel32!VirtualAlloc out of memory size:{}",
-            size
-        ));
+        let base = emu
+            .maps
+            .alloc(size)
+            .unwrap_or_else(|| panic!("kernel32!VirtualAlloc out of memory size:{}", size));
 
         log::info!(
             "{}** {} kernel32!VirtualAlloc addr: 0x{:x} sz: {} = 0x{:x} {}",
-            emu.colors.light_red, emu.pos, addr, size, base, emu.colors.nc
+            emu.colors.light_red,
+            emu.pos,
+            addr,
+            size,
+            base,
+            emu.colors.nc
         );
 
-        emu.maps.create_map(format!("alloc_{:x}", base).as_str(), base, size).expect("kernel32!VirtualAlloc out of memory");
+        emu.maps
+            .create_map(format!("alloc_{:x}", base).as_str(), base, size)
+            .expect("kernel32!VirtualAlloc out of memory");
 
         emu.regs.rax = base;
     }
@@ -687,10 +764,18 @@ fn VirtualAllocEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!VirtualAllocEx hproc: 0x{:x} addr: 0x{:x} sz: {} = 0x{:x} {}",
-        emu.colors.light_red, emu.pos, proc_hndl, addr, size, base, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        proc_hndl,
+        addr,
+        size,
+        base,
+        emu.colors.nc
     );
 
-    emu.maps.create_map(format!("alloc_{:x}", base).as_str(), base, size).expect("kernel32!VirtualAllocEx out of memory");
+    emu.maps
+        .create_map(format!("alloc_{:x}", base).as_str(), base, size)
+        .expect("kernel32!VirtualAllocEx out of memory");
 
     emu.regs.rax = base;
 }
@@ -707,14 +792,21 @@ fn WriteProcessMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!WriteProcessMemory hproc: 0x{:x} from: 0x{:x } to: 0x{:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, proc_hndl, buff, addr, size, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        proc_hndl,
+        buff,
+        addr,
+        size,
+        emu.colors.nc
     );
 
     if emu.maps.memcpy(buff, addr, size as usize) {
         emu.regs.rax = 1;
         log::info!(
             "{}\twritten succesfully{}",
-            emu.colors.light_red, emu.colors.nc
+            emu.colors.light_red,
+            emu.colors.nc
         );
         if written_ptr != 0 && !emu.maps.write_qword(written_ptr, size) {
             log::info!("kernel32!WriteProcessMemory cannot write on written_ptr");
@@ -723,7 +815,8 @@ fn WriteProcessMemory(emu: &mut emu::Emu) {
         emu.regs.rax = 0;
         log::info!(
             "{}\tcouldnt write all the bytes{}",
-            emu.colors.light_red, emu.colors.nc
+            emu.colors.light_red,
+            emu.colors.nc
         );
         if written_ptr != 0 && !emu.maps.write_qword(written_ptr, 0) {
             log::info!("kernel32!WriteProcessMemory cannot write on written_ptr");
@@ -737,7 +830,9 @@ fn Thread32First(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!Thread32First {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -750,7 +845,9 @@ fn Thread32Next(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!Thread32Next {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::ERROR_NO_MORE_FILES;
@@ -763,7 +860,10 @@ fn OpenThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!OpenThread tid: {} {}",
-        emu.colors.light_red, emu.pos, tid, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        tid,
+        emu.colors.nc
     );
 
     let uri = format!("tid://{}", tid);
@@ -775,7 +875,9 @@ fn GetSystemTimeAsFileTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetSystemTimeAsFileTime {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -784,7 +886,9 @@ fn GetSystemTimeAsFileTime(emu: &mut emu::Emu) {
 fn GetCurrentThreadId(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetCurrentThreadId {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0x111; //TODO: track pids and tids
@@ -793,7 +897,9 @@ fn GetCurrentThreadId(emu: &mut emu::Emu) {
 fn GetCurrentProcessId(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetCurrentProcessId {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0x123;
@@ -806,7 +912,9 @@ fn QueryPerformanceCounter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!QueryPerformanceCounter {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -817,7 +925,10 @@ fn GetProcessHeap(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetProcessHeap ={} {}",
-        emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -826,16 +937,24 @@ fn HeapAlloc(emu: &mut emu::Emu) {
     let flags = emu.regs.rdx;
     let size = emu.regs.r8;
 
-    emu.regs.rax = match emu.maps.alloc(size) {
-        Some(sz) => sz,
-        None => 0,
-    };
+    emu.regs.rax = emu.maps.alloc(size).unwrap_or_default();
 
-    emu.maps.create_map(format!("alloc_{:x}", emu.regs.rax).as_str(), emu.regs.rax, size).expect("kernel32!HeapAlloc out of memory");
+    emu.maps
+        .create_map(
+            format!("alloc_{:x}", emu.regs.rax).as_str(),
+            emu.regs.rax,
+            size,
+        )
+        .expect("kernel32!HeapAlloc out of memory");
 
     log::info!(
         "{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}",
-        emu.colors.light_red, emu.pos, flags, size, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        flags,
+        size,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -852,7 +971,13 @@ fn CreateEventA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateEventA attr: 0x{:x} manual_reset: {} init_state: {} name: {} {}",
-        emu.colors.light_red, emu.pos, attributes, bManualReset, bInitialState, name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        attributes,
+        bManualReset,
+        bInitialState,
+        name,
+        emu.colors.nc
     );
 
     let uri = format!("event://{}", name);
@@ -867,11 +992,11 @@ fn CreateThread(emu: &mut emu::Emu) {
     let flags = emu
         .maps
         .read_qword(emu.regs.rsp)
-        .expect("kernel32!CreateThread cannot read flags") as u64;
+        .expect("kernel32!CreateThread cannot read flags");
     let tid_ptr = emu
         .maps
         .read_qword(emu.regs.rsp + 8)
-        .expect("kernel32!CreateThread cannot read tid_ptr") as u64;
+        .expect("kernel32!CreateThread cannot read tid_ptr");
 
     if tid_ptr > 0 {
         emu.maps.write_dword(tid_ptr, 0x123);
@@ -879,7 +1004,11 @@ fn CreateThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateThread code: 0x{:x} param: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, code, param, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        code,
+        param,
+        emu.colors.nc
     );
 
     if flags == constants::CREATE_SUSPENDED {
@@ -914,7 +1043,10 @@ fn Sleep(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!Sleep millis: {} {}",
-        emu.colors.light_red, emu.pos, millis, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        millis,
+        emu.colors.nc
     );
     let mut tick = TICK.lock().unwrap();
     *tick += millis;
@@ -926,14 +1058,20 @@ fn LocalAlloc(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!LocalAlloc flags: {:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, flags, bytes, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        flags,
+        bytes,
+        emu.colors.nc
     );
 
     let base = emu
         .maps
         .alloc(bytes)
         .expect("kernel32!LocalAlloc out of memory");
-    emu.maps.create_map(format!("alloc_{:x}", base).as_str(), base, bytes).expect("kernel32!LocalAlloc out of memory");
+    emu.maps
+        .create_map(format!("alloc_{:x}", base).as_str(), base, bytes)
+        .expect("kernel32!LocalAlloc out of memory");
 
     emu.regs.rax = base;
 }
@@ -946,7 +1084,11 @@ fn CreateProcessA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateProcessA  {} {} {}",
-        emu.colors.light_red, emu.pos, appname, cmdline, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        appname,
+        cmdline,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -960,7 +1102,11 @@ fn CreateProcessW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateProcessW  {} {} {}",
-        emu.colors.light_red, emu.pos, appname, cmdline, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        appname,
+        cmdline,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -986,7 +1132,11 @@ fn CreateRemoteThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateRemoteThread hproc: 0x{:x} addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        proc_hndl,
+        addr,
+        emu.colors.nc
     );
 
     emu.maps.write_dword(out_tid, 0x123);
@@ -1019,7 +1169,12 @@ fn CreateNamedPipeA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateNamedPipeA  name:{} in: 0x{:x} out: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, name, in_buff_sz, out_buff_sz, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        in_buff_sz,
+        out_buff_sz,
+        emu.colors.nc
     );
 
     emu.regs.rax = helper::handler_create(&name);
@@ -1051,7 +1206,12 @@ fn CreateNamedPipeW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateNamedPipeA  name:{} in: 0x{:x} out: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, name, in_buff_sz, out_buff_sz, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        in_buff_sz,
+        out_buff_sz,
+        emu.colors.nc
     );
 
     emu.regs.rax = helper::handler_create(&name);
@@ -1063,7 +1223,10 @@ fn ConnectNamedPipe(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ConnectNamedPipe hndl: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, handle, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(handle) {
@@ -1078,7 +1241,10 @@ fn DisconnectNamedPipe(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!DisconnectNamedPipe hndl: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, handle, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1118,7 +1284,12 @@ fn ReadFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ReadFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file_hndl,
+        buff,
+        size,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {
@@ -1143,7 +1314,12 @@ fn WriteFile(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!WriteFile hndl: 0x{:x} buff: 0x{:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, file_hndl, buff, size, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file_hndl,
+        buff,
+        size,
+        emu.colors.nc
     );
 
     if !helper::handler_exist(file_hndl) {
@@ -1158,7 +1334,10 @@ fn CloseHandle(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CloseHandle 0x{:X} {}",
-        emu.colors.light_red, emu.pos, handle, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        handle,
+        emu.colors.nc
     );
 
     if !helper::handler_close(handle) {
@@ -1172,7 +1351,10 @@ fn ExitProcess(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ExitProcess code: {} {}",
-        emu.colors.light_red, emu.pos, code, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        code,
+        emu.colors.nc
     );
     std::process::exit(1);
 }
@@ -1183,7 +1365,11 @@ fn TerminateProcess(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!TerminateProcess hndl: {} code: {} {}",
-        emu.colors.light_red, emu.pos, hndl, code, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        code,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1194,7 +1380,11 @@ fn WaitForSingleObject(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!WaitForSingleObject  hndl: {} millis: {} {}",
-        emu.colors.light_red, emu.pos, hndl, millis, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        millis,
+        emu.colors.nc
     );
 
     emu.regs.rax = emu::constants::WAIT_TIMEOUT;
@@ -1209,7 +1399,9 @@ fn GetThreadContext(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetThreadContext  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1227,7 +1419,13 @@ fn ReadProcessMemory(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ReadProcessMemory hndl: {} from: 0x{:x} to: 0x{:x} sz: {} {}",
-        emu.colors.light_red, emu.pos, hndl, addr, buff, size, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        addr,
+        buff,
+        size,
+        emu.colors.nc
     );
 
     emu.maps.write_qword(bytes, size);
@@ -1243,7 +1441,9 @@ fn GetCurrentDirectoryA(emu: &mut emu::Emu) {
     emu.maps.write_string(buff_ptr, "c:\\\x00");
     log::info!(
         "{}** {} kernel32!GetCurrentDirectoryA {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 3;
@@ -1257,7 +1457,9 @@ fn GetCurrentDirectoryW(emu: &mut emu::Emu) {
         .write_string(buff_ptr, "c\x00:\x00\\\x00\x00\x00\x00\x00");
     log::info!(
         "{}** {} kernel32!GetCurrentDirectoryW {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 6;
@@ -1273,7 +1475,12 @@ fn VirtualProtect(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!VirtualProtect addr: 0x{:x} sz: {} prot: {} {}",
-        emu.colors.light_red, emu.pos, addr, size, new_prot, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        addr,
+        size,
+        new_prot,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1291,7 +1498,13 @@ fn VirtualProtectEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!VirtualProtectEx hproc: {} addr: 0x{:x} sz: {} prot: {} {}",
-        emu.colors.light_red, emu.pos, hproc, addr, size, new_prot, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hproc,
+        addr,
+        size,
+        new_prot,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1302,7 +1515,10 @@ fn ResumeThread(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ResumeThread hndl: {} {}",
-        emu.colors.light_red, emu.pos, hndl, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1; // previous suspend count
@@ -1317,7 +1533,10 @@ fn GetFullPathNameA(emu: &mut emu::Emu) {
     let filename = emu.maps.read_string(file_ptr);
     log::info!(
         "{}** {} kernel32!GetFullPathNameA file: {}  {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
     // TODO: save the path to buff.
     emu.regs.rax = 10;
@@ -1332,7 +1551,10 @@ fn GetFullPathNameW(emu: &mut emu::Emu) {
     let filename = emu.maps.read_wide_string(file_ptr);
     log::info!(
         "{}** {} kernel32!GetFullPathNameW file: {}  {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
     // TODO: save the path to buff.
     emu.regs.rax = 10;
@@ -1345,7 +1567,9 @@ fn SystemTimeToTzSpecificLocalTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!SystemTimeToTzSpecificLocalTime {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1354,7 +1578,9 @@ fn SystemTimeToTzSpecificLocalTime(emu: &mut emu::Emu) {
 fn GetLogicalDrives(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetLogicalDrives {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = 0xc;
 }
@@ -1368,7 +1594,10 @@ fn ExpandEnvironmentStringsA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ExpandEnvironmentStringsA `{}` {}",
-        emu.colors.light_red, emu.pos, src, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        emu.colors.nc
     );
     // TODO: expand typical environment varsl.
     emu.regs.rax = 1;
@@ -1383,7 +1612,10 @@ fn ExpandEnvironmentStringsW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!ExpandEnvironmentStringsW `{}` {}",
-        emu.colors.light_red, emu.pos, src, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        emu.colors.nc
     );
     // TODO: expand typical environment varsl.
     emu.regs.rax = 1;
@@ -1395,7 +1627,10 @@ fn GetFileAttributesA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetFileAttributesA file: {} {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
     emu.regs.rax = 0x123;
 }
@@ -1406,7 +1641,10 @@ fn GetFileAttributesW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetFileAttributesW file: {} {}",
-        emu.colors.light_red, emu.pos, filename, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        filename,
+        emu.colors.nc
     );
     emu.regs.rax = 0x123;
 }
@@ -1417,7 +1655,9 @@ fn FileTimeToSystemTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FileTimeToSystemTime {} ",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1429,7 +1669,10 @@ fn FindFirstFileA(emu: &mut emu::Emu) {
     let file = emu.maps.read_string(file_ptr);
     log::info!(
         "{}** {} kernel32!FindFirstFileA file: {} {}",
-        emu.colors.light_red, emu.pos, file, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1441,7 +1684,10 @@ fn FindFirstFileW(emu: &mut emu::Emu) {
     let file = emu.maps.read_wide_string(file_ptr);
     log::info!(
         "{}** {} kernel32!FindFirstFileW file: {} {}",
-        emu.colors.light_red, emu.pos, file, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        file,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1452,7 +1698,9 @@ fn FindNextFileA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FindNextFileA {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::ERROR_NO_MORE_FILES;
@@ -1464,7 +1712,9 @@ fn FindNextFileW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FindNextFileW {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::ERROR_NO_MORE_FILES;
@@ -1480,7 +1730,11 @@ fn CopyFileA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CopyFileA `{}` to `{}` {}",
-        emu.colors.light_red, emu.pos, src, dst, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        dst,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1496,7 +1750,11 @@ fn CopyFileW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CopyFileW `{}` to `{}` {}",
-        emu.colors.light_red, emu.pos, src, dst, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        dst,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1507,7 +1765,9 @@ fn FindClose(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FindClose {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     helper::handler_close(hndl);
     emu.regs.rax = 1;
@@ -1522,7 +1782,11 @@ fn MoveFileA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!MoveFileA `{}` to `{}` {}",
-        emu.colors.light_red, emu.pos, src, dst, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        dst,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1536,7 +1800,11 @@ fn MoveFileW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!MoveFileW `{}` to `{}` {}",
-        emu.colors.light_red, emu.pos, src, dst, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        src,
+        dst,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -1561,12 +1829,21 @@ fn MapViewOfFile(emu: &mut emu::Emu) {
         .maps
         .alloc(size)
         .expect("kernel32!MapViewOfFile cannot allocate");
-    let mem = emu.maps.create_map("file_map", addr, size).expect("kernel32!MapViewOfFile cannot create map");
+    let mem = emu
+        .maps
+        .create_map("file_map", addr, size)
+        .expect("kernel32!MapViewOfFile cannot create map");
     let loaded = mem.load_chunk(&emu.filename, off, size as usize);
 
     log::info!(
         "{}** {} kernel32!MapViewOfFile hndl: {} off: {} sz: {} ={} {}",
-        emu.colors.light_red, emu.pos, hndl, off, size, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        off,
+        size,
+        addr,
+        emu.colors.nc
     );
 
     if off > 0 {
@@ -1579,7 +1856,9 @@ fn MapViewOfFile(emu: &mut emu::Emu) {
 fn GetTickCount(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetTickCount {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     let tick = TICK.lock().unwrap();
     emu.regs.rax = *tick;
@@ -1605,7 +1884,9 @@ fn GetProcessAffinityMask(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetProcessAffinityMask {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1614,7 +1895,9 @@ fn GetProcessAffinityMask(emu: &mut emu::Emu) {
 fn IsDebuggerPresent(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!IsDebuggerPresent {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = 0; // of course :p
 }
@@ -1624,7 +1907,10 @@ fn SetUnhandledExceptionFilter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!SetUnhandledExceptionFilter  callback: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, callback, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        callback,
+        emu.colors.nc
     );
 
     emu.regs.rax = emu.seh;
@@ -1636,7 +1922,10 @@ fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!UnhandledExceptionFilter  exception_info: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, exception_info, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        exception_info,
+        emu.colors.nc
     );
 
     emu.regs.rax = constants::EXCEPTION_EXECUTE_HANDLER; // a debugger would had answered EXCEPTION_CONTINUE_SEARCH
@@ -1645,7 +1934,9 @@ fn UnhandledExceptionFilter(emu: &mut emu::Emu) {
 fn GetCurrentProcess(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetCurrentProcess {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = helper::handler_create("current process");
 }
@@ -1666,14 +1957,20 @@ fn VirtualAllocExNuma(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!VirtualAllocExNuma hproc: 0x{:x} addr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, proc_hndl, addr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        proc_hndl,
+        addr,
+        emu.colors.nc
     );
 
     let base = emu
         .maps
         .alloc(size)
         .expect("kernel32!VirtualAllocExNuma out of memory");
-    emu.maps.create_map(format!("alloc_{:x}", base).as_str(), base, size).expect("kernel32!VirtualAllocExNuma cannot create map");
+    emu.maps
+        .create_map(format!("alloc_{:x}", base).as_str(), base, size)
+        .expect("kernel32!VirtualAllocExNuma cannot create map");
 
     emu.regs.rax = base;
 }
@@ -1682,7 +1979,10 @@ fn GetUserDefaultLangId(emu: &mut emu::Emu) {
     emu.regs.rax = 0x000000000000ffff;
     log::info!(
         "{}** {} kernel32!GetUserDefaultLangID =0x{:x} {}",
-        emu.colors.light_red, emu.pos, emu.regs.rax as u16, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.regs.rax as u16,
+        emu.colors.nc
     );
 }
 
@@ -1695,7 +1995,9 @@ fn GetComputerNameA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetComputerNameA 'medusa' {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1710,7 +2012,9 @@ fn GetComputerNameW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetComputerNameW 'medusa' {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -1725,7 +2029,10 @@ fn CreateMutexA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateMutexA '{}' {}",
-        emu.colors.light_red, emu.pos, name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        emu.colors.nc
     );
 
     let uri = format!("mutex://{}", name);
@@ -1741,7 +2048,10 @@ fn CreateMutexW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!CreateMutexA '{}' {}",
-        emu.colors.light_red, emu.pos, name, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        name,
+        emu.colors.nc
     );
 
     let uri = format!("mutex://{}", name);
@@ -1753,7 +2063,10 @@ fn GetLastError(emu: &mut emu::Emu) {
     emu.regs.rax = *err;
     log::info!(
         "{}** {} kernel32!GetLastError ={} {}",
-        emu.colors.light_red, emu.pos, emu.regs.rax, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.regs.rax,
+        emu.colors.nc
     );
 }
 
@@ -1822,7 +2135,10 @@ fn GetSystemTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetSystemTime ptr: 0x{:x}' {}",
-        emu.colors.light_red, emu.pos, out_time, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        out_time,
+        emu.colors.nc
     );
 
     let systime = emu::structures::SystemTime::now();
@@ -1838,7 +2154,11 @@ fn lstrcatA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrcatA '{}'+'{}' {}",
-        emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        str1,
+        str2,
+        emu.colors.nc
     );
 
     str1.push_str(&str2);
@@ -1856,7 +2176,11 @@ fn lstrcatW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrcatW '{}'+'{}' {}",
-        emu.colors.light_red, emu.pos, str1, str2, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        str1,
+        str2,
+        emu.colors.nc
     );
 
     str1.push_str(&str2);
@@ -1870,7 +2194,10 @@ fn SetErrorMode(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!SetErrorMode 0x{:x} {}",
-        emu.colors.light_red, emu.pos, mode, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        mode,
+        emu.colors.nc
     );
 
     emu.regs.rax = 0;
@@ -1884,7 +2211,9 @@ fn GetSystemDirectoryA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetSystemDirectoryW  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 11;
@@ -1898,7 +2227,9 @@ fn GetSystemDirectoryW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetSystemDirectoryW  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 
     emu.regs.rax = 11 * 2;
@@ -1909,7 +2240,9 @@ fn GetStartupInfoA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetStartupInfoA {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     if startup_info_ptr > 0 {
         let startupinfo = emu::structures::StartupInfo64::new();
@@ -1922,7 +2255,9 @@ fn GetStartupInfoW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetStartupInfoW {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     if startup_info_ptr > 0 {
         let startupinfo = emu::structures::StartupInfo64::new();
@@ -1997,7 +2332,11 @@ fn IsProcessorFeaturePresent(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!IsProcessorFeaturePresent feature: {} {} {}",
-        emu.colors.light_red, emu.pos, feature, msg, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        feature,
+        msg,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
 }
@@ -2007,7 +2346,10 @@ fn InitializeCriticalSection(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!InitializeCriticalSection ptr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, ptr_crit_sect, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr_crit_sect,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -2020,7 +2362,10 @@ fn InitializeCriticalSectionEx(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!InitializeCriticalSectionEx ptr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, ptr_crit_sect, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr_crit_sect,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -2031,7 +2376,10 @@ fn FlsAlloc(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FlsAlloc callback: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, callback, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        callback,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -2043,7 +2391,11 @@ fn FlsSetValue(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!FlsSetValue idx: {} val: {} {}",
-        emu.colors.light_red, emu.pos, idx, val, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        val,
+        emu.colors.nc
     );
 
     if emu.fls.len() > idx as usize {
@@ -2063,7 +2415,10 @@ fn SetLastError(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!SetLastError err: {} {}",
-        emu.colors.light_red, emu.pos, err_code, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        err_code,
+        emu.colors.nc
     );
     let mut err = LAST_ERROR.lock().unwrap();
     *err = err_code;
@@ -2077,7 +2432,11 @@ fn lstrlenA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrlen '{}' ={} {}",
-        emu.colors.light_red, emu.pos, s, len, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        len,
+        emu.colors.nc
     );
 
     emu.regs.rax = len;
@@ -2091,7 +2450,11 @@ fn lstrlenW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrlen '{}' ={} {}",
-        emu.colors.light_red, emu.pos, s, len, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        len,
+        emu.colors.nc
     );
 
     emu.regs.rax = len * 2;
@@ -2115,12 +2478,15 @@ fn MultiByteToWideChar(emu: &mut emu::Emu) {
     let mut wide = String::new();
     for c in utf8.chars() {
         wide.push_str(&format!("{}", c));
-        wide.push_str("\x00");
+        wide.push('\x00');
     }
 
     log::info!(
         "{}** {} kernel32!MultiByteToWideChar '{}' {}",
-        emu.colors.light_red, emu.pos, utf8, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        utf8,
+        emu.colors.nc
     );
 
     emu.maps.write_string(wide_ptr, &wide);
@@ -2132,7 +2498,10 @@ fn GetSystemInfo(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetSystemInfo sysinfo: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, out_sysinfo, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        out_sysinfo,
+        emu.colors.nc
     );
 
     let mut sysinfo = emu::structures::SystemInfo64::new();
@@ -2146,7 +2515,10 @@ fn HeapFree(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!HeapFree mem: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, mem, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        mem,
+        emu.colors.nc
     );
 
     emu.regs.rax = 1;
@@ -2157,7 +2529,10 @@ fn EncodePointer(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!EncodePointer ptr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr,
+        emu.colors.nc
     );
 
     emu.regs.rax = ptr;
@@ -2168,7 +2543,10 @@ fn DecodePointer(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!DecodePointer ptr: 0x{:x} {}",
-        emu.colors.light_red, emu.pos, ptr, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr,
+        emu.colors.nc
     );
 
     emu.regs.rax = ptr;
@@ -2181,7 +2559,10 @@ fn HeapCreate(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!HeapCreate maxSZ:{} {}",
-        emu.colors.light_red, emu.pos, maxSZ, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        maxSZ,
+        emu.colors.nc
     );
 
     let uri = format!("HeapCreate://{}", maxSZ);
@@ -2202,7 +2583,10 @@ fn lstrcpyn(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrcpyn {} {}",
-        emu.colors.light_red, emu.pos, s, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        s,
+        emu.colors.nc
     );
 
     emu.regs.rax = out_str1;
@@ -2222,7 +2606,10 @@ fn GetModuleFileNameA(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetModuleFileNameA hndl:{:x} {}",
-        emu.colors.light_red, emu.pos, hndl, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        hndl,
+        emu.colors.nc
     );
 }
 
@@ -2248,7 +2635,9 @@ fn GetLocalTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetLocalTime  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 }
 
@@ -2261,7 +2650,9 @@ fn SystemTimeToFileTime(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!SystemTimeToFileTime  {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
 }
 
@@ -2273,7 +2664,10 @@ fn GetNativeSystemInfo(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!GetNativeSysteminfo 0x{:x}  {}",
-        emu.colors.light_red, emu.pos, ptr_sysinfo, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        ptr_sysinfo,
+        emu.colors.nc
     );
 }
 
@@ -2287,10 +2681,15 @@ fn lstrcpyW(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrcpyW 0x{:x} 0x{:x} {}  {}",
-        emu.colors.light_red, emu.pos, dst, src, &s, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dst,
+        src,
+        &s,
+        emu.colors.nc
     );
 
-    if s.len() == 0 {
+    if s.is_empty() {
         emu.regs.rax = 0;
     } else {
         emu.regs.rax = dst;
@@ -2307,10 +2706,15 @@ fn lstrcpy(emu: &mut emu::Emu) {
 
     log::info!(
         "{}** {} kernel32!lstrcpy 0x{:x} 0x{:x} {}  {}",
-        emu.colors.light_red, emu.pos, dst, src, &s, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        dst,
+        src,
+        &s,
+        emu.colors.nc
     );
 
-    if s.len() == 0 {
+    if s.is_empty() {
         emu.regs.rax = 0;
     } else {
         emu.regs.rax = dst;

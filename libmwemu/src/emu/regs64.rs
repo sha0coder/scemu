@@ -26,7 +26,7 @@ macro_rules! set_reg8l {
 macro_rules! set_reg8h {
     ($reg:expr, $val:expr) => {
         $reg &= 0xffffffffffff00ff;
-        $reg = $reg + (($val & 0x00000000000000ff) << 8);
+        $reg += (($val & 0x00000000000000ff) << 8);
     };
 }
 
@@ -164,6 +164,12 @@ pub struct Regs64 {
 
     pub gs: u64,
     pub fs: u64,
+}
+
+impl Default for Regs64 {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Regs64 {
@@ -1220,34 +1226,34 @@ impl Regs64 {
     // xmm
 
     pub fn is_xmm(&self, reg: Register) -> bool {
-        let result = match reg {
-            Register::XMM0 => true,
-            Register::XMM1 => true,
-            Register::XMM2 => true,
-            Register::XMM3 => true,
-            Register::XMM4 => true,
-            Register::XMM5 => true,
-            Register::XMM6 => true,
-            Register::XMM7 => true,
-            Register::XMM8 => true,
-            Register::XMM9 => true,
-            Register::XMM10 => true,
-            Register::XMM11 => true,
-            Register::XMM12 => true,
-            Register::XMM13 => true,
-            Register::XMM14 => true,
-            Register::XMM15 => true,
-            Register::MM0 => true,
-            Register::MM1 => true,
-            Register::MM2 => true,
-            Register::MM3 => true,
-            Register::MM4 => true,
-            Register::MM5 => true,
-            Register::MM6 => true,
-            Register::MM7 => true,
-            _ => false,
-        };
-        return result;
+        let result = matches!(
+            reg,
+            Register::XMM0
+                | Register::XMM1
+                | Register::XMM2
+                | Register::XMM3
+                | Register::XMM4
+                | Register::XMM5
+                | Register::XMM6
+                | Register::XMM7
+                | Register::XMM8
+                | Register::XMM9
+                | Register::XMM10
+                | Register::XMM11
+                | Register::XMM12
+                | Register::XMM13
+                | Register::XMM14
+                | Register::XMM15
+                | Register::MM0
+                | Register::MM1
+                | Register::MM2
+                | Register::MM3
+                | Register::MM4
+                | Register::MM5
+                | Register::MM6
+                | Register::MM7
+        );
+        result
     }
 
     pub fn get_xmm_reg(&self, reg: Register) -> u128 {
@@ -1279,7 +1285,7 @@ impl Regs64 {
 
             _ => unimplemented!("SSE  XMM register: {:?} ", reg),
         };
-        return value;
+        value
     }
 
     pub fn set_xmm_reg(&mut self, reg: Register, value: u128) {
@@ -1316,34 +1322,34 @@ impl Regs64 {
     // ymm
 
     pub fn is_ymm(&self, reg: Register) -> bool {
-        let result = match reg {
-            Register::YMM0 => true,
-            Register::YMM1 => true,
-            Register::YMM2 => true,
-            Register::YMM3 => true,
-            Register::YMM4 => true,
-            Register::YMM5 => true,
-            Register::YMM6 => true,
-            Register::YMM7 => true,
-            Register::YMM8 => true,
-            Register::YMM9 => true,
-            Register::YMM10 => true,
-            Register::YMM11 => true,
-            Register::YMM12 => true,
-            Register::YMM13 => true,
-            Register::YMM14 => true,
-            Register::YMM15 => true,
-            Register::MM0 => true,
-            Register::MM1 => true,
-            Register::MM2 => true,
-            Register::MM3 => true,
-            Register::MM4 => true,
-            Register::MM5 => true,
-            Register::MM6 => true,
-            Register::MM7 => true,
-            _ => false,
-        };
-        return result;
+        let result = matches!(
+            reg,
+            Register::YMM0
+                | Register::YMM1
+                | Register::YMM2
+                | Register::YMM3
+                | Register::YMM4
+                | Register::YMM5
+                | Register::YMM6
+                | Register::YMM7
+                | Register::YMM8
+                | Register::YMM9
+                | Register::YMM10
+                | Register::YMM11
+                | Register::YMM12
+                | Register::YMM13
+                | Register::YMM14
+                | Register::YMM15
+                | Register::MM0
+                | Register::MM1
+                | Register::MM2
+                | Register::MM3
+                | Register::MM4
+                | Register::MM5
+                | Register::MM6
+                | Register::MM7
+        );
+        result
     }
 
     pub fn get_ymm_reg(&self, reg: Register) -> U256 {
@@ -1367,7 +1373,7 @@ impl Regs64 {
 
             _ => unimplemented!("SSE  YMM register: {:?} ", reg),
         };
-        return value;
+        value
     }
 
     pub fn set_ymm_reg(&mut self, reg: Register, value: U256) {
@@ -1504,7 +1510,7 @@ impl Regs64 {
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
-        return value;
+        value
     }
 
     pub fn set_reg(&mut self, reg: Register, value: u64) {
@@ -1629,19 +1635,19 @@ impl Regs64 {
         };
         self.set_reg(reg, value);
     }
-    
+
     pub fn is_fpu(&self, reg: Register) -> bool {
-        match reg {
-            Register::ST0 => true,
-            Register::ST1 => true,
-            Register::ST2 => true,
-            Register::ST3 => true,
-            Register::ST4 => true,
-            Register::ST5 => true,
-            Register::ST6 => true,
-            Register::ST7 => true,
-            _ => false,
-        }
+        matches!(
+            reg,
+            Register::ST0
+                | Register::ST1
+                | Register::ST2
+                | Register::ST3
+                | Register::ST4
+                | Register::ST5
+                | Register::ST6
+                | Register::ST7
+        )
     }
 
     pub fn get_size(&self, reg: Register) -> u32 {
@@ -1760,49 +1766,49 @@ impl Regs64 {
             _ => unimplemented!("unimplemented register {:?}", reg),
         };
 
-        return sz;
+        sz
     }
 
     pub fn get_xmm_by_name(&self, reg_name: &str) -> u128 {
         match reg_name {
-            "xmm0" => return self.xmm0,
-            "xmm1" => return self.xmm1,
-            "xmm2" => return self.xmm2,
-            "xmm3" => return self.xmm3,
-            "xmm4" => return self.xmm4,
-            "xmm5" => return self.xmm5,
-            "xmm6" => return self.xmm6,
-            "xmm7" => return self.xmm7,
-            "xmm8" => return self.xmm8,
-            "xmm9" => return self.xmm9,
-            "xmm10" => return self.xmm10,
-            "xmm11" => return self.xmm11,
-            "xmm12" => return self.xmm12,
-            "xmm13" => return self.xmm13,
-            "xmm14" => return self.xmm14,
-            "xmm15" => return self.xmm15,
+            "xmm0" => self.xmm0,
+            "xmm1" => self.xmm1,
+            "xmm2" => self.xmm2,
+            "xmm3" => self.xmm3,
+            "xmm4" => self.xmm4,
+            "xmm5" => self.xmm5,
+            "xmm6" => self.xmm6,
+            "xmm7" => self.xmm7,
+            "xmm8" => self.xmm8,
+            "xmm9" => self.xmm9,
+            "xmm10" => self.xmm10,
+            "xmm11" => self.xmm11,
+            "xmm12" => self.xmm12,
+            "xmm13" => self.xmm13,
+            "xmm14" => self.xmm14,
+            "xmm15" => self.xmm15,
             &_ => unimplemented!("weird register name parsed {}", reg_name),
         }
     }
 
     pub fn get_ymm_by_name(&self, reg_name: &str) -> U256 {
         match reg_name {
-            "ymm0" => return self.ymm0,
-            "ymm1" => return self.ymm1,
-            "ymm2" => return self.ymm2,
-            "ymm3" => return self.ymm3,
-            "ymm4" => return self.ymm4,
-            "ymm5" => return self.ymm5,
-            "ymm6" => return self.ymm6,
-            "ymm7" => return self.ymm7,
-            "ymm8" => return self.ymm8,
-            "ymm9" => return self.ymm9,
-            "ymm10" => return self.ymm10,
-            "ymm11" => return self.ymm11,
-            "ymm12" => return self.ymm12,
-            "ymm13" => return self.ymm13,
-            "ymm14" => return self.ymm14,
-            "ymm15" => return self.ymm15,
+            "ymm0" => self.ymm0,
+            "ymm1" => self.ymm1,
+            "ymm2" => self.ymm2,
+            "ymm3" => self.ymm3,
+            "ymm4" => self.ymm4,
+            "ymm5" => self.ymm5,
+            "ymm6" => self.ymm6,
+            "ymm7" => self.ymm7,
+            "ymm8" => self.ymm8,
+            "ymm9" => self.ymm9,
+            "ymm10" => self.ymm10,
+            "ymm11" => self.ymm11,
+            "ymm12" => self.ymm12,
+            "ymm13" => self.ymm13,
+            "ymm14" => self.ymm14,
+            "ymm15" => self.ymm15,
             &_ => unimplemented!("weird register name parsed {}", reg_name),
         }
     }
@@ -1810,79 +1816,79 @@ impl Regs64 {
     pub fn get_by_name(&self, reg_name: &str) -> u64 {
         match reg_name {
             // 64bits
-            "rax" => return self.rax,
-            "rbx" => return self.rbx,
-            "rcx" => return self.rcx,
-            "rdx" => return self.rdx,
-            "rsi" => return self.rsi,
-            "rdi" => return self.rdi,
-            "rbp" => return self.rbp,
-            "rsp" => return self.rsp,
-            "rip" => return self.rip,
-            "r8" => return self.r8,
-            "r9" => return self.r9,
-            "r10" => return self.r10,
-            "r11" => return self.r11,
-            "r12" => return self.r12,
-            "r13" => return self.r13,
-            "r14" => return self.r14,
-            "r15" => return self.r15,
+            "rax" => self.rax,
+            "rbx" => self.rbx,
+            "rcx" => self.rcx,
+            "rdx" => self.rdx,
+            "rsi" => self.rsi,
+            "rdi" => self.rdi,
+            "rbp" => self.rbp,
+            "rsp" => self.rsp,
+            "rip" => self.rip,
+            "r8" => self.r8,
+            "r9" => self.r9,
+            "r10" => self.r10,
+            "r11" => self.r11,
+            "r12" => self.r12,
+            "r13" => self.r13,
+            "r14" => self.r14,
+            "r15" => self.r15,
             // 32bits
-            "eax" => return self.get_eax(),
-            "ebx" => return self.get_ebx(),
-            "ecx" => return self.get_ecx(),
-            "edx" => return self.get_edx(),
-            "esi" => return self.get_esi(),
-            "edi" => return self.get_edi(),
-            "ebp" => return self.get_ebp(),
-            "esp" => return self.get_esp(),
-            "eip" => return self.get_eip(),
-            "r8d" => return self.get_r8d(),
-            "r9d" => return self.get_r9d(),
-            "r10d" => return self.get_r10d(),
-            "r11d" => return self.get_r11d(),
-            "r12d" => return self.get_r12d(),
-            "r13d" => return self.get_r13d(),
-            "r14d" => return self.get_r14d(),
-            "r15d" => return self.get_r15d(),
+            "eax" => self.get_eax(),
+            "ebx" => self.get_ebx(),
+            "ecx" => self.get_ecx(),
+            "edx" => self.get_edx(),
+            "esi" => self.get_esi(),
+            "edi" => self.get_edi(),
+            "ebp" => self.get_ebp(),
+            "esp" => self.get_esp(),
+            "eip" => self.get_eip(),
+            "r8d" => self.get_r8d(),
+            "r9d" => self.get_r9d(),
+            "r10d" => self.get_r10d(),
+            "r11d" => self.get_r11d(),
+            "r12d" => self.get_r12d(),
+            "r13d" => self.get_r13d(),
+            "r14d" => self.get_r14d(),
+            "r15d" => self.get_r15d(),
             // 16bits
-            "ax" => return self.get_ax(),
-            "bx" => return self.get_bx(),
-            "cx" => return self.get_cx(),
-            "dx" => return self.get_dx(),
-            "si" => return self.get_si(),
-            "di" => return self.get_di(),
-            "bp" => return self.get_bp(),
-            "sp" => return self.get_sp(),
-            "r8w" => return self.get_r8w(),
-            "r9w" => return self.get_r9w(),
-            "r10w" => return self.get_r10w(),
-            "r11w" => return self.get_r11w(),
-            "r12w" => return self.get_r12w(),
-            "r13w" => return self.get_r13w(),
-            "r14w" => return self.get_r14w(),
-            "r15w" => return self.get_r15w(),
+            "ax" => self.get_ax(),
+            "bx" => self.get_bx(),
+            "cx" => self.get_cx(),
+            "dx" => self.get_dx(),
+            "si" => self.get_si(),
+            "di" => self.get_di(),
+            "bp" => self.get_bp(),
+            "sp" => self.get_sp(),
+            "r8w" => self.get_r8w(),
+            "r9w" => self.get_r9w(),
+            "r10w" => self.get_r10w(),
+            "r11w" => self.get_r11w(),
+            "r12w" => self.get_r12w(),
+            "r13w" => self.get_r13w(),
+            "r14w" => self.get_r14w(),
+            "r15w" => self.get_r15w(),
             // 8bits
-            "ah" => return self.get_ah(),
-            "al" => return self.get_al(),
-            "bh" => return self.get_bh(),
-            "bl" => return self.get_bl(),
-            "ch" => return self.get_ch(),
-            "cl" => return self.get_cl(),
-            "dh" => return self.get_dh(),
-            "dl" => return self.get_dl(),
-            "r8l" => return self.get_r8l(),
-            "r9l" => return self.get_r9l(),
-            "r10l" => return self.get_r10l(),
-            "r11l" => return self.get_r11l(),
-            "r12l" => return self.get_r12l(),
-            "r13l" => return self.get_r13l(),
-            "r14l" => return self.get_r14l(),
-            "r15l" => return self.get_r15l(),
-            "sil" => return self.get_sil(),
-            "dil" => return self.get_dil(),
-            "bpl" => return self.get_bpl(),
-            "spl" => return self.get_spl(),
+            "ah" => self.get_ah(),
+            "al" => self.get_al(),
+            "bh" => self.get_bh(),
+            "bl" => self.get_bl(),
+            "ch" => self.get_ch(),
+            "cl" => self.get_cl(),
+            "dh" => self.get_dh(),
+            "dl" => self.get_dl(),
+            "r8l" => self.get_r8l(),
+            "r9l" => self.get_r9l(),
+            "r10l" => self.get_r10l(),
+            "r11l" => self.get_r11l(),
+            "r12l" => self.get_r12l(),
+            "r13l" => self.get_r13l(),
+            "r14l" => self.get_r14l(),
+            "r15l" => self.get_r15l(),
+            "sil" => self.get_sil(),
+            "dil" => self.get_dil(),
+            "bpl" => self.get_bpl(),
+            "spl" => self.get_spl(),
             &_ => unimplemented!("weird register name parsed {}", reg_name),
         }
     }
@@ -2033,24 +2039,25 @@ impl Regs64 {
                 if pos > 0 {
                     log::info!(
                         "\t{} {}: 0x{:x} {} '{}' {}",
-                        pos, sreg, value, value, s, name
+                        pos,
+                        sreg,
+                        value,
+                        value,
+                        s,
+                        name
                     );
                 } else {
                     log::info!("\t{}: 0x{:x} {} '{}' {}", sreg, value, value, s, name);
                 }
+            } else if pos > 0 {
+                log::info!("\t{} {}: 0x{:x} {} {}", pos, sreg, value, value, name);
             } else {
-                if pos > 0 {
-                    log::info!("\t{} {}: 0x{:x} {} {}", pos, sreg, value, value, name);
-                } else {
-                    log::info!("\t{}: 0x{:x} {} {}", sreg, value, value, name);
-                }
+                log::info!("\t{}: 0x{:x} {} {}", sreg, value, value, name);
             }
+        } else if pos > 0 {
+            log::info!("\t{} {}: 0x{:x} {}", pos, sreg, value, value);
         } else {
-            if pos > 0 {
-                log::info!("\t{} {}: 0x{:x} {}", pos, sreg, value, value);
-            } else {
-                log::info!("\t{}: 0x{:x} {}", sreg, value, value);
-            }
+            log::info!("\t{}: 0x{:x} {}", sreg, value, value);
         }
     }
 
@@ -2076,30 +2083,39 @@ impl Regs64 {
                 if pos > 0 {
                     log::info!(
                         "\t{} {}: 0x{:x} {} '{}' {}",
-                        pos, sreg, value as u32, value as u32, s, name
+                        pos,
+                        sreg,
+                        value as u32,
+                        value as u32,
+                        s,
+                        name
                     );
                 } else {
                     log::info!(
                         "\t{}: 0x{:x} {} '{}' {}",
-                        sreg, value as u32, value as u32, s, name
+                        sreg,
+                        value as u32,
+                        value as u32,
+                        s,
+                        name
                     );
                 }
+            } else if pos > 0 {
+                log::info!(
+                    "\t{} {}: 0x{:x} {} {}",
+                    pos,
+                    sreg,
+                    value as u32,
+                    value as u32,
+                    name
+                );
             } else {
-                if pos > 0 {
-                    log::info!(
-                        "\t{} {}: 0x{:x} {} {}",
-                        pos, sreg, value as u32, value as u32, name
-                    );
-                } else {
-                    log::info!("\t{}: 0x{:x} {} {}", sreg, value as u32, value as u32, name);
-                }
+                log::info!("\t{}: 0x{:x} {} {}", sreg, value as u32, value as u32, name);
             }
+        } else if pos > 0 {
+            log::info!("\t{} {}: 0x{:x} {}", pos, sreg, value as u32, value as u32);
         } else {
-            if pos > 0 {
-                log::info!("\t{} {}: 0x{:x} {}", pos, sreg, value as u32, value as u32);
-            } else {
-                log::info!("\t{}: 0x{:x} {}", sreg, value as u32, value as u32);
-            }
+            log::info!("\t{}: 0x{:x} {}", sreg, value as u32, value as u32);
         }
     }
 
@@ -2314,12 +2330,12 @@ impl Regs64 {
     pub fn is_reg(&self, reg: &str) -> bool {
         match reg {
             "rax" | "rbx" | "rcx" | "rdx" | "rsi" | "rdi" | "rbp" | "rsp" | "rip" | "r8" | "r9"
-            | "r10" | "r11" | "r12" | "r13" | "r14" | "r15" | "eax" | "ebx" | "ecx" | "edx" | "esi" | "edi" | "esp"
-            | "ebp" | "eip" | "r8d" | "r9d" | "r10d" | "r11d" | "r12d" | "r13d" | "r14d"
-            | "r15d" | "ax" | "bx" | "cx" | "dx" | "bp" | "sp" | "r8w" | "r9w" | "r10w"
-            | "r11w" | "r12w" | "r13w" | "r14w" | "r15w" | "si" | "di" | "al" | "ah" | "bl"
-            | "bh" | "cl" | "ch" | "dl" | "dh" | "r8l" | "r9l" | "r10l" | "r11l" | "r12l"
-            | "r13l" | "r14l" | "r15l" | "sil" | "dil" | "bpl" | "spl" => true,
+            | "r10" | "r11" | "r12" | "r13" | "r14" | "r15" | "eax" | "ebx" | "ecx" | "edx"
+            | "esi" | "edi" | "esp" | "ebp" | "eip" | "r8d" | "r9d" | "r10d" | "r11d" | "r12d"
+            | "r13d" | "r14d" | "r15d" | "ax" | "bx" | "cx" | "dx" | "bp" | "sp" | "r8w"
+            | "r9w" | "r10w" | "r11w" | "r12w" | "r13w" | "r14w" | "r15w" | "si" | "di" | "al"
+            | "ah" | "bl" | "bh" | "cl" | "ch" | "dl" | "dh" | "r8l" | "r9l" | "r10l" | "r11l"
+            | "r12l" | "r13l" | "r14l" | "r15l" | "sil" | "dil" | "bpl" | "spl" => true,
             &_ => false,
         }
     }

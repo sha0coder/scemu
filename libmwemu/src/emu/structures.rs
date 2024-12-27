@@ -11,6 +11,12 @@ pub struct ListEntry {
     pub blink: u32,
 }
 
+impl Default for ListEntry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ListEntry {
     pub fn new() -> ListEntry {
         ListEntry { flink: 0, blink: 0 }
@@ -39,6 +45,12 @@ pub struct ListEntry64 {
     pub blink: u64,
 }
 
+impl Default for ListEntry64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ListEntry64 {
     pub fn new() -> ListEntry64 {
         ListEntry64 { flink: 0, blink: 0 }
@@ -64,23 +76,29 @@ impl ListEntry64 {
 #[derive(Debug)]
 pub struct LdrDataTableEntry {
     pub in_load_order_links: ListEntry,
-    pub in_memory_order_links: ListEntry, // +8
+    pub in_memory_order_links: ListEntry,         // +8
     pub in_initialization_order_links: ListEntry, // +16
-    pub dll_base: u32,    // +24 +0x18
-    pub entry_point: u32, // +28 +0x1c
-    pub size_of_image: u32, // +32 +0x20
-    pub full_dll_name: UnicodeString, // ptr to string +36  +0x24
-    pub base_dll_name: UnicodeString, // ptr to string +40  +0x28
-    pub flags: u32, // +44  +0x2c
-    pub load_count: u16, // +46  +0x2e
-    pub tls_index: u16, // +48  +0x30
-    pub hash_links: ListEntry, // +52  +0x34
-    pub time_date_stamp: u32, // +56  +0x38
+    pub dll_base: u32,                            // +24 +0x18
+    pub entry_point: u32,                         // +28 +0x1c
+    pub size_of_image: u32,                       // +32 +0x20
+    pub full_dll_name: UnicodeString,             // ptr to string +36  +0x24
+    pub base_dll_name: UnicodeString,             // ptr to string +40  +0x28
+    pub flags: u32,                               // +44  +0x2c
+    pub load_count: u16,                          // +46  +0x2e
+    pub tls_index: u16,                           // +48  +0x30
+    pub hash_links: ListEntry,                    // +52  +0x34
+    pub time_date_stamp: u32,                     // +56  +0x38
+}
+
+impl Default for LdrDataTableEntry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl LdrDataTableEntry {
     pub fn size() -> usize {
-        return 100; // really 80
+        100 // really 80
     }
 
     pub fn new() -> LdrDataTableEntry {
@@ -103,18 +121,18 @@ impl LdrDataTableEntry {
 
     pub fn load(addr: u64, maps: &Maps) -> LdrDataTableEntry {
         LdrDataTableEntry {
-            in_load_order_links: ListEntry::load(addr, &maps),
-            in_memory_order_links: ListEntry::load(addr + 8, &maps),
-            in_initialization_order_links: ListEntry::load(addr + 16, &maps),
+            in_load_order_links: ListEntry::load(addr, maps),
+            in_memory_order_links: ListEntry::load(addr + 8, maps),
+            in_initialization_order_links: ListEntry::load(addr + 16, maps),
             dll_base: maps.read_dword(addr + 24).unwrap(),
             entry_point: maps.read_dword(addr + 28).unwrap(),
             size_of_image: maps.read_dword(addr + 32).unwrap(),
-            full_dll_name: UnicodeString::load(addr + 36, &maps),
-            base_dll_name: UnicodeString::load(addr + 48, &maps),
+            full_dll_name: UnicodeString::load(addr + 36, maps),
+            base_dll_name: UnicodeString::load(addr + 48, maps),
             flags: maps.read_dword(addr + 60).unwrap(),
             load_count: maps.read_word(addr + 64).unwrap(),
             tls_index: maps.read_word(addr + 66).unwrap(),
-            hash_links: ListEntry::load(addr + 68, &maps),
+            hash_links: ListEntry::load(addr + 68, maps),
             time_date_stamp: maps.read_dword(addr + 76).unwrap(),
         }
     }
@@ -145,17 +163,23 @@ pub struct PebLdrData {
     pub length: u32,
     pub initializated: u32,
     pub sshandle: u32,
-    pub in_load_order_module_list: ListEntry,   // 0x0c (12)
-    pub in_memory_order_module_list: ListEntry, 
+    pub in_load_order_module_list: ListEntry, // 0x0c (12)
+    pub in_memory_order_module_list: ListEntry,
     pub in_initialization_order_module_list: ListEntry,
     pub entry_in_progress: u32,
     pub shutdown_in_progress: u32,
     pub shutdown_thread_id: u32,
 }
 
+impl Default for PebLdrData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PebLdrData {
     pub fn size() -> usize {
-        return 48;
+        48
     }
 
     pub fn new() -> PebLdrData {
@@ -177,9 +201,9 @@ impl PebLdrData {
             length: maps.read_dword(addr).unwrap(),
             initializated: maps.read_dword(addr + 4).unwrap(),
             sshandle: maps.read_dword(addr + 8).unwrap(),
-            in_load_order_module_list: ListEntry::load(addr + 12, &maps),
-            in_memory_order_module_list: ListEntry::load(addr + 20, &maps),
-            in_initialization_order_module_list: ListEntry::load(addr + 28, &maps),
+            in_load_order_module_list: ListEntry::load(addr + 12, maps),
+            in_memory_order_module_list: ListEntry::load(addr + 20, maps),
+            in_initialization_order_module_list: ListEntry::load(addr + 28, maps),
             entry_in_progress: maps.read_dword(addr + 36).unwrap(),
             shutdown_in_progress: maps.read_dword(addr + 40).unwrap(),
             shutdown_thread_id: maps.read_dword(addr + 44).unwrap(),
@@ -192,7 +216,8 @@ impl PebLdrData {
         maps.write_dword(addr + 8, self.sshandle);
         self.in_load_order_module_list.save(addr + 12, maps);
         self.in_memory_order_module_list.save(addr + 20, maps);
-        self.in_initialization_order_module_list.save(addr + 28, maps);
+        self.in_initialization_order_module_list
+            .save(addr + 28, maps);
         maps.write_dword(addr + 36, self.entry_in_progress);
         maps.write_dword(addr + 40, self.shutdown_in_progress);
         maps.write_dword(addr + 44, self.shutdown_thread_id);
@@ -208,15 +233,21 @@ pub struct PebLdrData64 {
     pub length: u32,
     pub initializated: u32,
     pub sshandle: u64,
-    pub in_load_order_module_list: ListEntry64,   
-    pub in_memory_order_module_list: ListEntry64, 
+    pub in_load_order_module_list: ListEntry64,
+    pub in_memory_order_module_list: ListEntry64,
     pub in_initialization_order_module_list: ListEntry64,
     pub entry_in_progress: ListEntry64,
 }
 
+impl Default for PebLdrData64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PebLdrData64 {
     pub fn size() -> usize {
-        return 80;
+        80
     }
 
     pub fn new() -> PebLdrData64 {
@@ -249,7 +280,8 @@ impl PebLdrData64 {
         maps.write_qword(addr + 8, self.sshandle);
         self.in_load_order_module_list.save(addr + 0x10, maps);
         self.in_memory_order_module_list.save(addr + 0x20, maps);
-        self.in_initialization_order_module_list.save(addr + 0x30, maps);
+        self.in_initialization_order_module_list
+            .save(addr + 0x30, maps);
         self.entry_in_progress.save(addr + 0x40, maps);
     }
 
@@ -268,6 +300,12 @@ pub struct OrdinalTable {
     pub func_addr_tbl: u64,
     pub func_rva: u64,
     pub func_va: u64,
+}
+
+impl Default for OrdinalTable {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl OrdinalTable {
@@ -296,9 +334,15 @@ pub struct NtTib32 {
     pub self_pointer: u32,
 }
 
+impl Default for NtTib32 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NtTib32 {
     pub fn size() -> usize {
-        return 28;
+        28
     }
 
     pub fn new() -> NtTib32 {
@@ -348,8 +392,6 @@ impl NtTib32 {
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct TEB {
     pub nt_tib: NtTib32,
@@ -377,7 +419,7 @@ pub struct TEB {
 
 impl TEB {
     pub fn size() -> usize {
-        return 1000;
+        1000
     }
 
     pub fn new(peb_addr: u32) -> TEB {
@@ -512,23 +554,19 @@ pub struct PEB {
 
 impl PEB {
     pub fn size() -> usize {
-        return 800; // TODO: std::mem::size_of_val
+        800 // TODO: std::mem::size_of_val
     }
 
-    pub fn new(
-        image_base_addr: u32,
-        ldr: u32,
-        process_parameters: u32,
-    ) -> PEB {
+    pub fn new(image_base_addr: u32, ldr: u32, process_parameters: u32) -> PEB {
         PEB {
             inheritet_addr_space: 0,
             read_img_file_exec_options: 0,
             being_debugged: 0,
             speer_bool: 0,
             padding: 0,
-            image_base_addr: image_base_addr,
-            ldr: ldr,
-            process_parameters: process_parameters,
+            image_base_addr,
+            ldr,
+            process_parameters,
             reserved4: [0; 3],
             alt_thunk_list_ptr: 0,
             reserved5: 0,
@@ -547,7 +585,7 @@ impl PEB {
 
     pub fn load(addr: u64, maps: &Maps) -> PEB {
         PEB {
-            inheritet_addr_space: maps.read_byte(addr + 0).unwrap(),
+            inheritet_addr_space: maps.read_byte(addr).unwrap(),
             read_img_file_exec_options: maps.read_byte(addr + 1).unwrap(),
             being_debugged: maps.read_byte(addr + 2).unwrap(),
             speer_bool: maps.read_byte(addr + 3).unwrap(),
@@ -684,13 +722,10 @@ pub struct PEB64 {
 
 impl PEB64 {
     pub fn size() -> usize {
-        return 800; // std::mem::size_of_val
+        800 // std::mem::size_of_val
     }
 
-    pub fn new(
-        image_base_addr: u64, 
-        ldr: u64, 
-        process_parameters: u64) -> PEB64 {
+    pub fn new(image_base_addr: u64, ldr: u64, process_parameters: u64) -> PEB64 {
         PEB64 {
             inheritet_addr_space: 0x0,
             read_img_file_exec_options: 0x0,
@@ -698,9 +733,9 @@ impl PEB64 {
             system_dependent_01: 0x0,
             dummy_align: 0x0,
             mutant: 0xffffffffffffffff,
-            image_base_addr: image_base_addr,
-            ldr: ldr,
-            process_parameters: process_parameters,
+            image_base_addr,
+            ldr,
+            process_parameters,
             subsystem_data: 0x0,
             process_heap: 0x520000,
             fast_peb_lock: 0x7710a900,
@@ -940,6 +975,12 @@ pub struct NtTib64 {
     pub self_pointer: u64,
 }
 
+impl Default for NtTib64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NtTib64 {
     pub fn new() -> NtTib64 {
         NtTib64 {
@@ -954,7 +995,7 @@ impl NtTib64 {
     }
 
     pub fn size() -> usize {
-        return 56;
+        56
     }
 
     pub fn load(addr: u64, maps: &Maps) -> NtTib64 {
@@ -968,7 +1009,6 @@ impl NtTib64 {
             self_pointer: maps.read_qword(addr + 48).unwrap(),
         }
     }
-
 
     pub fn load_map(addr: u64, map: &Mem64) -> NtTib64 {
         NtTib64 {
@@ -1042,7 +1082,7 @@ impl TEB64 {
     }
 
     pub fn size() -> usize {
-        return 0x2d0;
+        0x2d0
     }
 
     pub fn load(addr: u64, maps: &Maps) -> TEB64 {
@@ -1128,18 +1168,23 @@ impl TEB64 {
     }
 }
 
-
 #[derive(Debug)]
 pub struct UnicodeString {
-    pub length: u16, // 0x58          0x68
+    pub length: u16,         // 0x58          0x68
     pub maximum_length: u16, // 0x5a  0x6a
-    pub padding: u32, // 0x5c         0x6c 
-    pub buffer: u32, // 0x60         0x70
+    pub padding: u32,        // 0x5c         0x6c
+    pub buffer: u32,         // 0x60         0x70
+}
+
+impl Default for UnicodeString {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UnicodeString {
     pub fn size() -> u32 {
-        return 0x10;
+        0x10
     }
 
     pub fn new() -> UnicodeString {
@@ -1168,18 +1213,23 @@ impl UnicodeString {
     }
 }
 
-
 #[derive(Debug)]
 pub struct UnicodeString64 {
-    pub length: u16, // 0x58          0x68
+    pub length: u16,         // 0x58          0x68
     pub maximum_length: u16, // 0x5a  0x6a
-    pub padding: u32, // 0x5c         0x6c 
-    pub buffer: u64, // 0x60         0x70
+    pub padding: u32,        // 0x5c         0x6c
+    pub buffer: u64,         // 0x60         0x70
+}
+
+impl Default for UnicodeString64 {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl UnicodeString64 {
     pub fn size() -> u64 {
-        return 0x10;
+        0x10
     }
 
     pub fn new() -> UnicodeString64 {
@@ -1225,9 +1275,15 @@ pub struct LdrDataTableEntry64 {
     pub time_date_stamp: u32,
 }
 
+impl Default for LdrDataTableEntry64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LdrDataTableEntry64 {
     pub fn size() -> u64 {
-        return 0x100;
+        0x100
     }
 
     pub fn new() -> LdrDataTableEntry64 {
@@ -1246,22 +1302,22 @@ impl LdrDataTableEntry64 {
             hash_links: ListEntry64::new(),
             time_date_stamp: 0,
         }
-    } 
+    }
 
     pub fn load(addr: u64, maps: &Maps) -> LdrDataTableEntry64 {
         LdrDataTableEntry64 {
-            in_load_order_links: ListEntry64::load(addr, &maps),
-            in_memory_order_links: ListEntry64::load(addr + 0x10, &maps),
-            in_initialization_order_links: ListEntry64::load(addr + 0x20, &maps),
+            in_load_order_links: ListEntry64::load(addr, maps),
+            in_memory_order_links: ListEntry64::load(addr + 0x10, maps),
+            in_initialization_order_links: ListEntry64::load(addr + 0x20, maps),
             dll_base: maps.read_qword(addr + 0x30).unwrap(),
             entry_point: maps.read_qword(addr + 0x38).unwrap(),
             size_of_image: maps.read_qword(addr + 0x40).unwrap(),
-            full_dll_name: UnicodeString64::load(addr + 0x48, &maps),
-            base_dll_name: UnicodeString64::load(addr + 0x58, &maps),
+            full_dll_name: UnicodeString64::load(addr + 0x48, maps),
+            base_dll_name: UnicodeString64::load(addr + 0x58, maps),
             flags: maps.read_dword(addr + 0x68).unwrap(), // cc 22 00 00   c4 a2 00 00   cc a2 c0 00
             load_count: maps.read_word(addr + 0x7b).unwrap(), // ff ff
             tls_index: maps.read_word(addr + 0x7d).unwrap(), // ff ff
-            hash_links: ListEntry64::load(addr + 0x7f, &maps),
+            hash_links: ListEntry64::load(addr + 0x7f, maps),
             time_date_stamp: maps.read_dword(addr + 0x8f).unwrap(),
         }
     }
@@ -1351,7 +1407,7 @@ impl PScopeTableEntry {
     }
 
     pub fn size() -> u64 {
-        return 12;
+        12
     }
 
     pub fn print(&self) {
@@ -1376,7 +1432,7 @@ impl CppEhRecord {
             exc_ptr: maps.read_dword(addr + 4).unwrap(),
             next: maps.read_dword(addr + 8).unwrap(),
             exception_handler: maps.read_dword(addr + 12).unwrap(),
-            scope_table: PScopeTableEntry::load(addr + 16, &maps),
+            scope_table: PScopeTableEntry::load(addr + 16, maps),
             try_level: maps
                 .read_dword(addr + 16 + PScopeTableEntry::size())
                 .unwrap(),
@@ -1403,7 +1459,7 @@ impl ExceptionPointers {
     }
 
     pub fn size() -> u64 {
-        return 8;
+        8
     }
 
     pub fn print(&self) {
@@ -1424,7 +1480,7 @@ impl Eh3ExceptionRegistration {
         Eh3ExceptionRegistration {
             next: maps.read_dword(addr).unwrap(),
             exception_handler: maps.read_dword(addr + 4).unwrap(),
-            scope_table: PScopeTableEntry::load(addr + 8, &maps),
+            scope_table: PScopeTableEntry::load(addr + 8, maps),
             try_level: maps
                 .read_dword(addr + 8 + PScopeTableEntry::size())
                 .unwrap(),
@@ -1581,6 +1637,12 @@ pub struct OsVersionInfo {
     version: [u8; 128],
 }
 
+impl Default for OsVersionInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OsVersionInfo {
     pub fn new() -> OsVersionInfo {
         let mut ovi = OsVersionInfo {
@@ -1639,7 +1701,7 @@ impl SystemTime {
             millis: now.timestamp_millis() as u16,
         };
 
-        return systime;
+        systime
     }
 
     pub fn save(&self, addr: u64, maps: &mut Maps) {
@@ -1674,6 +1736,12 @@ pub struct StartupInfo32 {
     std_input: u32,
     std_output: u32,
     std_error: u32,
+}
+
+impl Default for StartupInfo32 {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StartupInfo32 {
@@ -1744,6 +1812,12 @@ pub struct StartupInfo64 {
     std_error: u32,
 }
 
+impl Default for StartupInfo64 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StartupInfo64 {
     pub fn new() -> StartupInfo64 {
         StartupInfo64 {
@@ -1805,6 +1879,12 @@ pub struct SystemInfo32 {
     processor_revision: u16,
 }
 
+impl Default for SystemInfo32 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SystemInfo32 {
     pub fn new() -> SystemInfo32 {
         SystemInfo32 {
@@ -1839,7 +1919,7 @@ impl SystemInfo32 {
     }
 
     pub fn size(&self) -> usize {
-        return 42;
+        42
     }
 }
 
@@ -1856,6 +1936,12 @@ pub struct SystemInfo64 {
     alloc_granularity: u32,
     processor_level: u16,
     processor_revision: u16,
+}
+
+impl Default for SystemInfo64 {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SystemInfo64 {
@@ -1892,13 +1978,11 @@ impl SystemInfo64 {
     }
 
     pub fn size(&self) -> usize {
-        return 54;
+        54
     }
 }
 
-
-//// Linux ////
-
+/// Linux ////
 
 #[derive(Debug)]
 pub struct Statx64Timestamp {
@@ -1906,7 +1990,6 @@ pub struct Statx64Timestamp {
     pub tv_nsec: u32,
     pub reserved: i32,
 }
-
 
 #[derive(Debug)]
 pub struct Statx64 {
@@ -1935,9 +2018,9 @@ pub struct Statx64 {
     pub spare3: [u64; 12],
 }
 
-
 #[derive(Debug)]
-pub struct Stat {  // used by fstat syscall
+pub struct Stat {
+    // used by fstat syscall
     pub dev: u64,
     pub ino: u64,
     pub nlink: u64,
@@ -1955,7 +2038,7 @@ pub struct Stat {  // used by fstat syscall
     pub mtime_nsec: u64,
     pub ctime_sec: u64,
     pub ctime_nsec: u64,
-    pub reserved: [i64; 3]
+    pub reserved: [i64; 3],
 }
 
 impl Stat {
@@ -1982,31 +2065,31 @@ impl Stat {
         }
     }
 
-    pub fn save(&self, addr: u64, maps: &mut Maps) { 
+    pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_qword(addr, self.dev);
-        maps.write_qword(addr+8, self.ino);
-        maps.write_qword(addr+16, self.nlink);
-        maps.write_dword(addr+24, self.mode);
-        maps.write_dword(addr+28, self.uid);
-        maps.write_dword(addr+32, self.gid);
-        maps.write_dword(addr+36, self.pad0);
-        maps.write_qword(addr+40, self.rdev);
-        maps.write_qword(addr+48, self.size as u64);
-        maps.write_qword(addr+56, self.blksize as u64);
-        maps.write_qword(addr+64, self.blocks as u64);
-        maps.write_qword(addr+72, self.atime_sec);
-        maps.write_qword(addr+80, self.atime_nsec);
-        maps.write_qword(addr+88, self.mtime_sec);
-        maps.write_qword(addr+96, self.mtime_nsec);
-        maps.write_qword(addr+104, self.ctime_sec);
-        maps.write_qword(addr+112, self.ctime_nsec);
-        maps.write_qword(addr+120, self.reserved[0] as u64);
-        maps.write_qword(addr+128, self.reserved[1] as u64);
-        maps.write_qword(addr+136, self.reserved[2] as u64);
+        maps.write_qword(addr + 8, self.ino);
+        maps.write_qword(addr + 16, self.nlink);
+        maps.write_dword(addr + 24, self.mode);
+        maps.write_dword(addr + 28, self.uid);
+        maps.write_dword(addr + 32, self.gid);
+        maps.write_dword(addr + 36, self.pad0);
+        maps.write_qword(addr + 40, self.rdev);
+        maps.write_qword(addr + 48, self.size as u64);
+        maps.write_qword(addr + 56, self.blksize as u64);
+        maps.write_qword(addr + 64, self.blocks as u64);
+        maps.write_qword(addr + 72, self.atime_sec);
+        maps.write_qword(addr + 80, self.atime_nsec);
+        maps.write_qword(addr + 88, self.mtime_sec);
+        maps.write_qword(addr + 96, self.mtime_nsec);
+        maps.write_qword(addr + 104, self.ctime_sec);
+        maps.write_qword(addr + 112, self.ctime_nsec);
+        maps.write_qword(addr + 120, self.reserved[0] as u64);
+        maps.write_qword(addr + 128, self.reserved[1] as u64);
+        maps.write_qword(addr + 136, self.reserved[2] as u64);
     }
 
     pub fn size() -> usize {
-        return 144;
+        144
     }
 }
 
@@ -2015,8 +2098,14 @@ pub struct Hostent {
     pub alias_list: u64,
     pub addr_type: u16,
     pub length: u16,
-    pub addr_list: u64, 
+    pub addr_list: u64,
     // (gdb) 0x7ffff7fa0b60 -> 0x5555555595d0 -> 0x5555555595cc -> IP
+}
+
+impl Default for Hostent {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Hostent {
@@ -2030,12 +2119,12 @@ impl Hostent {
         }
     }
 
-    pub fn save(&self, addr: u64, maps: &mut Maps) { 
+    pub fn save(&self, addr: u64, maps: &mut Maps) {
         maps.write_qword(addr, self.hname);
-        maps.write_qword(addr+8, self.alias_list);
-        maps.write_word(addr+16, self.addr_type);
-        maps.write_word(addr+20, self.length);
-        maps.write_qword(addr+24, self.addr_list);
+        maps.write_qword(addr + 8, self.alias_list);
+        maps.write_word(addr + 16, self.addr_type);
+        maps.write_word(addr + 20, self.length);
+        maps.write_qword(addr + 24, self.addr_list);
     }
 
     pub fn size() -> usize {

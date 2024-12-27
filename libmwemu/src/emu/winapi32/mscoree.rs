@@ -12,13 +12,15 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         }
     }
 
-    return String::new();
+    String::new()
 }
 
 pub fn _CorExeMain(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} mscoree!_CorExeMain {}",
-        emu.colors.light_red, emu.pos, emu.colors.nc
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
     );
     emu.regs.rax = 1;
     unimplemented!();

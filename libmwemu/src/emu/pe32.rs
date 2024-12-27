@@ -93,10 +93,10 @@ pub struct ImageDosHeader {
 
 impl ImageDosHeader {
     pub fn size() -> usize {
-        return 64;
+        64
     }
 
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageDosHeader {
+    pub fn load(raw: &[u8], off: usize) -> ImageDosHeader {
         ImageDosHeader {
             e_magic: read_u16_le!(raw, off),
             e_cblp: read_u16_le!(raw, off + 2),
@@ -136,7 +136,7 @@ pub struct ImageNtHeaders {
 }
 
 impl ImageNtHeaders {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageNtHeaders {
+    pub fn load(raw: &[u8], off: usize) -> ImageNtHeaders {
         ImageNtHeaders {
             signature: read_u32_le!(raw, off),
         }
@@ -159,7 +159,7 @@ pub struct ImageFileHeader {
 }
 
 impl ImageFileHeader {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageFileHeader {
+    pub fn load(raw: &[u8], off: usize) -> ImageFileHeader {
         ImageFileHeader {
             machine: read_u16_le!(raw, off),
             number_of_sections: read_u16_le!(raw, off + 2),
@@ -183,7 +183,7 @@ pub struct ImageDataDirectory {
 }
 
 impl ImageDataDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageDataDirectory {
+    pub fn load(raw: &[u8], off: usize) -> ImageDataDirectory {
         ImageDataDirectory {
             virtual_address: read_u32_le!(raw, off),
             size: read_u32_le!(raw, off + 4),
@@ -294,16 +294,15 @@ pub struct ImageSectionHeader {
 }
 
 impl ImageSectionHeader {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageSectionHeader {
+    pub fn load(raw: &[u8], off: usize) -> ImageSectionHeader {
         let mut name: [u8; IMAGE_SIZEOF_SHORT_NAME] = [0; IMAGE_SIZEOF_SHORT_NAME];
-        for i in off..off + IMAGE_SIZEOF_SHORT_NAME {
-            name[i - off] = raw[i];
-        }
+        name[..(off + IMAGE_SIZEOF_SHORT_NAME - off)]
+            .copy_from_slice(&raw[off..(off + IMAGE_SIZEOF_SHORT_NAME)]);
 
         let off2 = off + IMAGE_SIZEOF_SHORT_NAME;
 
         ImageSectionHeader {
-            name: name,
+            name,
             virtual_size: read_u32_le!(raw, off2),
             virtual_address: read_u32_le!(raw, off2 + 4),
             size_of_raw_data: read_u32_le!(raw, off2 + 8),
@@ -317,10 +316,7 @@ impl ImageSectionHeader {
     }
 
     pub fn get_name(&self) -> String {
-        let s = match str::from_utf8(&self.name) {
-            Ok(v) => v,
-            Err(_) => "err",
-        };
+        let s = str::from_utf8(&self.name).unwrap_or("err");
 
         s.to_string().replace("\x00", "")
     }
@@ -348,7 +344,7 @@ pub struct ImageResourceDirectoryEntry {
 }
 
 impl ImageResourceDirectoryEntry {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirectoryEntry {
+    pub fn load(raw: &[u8], off: usize) -> ImageResourceDirectoryEntry {
         ImageResourceDirectoryEntry {
             name: read_u32_le!(raw, off),
             offset_to_data: read_u32_le!(raw, off + 4),
@@ -371,7 +367,7 @@ pub struct ImageResourceDirectory {
 }
 
 impl ImageResourceDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirectory {
+    pub fn load(raw: &[u8], off: usize) -> ImageResourceDirectory {
         ImageResourceDirectory {
             characteristics: read_u32_le!(raw, off),
             time_date_stamp: read_u32_le!(raw, off + 4),
@@ -396,7 +392,7 @@ pub struct ImageResourceDataEntry {
 }
 
 impl ImageResourceDataEntry {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDataEntry {
+    pub fn load(raw: &[u8], off: usize) -> ImageResourceDataEntry {
         ImageResourceDataEntry {
             offset_to_data: read_u32_le!(raw, off),
             size: read_u32_le!(raw, off + 4),
@@ -417,7 +413,7 @@ pub struct ImageResourceDirStringU {
 }
 
 impl ImageResourceDirStringU {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageResourceDirStringU {
+    pub fn load(raw: &[u8], off: usize) -> ImageResourceDirStringU {
         ImageResourceDirStringU {
             length: read_u16_le!(raw, off),
             name_string: read_u8!(raw, off + 2),
@@ -445,7 +441,7 @@ pub struct ImageExportDirectory {
 }
 
 impl ImageExportDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageExportDirectory {
+    pub fn load(raw: &[u8], off: usize) -> ImageExportDirectory {
         ImageExportDirectory {
             characteristics: read_u32_le!(raw, off),
             time_date_stamp: read_u32_le!(raw, off + 4),
@@ -477,7 +473,7 @@ pub struct TlsDirectory32 {
 }
 
 impl TlsDirectory32 {
-    pub fn load(raw: &Vec<u8>, off: usize) -> TlsDirectory32 {
+    pub fn load(raw: &[u8], off: usize) -> TlsDirectory32 {
         TlsDirectory32 {
             tls_data_start: read_u32_le!(raw, off),
             tls_data_end: read_u32_le!(raw, off + 4),
@@ -493,7 +489,7 @@ impl TlsDirectory32 {
     }
 
     pub fn size() -> usize {
-        return 24;
+        24
     }
 }
 
@@ -516,14 +512,14 @@ pub struct DelayLoadDirectory {
 
 impl DelayLoadDirectory {
     pub fn size() -> usize {
-        return 32;
+        32
     }
 
     pub fn print(&self) {
         log::info!("{:#x?}", self);
     }
 
-    pub fn load(raw: &Vec<u8>, off: usize) -> DelayLoadDirectory {
+    pub fn load(raw: &[u8], off: usize) -> DelayLoadDirectory {
         DelayLoadDirectory {
             attributes: read_u32_le!(raw, off),
             name_ptr: read_u32_le!(raw, off + 4),
@@ -546,7 +542,7 @@ pub struct DelayLoadIAT {
 }
 
 impl DelayLoadIAT {
-    fn load(raw: &Vec<u8>, off: usize) -> DelayLoadIAT {
+    fn load(raw: &[u8], off: usize) -> DelayLoadIAT {
         DelayLoadIAT {
             name_ptr: read_u32_le!(raw, off),
             iat_addr: read_u32_le!(raw, off + 4),
@@ -569,7 +565,7 @@ pub struct ImageImportDirectory {
 }
 
 impl ImageImportDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageImportDirectory {
+    pub fn load(raw: &[u8], off: usize) -> ImageImportDirectory {
         ImageImportDirectory {
             address_of_import_lookup_table: read_u32_le!(raw, off),
             time_date_stamp: read_u32_le!(raw, off + 4),
@@ -596,7 +592,7 @@ pub struct ImageImportDescriptor {
 }
 
 impl ImageImportDescriptor {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageImportDescriptor {
+    pub fn load(raw: &[u8], off: usize) -> ImageImportDescriptor {
         ImageImportDescriptor {
             original_first_thunk: read_u32_le!(raw, off),
             time_date_stamp: read_u32_le!(raw, off + 4),
@@ -626,19 +622,19 @@ pub struct HintNameItem {
 }
 
 impl HintNameItem {
-    pub fn load(raw: &Vec<u8>, off: usize) -> HintNameItem {
+    pub fn load(raw: &[u8], off: usize) -> HintNameItem {
         let func_name_addr: u32;
 
         if raw.len() <= off + 4 {
-            return HintNameItem {
+            HintNameItem {
                 is_ordinal: false,
                 func_name_addr: 0,
-            };
+            }
         } else {
-            return HintNameItem {
+            HintNameItem {
                 is_ordinal: raw[off] & 0b10000000 == 0b10000000,
                 func_name_addr: read_u32_le!(raw, off), // & 0b01111111_11111111_11111111_11111111;
-            };
+            }
         }
     }
 
@@ -651,14 +647,14 @@ impl HintNameItem {
 pub struct ImportAddressTable {}
 
 impl ImportLookupTable {
-    pub fn load(raw: &Vec<u8>, off: usize, nitems: usize) -> ImportLookupTable {
+    pub fn load(raw: &[u8], off: usize, nitems: usize) -> ImportLookupTable {
         let bits: Vec<u32> = Vec::new();
         /*
         for i in 0..nitems {
             raw + off + i*32
         }*/
 
-        ImportLookupTable { bits: bits }
+        ImportLookupTable { bits }
     }
 }
 
@@ -672,7 +668,7 @@ pub struct TagImportDirectory {
 }
 
 impl TagImportDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> TagImportDirectory {
+    pub fn load(raw: &[u8], off: usize) -> TagImportDirectory {
         TagImportDirectory {
             dw_rva_function_name_list: read_u32_le!(raw, off),
             dw_useless1: read_u32_le!(raw, off + 4),
@@ -700,7 +696,7 @@ pub struct ImageDebugDirectory {
 }
 
 impl ImageDebugDirectory {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageDebugDirectory {
+    pub fn load(raw: &[u8], off: usize) -> ImageDebugDirectory {
         ImageDebugDirectory {
             characteristics: read_u32_le!(raw, off),
             time_date_stamp: read_u32_le!(raw, off + 4),
@@ -725,7 +721,7 @@ pub struct ImageBaseRelocation {
 }
 
 impl ImageBaseRelocation {
-    pub fn load(raw: &Vec<u8>, off: usize) -> ImageBaseRelocation {
+    pub fn load(raw: &[u8], off: usize) -> ImageBaseRelocation {
         ImageBaseRelocation {
             virtual_address: read_u32_le!(raw, off),
             size_of_block: read_u32_le!(raw, off + 4),
@@ -747,8 +743,8 @@ impl Section {
     pub fn new(off: usize, sz: usize) -> Section {
         Section {
             name: String::new(),
-            off: off,
-            sz: sz,
+            off,
+            sz,
         }
     }
 }
@@ -782,7 +778,7 @@ impl PE32 {
             return false;
         }
 
-        return true;
+        true
     }
 
     pub fn read_string(raw: &[u8], off: usize) -> String {
@@ -793,8 +789,8 @@ impl PE32 {
             return String::new();
         }
 
-        for i in off..off + 200 {
-            if raw[i] == 0 {
+        for (i, byte) in raw.iter().enumerate().skip(off).take(200) {
+            if *byte == 0 {
                 last = i;
                 break;
             }
@@ -804,10 +800,7 @@ impl PE32 {
             return String::new();
         }
 
-        let s = match str::from_utf8(raw.get(off..last).unwrap()) {
-            Ok(s) => s,
-            Err(_) => "noname",
-        };
+        let s = str::from_utf8(raw.get(off..last).unwrap()).unwrap_or("noname");
         s.to_string()
     }
 
@@ -874,7 +867,7 @@ impl PE32 {
                     }
 
                     let libname = PE32::read_string(&raw, off);
-                    if libname.len() == 0 {
+                    if libname.is_empty() {
                         import_off += ImageImportDescriptor::size();
                         continue;
                         //break;
@@ -892,25 +885,25 @@ impl PE32 {
         }
 
         PE32 {
-            raw: raw,
-            dos: dos,
-            fh: fh,
-            nt: nt,
-            opt: opt,
+            raw,
+            dos,
+            fh,
+            nt,
+            opt,
             sect_hdr: sect,
-            delay_load_dir: delay_load_dir,
-            image_import_descriptor: image_import_descriptor, //import_dir: importd,
-                                                              //export_dir: exportd,
+            delay_load_dir,
+            image_import_descriptor, //import_dir: importd,
+                                     //export_dir: exportd,
         }
     }
 
     pub fn size(&self) -> usize {
-        return self.raw.len();
+        self.raw.len()
     }
 
     pub fn mem_size(&self) -> usize {
-        let mut max_va:u32 = 0;
-        let mut max_va_sz:usize = 0;
+        let mut max_va: u32 = 0;
+        let mut max_va_sz: usize = 0;
 
         for i in 0..self.sect_hdr.len() {
             let sect = &self.sect_hdr[i];
@@ -924,15 +917,15 @@ impl PE32 {
             }
         }
 
-        return (max_va as usize) + max_va_sz;
+        (max_va as usize) + max_va_sz
     }
 
     pub fn get_raw(&self) -> &[u8] {
-        return &self.raw[0..self.raw.len()];
+        &self.raw[0..self.raw.len()]
     }
 
     pub fn get_headers(&self) -> &[u8] {
-        return &self.raw[0..self.opt.size_of_headers as usize];
+        &self.raw[0..self.opt.size_of_headers as usize]
     }
 
     pub fn clear(&mut self) {
@@ -951,11 +944,11 @@ impl PE32 {
             }
         }
 
-        return 0;
+        0
     }
 
     pub fn num_of_sections(&self) -> usize {
-        return self.sect_hdr.len();
+        self.sect_hdr.len()
     }
 
     pub fn get_section_ptr_by_name(&self, name: &str) -> &[u8] {
@@ -972,7 +965,7 @@ impl PE32 {
     }
 
     pub fn get_section(&self, id: usize) -> &ImageSectionHeader {
-        return &self.sect_hdr[id];
+        &self.sect_hdr[id]
     }
 
     pub fn get_section_ptr(&self, id: usize) -> &[u8] {
@@ -987,15 +980,14 @@ impl PE32 {
         }
 
         let section_ptr = &self.raw[off..off + sz];
-        return section_ptr;
+        section_ptr
     }
 
     pub fn get_section_vaddr(&self, id: usize) -> u32 {
-        return self.sect_hdr[id].virtual_address;
+        self.sect_hdr[id].virtual_address
     }
 
     pub fn get_tls_callbacks(&self, vaddr: u32) -> Vec<u64> {
-        let tls_off;
         let mut callbacks: Vec<u64> = Vec::new();
 
         if self.opt.data_directory.len() < IMAGE_DIRECTORY_ENTRY_TLS {
@@ -1007,7 +999,7 @@ impl PE32 {
         let iat = self.opt.data_directory[IMAGE_DIRECTORY_ENTRY_IAT].virtual_address;
         let align = self.opt.file_alignment;
 
-        tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
+        let tls_off = PE32::vaddr_to_off(&self.sect_hdr, entry_tls) as usize;
 
         log::info!("raw {:x} off {:x}", self.raw.len(), tls_off);
         let tls = TlsDirectory32::load(&self.raw, tls_off);
@@ -1025,7 +1017,7 @@ impl PE32 {
         log::info!("cb_off {:x} {:x}", cb_off, self.opt.image_base);
 
         loop {
-            let callback: u64 = read_u32_le!(&self.raw, cb_off as usize) as u64;
+            let callback: u64 = read_u32_le!(&self.raw, cb_off) as u64;
             if callback == 0 {
                 break;
             }
@@ -1041,7 +1033,7 @@ impl PE32 {
         log::info!("Delay load binding started ...");
         for i in 0..self.delay_load_dir.len() {
             let dld = &self.delay_load_dir[i];
-            if dld.name.len() == 0 {
+            if dld.name.is_empty() {
                 continue;
             }
             if emu::winapi32::kernel32::load_library(emu, &dld.name) == 0 {
@@ -1096,14 +1088,14 @@ impl PE32 {
             "IAT binding started image_import_descriptor.len() = {} ...",
             self.image_import_descriptor.len()
         );
-        
+
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
             if dbg {
                 log::info!("import: {}", iim.name);
             }
 
-            if iim.name.len() == 0 {
+            if iim.name.is_empty() {
                 continue;
             }
 
@@ -1160,7 +1152,6 @@ impl PE32 {
         log::info!("IAT Bound.");
     }
 
-
     pub fn import_addr_to_name(&self, paddr: u32) -> String {
         let dbg = false;
         if paddr == 0 {
@@ -1173,7 +1164,7 @@ impl PE32 {
                 log::info!("import: {}", iim.name);
             }
 
-            if iim.name.len() == 0 {
+            if iim.name.is_empty() {
                 continue;
             }
 
@@ -1205,8 +1196,6 @@ impl PE32 {
                 off_addr += 4;
             }
         }
-        return String::new();
+        String::new()
     }
-
-
 }
