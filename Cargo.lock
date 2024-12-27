@@ -370,6 +370,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "libmwemu"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc64ad9347b2ff3d33bc0488c1e59ce6821fbf8be8ca3d16eb2c557be0f92fc6"
+dependencies = [
+ "atty",
+ "chrono",
+ "csv",
+ "ctrlc",
+ "iced-x86",
+ "lazy_static",
+ "log",
+ "md5",
+ "rand",
+ "scan_fmt",
+ "uint",
+]
+
+[[package]]
 name = "lock_api"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,7 +431,7 @@ version = "0.7.10"
 dependencies = [
  "clap",
  "env_logger",
- "libmwemu",
+ "libmwemu 0.19.4",
  "log",
 ]
 
@@ -489,7 +508,7 @@ name = "pymwemu"
 version = "0.9.3"
 dependencies = [
  "env_logger",
- "libmwemu",
+ "libmwemu 0.19.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "pyo3",
 ]
 
