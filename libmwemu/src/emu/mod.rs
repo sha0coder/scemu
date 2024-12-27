@@ -129,6 +129,7 @@ pub struct Emu {
     pub fls: Vec<u32>,
     pub out: String,
     pub instruction: Option<Instruction>,
+    pub decoder_position: usize,
     pub memory_operations: Vec<MemoryOperation>,
     main_thread_cont: u64,
     gateway_return: u64,
@@ -209,6 +210,7 @@ impl Emu {
             pe64: None,
             pe32: None,
             instruction: None,
+            decoder_position: 0,
             memory_operations: vec![],
             rep: None,
         }
@@ -4325,7 +4327,8 @@ impl Emu {
         let index = self.pos - 1;
 
         let instruction = self.instruction.unwrap();
-        let instruction_bytes: Vec<u8> = vec![]; // TODO
+        let instruction_size = instruction.len();
+        let instruction_bytes = self.maps.read_bytes(self.regs.rip, instruction_size);
 
         let mut comments = String::new();
 
@@ -4573,7 +4576,7 @@ impl Emu {
         // format
         formatter.format(&ins, &mut self.out);
         self.instruction = Some(ins);
-
+        self.decoder_position = position;
         // emulate
         let result_ok = self.emulate_instruction(&ins, sz, true);
         self.last_instruction_size = sz;
@@ -4662,6 +4665,7 @@ impl Emu {
                     self.out.clear();
                     formatter.format(&ins, &mut self.out);
                     self.instruction = Some(ins);
+                    self.decoder_position = decoder.position();
                     self.memory_operations.clear();
                     self.pos += 1;
 
