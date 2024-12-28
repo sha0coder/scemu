@@ -2767,17 +2767,28 @@ pub fn FindActCtxSectionStringW(emu: &mut emu::Emu) {
 }
 
 fn GetModuleHandleA(emu: &mut emu::Emu) {
-    let module_name = emu.maps.read_string(emu.regs.rcx);
-    let handle = get_library_handle(emu, &module_name);
+    let module_name_ptr = emu.regs.rcx;
+    let module_name: String;
 
-    log::info!(
-        "{}** {} kernel32!GetModuleHandleA module_name: {} handle: 0x{:x} {}",
-        emu.colors.light_red,
-        emu.pos,
-        module_name,
-        handle,
-        emu.colors.nc
-    );
+    if module_name_ptr == 0 {
+        module_name = "self".to_string();
+        emu.regs.rax = match emu.maps.get_base() {
+            Some(base) => base,
+            None => helper::handler_create(&module_name),
+        }
+    } else {
+        let module_name = emu.maps.read_string(module_name_ptr);
+        let handle = get_library_handle(emu, &module_name);
+
+        log::info!(
+            "{}** {} kernel32!GetModuleHandleA module_name: {} handle: 0x{:x} {}",
+            emu.colors.light_red,
+            emu.pos,
+            module_name,
+            handle,
+            emu.colors.nc
+        );
+    }
 
     emu.regs.rax = handle;
 }
@@ -2797,4 +2808,3 @@ fn GetModuleHandleW(emu: &mut emu::Emu) {
 
     emu.regs.rax = handle;
 }
-    
