@@ -4,7 +4,7 @@ use std::io::Write as _;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use libmwemu::emu::console::Console;
+use libmwemu::console::Console;
 use libmwemu::emu32;
 use libmwemu::emu64;
 

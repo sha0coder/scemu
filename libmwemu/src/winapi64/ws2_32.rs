@@ -1,7 +1,8 @@
-use crate::emu::Emu;
+use crate::emu;
 //use crate::endpoint;
 use crate::structures::*;
 use crate::winapi32::helper;
+use crate::winapi64;
 
 use lazy_static::lazy_static;
 use std::sync::Mutex;
