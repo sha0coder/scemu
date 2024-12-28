@@ -3644,6 +3644,18 @@ impl Emu {
                             }
                             self.seh
                         }
+                        0x8 => {
+                            if self.cfg.verbose >= 1 {
+                                log::info!("Reading SEH 0x{:x}", self.seh);
+                            }
+                            if self.cfg.is_64bits {
+                                self.maps.get_mem("peb").get_base()
+                            } else {
+                                let teb = self.maps.get_mem("teb");
+                                let teb_struct = structures::TEB::new(teb.get_base() as u32);
+                                teb_struct.thread_id as u64
+                            }
+                        }
                         _ => {
                             log::info!("unimplemented gs:[{}]", mem_addr);
                             return None;
