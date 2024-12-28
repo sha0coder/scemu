@@ -4194,6 +4194,8 @@ fn GetCPInfo(emu: &mut emu::Emu) {
         info_ptr,
         emu.colors.nc
     );
+    
+    // TODO: put something in lp_cp_info?
 
     emu.stack_pop32(false);
     emu.stack_pop32(false);

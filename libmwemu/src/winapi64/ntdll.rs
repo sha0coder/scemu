@@ -45,7 +45,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "NtTerminateThread" => NtTerminateThread(emu),
 
         _ => {
-            log::info!("calling unimplemented ntdll API 0x{:x} {}", addr, apiname);
+            log::warn!("calling unimplemented ntdll API 0x{:x} {}", addr, apiname);
             return apiname;
         }
     }

@@ -158,10 +158,21 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetConsoleOutputCP" => GetConsoleOutputCP(emu),
         "GetCommandLineA" => GetCommandLineA(emu),
         "GetCommandLineW" => GetCommandLineW(emu),
+        "GetCPInfo" => GetCPInfo(emu),
+        "GetUserDefaultLCID" => GetUserDefaultLCID(emu),
+        "SetThreadLocale" => SetThreadLocale(emu),
+        "GetThreadLocale" => GetThreadLocale(emu),
+        "GetLocaleInfoW" => GetLocaleInfoW(emu),
+        "WideCharToMultiByte" => WideCharToMultiByte(emu),
+        "GetLocaleInfoA" => GetLocaleInfoA(emu),
+        "GetWindowsDirectoryA" => GetWindowsDirectoryA(emu),
+        "ResetEvent" => ResetEvent(emu),
+        "VirtualFree" => VirtualFree(emu),
+        "GetModuleFileNameW" => GetModuleFileNameW(emu),
 
         _ => {
             unimplemented!(
-                "calling unimplemented kernel32 64bits API 0x{:x} {}",
+                "unimplemented kernel32 64bits API 0x{:x} {}",
                 addr,
                 api
             );
@@ -509,9 +520,7 @@ fn GetProcAddress(emu: &mut emu::Emu) {
         }
     }
     emu.regs.rax = 0;
-    if emu.cfg.verbose >= 1 {
-        log::info!("kernel32!GetProcAddress error searching {}", func);
-    }
+    log::warn!("kernel32!GetProcAddress error searching {}", func);
 }
 
 fn WinExec(emu: &mut emu::Emu) {
@@ -1912,6 +1921,7 @@ fn GetTickCount(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     let tick = TICK.lock().unwrap();
+    // TODO: increment the tick?
     emu.regs.rax = *tick;
 }
 
@@ -3017,4 +3027,268 @@ fn GetCommandLineW(emu: &mut emu::Emu) {
     let cmdline = emu.alloc("cmdline", 1024);
     emu.maps.write_wide_string(cmdline, "test.exe");
     emu.regs.rax = cmdline;
+}
+
+/*
+BOOL GetCPInfo(
+  [in]  UINT     CodePage,
+  [out] LPCPINFO lpCPInfo
+);
+*/
+fn GetCPInfo(emu: &mut emu::Emu) {
+    let code_page = emu.regs.rcx as usize;
+    let lp_cp_info = emu.regs.rdx;
+
+    log::info!(
+        "{}** {} kernel32!GetCPInfo code_page: {} lp_cp_info: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        code_page,
+        lp_cp_info,
+        emu.colors.nc
+    );
+
+    // Create and initialize a CpInfo structure
+    let cp_info = match code_page {
+        // CP_ACP (0) - ANSI code page
+        0 => structures::CpInfo {
+            max_char_size: 2,
+            default_char: [0x3F, 0], // '?'
+            lead_byte: [0; 12],
+        },
+        // CP_OEMCP (1) - OEM code page
+        1 => structures::CpInfo {
+            max_char_size: 1,
+            default_char: [0x3F, 0], // '?'
+            lead_byte: [0; 12],
+        },
+        // For other code pages, use default values
+        _ => structures::CpInfo::new(),
+    };
+
+    // Save the CpInfo structure to the provided memory location
+    cp_info.save(lp_cp_info, &mut emu.maps);
+
+    // Return TRUE to indicate success
+    emu.regs.rax = 1;
+}
+
+/*
+DWORD GetUserDefaultLCID();
+*/
+fn GetUserDefaultLCID(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetUserDefaultLCID {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    emu.regs.rax = 0x00000400;
+}
+
+/*
+BOOL SetThreadLocale(
+  [in] LCID Locale
+);
+*/
+fn SetThreadLocale(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!SetThreadLocale {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do something
+    emu.regs.rax = 1;
+}
+
+/*
+DWORD GetThreadLocale();
+*/
+fn GetThreadLocale(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetThreadLocale {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    emu.regs.rax = 0x409;
+}
+
+/*
+int GetLocaleInfoW(
+  [in]            LCID   Locale,
+  [in]            LCTYPE LCType,
+  [out, optional] LPWSTR lpLCData,
+  [in]            int    cchData
+);
+*/
+fn GetLocaleInfoW(emu: &mut emu::Emu) {
+    let locale = emu.regs.rcx as usize;         
+    let lctype = emu.regs.rdx as usize;
+    let lp_lc_data = emu.regs.r8 as usize;
+    let cch_data = emu.regs.r9 as usize;
+    log_red!(emu, "** {} kernel32!GetLocaleInfoW locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
+        emu.pos,
+        locale,
+        lctype,
+        lp_lc_data,
+        cch_data
+    );
+    // TODO: set lp_lc_data
+    emu.regs.rax = 1;
+}
+
+/*
+int WideCharToMultiByte(
+  [in]            UINT                               CodePage, rcx
+  [in]            DWORD                              dwFlags, rdx
+  [in]            _In_NLS_string_(cchWideChar)LPCWCH lpWideCharStr, r8
+  [in]            int                                cchWideChar, r9
+
+  [out, optional] LPSTR                              lpMultiByteStr, rsp
+  [in]            int                                cbMultiByte, rsp+8
+  [in, optional]  LPCCH                              lpDefaultChar, rsp+16
+  [out, optional] LPBOOL                             lpUsedDefaultChar, rsp+24
+);
+*/
+fn WideCharToMultiByte(emu: &mut emu::Emu) {
+    let code_page = emu.regs.rcx as usize;
+    let dw_flags = emu.regs.rdx as usize;
+    let lp_wide_char_str = emu.regs.r8 as usize;
+    let cch_wide_char = emu.regs.r9 as usize;
+    let lp_multi_byte_str = emu
+        .maps
+        .read_qword(emu.regs.rsp)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let cb_multi_byte = emu
+        .maps
+        .read_qword(emu.regs.rsp + 8)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let lp_default_char = emu
+        .maps
+        .read_qword(emu.regs.rsp + 16)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let lp_used_default_char = emu
+        .maps
+        .read_qword(emu.regs.rsp + 24)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    log_red!(emu, "** {} kernel32!WideCharToMultiByte code_page: {} dw_flags: {} lp_wide_char_str: 0x{:x} cch_wide_char: {} lp_multi_byte_str: 0x{:x} cb_multi_byte: {} lp_default_char: 0x{:x} lp_used_default_char: 0x{:x}", 
+        emu.pos,
+        code_page,
+        dw_flags,
+        lp_wide_char_str,
+        cch_wide_char,
+        lp_multi_byte_str,
+        cb_multi_byte,
+        lp_default_char,
+        lp_used_default_char
+    );
+    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
+    if lp_multi_byte_str > 0 {
+        emu.maps.write_string(lp_multi_byte_str, &s);
+    }
+    for _ in 0..4 {
+        emu.stack_pop64(false);
+    }
+    emu.regs.rax = s.len() as u64 + 2;
+}
+
+/*
+int GetLocaleInfoA(
+  [in]            LCID   Locale,
+  [in]            LCTYPE LCType,
+  [out, optional] LPSTR  lpLCData,
+  [in]            int    cchData
+);
+*/
+fn GetLocaleInfoA(emu: &mut emu::Emu) {
+    let locale = emu.regs.rcx as usize;     
+    let lctype = emu.regs.rdx as usize;
+    let lp_lc_data = emu.regs.r8 as usize;
+    let cch_data = emu.regs.r9 as usize;
+    log_red!(emu, "** {} kernel32!GetLocaleInfoA locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
+        emu.pos,
+        locale,
+        lctype,
+        lp_lc_data,
+        cch_data
+    );
+    // TODO: set lp_lc_data
+    emu.regs.rax = 1;
+}
+
+/*
+UINT GetWindowsDirectoryA(
+  [out] LPSTR lpBuffer,
+  [in]  UINT  uSize
+);
+*/
+fn GetWindowsDirectoryA(emu: &mut emu::Emu) {
+    let lp_buffer = emu.regs.rcx as usize;
+    let u_size = emu.regs.rdx as usize;
+    log_red!(emu, "** {} kernel32!GetWindowsDirectoryA lp_buffer: 0x{:x} u_size: {}", 
+        emu.pos,
+        lp_buffer,
+        u_size
+    );
+    let output = "C:\\Windows\\";
+    emu.maps.write_string(lp_buffer as u64, output);
+    emu.regs.rax = output.len() as u64;
+}
+
+/*
+BOOL ResetEvent(
+  [in] HANDLE hEvent
+);
+*/
+fn ResetEvent(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!ResetEvent {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do something
+    emu.regs.rax = 1;
+}
+
+/*
+BOOL VirtualFree(
+  [in] LPVOID lpAddress,
+  [in] SIZE_T dwSize,
+  [in] DWORD  dwFreeType
+);
+*/
+fn VirtualFree(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!VirtualFree {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do something
+    emu.regs.rax = 1;
+}
+
+/*
+DWORD GetModuleFileNameW(
+  [in, optional] HMODULE hModule,
+  [out]          LPWSTR  lpFilename,
+  [in]           DWORD   nSize
+);
+*/
+fn GetModuleFileNameW(emu: &mut emu::Emu) {
+    let module = emu.regs.rcx as usize;
+    let lp_filename = emu.regs.rdx as usize;
+    let n_size = emu.regs.r8 as usize;
+    log_red!(emu, "** {} kernel32!GetModuleFileNameW module: 0x{:x} lp_filename: 0x{:x} n_size: {}", 
+        emu.pos,
+        module,
+        lp_filename,
+        n_size
+    );
+    let output = "haspmeul.dll";
+    emu.maps.write_wide_string(lp_filename as u64, output);
+    emu.regs.rax = output.len() as u64;
 }
