@@ -2297,7 +2297,8 @@ fn TlsAlloc(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.regs.rax = 1;
+    emu.tls32.push(0);
+    emu.regs.set_eax(emu.tls32.len() as u64);
 }
 
 fn TlsFree(emu: &mut emu::Emu) {
@@ -2315,7 +2316,7 @@ fn TlsFree(emu: &mut emu::Emu) {
     );
 
     emu.stack_pop32(false);
-    emu.regs.rax = 1;
+    emu.regs.set_eax(1);
 }
 
 fn TlsSetValue(emu: &mut emu::Emu) {
@@ -2348,8 +2349,7 @@ fn TlsSetValue(emu: &mut emu::Emu) {
 
     emu.stack_pop32(false);
     emu.stack_pop32(false);
-
-    emu.regs.rax = 1;
+    emu.regs.set_eax(1);
 }
 
 fn TlsGetValue(emu: &mut emu::Emu) {
@@ -2361,9 +2361,9 @@ fn TlsGetValue(emu: &mut emu::Emu) {
     emu.stack_pop32(false);
 
     if idx as usize > emu.tls32.len() {
-        emu.regs.rax = 0;
+        emu.regs.set_eax(0);
     } else {
-        emu.regs.rax = emu.tls32[idx as usize] as u64;
+        emu.regs.set_eax(emu.tls32[idx as usize] as u64);
     }
 
     log::info!(

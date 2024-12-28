@@ -2844,7 +2844,8 @@ fn TlsAlloc(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.regs.rax = 1;
+    emu.tls64.push(0);
+    emu.regs.rax = emu.tls64.len() as u64;
 }
 
 fn TlsFree(emu: &mut emu::Emu) {
