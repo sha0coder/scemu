@@ -36,7 +36,7 @@ pub mod syscall32;
 pub mod syscall64;
 mod winapi32;
 mod winapi64;
-mod instructions;
+mod engine;
 
 use atty::Stream;
 use csv::ReaderBuilder;
@@ -67,7 +67,6 @@ use self::pe32::PE32;
 use self::pe64::PE64;
 use self::regs64::Regs64;
 use self::structures::MemoryOperation;
-use self::instructions::InstructionHandler;
 
 pub struct Emu {
     pub regs: Regs64,
@@ -4563,7 +4562,7 @@ impl Emu {
         self.instruction = Some(ins);
         self.decoder_position = position;
         // emulate
-        let result_ok = InstructionHandler::emulate_instruction(self, &ins, sz, true);
+        let result_ok = engine::emulate_instruction(self, &ins, sz, true);
         self.last_instruction_size = sz;
 
         // update eip/rip
@@ -4753,7 +4752,7 @@ impl Emu {
                     }
 
                     /*************************************/
-                    let emulation_ok = InstructionHandler::emulate_instruction(self, &ins, sz, false);
+                    let emulation_ok = engine::emulate_instruction(self, &ins, sz, false);
                     /*************************************/
 
                     if let Some(rep_count) = self.rep {
