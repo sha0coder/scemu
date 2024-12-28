@@ -3126,36 +3126,74 @@ int GetLocaleInfoW(
 );
 */
 fn GetLocaleInfoW(emu: &mut emu::Emu) {
-    log::info!(
-        "{}** {} kernel32!GetLocaleInfoW {}",
-        emu.colors.light_red,
+    let locale = emu.regs.rcx as usize;         
+    let lctype = emu.regs.rdx as usize;
+    let lp_lc_data = emu.regs.r8 as usize;
+    let cch_data = emu.regs.r9 as usize;
+    log_red!(emu, "** {} kernel32!GetLocaleInfoW locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
         emu.pos,
-        emu.colors.nc
+        locale,
+        lctype,
+        lp_lc_data,
+        cch_data
     );
-    todo!();
+    // TODO: set lp_lc_data
     emu.regs.rax = 1;
 }
 
 /*
 int WideCharToMultiByte(
-  [in]            UINT                               CodePage,
-  [in]            DWORD                              dwFlags,
-  [in]            _In_NLS_string_(cchWideChar)LPCWCH lpWideCharStr,
-  [in]            int                                cchWideChar,
-  [out, optional] LPSTR                              lpMultiByteStr,
-  [in]            int                                cbMultiByte,
-  [in, optional]  LPCCH                              lpDefaultChar,
-  [out, optional] LPBOOL                             lpUsedDefaultChar
+  [in]            UINT                               CodePage, rcx
+  [in]            DWORD                              dwFlags, rdx
+  [in]            _In_NLS_string_(cchWideChar)LPCWCH lpWideCharStr, r8
+  [in]            int                                cchWideChar, r9
+
+  [out, optional] LPSTR                              lpMultiByteStr, rsp
+  [in]            int                                cbMultiByte, rsp+8
+  [in, optional]  LPCCH                              lpDefaultChar, rsp+16
+  [out, optional] LPBOOL                             lpUsedDefaultChar, rsp+24
 );
 */
 fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    log::info!(
-        "{}** {} kernel32!WideCharToMultiByte {}",
-        emu.colors.light_red,
+    let code_page = emu.regs.rcx as usize;
+    let dw_flags = emu.regs.rdx as usize;
+    let lp_wide_char_str = emu.regs.r8 as usize;
+    let cch_wide_char = emu.regs.r9 as usize;
+    let lp_multi_byte_str = emu
+        .maps
+        .read_qword(emu.regs.rsp)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let cb_multi_byte = emu
+        .maps
+        .read_qword(emu.regs.rsp + 8)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let lp_default_char = emu
+        .maps
+        .read_qword(emu.regs.rsp + 16)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    let lp_used_default_char = emu
+        .maps
+        .read_qword(emu.regs.rsp + 24)
+        .expect("kernel32!WideCharToMultiByte error reading param");
+    log_red!(emu, "** {} kernel32!WideCharToMultiByte code_page: {} dw_flags: {} lp_wide_char_str: 0x{:x} cch_wide_char: {} lp_multi_byte_str: 0x{:x} cb_multi_byte: {} lp_default_char: 0x{:x} lp_used_default_char: 0x{:x}", 
         emu.pos,
-        emu.colors.nc
+        code_page,
+        dw_flags,
+        lp_wide_char_str,
+        cch_wide_char,
+        lp_multi_byte_str,
+        cb_multi_byte,
+        lp_default_char,
+        lp_used_default_char
     );
-    todo!();
+    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
+    if lp_multi_byte_str > 0 {
+        emu.maps.write_string(lp_multi_byte_str, &s);
+    }
+    for _ in 0..4 {
+        emu.stack_pop64(false);
+    }
+    emu.regs.rax = s.len() as u64 + 2;
 }
 
 /*
@@ -3167,13 +3205,19 @@ int GetLocaleInfoA(
 );
 */
 fn GetLocaleInfoA(emu: &mut emu::Emu) {
-    log::info!(
-        "{}** {} kernel32!GetLocaleInfoA {}",
-        emu.colors.light_red,
+    let locale = emu.regs.rcx as usize;     
+    let lctype = emu.regs.rdx as usize;
+    let lp_lc_data = emu.regs.r8 as usize;
+    let cch_data = emu.regs.r9 as usize;
+    log_red!(emu, "** {} kernel32!GetLocaleInfoA locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
         emu.pos,
-        emu.colors.nc
+        locale,
+        lctype,
+        lp_lc_data,
+        cch_data
     );
-    todo!();
+    // TODO: set lp_lc_data
+    emu.regs.rax = 1;
 }
 
 /*
@@ -3220,7 +3264,7 @@ BOOL VirtualFree(
 */
 fn VirtualFree(emu: &mut emu::Emu) {
     log::info!(
-        "{}** {} kernel32!GetLocaleInfoW {}",
+        "{}** {} kernel32!VirtualFree {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
