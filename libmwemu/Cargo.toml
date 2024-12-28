@@ -1,6 +1,6 @@
 [package]
 name = "libmwemu"
-version = "0.19.4"
+version = "0.19.5"
 edition = "2018"
 authors = ["sha0coder"]
 license = "MIT"
