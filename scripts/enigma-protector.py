@@ -7,7 +7,7 @@
 # source .venv/Scripts/activate
 # pip install maturin
 # maturin build --release -m pymwemu/Cargo.toml
-# pip install /c/Users/Brandon/.cargo/.target/wheels/pymwemu-0.9.5-cp313-cp313-win_amd64.whl 
+# pip install --force-reinstall /c/Users/Brandon/.cargo/.target/wheels/pymwemu-0.9.5-cp313-cp313-win_amd64.whl 
 # .venv/Scripts/python.exe scripts/enigma-protector.py
 
 import pymwemu
