@@ -10,7 +10,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "PathFindSuffixArrayA" => PathFindSuffixArrayA(emu),
 
         _ => {
-            log::info!("calling unimplemented shlwapi API 0x{:x} {}", addr, apiname);
+            log::warn!("calling unimplemented shlwapi API 0x{:x} {}", addr, apiname);
             return apiname;
         }
     }

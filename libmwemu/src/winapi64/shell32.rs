@@ -6,7 +6,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     match apiname.as_str() {
         "RealShellExecuteA" => RealShellExecuteA(emu),
         _ => {
-            log::info!("calling unimplemented shell32 API 0x{:x} {}", addr, apiname);
+            log::warn!("calling unimplemented shell32 API 0x{:x} {}", addr, apiname);
             return apiname;
         }
     }

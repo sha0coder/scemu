@@ -11,7 +11,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetTokenInformation" => GetTokenInformation(emu),
 
         _ => {
-            log::info!(
+            log::warn!(
                 "calling unimplemented kernelbase API 0x{:x} {}",
                 addr,
                 apiname

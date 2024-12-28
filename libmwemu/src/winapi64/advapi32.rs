@@ -13,7 +13,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "RegCloseKey" => RegCloseKey(emu),
 
         _ => {
-            log::info!(
+            log::warn!(
                 "calling unimplemented advapi32 API 0x{:x} {}",
                 addr,
                 apiname

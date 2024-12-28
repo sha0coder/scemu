@@ -172,7 +172,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
         _ => {
             unimplemented!(
-                "calling unimplemented kernel32 64bits API 0x{:x} {}",
+                "unimplemented kernel32 64bits API 0x{:x} {}",
                 addr,
                 api
             );

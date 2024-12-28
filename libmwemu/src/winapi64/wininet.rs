@@ -24,7 +24,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "InternetReadFileExW" => InternetReadFileExW(emu),
         "InternetErrorDlg" => InternetErrorDlg(emu),
         _ => {
-            log::info!("calling unimplemented wininet API 0x{:x} {}", addr, apiname);
+            log::warn!("calling unimplemented wininet API 0x{:x} {}", addr, apiname);
             return apiname;
         }
     }
