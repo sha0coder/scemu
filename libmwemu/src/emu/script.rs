@@ -377,6 +377,9 @@ impl Script {
                     emu.cfg.trace_reg = false;
                     emu.cfg.reg_names.clear();
                 }
+                "pos" => {
+                    log::info!("pos = 0x{:x}", emu.pos);
+                }
                 "c" => {
                     emu.is_running
                         .store(1, std::sync::atomic::Ordering::Relaxed);

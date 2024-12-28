@@ -2771,6 +2771,9 @@ impl Emu {
                     self.cfg.trace_reg = false;
                     self.cfg.reg_names.clear();
                 }
+                "pos" => {
+                    log::info!("pos = 0x{:x}", self.pos);
+                }
                 "c" => {
                     self.is_running.store(1, atomic::Ordering::Relaxed);
                     return;

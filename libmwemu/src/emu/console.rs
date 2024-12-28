@@ -131,6 +131,7 @@ impl Console {
         log::info!("ll ..................... linked list walk");
         log::info!("d ...................... dissasemble");
         log::info!("dt ..................... dump structure");
+        log::info!("pos .................... print current position");
         log::info!("enter .................. step into");
         log::info!("tr ..................... trace reg");
         log::info!("trc .................... trace regs clear");
