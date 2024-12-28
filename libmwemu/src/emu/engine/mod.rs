@@ -8445,6 +8445,10 @@ pub fn emulate_instruction(
             }
         }
 
+        Mnemonic::Prefetchnta => {
+            emu.show_instruction(&emu.colors.red, ins);
+        }
+
         Mnemonic::Prefetchw => {
             emu.show_instruction(&emu.colors.red, ins);
         }
