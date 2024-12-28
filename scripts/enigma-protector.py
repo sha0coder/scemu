@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
 
 # python3 -m venv .venv
 # source .venv/bin/activate
@@ -6,10 +6,11 @@
 # maturin develop -m pymwemu/Cargo.toml
 
 import pymwemu
+import os
 
 emu = pymwemu.init64()
 emu.load_maps('./maps64/')
-emu.load_binary('/Users/brandon/Desktop/enigma/surprise.dll')
+emu.load_binary(os.path.join(os.path.expanduser('~'), 'Desktop', 'enigma', 'surprise.dll'))
 
 emu.set_verbose(0)
 emu.set_reg('rdx', 1)
