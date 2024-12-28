@@ -1,14 +1,6 @@
 #[macro_export]
 
-macro_rules! popn {
-    ($emu:expr, $n:expr) => {
-        for _ in 0..$n {
-            $emu.stack_pop(false);
-        }
-    };
-}
-
-macro_rules! stack_param {
+/*macro_rules! stack_param {
     ($emu:expr, $num:expr, $msg:expr) => (
         $emu.read_dword($emu.regs.esp+($num*4)).expect($msg);
     )
@@ -75,5 +67,48 @@ macro_rules! write_u64_le {
       $raw[$off+6] = (($val & 0x00ff0000_00000000) >> 48) as u8;
       $raw[$off+7] = (($val & 0xff000000_00000000) >> 56) as u8;
     }
+}
+
+macro_rules! rotate_left {
+    ($val:expr, $rot:expr, $bits:expr) => {
+       ($val << $rot) | ($val >> ($bits-$rot))
+    };
+}
+
+macro_rules! rotate_right {
+    ($val:expr, $rot:expr, $bits:expr) => {
+        ($val >> $rot) | ($val << ($bits-$rot))
+    };
+}*/
+
+macro_rules! popn {
+    ($emu:expr, $n:expr) => {
+        for _ in 0..$n {
+            $emu.stack_pop(false);
+        }
+    };
+}
+
+
+macro_rules! get_bit {
+    ($val:expr, $count:expr) => {
+        ($val & (1 << $count)) >> $count
+    };
+}
+
+macro_rules! set_bit {
+    ($val:expr, $count:expr, $bit:expr) => {
+        if $bit == 1 {
+            $val |= 1 << $count;
+        } else {
+            $val &= !(1 << $count);
+        }
+    };
+}
+
+macro_rules! to32 {
+    ($val:expr) => {
+        ($val & 0xffffffff) as u32
+    };
 }
 
