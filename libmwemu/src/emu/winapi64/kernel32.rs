@@ -143,12 +143,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "TlsFree" => TlsFree(emu),
 
         _ => {
-            log::info!(
+            unimplemented!(
                 "calling unimplemented kernel32 64bits API 0x{:x} {}",
                 addr,
                 api
             );
-            return api;
         }
     }
 
