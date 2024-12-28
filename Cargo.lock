@@ -509,6 +509,7 @@ version = "0.9.5"
 dependencies = [
  "env_logger",
  "libmwemu 0.19.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log",
  "pyo3",
 ]
 
