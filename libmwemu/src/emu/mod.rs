@@ -13299,6 +13299,15 @@ impl Emu {
                 self.fpu.mxcsr = value as u32;
             }
 
+            Mnemonic::Fnstcw => {
+                self.show_instruction(&self.colors.red, ins);
+
+                let addr = self.get_operand_value(ins, 0, false).unwrap_or(0);
+                if addr > 0 {
+                    self.maps.write_word(addr, self.fpu.fpu_control_word);
+                }
+            }
+
             Mnemonic::Prefetchw => {
                 self.show_instruction(&self.colors.red, ins);
             }

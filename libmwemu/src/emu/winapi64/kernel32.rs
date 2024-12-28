@@ -135,6 +135,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetNativeSystemInfo" => GetNativeSystemInfo(emu),
         "lstrcpyW" => lstrcpyW(emu),
         "lstrcpy" => lstrcpy(emu),
+        "GetModuleHandleA" => GetModuleHandleA(emu),
+        "GetModuleHandleW" => GetModuleHandleW(emu),
 
         _ => {
             log::info!(
@@ -348,6 +350,35 @@ pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
                 }
                 0
             }
+        }
+    }
+}
+
+pub fn get_library_handle(emu: &mut emu::Emu, libname: &str) -> u64 {
+    // log::info!("kern32!load_library: {}", libname);
+
+    let mut dll = libname.to_string().to_lowercase();
+
+    if dll.is_empty() {
+        emu.regs.rax = 0;
+        return 0;
+    }
+
+    if !dll.ends_with(".dll") {
+        dll.push_str(".dll");
+    }
+
+    let mut dll_path = emu.cfg.maps_folder.clone();
+    dll_path.push('/');
+    dll_path.push_str(&dll);
+
+    match peb64::get_module_base(&dll, emu) {
+        Some(base) => {
+            return base;
+        }
+        None => {
+            // if is not linked, dont link, this is not a load_library
+            return 0;
         }
     }
 }
@@ -2734,3 +2765,36 @@ pub fn FindActCtxSectionStringW(emu: &mut emu::Emu) {
 
     emu.regs.rax = 0;
 }
+
+fn GetModuleHandleA(emu: &mut emu::Emu) {
+    let module_name = emu.maps.read_string(emu.regs.rcx);
+    let handle = get_library_handle(emu, &module_name);
+
+    log::info!(
+        "{}** {} kernel32!GetModuleHandleA module_name: {} handle: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        module_name,
+        handle,
+        emu.colors.nc
+    );
+
+    emu.regs.rax = handle;
+}
+
+fn GetModuleHandleW(emu: &mut emu::Emu) {
+    let module_name = emu.maps.read_wide_string(emu.regs.rcx);
+    let handle = get_library_handle(emu, &module_name);
+
+    log::info!(
+        "{}** {} kernel32!GetModuleHandleW module_name: {} handle: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        module_name,
+        handle,
+        emu.colors.nc
+    );
+
+    emu.regs.rax = handle;
+}
+    

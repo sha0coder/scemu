@@ -513,17 +513,14 @@ impl PE64 {
     }
 
     pub fn iat_binding(&mut self, emu: &mut emu::Emu) {
-        // TODO: refactor this, instead of patching the raw and the loading it, do the iat_binding
-        // after the loading, in this way its possible to use virtual addreses instad of calculate
-        // the offset on the raw blob
-
         // https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2#Binding
 
-        log::info!(
-            "IAT binding started image_import_descriptor.len() = {} ...",
-            self.image_import_descriptor.len()
-        );
-        let mut flipflop;
+        if emu.cfg.verbose >= 1 {
+            log::info!(
+                "IAT binding started image_import_descriptor.len() = {} ...",
+                self.image_import_descriptor.len()
+            );
+        }
 
         for i in 0..self.image_import_descriptor.len() {
             let iim = &self.image_import_descriptor[i];
@@ -531,21 +528,60 @@ impl PE64 {
             if iim.name.is_empty() {
                 continue;
             }
-
             if emu::winapi64::kernel32::load_library(emu, &iim.name) == 0 {
                 log::info!("cannot found the library {} on maps64/", &iim.name);
                 return;
             }
 
-            // Walking function names.
+            if iim.original_first_thunk == 0 {
+                self.iat_binding_alternative(emu, iim.first_thunk);
+            } else {
+                self.iat_binding_original(emu, iim.original_first_thunk, iim.first_thunk);
+            }
+
+        }
+        log::info!("IAT Bound.");
+    }
+
+    pub fn iat_binding_alternative(&mut self, emu: &mut emu::Emu, first_thunk: u32) {
+        // this function is called for every DLL that in iat.
+
+        let mut off = PE32::vaddr_to_off(&self.sect_hdr, first_thunk) as usize;
+        let ordinal:u16;
+
+        loop {
+            let entry = read_u64_le!(self.raw, off); 
+            if entry == 0 {
+                break;
+            }
+            if (entry & 0x80000000_00000000) != 0 {
+                ordinal = (entry & 0xFFFF) as u16;
+                println!("---- ordinal: {}", ordinal);
+                unimplemented!("third variation of iat binding not implemented");
+
+            } else {
+                let name_rva = entry as u32;
+                let name_off = PE32::vaddr_to_off(&self.sect_hdr, name_rva) as usize;
+                let api_name = PE32::read_string(&self.raw, name_off+2);
+
+                let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &api_name);
+                if real_addr > 0 {
+                    write_u64_le!(self.raw, off, real_addr); // patch the IAT to do the binding
+                }
+            }
+
+
+            off += 8;
+        }
+    }
+
+    pub fn iat_binding_original(&mut self, emu: &mut emu::Emu, original_first_thunk: u32, first_thunk: u32) {
+            // this function is called for every DLL in iat.
+
             let mut off_name =
-                PE32::vaddr_to_off(&self.sect_hdr, iim.original_first_thunk) as usize;
-
-            //log::info!("----> 0x{:x}", iim.first_thunk);
-            let mut off_addr = PE32::vaddr_to_off(&self.sect_hdr, iim.first_thunk) as usize;
-            //off_addr += 8;
-
-            flipflop = false;
+                PE32::vaddr_to_off(&self.sect_hdr, original_first_thunk) as usize;
+            let mut off_addr = PE32::vaddr_to_off(&self.sect_hdr, first_thunk) as usize;
+            let mut flipflop = false;
 
             loop {
                 if self.raw.len() <= off_name + 4 || self.raw.len() <= off_addr + 8 {
@@ -555,10 +591,9 @@ impl PE64 {
                 let hint = pe32::HintNameItem::load(&self.raw, off_name);
                 let addr = read_u32_le!(self.raw, off_addr); // & 0b01111111_11111111_11111111_11111111;
                 let off2 = PE32::vaddr_to_off(&self.sect_hdr, hint.func_name_addr) as usize;
+
                 if off2 == 0 {
-                    //|| addr < 0x100 {
                     off_name += pe32::HintNameItem::size();
-                    //off_addr += 8;
                     if flipflop {
                         break;
                     }
@@ -567,6 +602,7 @@ impl PE64 {
                 }
                 flipflop = false;
                 let func_name = PE32::read_string(&self.raw, off2 + 2);
+                //println!("resolving func_name: {}", func_name);
                 let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
                     break;
@@ -579,14 +615,12 @@ impl PE64 {
                 let fake_addr = read_u64_le!(self.raw, off_addr);
 
                 //println!("writing real_addr: 0x{:x} {} 0x{:x} -> 0x{:x} ", off_addr, func_name, fake_addr, real_addr);
-
                 write_u64_le!(self.raw, off_addr, real_addr);
 
                 off_name += pe32::HintNameItem::size();
                 off_addr += 8;
             }
-        }
-        log::info!("IAT Bound.");
+
     }
 
     pub fn import_addr_to_name(&self, paddr: u64) -> String {

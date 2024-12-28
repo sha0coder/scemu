@@ -23,6 +23,7 @@ pub struct FPU {
     pub f_c3: bool, // precission
     pub f_c4: bool, // stack fault
     pub mxcsr: u32,
+    pub fpu_control_word: u16,
 }
 
 impl Default for FPU {
@@ -55,6 +56,7 @@ impl FPU {
             f_c3: false, // precision
             f_c4: false, // stack fault
             mxcsr: 0,
+            fpu_control_word: 0,
         }
     }
 
@@ -74,6 +76,7 @@ impl FPU {
         self.reserved = [0; 14];
         self.reserved2 = [0; 96];
         self.xmm = [0; 16];
+        self.fpu_control_word = 0;
     }
 
     pub fn set_ctrl(&mut self, ctrl: u16) {
