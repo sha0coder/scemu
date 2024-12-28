@@ -8,6 +8,8 @@ use crate::peb32;
 use crate::peb64;
 use crate::structures;
 use crate::console::Console;
+use crate::winapi32;
+use crate::winapi64;
 
 pub struct Script {
     code: Vec<String>,
@@ -821,9 +823,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_64bits {
-                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = winapi64::kernel32::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = winapi32::kernel32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -844,9 +846,9 @@ impl Script {
                     let lib: String;
                     let name: String;
                     if emu.cfg.is_64bits {
-                        (addr, lib, name) = emu::winapi64::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = winapi64::kernel32::search_api_name(emu, args[1]);
                     } else {
-                        (addr, lib, name) = emu::winapi32::kernel32::search_api_name(emu, args[1]);
+                        (addr, lib, name) = winapi32::kernel32::search_api_name(emu, args[1]);
                     }
 
                     if addr == 0 {
@@ -862,9 +864,9 @@ impl Script {
                         return;
                     }
                     if emu.cfg.is_64bits {
-                        emu::winapi64::kernel32::dump_module_iat(emu, args[1]);
+                        winapi64::kernel32::dump_module_iat(emu, args[1]);
                     } else {
-                        emu::winapi32::kernel32::dump_module_iat(emu, args[1]);
+                        winapi32::kernel32::dump_module_iat(emu, args[1]);
                     }
                 }
                 "dt" => {

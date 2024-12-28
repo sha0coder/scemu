@@ -2982,7 +2982,7 @@ fn GetVersionExW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let os_version_info = emu::structures::OsVersionInfo::new();
+    let os_version_info = structures::OsVersionInfo::new();
     os_version_info.save(version_info_ptr, &mut emu.maps);
 
     emu.stack_pop32(false);
@@ -3054,7 +3054,7 @@ fn GetStartupInfoA(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     if startup_info_ptr > 0 {
-        let startupinfo = emu::structures::StartupInfo32::new();
+        let startupinfo = structures::StartupInfo32::new();
         startupinfo.save(startup_info_ptr, &mut emu.maps);
     }
 
@@ -3074,7 +3074,7 @@ fn GetStartupInfoW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     if startup_info_ptr > 0 {
-        let startupinfo = emu::structures::StartupInfo32::new();
+        let startupinfo = structures::StartupInfo32::new();
         startupinfo.save(startup_info_ptr, &mut emu.maps);
     }
 
@@ -3536,7 +3536,7 @@ fn GetUserDefaultUILanguage(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.regs.rax = emu::constants::EN_US_LOCALE as u64;
+    emu.regs.rax = constants::EN_US_LOCALE as u64;
 }
 
 fn EnterCriticalSection(emu: &mut emu::Emu) {
@@ -3602,7 +3602,7 @@ fn GetThreadUILanguage(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.regs.rax = emu::constants::EN_US_LOCALE as u64;
+    emu.regs.rax = constants::EN_US_LOCALE as u64;
 }
 
 fn GetThreadPreferredUILanguages(emu: &mut emu::Emu) {
@@ -3718,7 +3718,7 @@ fn GetNativeSystemInfo(emu: &mut emu::Emu) {
             .read_dword(emu.regs.get_esp())
             .expect("kernel32!GetNativeSystemInfo cannot read sysinfo_ptr") as u64;
 
-    let mut sysinfo = emu::structures::SystemInfo32::new();
+    let mut sysinfo = structures::SystemInfo32::new();
     sysinfo.save(sysinfo_ptr, &mut emu.maps);
 
     log::info!(

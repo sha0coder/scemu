@@ -1,4 +1,4 @@
-use crate::emu::Emu;
+use crate::emu;
 use crate::constants;
 use crate::structures;
 use crate::console::Console;

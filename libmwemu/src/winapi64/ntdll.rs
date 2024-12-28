@@ -1,4 +1,4 @@
-use crate::emu::Emu;
+use crate::emu;
 use crate::constants;
 use crate::context64::Context64;
 use crate::structures;
@@ -117,7 +117,7 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
     }
 
-    emu.regs.rax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 fn stricmp(emu: &mut emu::Emu) {
@@ -170,7 +170,7 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
             addr
         );
 
-        emu.regs.rax = emu::constants::STATUS_INVALID_PARAMETER;
+        emu.regs.rax = constants::STATUS_INVALID_PARAMETER;
         return;
     }
 
@@ -223,7 +223,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
         }
     }
 
-    emu.regs.rax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 fn RtlAddVectoredExceptionHandler(emu: &mut emu::Emu) {
@@ -792,7 +792,7 @@ fn RtlGetVersion(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let versioninfo = emu::structures::OsVersionInfo::new();
+    let versioninfo = structures::OsVersionInfo::new();
     versioninfo.save(versioninfo_ptr, &mut emu.maps);
 
     emu.regs.rax = 1;

@@ -1,9 +1,10 @@
-use crate::emu::Emu;
+use crate::emu;
+use crate::winapi64;
 //use crate::constants;
 //use crate::winapi32::helper;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let apiname = emu::winapi64::kernel32::guess_api_name(emu, addr);
+    let apiname = winapi64::kernel32::guess_api_name(emu, addr);
     match apiname.as_str() {
         "PathCombineA" => PathCombineA(emu),
         "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),

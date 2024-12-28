@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let apiname = emu::winapi64::kernel32::guess_api_name(emu, addr);
+    let apiname = winapi64::kernel32::guess_api_name(emu, addr);
     match apiname.as_str() {
         "WSAStartup" => WsaStartup(emu),
         "WSASocketA" => WsaSocketA(emu),

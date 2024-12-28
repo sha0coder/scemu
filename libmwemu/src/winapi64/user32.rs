@@ -1,7 +1,7 @@
-use crate::emu::Emu;
-
+use crate::emu;
+use crate::winapi64;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let apiname = emu::winapi64::kernel32::guess_api_name(emu, addr);
+    let apiname = winapi64::kernel32::guess_api_name(emu, addr);
     match apiname.as_str() {
         "MessageBoxA" => MessageBoxA(emu),
         "GetDesktopWindow" => GetDesktopWindow(emu),

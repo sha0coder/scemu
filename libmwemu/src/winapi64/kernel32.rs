@@ -1,4 +1,4 @@
-use crate::emu::Emu;
+use crate::emu;
 use crate::console;
 use crate::constants;
 use crate::peb64;
@@ -530,7 +530,7 @@ fn WinExec(emu: &mut emu::Emu) {
 }
 
 fn GetVersion(emu: &mut emu::Emu) {
-    emu.regs.rax = emu::constants::VERSION;
+    emu.regs.rax = constants::VERSION;
     log::info!(
         "{}** {} kernel32!GetVersion   =0x{:x}  {}",
         emu.colors.light_red,
@@ -551,7 +551,7 @@ fn GetVersionExW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let os_version_info = emu::structures::OsVersionInfo::new();
+    let os_version_info = structures::OsVersionInfo::new();
     os_version_info.save(version_info_ptr, &mut emu.maps);
 
     emu.regs.rax = 1;
@@ -568,7 +568,7 @@ fn GetVersionExA(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let os_version_info = emu::structures::OsVersionInfo::new();
+    let os_version_info = structures::OsVersionInfo::new();
     os_version_info.save(version_info_ptr, &mut emu.maps);
 
     emu.regs.rax = 1;
@@ -1438,7 +1438,7 @@ fn WaitForSingleObject(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.regs.rax = emu::constants::WAIT_TIMEOUT;
+    emu.regs.rax = constants::WAIT_TIMEOUT;
 }
 
 fn GetThreadContext(emu: &mut emu::Emu) {
@@ -2192,7 +2192,7 @@ fn GetSystemTime(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let systime = emu::structures::SystemTime::now();
+    let systime = structures::SystemTime::now();
     systime.save(out_time, &mut emu.maps);
 }
 
@@ -2296,7 +2296,7 @@ fn GetStartupInfoA(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     if startup_info_ptr > 0 {
-        let startupinfo = emu::structures::StartupInfo64::new();
+        let startupinfo = structures::StartupInfo64::new();
         startupinfo.save(startup_info_ptr, &mut emu.maps);
     }
 }
@@ -2311,7 +2311,7 @@ fn GetStartupInfoW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     if startup_info_ptr > 0 {
-        let startupinfo = emu::structures::StartupInfo64::new();
+        let startupinfo = structures::StartupInfo64::new();
         startupinfo.save(startup_info_ptr, &mut emu.maps);
     }
 }
@@ -2555,7 +2555,7 @@ fn GetSystemInfo(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let mut sysinfo = emu::structures::SystemInfo64::new();
+    let mut sysinfo = structures::SystemInfo64::new();
     sysinfo.save(out_sysinfo, &mut emu.maps);
 }
 
@@ -2710,7 +2710,7 @@ fn SystemTimeToFileTime(emu: &mut emu::Emu) {
 fn GetNativeSystemInfo(emu: &mut emu::Emu) {
     let ptr_sysinfo = emu.regs.rcx;
 
-    let mut sysinfo = emu::structures::SystemInfo32::new();
+    let mut sysinfo = structures::SystemInfo32::new();
     sysinfo.save(ptr_sysinfo, &mut emu.maps);
 
     log::info!(
