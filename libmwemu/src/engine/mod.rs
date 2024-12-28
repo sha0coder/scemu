@@ -306,7 +306,7 @@ pub fn emulate_instruction(
             }
         }
 
-        Mnemonic::Mov => {
+        Mnemonic::Mov | Mnemonic::Movnti => {
             emu.show_instruction(&emu.colors.light_cyan, ins);
 
             assert!(ins.op_count() == 2);
