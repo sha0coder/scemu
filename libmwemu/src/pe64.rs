@@ -5,6 +5,7 @@
  use crate::emu;
 use crate::pe32;
 use crate::pe32::PE32;
+use crate::winapi64;
 use std::fs::File;
 use std::io::Read;
 use std::str;
@@ -471,7 +472,7 @@ impl PE64 {
             if dld.name.is_empty() {
                 continue;
             }
-            if emu::winapi64::kernel32::load_library(emu, &dld.name) == 0 {
+            if winapi64::kernel32::load_library(emu, &dld.name) == 0 {
                 panic!("cannot found the library `{}` on maps64", &dld.name);
             }
 
@@ -495,7 +496,7 @@ impl PE64 {
                 let func_name = PE32::read_string(&self.raw, off2 + 2);
                 //log::info!("IAT: 0x{:x} {}!{}", addr, iim.name, func_name);
 
-                let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &func_name);
+                let real_addr = winapi64::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
                     break;
                 }
@@ -528,7 +529,7 @@ impl PE64 {
             if iim.name.is_empty() {
                 continue;
             }
-            if emu::winapi64::kernel32::load_library(emu, &iim.name) == 0 {
+            if winapi64::kernel32::load_library(emu, &iim.name) == 0 {
                 log::info!("cannot found the library {} on maps64/", &iim.name);
                 return;
             }
@@ -564,7 +565,7 @@ impl PE64 {
                 let name_off = PE32::vaddr_to_off(&self.sect_hdr, name_rva) as usize;
                 let api_name = PE32::read_string(&self.raw, name_off+2);
 
-                let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &api_name);
+                let real_addr = winapi64::kernel32::resolve_api_name(emu, &api_name);
                 if real_addr > 0 {
                     write_u64_le!(self.raw, off, real_addr); // patch the IAT to do the binding
                 }
@@ -603,7 +604,7 @@ impl PE64 {
                 flipflop = false;
                 let func_name = PE32::read_string(&self.raw, off2 + 2);
                 //println!("resolving func_name: {}", func_name);
-                let real_addr = emu::winapi64::kernel32::resolve_api_name(emu, &func_name);
+                let real_addr = winapi64::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
                     break;
                 }

@@ -11,7 +11,7 @@ mod winhttp;
 mod wininet;
 mod ws2_32;
 
-use crate::emu::Emu;
+use crate::emu;
 
 pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
     log::info!(

@@ -124,7 +124,7 @@ fn NtAllocateVirtualMemory(emu: &mut emu::Emu) {
         panic!("NtAllocateVirtualMemory: cannot write on address pointer");
     }
 
-    emu.regs.rax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 
     for _ in 0..6 {
         emu.stack_pop32(false);
@@ -203,7 +203,7 @@ fn NtQueryVirtualMemory(emu: &mut emu::Emu) {
         for _ in 0..6 {
             emu.stack_pop32(false);
         }
-        emu.regs.rax = emu::constants::STATUS_INVALID_PARAMETER;
+        emu.regs.rax = constants::STATUS_INVALID_PARAMETER;
         return;
     }
 
@@ -252,7 +252,7 @@ fn LdrLoadDll(emu: &mut emu::Emu) {
     for _ in 0..4 {
         emu.stack_pop32(false);
     }
-    emu.regs.rax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 }
 
 fn LdrLoadDll_gul(emu: &mut emu::Emu) {
@@ -315,7 +315,7 @@ fn LdrLoadDll_gul(emu: &mut emu::Emu) {
     let ebp = emu.stack_pop32(false).unwrap() as u64;
     emu.regs.set_ebp(ebp);
 
-    emu.regs.rax = emu::constants::STATUS_SUCCESS;
+    emu.regs.rax = constants::STATUS_SUCCESS;
 
     emu.maps.write_dword(emu.regs.get_ebp() + 0x168, 0x77570000);
     emu.regs.rip = 0x682e5e2;
@@ -1057,7 +1057,7 @@ fn RtlGetVersion(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let versioninfo = emu::structures::OsVersionInfo::new();
+    let versioninfo = structures::OsVersionInfo::new();
     versioninfo.save(versioninfo_ptr, &mut emu.maps);
 
     emu.stack_pop32(false);

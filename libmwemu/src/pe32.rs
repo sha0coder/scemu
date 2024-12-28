@@ -2,7 +2,7 @@
  * PE32 Structures and loader
  */
 
- use crate::emu;
+ use crate::{emu, winapi32};
 use std::fs::File;
 use std::io::Read;
 use std::str;
@@ -1036,7 +1036,7 @@ impl PE32 {
             if dld.name.is_empty() {
                 continue;
             }
-            if emu::winapi32::kernel32::load_library(emu, &dld.name) == 0 {
+            if winapi32::kernel32::load_library(emu, &dld.name) == 0 {
                 panic!("cannot found the library `{}` on maps64", &dld.name);
             }
 
@@ -1061,7 +1061,7 @@ impl PE32 {
                 let func_name = PE32::read_string(&self.raw, off2 + 2);
                 //log::info!("IAT: 0x{:x} {}!{}", addr, iim.name, func_name);
 
-                let real_addr = emu::winapi32::kernel32::resolve_api_name(emu, &func_name);
+                let real_addr = winapi32::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
                     break;
                 }
@@ -1099,7 +1099,7 @@ impl PE32 {
                 continue;
             }
 
-            if emu::winapi32::kernel32::load_library(emu, &iim.name) == 0 {
+            if winapi32::kernel32::load_library(emu, &iim.name) == 0 {
                 log::info!("cannot found the library `{}` on maps32/", &iim.name);
                 return;
             } else if dbg {
@@ -1129,7 +1129,7 @@ impl PE32 {
                     log::info!("0x{:x} {}!{}", addr, iim.name, func_name);
                 }
 
-                let real_addr = emu::winapi32::kernel32::resolve_api_name(emu, &func_name);
+                let real_addr = winapi32::kernel32::resolve_api_name(emu, &func_name);
                 if real_addr == 0 {
                     break;
                 }
