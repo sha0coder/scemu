@@ -1799,7 +1799,7 @@ impl Emu {
                     self.force_break = true;
                     return true;
                 } else {
-                    log::error!("/!\\ setting eip to non mapped addr 0x{:x}", addr);
+                    log::error!("/!\\ setting rip to non mapped addr 0x{:x}", addr);
                     self.exception();
                     return false;
                 }
