@@ -10,6 +10,7 @@ mod user32;
 mod winhttp;
 mod wininet;
 mod ws2_32;
+mod oleaut32;
 
 use crate::emu;
 
@@ -28,6 +29,7 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         "shell32.text" => shell32::gateway(addr, emu),
         "shlwapi.text" => shlwapi::gateway(addr, emu),
         "kernelbase.text" => kernelbase::gateway(addr, emu),
+        "oleaut32.text" => oleaut32::gateway(addr, emu),
         "not_loaded" => emu.pe64.as_ref().unwrap().import_addr_to_name(addr),
         _ => panic!("/!\\ trying to execute on {} at 0x{:x}", name, addr),
     };
