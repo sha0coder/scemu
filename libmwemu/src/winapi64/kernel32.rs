@@ -185,7 +185,6 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 lazy_static! {
     static ref COUNT_READ: Mutex<u32> = Mutex::new(0);
     static ref COUNT_WRITE: Mutex<u32> = Mutex::new(0);
-    pub static ref TICK: Mutex<u64> = Mutex::new(0);
     static ref LAST_ERROR: Mutex<u64> = Mutex::new(0);
 }
 
@@ -1108,8 +1107,7 @@ fn Sleep(emu: &mut emu::Emu) {
         millis,
         emu.colors.nc
     );
-    let mut tick = TICK.lock().unwrap();
-    *tick += millis;
+    emu.tick += millis as usize;
 }
 
 fn LocalAlloc(emu: &mut emu::Emu) {
@@ -1920,9 +1918,8 @@ fn GetTickCount(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    let tick = TICK.lock().unwrap();
     // TODO: increment the tick?
-    emu.regs.rax = *tick;
+    emu.regs.rax = emu.tick as u64;
 }
 
 fn InitializeCriticalSectionAndSpinCount(emu: &mut emu::Emu) {

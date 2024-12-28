@@ -200,7 +200,6 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 lazy_static! {
     static ref COUNT_READ: Mutex<u32> = Mutex::new(0);
     static ref COUNT_WRITE: Mutex<u32> = Mutex::new(0);
-    pub static ref TICK: Mutex<u32> = Mutex::new(0);
     static ref LAST_ERROR: Mutex<u32> = Mutex::new(0);
 }
 
@@ -2151,8 +2150,7 @@ fn GetTickCount(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    let tick = TICK.lock().unwrap();
-    emu.regs.rax = *tick as u64;
+    emu.regs.rax = emu.tick as u64;
 }
 
 fn QueryPerformanceCounter(emu: &mut emu::Emu) {
@@ -2433,8 +2431,8 @@ fn Sleep(emu: &mut emu::Emu) {
         millis,
         emu.colors.nc
     );
-    let mut tick = TICK.lock().unwrap();
-    *tick += millis;
+
+    emu.tick += millis as usize;
 
     emu.stack_pop32(false);
 }
