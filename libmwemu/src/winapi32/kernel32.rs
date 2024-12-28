@@ -3437,9 +3437,12 @@ fn GetCommandLineA(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    let cmdline = emu.alloc("cmdline", 1024);
-    emu.maps.write_string(cmdline, "test.exe");
-    emu.regs.rax = cmdline;
+
+    let addr = emu.maps.alloc(1024).expect("out of memory");
+    let name = format!("alloc_{:x}", addr);
+    emu.maps.create_map(&name, addr, 1024);
+    emu.maps.write_string(addr, "test.exe");
+    emu.regs.rax = addr;
 }
 
 fn GetCommandLineW(emu: &mut emu::Emu) {
@@ -3449,9 +3452,12 @@ fn GetCommandLineW(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    let cmdline = emu.alloc("cmdline", 1024);
-    emu.maps.write_wide_string(cmdline, "test.exe");
-    emu.regs.rax = cmdline;
+
+    let addr = emu.maps.alloc(1024).expect("out of memory");
+    let name = format!("alloc_{:x}", addr);
+    emu.maps.create_map(&name, addr, 1024);
+    emu.maps.write_wide_string(addr, "test.exe");
+    emu.regs.rax = addr;
 }
 
 fn GetAcp(emu: &mut emu::Emu) {
