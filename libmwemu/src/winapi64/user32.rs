@@ -8,7 +8,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetSystemMetrics" => GetSystemMetrics(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
-                unimplemented!("calling unimplemented user32 API 0x{:x} {}", addr, apiname);
+                unimplemented!("unimplemented user32 API 0x{:x} {}", addr, apiname);
             }
             log::warn!("calling unimplemented user32 API 0x{:x} {}", addr, apiname);
             return apiname;
