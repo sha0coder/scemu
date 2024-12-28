@@ -7,7 +7,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetDesktopWindow" => GetDesktopWindow(emu),
         "GetSystemMetrics" => GetSystemMetrics(emu),
         _ => {
-            panic!("unimplemented user32 API 0x{:x} {}", addr, apiname);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("unimplemented user32 API 0x{:x} {}", addr, apiname);
+            }
+            log::warn!("calling unimplemented user32 API 0x{:x} {}", addr, apiname);
+            return apiname;
         }
     }
     String::new()

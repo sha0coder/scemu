@@ -443,8 +443,7 @@ fn NtGetTickCount(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    let tick = kernel32::TICK.lock().unwrap();
-    emu.regs.rax = *tick as u64;
+    emu.regs.rax = emu.tick as u64;
 }
 
 fn NtQueryPerformanceCounter(emu: &mut emu::Emu) {

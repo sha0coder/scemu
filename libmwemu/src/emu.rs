@@ -91,6 +91,7 @@ pub struct Emu {
     pub pe64: Option<PE64>,
     pub pe32: Option<PE32>,
     pub rep: Option<u64>,
+    pub tick: usize,
 }
 
 impl Default for Emu {
@@ -153,6 +154,7 @@ impl Emu {
             decoder_position: 0,
             memory_operations: vec![],
             rep: None,
+            tick: 0,
         }
     }
 
