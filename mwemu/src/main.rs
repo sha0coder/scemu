@@ -353,7 +353,7 @@ fn main() {
     // script
     if matches.is_present("script") {
         emu.disable_ctrlc();
-        let mut script = libmwemu::emu::script::Script::new();
+        let mut script = libmwemu::script::Script::new();
         script.load(
             matches
                 .value_of("script")
