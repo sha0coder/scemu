@@ -10,6 +10,17 @@ use crate::emu::context64;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+macro_rules! log_red {
+    ($emu:expr, $($arg:tt)*) => {
+        log::info!(
+            "{}{}{}",
+            $emu.colors.light_red,
+            format!($($arg)*),
+            $emu.colors.nc
+        );
+    };
+}
+
 // a in RCX, b in RDX, c in R8, d in R9, then e pushed on stack
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -137,14 +148,19 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "lstrcpy" => lstrcpy(emu),
         "GetModuleHandleA" => GetModuleHandleA(emu),
         "GetModuleHandleW" => GetModuleHandleW(emu),
+        "TlsAlloc" => TlsAlloc(emu),
+        "TlsSetValue" => TlsSetValue(emu),
+        "TlsGetValue" => TlsGetValue(emu),
+        "TlsFree" => TlsFree(emu),
+        "GetACP" => GetACP(emu),
+        "GetStdHandle" => GetStdHandle(emu),
 
         _ => {
-            log::info!(
+            unimplemented!(
                 "calling unimplemented kernel32 64bits API 0x{:x} {}",
                 addr,
                 api
             );
-            return api;
         }
     }
 
@@ -2831,4 +2847,126 @@ fn GetModuleHandleW(emu: &mut emu::Emu) {
         module_name,
         emu.colors.nc
     );
+}
+
+/*
+DWORD TlsAlloc();
+*/
+fn TlsAlloc(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!TlsAlloc {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+
+    emu.tls64.push(0);
+    emu.regs.rax = (emu.tls64.len() - 1) as u64;  // Return index of newly allocated slot
+}
+
+/* 
+BOOL TlsFree(
+  [in] DWORD dwTlsIndex
+);
+*/
+fn TlsFree(emu: &mut emu::Emu) {
+    let idx = emu.regs.rcx as usize;  // First parameter passed in RCX in x64
+
+    log::info!(
+        "{}** {} kernel32!TlsFree idx: {} {}",
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        emu.colors.nc
+    );
+
+    if idx < emu.tls64.len() {
+        emu.tls64[idx] = 0;  // Clear the slot
+        emu.regs.rax = 1;    // Return TRUE
+    } else {
+        emu.regs.rax = 0;    // Return FALSE if invalid index
+    }
+}
+
+/*
+BOOL TlsSetValue(
+  [in]           DWORD  dwTlsIndex,
+  [in, optional] LPVOID lpTlsValue
+);
+*/
+fn TlsSetValue(emu: &mut emu::Emu) {
+    let idx = emu.regs.rcx as usize;     // First parameter in RCX
+    let val = emu.regs.rdx;              // Second parameter in RDX
+
+    log::info!(
+        "{}** {} kernel32!TlsSetValue idx: {} val: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        val,
+        emu.colors.nc
+    );
+
+    if idx < emu.tls64.len() {
+        emu.tls64[idx] = val;
+    } else {
+        // Expand TLS array if needed
+        while emu.tls64.len() <= idx {
+            emu.tls64.push(0);
+        }
+        emu.tls64[idx] = val;
+    }
+
+    emu.regs.rax = 1;  // Return TRUE
+}
+
+/*
+DWORD TlsGetValue(
+  [in] DWORD dwTlsIndex
+);
+*/
+fn TlsGetValue(emu: &mut emu::Emu) {
+    let idx = emu.regs.rcx as usize;  // Parameter passed in RCX in x64
+
+    let val = if idx < emu.tls64.len() {
+        emu.tls64[idx]
+    } else {
+        0
+    };
+
+    emu.regs.rax = val;
+
+    log_red!(emu, "** {} kernel32!TlsGetValue idx: {} =0x{:x}", 
+        emu.pos,
+        idx,
+        val
+    );
+}
+
+/*
+UINT GetACP();
+*/
+// TODO: there is GetAcp and GetACP?
+fn GetACP(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetACP {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    emu.regs.rax = 0x00000409;
+}
+
+/*
+HANDLE GetStdHandle(
+  [in] DWORD nStdHandle
+);
+*/
+fn GetStdHandle(emu: &mut emu::Emu) {
+    let nstd = emu.regs.rcx as usize;  // Parameter passed in RCX in x64    
+    log_red!(emu, "** {} kernel32!GetStdHandle nstd: {}", 
+        emu.pos,
+        nstd
+    );
+    emu.regs.rax = nstd as u64;
 }
