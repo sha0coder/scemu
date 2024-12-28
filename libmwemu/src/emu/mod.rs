@@ -4839,7 +4839,7 @@ impl Emu {
                         if self.cfg.console_enabled {
                             self.spawn_console();
                         } else {
-                            return Err(MwemuError::new("emulation error"));
+                            return Err(MwemuError::new(&format!("emulation error at pos = 0x:{:x} rip = 0x{:x}", self.pos, self.regs.rip)));
                         }
                     }
 

@@ -14,7 +14,7 @@ emu.load_binary(os.path.join(os.path.expanduser('~'), 'Desktop', 'enigma', 'surp
 
 emu.set_verbose(0)
 emu.set_reg('rdx', 1)
-emu.spawn_console_at_pos(227871000)
+#emu.spawn_console_at_pos(227871000)
 try:
     emu.run()
 except Exception as e:
