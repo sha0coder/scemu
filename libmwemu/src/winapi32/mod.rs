@@ -19,12 +19,6 @@ mod ws2_32;
 use crate::emu;
 
 pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
-    log::info!(
-        "winapi32::gateway called with addr: 0x{:x}, name: {}",
-        addr,
-        name
-    );
-
     emu.regs.sanitize32();
     let unimplemented_api = match name.as_str() {
         "kernel32.text" => kernel32::gateway(addr, emu),

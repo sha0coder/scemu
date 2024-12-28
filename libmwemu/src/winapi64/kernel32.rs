@@ -520,9 +520,7 @@ fn GetProcAddress(emu: &mut emu::Emu) {
         }
     }
     emu.regs.rax = 0;
-    if emu.cfg.verbose >= 1 {
-        log::info!("kernel32!GetProcAddress error searching {}", func);
-    }
+    log::warn!("kernel32!GetProcAddress error searching {}", func);
 }
 
 fn WinExec(emu: &mut emu::Emu) {

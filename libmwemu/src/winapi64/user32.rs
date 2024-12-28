@@ -5,10 +5,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     match apiname.as_str() {
         "MessageBoxA" => MessageBoxA(emu),
         "GetDesktopWindow" => GetDesktopWindow(emu),
-
+        "GetSystemMetrics" => GetSystemMetrics(emu),
         _ => {
-            log::info!("calling unimplemented user32 API 0x{:x} {}", addr, apiname);
-            return apiname;
+            panic!("unimplemented user32 API 0x{:x} {}", addr, apiname);
         }
     }
     String::new()
@@ -42,3 +41,23 @@ fn GetDesktopWindow(emu: &mut emu::Emu) {
     //emu.regs.rax = 0x11223344; // current window handle
     emu.regs.rax = 0; // no windows handler is more stealthy
 }
+
+/*
+int GetSystemMetrics(
+  [in] int nIndex
+);
+*/
+fn GetSystemMetrics(emu: &mut emu::Emu) {
+    let nindex = emu.regs.rcx as usize;
+    log::info!(
+        "{}** {} user32!GetSystemMetrics nindex: {}{}",
+        emu.colors.light_red,
+        emu.pos,
+        nindex,
+        emu.colors.nc
+    );
+    // TODO: do something
+    emu.regs.rax = 0;
+}
+
+
