@@ -153,6 +153,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "TlsGetValue" => TlsGetValue(emu),
         "TlsFree" => TlsFree(emu),
         "GetACP" => GetACP(emu),
+        "GetStdHandle" => GetStdHandle(emu),
 
         _ => {
             unimplemented!(
@@ -2954,4 +2955,18 @@ fn GetACP(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     emu.regs.rax = 0x00000409;
+}
+
+/*
+HANDLE GetStdHandle(
+  [in] DWORD nStdHandle
+);
+*/
+fn GetStdHandle(emu: &mut emu::Emu) {
+    let nstd = emu.regs.rcx as usize;  // Parameter passed in RCX in x64    
+    log_red!(emu, "** {} kernel32!GetStdHandle nstd: {}", 
+        emu.pos,
+        nstd
+    );
+    emu.regs.rax = nstd as u64;
 }
