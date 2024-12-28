@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::emu::constants;
+use crate::emu::console::Console;
 //use crate::emu::endpoint;
 use crate::emu::winapi32::helper;
 
@@ -37,7 +38,7 @@ pub fn gateway(emu: &mut emu::Emu) {
                 emu.pos,
                 emu.colors.nc
             );
-            emu.spawn_console();
+            Console::spawn_console(emu);
         }
 
         3 => {

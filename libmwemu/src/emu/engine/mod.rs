@@ -8,6 +8,7 @@ use crate::emu::inline;
 use crate::emu::syscall32;
 use crate::emu::syscall64;
 use crate::emu::ntapi32;
+use crate::emu::console::Console;
 
 pub fn emulate_instruction(
     emu: &mut Emu,
@@ -198,7 +199,7 @@ pub fn emulate_instruction(
 
             if emu.break_on_next_return {
                 emu.break_on_next_return = false;
-                emu.spawn_console();
+                Console::spawn_console(emu);
             }
 
             if ins.op_count() > 0 {
@@ -2947,7 +2948,7 @@ pub fn emulate_instruction(
             assert!(ins.op_count() == 2);
 
             if emu.break_on_next_cmp {
-                emu.spawn_console();
+                Console::spawn_console(emu);
                 emu.break_on_next_cmp = false;
             }
 
@@ -3077,7 +3078,7 @@ pub fn emulate_instruction(
             }
 
             if emu.break_on_next_cmp {
-                emu.spawn_console();
+                Console::spawn_console(emu);
                 emu.break_on_next_cmp = false;
 
                 let value0 = match emu.get_operand_value(ins, 0, true) {
@@ -4311,7 +4312,7 @@ pub fn emulate_instruction(
                     Some(v) => v,
                     None => {
                         log::info!("lodsb: memory read error");
-                        emu.spawn_console();
+                        Console::spawn_console(emu);
                         0
                     }
                 };
@@ -4327,7 +4328,7 @@ pub fn emulate_instruction(
                     Some(v) => v,
                     None => {
                         log::info!("lodsb: memory read error");
-                        emu.spawn_console();
+                        Console::spawn_console(emu);
                         0
                     }
                 };
@@ -8567,7 +8568,7 @@ pub fn emulate_instruction(
             if !emu.cfg.skip_unimplemented {
                 log::info!("unimplemented or invalid instruction. use --banzai (cfg.skip_unimplemented) mode to skip");
                 if emu.cfg.console_enabled {
-                    emu.spawn_console();
+                    Console::spawn_console(emu);
                 }
                 return false;
                 //unimplemented!("unimplemented instruction");

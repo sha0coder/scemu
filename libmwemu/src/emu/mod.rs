@@ -597,7 +597,7 @@ impl Emu {
             log::info!("memory test Ok.");
         } else {
             log::error!("It doesn't pass the memory tests!!");
-            self.spawn_console();
+            Console::spawn_console(self);
             std::process::exit(1);
         }
     }
@@ -1167,7 +1167,7 @@ impl Emu {
                         "/!\\ pushing stack outside maps esp: 0x{:x}",
                         self.regs.get_esp()
                     );
-                    self.spawn_console();
+                    Console::spawn_console(self);
                     return false;
                 }
             };
@@ -1223,7 +1223,7 @@ impl Emu {
                         "pushing stack outside maps rsp: 0x{:x}",
                         self.regs.get_esp()
                     );
-                    self.spawn_console();
+                    Console::spawn_console(self);
                     return false;
                 }
             };
@@ -1272,7 +1272,7 @@ impl Emu {
                     "poping stack outside map  esp: 0x{:x}",
                     self.regs.get_esp() as u32
                 );
-                self.spawn_console();
+                Console::spawn_console(self);
                 return None;
             }
         };*/
@@ -1358,7 +1358,7 @@ impl Emu {
             Some(m) => m,
             None => {
                 log::info!("poping stack outside map  esp: 0x{:x}", self.regs.rsp);
-                self.spawn_console();
+                Console::spawn_console(self);
                 return None;
             }
         };
@@ -1782,7 +1782,7 @@ impl Emu {
         if addr == constants::RETURN_THREAD.into() {
             log::info!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
-            self.spawn_console();
+            Console::spawn_console(self);
             self.force_break = true;
             return true;
         }
@@ -1867,7 +1867,7 @@ impl Emu {
         if addr == constants::RETURN_THREAD.into() {
             log::info!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
-            self.spawn_console();
+            Console::spawn_console(self);
             self.force_break = true;
             return true;
         }
@@ -1923,802 +1923,6 @@ impl Emu {
 
         true
     }
-
-    pub fn spawn_console(&mut self) {
-        if !self.cfg.console_enabled {
-            return;
-        }
-
-        let con = Console::new();
-        if self.pos > 0 {
-            self.pos -= 1;
-        }
-        loop {
-            let cmd = con.cmd();
-            match cmd.as_str() {
-                "q" => std::process::exit(1),
-                "h" => con.help(),
-                "r" => {
-                    if self.cfg.is_64bits {
-                        self.featured_regs64();
-                    } else {
-                        self.featured_regs32();
-                    }
-                }
-                "r rax" => self.regs.show_rax(&self.maps, 0),
-                "r rbx" => self.regs.show_rbx(&self.maps, 0),
-                "r rcx" => self.regs.show_rcx(&self.maps, 0),
-                "r rdx" => self.regs.show_rdx(&self.maps, 0),
-                "r rsi" => self.regs.show_rsi(&self.maps, 0),
-                "r rdi" => self.regs.show_rdi(&self.maps, 0),
-                "r rbp" => log::info!("\trbp: 0x{:x}", self.regs.rbp),
-                "r rsp" => log::info!("\trsp: 0x{:x}", self.regs.rsp),
-                "r rip" => log::info!("\trip: 0x{:x}", self.regs.rip),
-                "r eax" => self.regs.show_eax(&self.maps, 0),
-                "r ebx" => self.regs.show_ebx(&self.maps, 0),
-                "r ecx" => self.regs.show_ecx(&self.maps, 0),
-                "r edx" => self.regs.show_edx(&self.maps, 0),
-                "r esi" => self.regs.show_esi(&self.maps, 0),
-                "r edi" => self.regs.show_edi(&self.maps, 0),
-                "r esp" => log::info!("\tesp: 0x{:x}", self.regs.get_esp() as u32),
-                "r ebp" => log::info!("\tebp: 0x{:x}", self.regs.get_ebp() as u32),
-                "r eip" => log::info!("\teip: 0x{:x}", self.regs.get_eip() as u32),
-                "r r8" => self.regs.show_r8(&self.maps, 0),
-                "r r9" => self.regs.show_r9(&self.maps, 0),
-                "r r10" => self.regs.show_r10(&self.maps, 0),
-                "r r11" => self.regs.show_r11(&self.maps, 0),
-                "r r12" => self.regs.show_r12(&self.maps, 0),
-                "r r13" => self.regs.show_r13(&self.maps, 0),
-                "r r14" => self.regs.show_r14(&self.maps, 0),
-                "r r15" => self.regs.show_r15(&self.maps, 0),
-                "r r8d" => self.regs.show_r8d(&self.maps, 0),
-                "r r9d" => self.regs.show_r9d(&self.maps, 0),
-                "r r10d" => self.regs.show_r10d(&self.maps, 0),
-                "r r11d" => self.regs.show_r11d(&self.maps, 0),
-                "r r12d" => self.regs.show_r12d(&self.maps, 0),
-                "r r13d" => self.regs.show_r13d(&self.maps, 0),
-                "r r14d" => self.regs.show_r14d(&self.maps, 0),
-                "r r15d" => self.regs.show_r15d(&self.maps, 0),
-                "r r8w" => self.regs.show_r8w(&self.maps, 0),
-                "r r9w" => self.regs.show_r9w(&self.maps, 0),
-                "r r10w" => self.regs.show_r10w(&self.maps, 0),
-                "r r11w" => self.regs.show_r11w(&self.maps, 0),
-                "r r12w" => self.regs.show_r12w(&self.maps, 0),
-                "r r13w" => self.regs.show_r13w(&self.maps, 0),
-                "r r14w" => self.regs.show_r14w(&self.maps, 0),
-                "r r15w" => self.regs.show_r15w(&self.maps, 0),
-                "r r8l" => self.regs.show_r8l(&self.maps, 0),
-                "r r9l" => self.regs.show_r9l(&self.maps, 0),
-                "r r10l" => self.regs.show_r10l(&self.maps, 0),
-                "r r11l" => self.regs.show_r11l(&self.maps, 0),
-                "r r12l" => self.regs.show_r12l(&self.maps, 0),
-                "r r13l" => self.regs.show_r13l(&self.maps, 0),
-                "r r14l" => self.regs.show_r14l(&self.maps, 0),
-                "r r15l" => self.regs.show_r15l(&self.maps, 0),
-                "r xmm0" => log::info!("\txmm0: 0x{:x}", self.regs.xmm0),
-                "r xmm1" => log::info!("\txmm1: 0x{:x}", self.regs.xmm1),
-                "r xmm2" => log::info!("\txmm2: 0x{:x}", self.regs.xmm2),
-                "r xmm3" => log::info!("\txmm3: 0x{:x}", self.regs.xmm3),
-                "r xmm4" => log::info!("\txmm4: 0x{:x}", self.regs.xmm4),
-                "r xmm5" => log::info!("\txmm5: 0x{:x}", self.regs.xmm5),
-                "r xmm6" => log::info!("\txmm6: 0x{:x}", self.regs.xmm6),
-                "r xmm7" => log::info!("\txmm7: 0x{:x}", self.regs.xmm7),
-                "r xmm8" => log::info!("\txmm8: 0x{:x}", self.regs.xmm8),
-                "r xmm9" => log::info!("\txmm9: 0x{:x}", self.regs.xmm9),
-                "r xmm10" => log::info!("\txmm10: 0x{:x}", self.regs.xmm10),
-                "r xmm11" => log::info!("\txmm11: 0x{:x}", self.regs.xmm11),
-                "r xmm12" => log::info!("\txmm12: 0x{:x}", self.regs.xmm12),
-                "r xmm13" => log::info!("\txmm13: 0x{:x}", self.regs.xmm13),
-                "r xmm14" => log::info!("\txmm14: 0x{:x}", self.regs.xmm14),
-                "r xmm15" => log::info!("\txmm15: 0x{:x}", self.regs.xmm15),
-                "r ymm0" => log::info!("\tymm0: 0x{:x}", self.regs.ymm0),
-                "r ymm1" => log::info!("\tymm1: 0x{:x}", self.regs.ymm1),
-                "r ymm2" => log::info!("\tymm2: 0x{:x}", self.regs.ymm2),
-                "r ymm3" => log::info!("\tymm3: 0x{:x}", self.regs.ymm3),
-                "r ymm4" => log::info!("\tymm4: 0x{:x}", self.regs.ymm4),
-                "r ymm5" => log::info!("\tymm5: 0x{:x}", self.regs.ymm5),
-                "r ymm6" => log::info!("\tymm6: 0x{:x}", self.regs.ymm6),
-                "r ymm7" => log::info!("\tymm7: 0x{:x}", self.regs.ymm7),
-                "r ymm8" => log::info!("\tymm8: 0x{:x}", self.regs.ymm8),
-                "r ymm9" => log::info!("\tymm9: 0x{:x}", self.regs.ymm9),
-                "r ymm10" => log::info!("\tymm10: 0x{:x}", self.regs.ymm10),
-                "r ymm11" => log::info!("\tymm11: 0x{:x}", self.regs.ymm11),
-                "r ymm12" => log::info!("\tymm12: 0x{:x}", self.regs.ymm12),
-                "r ymm13" => log::info!("\tymm13: 0x{:x}", self.regs.ymm13),
-                "r ymm14" => log::info!("\tymm14: 0x{:x}", self.regs.ymm14),
-                "r ymm15" => log::info!("\tymm15: 0x{:x}", self.regs.ymm15),
-
-                "rc" => {
-                    con.print("register name");
-                    let reg = con.cmd();
-                    con.print("value");
-                    let value = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    self.regs.set_by_name(reg.as_str(), value);
-                }
-                "mr" | "rm" => {
-                    con.print("memory argument");
-                    let operand = con.cmd();
-                    let addr: u64 = self.memory_operand_to_address(operand.as_str());
-                    let value = match self.memory_read(operand.as_str()) {
-                        Some(v) => v,
-                        None => {
-                            log::info!("bad address.");
-                            continue;
-                        }
-                    };
-                    log::info!("0x{:x}: 0x{:x}", to32!(addr), value);
-                }
-                "mw" | "wm" => {
-                    con.print("memory argument");
-                    let operand = con.cmd();
-                    con.print("value");
-                    let value = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    if self.memory_write(operand.as_str(), value) {
-                        log::info!("done.");
-                    } else {
-                        log::info!("cannot write there.");
-                    }
-                }
-                "mwb" => {
-                    con.print("addr");
-                    let addr = match con.cmd_hex64() {
-                        Ok(a) => a,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    con.print("spaced bytes");
-                    let bytes = con.cmd();
-                    self.maps.write_spaced_bytes(addr, &bytes);
-                    log::info!("done.");
-                }
-                "b" => {
-                    self.bp.show();
-                }
-                "ba" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.bp.set_bp(addr);
-                }
-                "bmr" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.bp.set_mem_read(addr);
-                }
-                "bmw" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.bp.set_mem_write(addr);
-                }
-                "bi" => {
-                    con.print("instruction number");
-                    let num = match con.cmd_num() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad instruction number.");
-                            continue;
-                        }
-                    };
-                    self.bp.set_instruction(num);
-                    self.exp = num;
-                }
-                "bc" => {
-                    self.bp.clear_bp();
-                    self.exp = self.pos + 1;
-                }
-                "bcmp" => {
-                    self.break_on_next_cmp = true;
-                }
-                "cls" => log::info!("{}", self.colors.clear_screen),
-                "s" => {
-                    if self.cfg.is_64bits {
-                        self.maps.dump_qwords(self.regs.rsp, 10);
-                    } else {
-                        self.maps.dump_dwords(self.regs.get_esp(), 10);
-                    }
-                }
-                "v" => {
-                    if self.cfg.is_64bits {
-                        self.maps.dump_qwords(self.regs.rbp - 0x100, 100);
-                    } else {
-                        self.maps.dump_dwords(self.regs.get_ebp() - 0x100, 100);
-                    }
-                    self.maps
-                        .get_mem("stack")
-                        .print_dwords_from_to(self.regs.get_ebp(), self.regs.get_ebp() + 0x100);
-                }
-                "sv" => {
-                    con.print("verbose level");
-                    self.cfg.verbose = match con.cmd_num() {
-                        Ok(v) => to32!(v),
-                        Err(_) => {
-                            log::info!("incorrect verbose level, set 0, 1 or 2");
-                            continue;
-                        }
-                    };
-                }
-                "tr" => {
-                    con.print("register");
-                    let reg = con.cmd();
-                    self.cfg.trace_reg = true;
-                    self.cfg.reg_names.push(reg);
-                }
-                "trc" => {
-                    self.cfg.trace_reg = false;
-                    self.cfg.reg_names.clear();
-                }
-                "pos" => {
-                    log::info!("pos = 0x{:x}", self.pos);
-                }
-                "c" => {
-                    self.is_running.store(1, atomic::Ordering::Relaxed);
-                    return;
-                }
-                "cr" => {
-                    self.break_on_next_return = true;
-                    self.is_running.store(1, atomic::Ordering::Relaxed);
-                    return;
-                }
-                "f" => self.flags.print(),
-                "fc" => self.flags.clear(),
-                "fz" => self.flags.f_zf = !self.flags.f_zf,
-                "fs" => self.flags.f_sf = !self.flags.f_sf,
-                "mc" => {
-                    con.print("name ");
-                    let name = con.cmd();
-                    con.print("size ");
-                    let sz = match con.cmd_num() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad size.");
-                            continue;
-                        }
-                    };
-
-                    let addr = match self.maps.alloc(sz) {
-                        Some(a) => a,
-                        None => {
-                            log::info!("memory full");
-                            continue;
-                        }
-                    };
-                    self.maps
-                        .create_map(&name, addr, sz)
-                        .expect("cannot create map from console mc");
-                    log::info!("allocated {} at 0x{:x} sz: {}", name, addr, sz);
-                }
-                "mca" => {
-                    con.print("name ");
-                    let name = con.cmd();
-                    con.print("address ");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad size.");
-                            continue;
-                        }
-                    };
-
-                    con.print("size ");
-                    let sz = match con.cmd_num() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad size.");
-                            continue;
-                        }
-                    };
-
-                    self.maps
-                        .create_map(&name, addr, sz)
-                        .expect("cannot create map from console mca");
-                    log::info!("allocated {} at 0x{:x} sz: {}", name, addr, sz);
-                }
-                "ml" => {
-                    con.print("map name");
-                    let name = con.cmd();
-                    con.print("filename");
-                    let filename = con.cmd();
-                    self.maps.get_mem(name.as_str()).load(filename.as_str());
-                }
-                "mn" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.maps.show_addr_names(addr);
-                    let name = match self.maps.get_addr_name(addr) {
-                        Some(n) => n,
-                        None => {
-                            if !self.cfg.skip_unimplemented {
-                                log::info!("address not found on any map");
-                                continue;
-                            }
-
-                            "code".to_string()
-                        }
-                    };
-
-                    let mem = self.maps.get_mem(name.as_str());
-                    if self.cfg.is_64bits {
-                        log::info!(
-                            "map: {} 0x{:x}-0x{:x} ({})",
-                            name,
-                            mem.get_base(),
-                            mem.get_bottom(),
-                            mem.size()
-                        );
-                    } else {
-                        log::info!(
-                            "map: {} 0x{:x}-0x{:x} ({})",
-                            name,
-                            to32!(mem.get_base()),
-                            to32!(mem.get_bottom()),
-                            mem.size()
-                        );
-                    }
-                }
-                "ma" => {
-                    self.maps.show_allocs();
-                }
-                "md" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.maps.dump(addr);
-                }
-                "mrd" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.maps.dump_dwords(addr, 10);
-                }
-                "mrq" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    self.maps.dump_qwords(addr, 10);
-                }
-                "mds" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    if self.cfg.is_64bits {
-                        log::info!("0x{:x}: '{}'", addr, self.maps.read_string(addr));
-                    } else {
-                        log::info!("0x{:x}: '{}'", to32!(addr), self.maps.read_string(addr));
-                    }
-                }
-                "mdw" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    if self.cfg.is_64bits {
-                        log::info!("0x{:x}: '{}'", addr, self.maps.read_wide_string(addr));
-                    } else {
-                        log::info!(
-                            "0x{:x}: '{}'",
-                            to32!(addr),
-                            self.maps.read_wide_string(addr)
-                        );
-                    }
-                }
-                "mdd" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-                    con.print("size");
-                    let sz = match con.cmd_num() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad numeric decimal value.");
-                            continue;
-                        }
-                    };
-                    if sz > 0 {
-                        con.print("file");
-                        let filename = con.cmd();
-                        self.maps.save(addr, sz, filename);
-                    }
-                }
-                "mdda" => {
-                    con.print("path:");
-                    let path = con.cmd2();
-                    self.maps.save_all_allocs(path);
-                }
-                "mt" => {
-                    if self.maps.mem_test() {
-                        log::info!("mem test passed ok.");
-                    } else {
-                        log::info!("memory errors.");
-                    }
-                }
-                "eip" => {
-                    con.print("=");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    //self.force_break = true;
-                    //self.regs.set_eip(addr);
-                    self.set_eip(addr, false);
-                }
-                "rip" => {
-                    con.print("=");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    //self.force_break = true;
-                    //self.regs.rip = addr;
-                }
-                "push" => {
-                    con.print("value");
-                    if self.cfg.is_64bits {
-                        let value = match con.cmd_hex64() {
-                            Ok(v) => v,
-                            Err(_) => {
-                                log::info!("bad hex value");
-                                continue;
-                            }
-                        };
-                        self.stack_push64(value);
-                    } else {
-                        let value = match con.cmd_hex32() {
-                            Ok(v) => v,
-                            Err(_) => {
-                                log::info!("bad hex value");
-                                continue;
-                            }
-                        };
-                        self.stack_push32(value);
-                    }
-                    log::info!("pushed.");
-                }
-                "pop" => {
-                    if self.cfg.is_64bits {
-                        let value = self.stack_pop64(false).unwrap_or(0);
-                        log::info!("poped value 0x{:x}", value);
-                    } else {
-                        let value = self.stack_pop32(false).unwrap_or(0);
-                        log::info!("poped value 0x{:x}", value);
-                    }
-                }
-                "fpu" => {
-                    self.fpu.print();
-                }
-                "md5" => {
-                    con.print("map name");
-                    let mem_name = con.cmd();
-                    let mem = self.maps.get_mem(&mem_name);
-                    let md5 = mem.md5();
-                    log::info!("md5sum: {:x}", md5);
-                }
-                "ss" => {
-                    con.print("map name");
-                    let mem_name = con.cmd();
-                    con.print("string");
-                    let kw = con.cmd2();
-                    let result = match self.maps.search_string(&kw, &mem_name) {
-                        Some(v) => v,
-                        None => {
-                            log::info!("not found.");
-                            continue;
-                        }
-                    };
-                    for addr in result.iter() {
-                        if self.cfg.is_64bits {
-                            log::info!("found 0x{:x} '{}'", *addr, self.maps.read_string(*addr));
-                        } else {
-                            log::info!(
-                                "found 0x{:x} '{}'",
-                                *addr as u32,
-                                self.maps.read_string(*addr)
-                            );
-                        }
-                    }
-                }
-                "sb" => {
-                    con.print("map name");
-                    let mem_name = con.cmd();
-                    con.print("spaced bytes");
-                    let sbs = con.cmd();
-                    let results = self.maps.search_spaced_bytes(&sbs, &mem_name);
-                    if results.is_empty() {
-                        log::info!("not found.");
-                    } else if self.cfg.is_64bits {
-                        for addr in results.iter() {
-                            log::info!("found at 0x{:x}", addr);
-                        }
-                    } else {
-                        for addr in results.iter() {
-                            log::info!("found at 0x{:x}", to32!(addr));
-                        }
-                    }
-                }
-                "sba" => {
-                    con.print("spaced bytes");
-                    let sbs = con.cmd();
-                    let results = self.maps.search_spaced_bytes_in_all(&sbs);
-                    if results.is_empty() {
-                        log::info!("not found.");
-                    } else if self.cfg.is_64bits {
-                        for addr in results.iter() {
-                            log::info!("found at 0x{:x}", addr);
-                        }
-                    } else {
-                        for addr in results.iter() {
-                            log::info!("found at 0x{:x}", to32!(addr));
-                        }
-                    }
-                }
-                "ssa" => {
-                    con.print("string");
-                    let kw = con.cmd2();
-                    self.maps.search_string_in_all(kw);
-                }
-                "seh" => {
-                    log::info!("0x{:x}", self.seh);
-                }
-                "veh" => {
-                    log::info!("0x{:x}", self.veh);
-                }
-                "ll" => {
-                    con.print("ptr");
-                    let ptr1 = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    let mut ptr = ptr1;
-                    loop {
-                        log::info!("- 0x{:x}", ptr);
-                        ptr = match self.maps.read_dword(ptr) {
-                            Some(v) => v.into(),
-                            None => break,
-                        };
-                        if ptr == 0 || ptr == ptr1 {
-                            break;
-                        }
-                    }
-                }
-                "n" | "" => {
-                    //self.exp = self.pos + 1;
-                    let prev_verbose = self.cfg.verbose;
-                    self.cfg.verbose = 3;
-                    self.step();
-                    self.cfg.verbose = prev_verbose;
-                    //return;
-                }
-                "m" => self.maps.print_maps(),
-                "ms" => {
-                    con.print("keyword");
-                    let kw = con.cmd2();
-                    self.maps.print_maps_keyword(&kw);
-                }
-                "d" => {
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-                    log::info!("{}", self.disassemble(addr, 10));
-                }
-                "ldr" => {
-                    if self.cfg.is_64bits {
-                        peb64::show_linked_modules(self);
-                    } else {
-                        peb32::show_linked_modules(self);
-                    }
-                }
-                "iat" => {
-                    con.print("api keyword");
-                    let kw = con.cmd2();
-                    let addr: u64;
-                    let lib: String;
-                    let name: String;
-
-                    if self.cfg.is_64bits {
-                        (addr, lib, name) = winapi64::kernel32::search_api_name(self, &kw);
-                    } else {
-                        (addr, lib, name) = winapi32::kernel32::search_api_name(self, &kw);
-                    }
-
-                    if addr == 0 {
-                        log::info!("api not found");
-                    } else {
-                        log::info!("found: 0x{:x} {}!{}", addr, lib, name);
-                    }
-                }
-                "iatx" => {
-                    // addr to name
-                    con.print("api addr");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value.");
-                            continue;
-                        }
-                    };
-
-                    let name: String = if self.cfg.is_64bits {
-                        winapi64::kernel32::resolve_api_addr_to_name(self, addr)
-                    } else {
-                        winapi32::kernel32::resolve_api_addr_to_name(self, addr)
-                    };
-
-                    if name.is_empty() {
-                        log::info!("api addr not found");
-                    } else {
-                        log::info!("found: 0x{:x} {}", addr, name);
-                    }
-                }
-                "iatd" => {
-                    con.print("module");
-                    let lib = con.cmd2().to_lowercase();
-                    if self.cfg.is_64bits {
-                        winapi64::kernel32::dump_module_iat(self, &lib);
-                    } else {
-                        winapi32::kernel32::dump_module_iat(self, &lib);
-                    }
-                }
-                "dt" => {
-                    con.print("structure");
-                    let struc = con.cmd();
-                    con.print("address");
-                    let addr = match con.cmd_hex64() {
-                        Ok(v) => v,
-                        Err(_) => {
-                            log::info!("bad hex value");
-                            continue;
-                        }
-                    };
-
-                    match struc.as_str() {
-                        "peb" => {
-                            let s = structures::PEB::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "teb" => {
-                            let s = structures::TEB::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "peb_ldr_data" => {
-                            let s = structures::PebLdrData::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "ldr_data_table_entry" => {
-                            let s = structures::LdrDataTableEntry::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "list_entry" => {
-                            let s = structures::ListEntry::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "peb64" => {
-                            let s = structures::PEB64::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "teb64" => {
-                            let s = structures::TEB64::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "peb_ldr_data64" => {
-                            let s = structures::PebLdrData64::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "ldr_data_table_entry64" => {
-                            let s = structures::LdrDataTableEntry64::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "list_entry64" => {
-                            let s = structures::ListEntry64::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "cppeh_record" => {
-                            let s = structures::CppEhRecord::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "exception_pointers" => {
-                            let s = structures::ExceptionPointers::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "eh3_exception_registgration" => {
-                            let s = structures::Eh3ExceptionRegistration::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "memory_basic_information" => {
-                            let s = structures::MemoryBasicInformation::load(addr, &self.maps);
-                            s.print();
-                        }
-                        "image_export_directory" => {
-                            let s = structures::ImageExportDirectory::load(addr, &self.maps);
-                            s.print();
-                        }
-
-                        _ => log::info!("unrecognized structure."),
-                    }
-                } // end dt command
-
-                _ => log::info!("command not found, type h"),
-            } // match commands
-        } // end loop
-    } // end commands function
 
     fn featured_regs32(&self) {
         self.regs.show_eax(&self.maps, 0);
@@ -2781,7 +1985,7 @@ impl Emu {
                     self.pos
                 );
                 if self.cfg.console_enabled {
-                    self.spawn_console();
+                    Console::spawn_console(self);
                 }
                 return;
             }
@@ -3143,7 +2347,7 @@ impl Emu {
                         if self.running_script {
                             self.force_break = true;
                         } else {
-                            self.spawn_console();
+                            Console::spawn_console(self);
                         }
                     }
                 } else {
@@ -3344,7 +2548,7 @@ impl Emu {
                         if self.running_script {
                             self.force_break = true;
                         } else {
-                            self.spawn_console();
+                            Console::spawn_console(self);
                         }
                     }
                 }
@@ -3964,7 +3168,7 @@ impl Emu {
                     "redirecting code flow to non maped address 0x{:x}",
                     self.regs.rip
                 );
-                self.spawn_console();
+                Console::spawn_console(self);
                 return false;
             }
         };
@@ -4054,7 +3258,7 @@ impl Emu {
                             "redirecting code flow to non maped address 0x{:x}",
                             self.regs.rip
                         );
-                        self.spawn_console();
+                        Console::spawn_console(self);
                         return Err(MwemuError::new("cannot read program counter"));
                     }
                 };
@@ -4108,7 +3312,7 @@ impl Emu {
                         self.cfg.console2 = false;
                         log::info!("-------");
                         log::info!("{} 0x{:x}: {}", self.pos, ins.ip(), self.out);
-                        self.spawn_console();
+                        Console::spawn_console(self);
                         if self.force_break {
                             self.force_break = false;
                             break;
@@ -4259,7 +3463,7 @@ impl Emu {
 
                     if !emulation_ok {
                         if self.cfg.console_enabled {
-                            self.spawn_console();
+                            Console::spawn_console(self);
                         } else {
                             return Err(MwemuError::new(&format!("emulation error at pos = {} rip = 0x{:x}", self.pos, self.regs.rip)));
                         }
@@ -4286,7 +3490,7 @@ impl Emu {
             } // end running loop
 
             self.is_running.store(1, atomic::Ordering::Relaxed);
-            self.spawn_console();
+            Console::spawn_console(self);
         } // end infinite loop
     } // end run
 }

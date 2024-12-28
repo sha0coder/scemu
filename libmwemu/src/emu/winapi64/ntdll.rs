@@ -4,6 +4,7 @@ use crate::emu::context64::Context64;
 use crate::emu::structures;
 use crate::emu::winapi32::helper;
 use crate::emu::winapi64::kernel32;
+use crate::emu::console::Console;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let apiname = kernel32::guess_api_name(emu, addr);
@@ -287,7 +288,7 @@ fn RtlExitUserThread(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.spawn_console();
+    Console::spawn_console(emu);
     std::process::exit(1);
 }
 
