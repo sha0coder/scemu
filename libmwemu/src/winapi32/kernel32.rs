@@ -191,7 +191,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "RegOpenKeyW" => RegOpenKeyW(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
-                unimplemented!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+                unimplemented!("unimplemented kernel32 API 0x{:x} {}", addr, api);
             }
             log::warn!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
             return api;
