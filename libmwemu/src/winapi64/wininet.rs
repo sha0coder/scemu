@@ -1,10 +1,11 @@
-use crate::emu::Emu;
-use crate::constants;
-//use crate::endpoint;
-use crate::winapi32::helper;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+use crate::emu;
+use crate::constants;
+//use crate::endpoint;
+use crate::winapi32::helper;
+use crate::winapi64;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let apiname = winapi64::kernel32::guess_api_name(emu, addr);
     match apiname.as_str() {
