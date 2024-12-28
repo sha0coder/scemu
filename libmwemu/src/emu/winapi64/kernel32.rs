@@ -156,6 +156,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetStdHandle" => GetStdHandle(emu),
         "GetConsoleCP" => GetConsoleCP(emu),
         "GetConsoleOutputCP" => GetConsoleOutputCP(emu),
+        "GetCommandLineA" => GetCommandLineA(emu),
+        "GetCommandLineW" => GetCommandLineW(emu),
 
         _ => {
             unimplemented!(
@@ -2991,4 +2993,28 @@ fn GetConsoleOutputCP(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     emu.regs.rax = 0x00000409;
+}
+
+fn GetCommandLineA(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetCommandLineA {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    let cmdline = emu.alloc("cmdline", 1024);
+    emu.maps.write_string(cmdline, "test.exe");
+    emu.regs.rax = cmdline;
+}
+
+fn GetCommandLineW(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetCommandLineW {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    let cmdline = emu.alloc("cmdline", 1024);
+    emu.maps.write_wide_string(cmdline, "test.exe");
+    emu.regs.rax = cmdline;
 }
