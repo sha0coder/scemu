@@ -4,6 +4,7 @@ use crate::emu::structures::OrdinalTable;
 use crate::emu::structures::PebLdrData;
 use crate::emu::structures::PEB;
 use crate::emu::structures::TEB;
+use crate::emu::console::Console;
 
 pub fn init_ldr(emu: &mut emu::Emu) -> u64 {
     let ldr_sz = PebLdrData::size();
@@ -209,7 +210,7 @@ impl Flink {
         }
 
         if ordinal.func_name == "VCOMPort" {
-            emu.spawn_console();
+            Console::spawn_console(emu);
         }
 
         ordinal.ordinal_tbl_rva = emu

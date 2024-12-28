@@ -1,11 +1,14 @@
-use crate::emu;
-use crate::emu::peb32;
-use crate::emu::peb64;
-use crate::emu::structures;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::vec::Vec;
+
+use crate::emu;
+use crate::emu::Emu;
+use crate::emu::peb32;
+use crate::emu::peb64;
+use crate::emu::structures;
+use crate::emu::console::Console;
 
 pub struct Script {
     code: Vec<String>,
@@ -42,7 +45,7 @@ impl Script {
         }
     }
 
-    pub fn resolve(&self, arg: &str, i: usize, emu: &mut emu::Emu) -> u64 {
+    pub fn resolve(&self, arg: &str, i: usize, emu: &mut Emu) -> u64 {
         if arg == "result" {
             return self.result;
         } else if arg.starts_with("0x") {
@@ -83,7 +86,7 @@ impl Script {
         Some(value)
     }
 
-    pub fn run(&mut self, emu: &mut emu::Emu) {
+    pub fn run(&mut self, emu: &mut Emu) {
         emu.running_script = true;
         let mut i = 0;
 
@@ -973,7 +976,7 @@ impl Script {
                     }
                 }
                 "console" => {
-                    emu.spawn_console();
+                    Console::spawn_console(emu);
                 }
                 "call" => {
                     // call <addr> <args>

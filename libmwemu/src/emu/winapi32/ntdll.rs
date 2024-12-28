@@ -4,6 +4,7 @@ use crate::emu::context32::Context32;
 use crate::emu::structures;
 use crate::emu::winapi32::helper;
 use crate::emu::winapi32::kernel32;
+use crate::emu::console::Console;
 
 use scan_fmt::scan_fmt_some;
 
@@ -382,7 +383,7 @@ fn RtlExitUserThread(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.spawn_console();
+    Console::spawn_console(emu);
     std::process::exit(1);
 }
 
@@ -432,7 +433,7 @@ fn sscanf(emu: &mut emu::Emu) {
 
     unimplemented!("sscanf is unimplemented for now.");
     //log::info!("sscanf not implemented for now");
-    //emu.spawn_console();
+    //Console::spawn_console(emu);
 }
 
 fn NtGetTickCount(emu: &mut emu::Emu) {

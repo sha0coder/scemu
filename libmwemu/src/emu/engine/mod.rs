@@ -1,3 +1,5 @@
+pub mod logic;
+
 use iced_x86::{Instruction, Mnemonic, Register};
 use crate::emu::Emu;
 use crate::emu::regs64;
@@ -6,6 +8,7 @@ use crate::emu::inline;
 use crate::emu::syscall32;
 use crate::emu::syscall64;
 use crate::emu::ntapi32;
+use crate::emu::console::Console;
 
 pub fn emulate_instruction(
     emu: &mut Emu,
@@ -196,7 +199,7 @@ pub fn emulate_instruction(
 
             if emu.break_on_next_return {
                 emu.break_on_next_return = false;
-                emu.spawn_console();
+                Console::spawn_console(emu);
             }
 
             if ins.op_count() > 0 {
@@ -1023,7 +1026,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.ror(value0, 1, sz);
+                result = logic::ror(emu, value0, 1, sz);
                 emu.flags.calc_flags(result, sz);
 
                 if emu.cfg.test_mode && result != inline::ror(value0, 1, sz) {
@@ -1045,7 +1048,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.ror(value0, value1, sz);
+                result = logic::ror(emu, value0, value1, sz);
 
                 if emu.cfg.test_mode && result != inline::ror(value0, value1, sz) {
                     panic!(
@@ -1098,7 +1101,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.rcr(value0, 1, sz);
+                result = logic::rcr(emu, value0, 1, sz);
                 emu.flags.rcr_of_and_cf(value0, 1, sz);
                 emu.flags.calc_flags(result, sz);
             } else {
@@ -1113,7 +1116,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.rcr(value0, value1, sz);
+                result = logic::rcr(emu, value0, value1, sz);
                 emu.flags.rcr_of_and_cf(value0, value1, sz);
 
                 let masked_counter = if sz == 64 {
@@ -1147,7 +1150,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.rol(value0, 1, sz);
+                result = logic::rol(emu, value0, 1, sz);
 
                 if emu.cfg.test_mode && result != inline::rol(value0, 1, sz) {
                     panic!(
@@ -1172,7 +1175,7 @@ pub fn emulate_instruction(
 
                 let pre_cf = if emu.flags.f_cf { 1 } else { 0 };
 
-                result = emu.rol(value0, value1, sz);
+                result = logic::rol(emu, value0, value1, sz);
 
                 if emu.cfg.test_mode && result != inline::rol(value0, value1, sz) {
                     panic!(
@@ -1229,7 +1232,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.rcl(value0, 1, sz);
+                result = logic::rcl(emu, value0, 1, sz);
                 emu.flags.calc_flags(result, sz);
             } else {
                 // 2 params
@@ -1243,7 +1246,7 @@ pub fn emulate_instruction(
                     None => return false,
                 };
 
-                result = emu.rcl(value0, value1, sz);
+                result = logic::rcl(emu, value0, value1, sz);
 
                 let masked_counter = if sz == 64 {
                     value1 & 0b111111
@@ -1276,10 +1279,10 @@ pub fn emulate_instruction(
 
             let sz = emu.get_operand_sz(ins, 0);
             match sz {
-                64 => emu.mul64(value0),
-                32 => emu.mul32(value0),
-                16 => emu.mul16(value0),
-                8 => emu.mul8(value0),
+                64 => logic::mul64(emu, value0),
+                32 => logic::mul32(emu, value0),
+                16 => logic::mul16(emu, value0),
+                8 => logic::mul8(emu, value0),
                 _ => unimplemented!("wrong size"),
             }
 
@@ -1323,10 +1326,10 @@ pub fn emulate_instruction(
 
             let sz = emu.get_operand_sz(ins, 0);
             match sz {
-                64 => emu.div64(value0),
-                32 => emu.div32(value0),
-                16 => emu.div16(value0),
-                8 => emu.div8(value0),
+                64 => logic::div64(emu, value0),
+                32 => logic::div32(emu, value0),
+                16 => logic::div16(emu, value0),
+                8 => logic::div8(emu, value0),
                 _ => unimplemented!("wrong size"),
             }
 
@@ -1373,10 +1376,10 @@ pub fn emulate_instruction(
 
             let sz = emu.get_operand_sz(ins, 0);
             match sz {
-                64 => emu.idiv64(value0),
-                32 => emu.idiv32(value0),
-                16 => emu.idiv16(value0),
-                8 => emu.idiv8(value0),
+                64 => logic::idiv64(emu, value0),
+                32 => logic::idiv32(emu, value0),
+                16 => logic::idiv16(emu, value0),
+                8 => logic::idiv8(emu, value0),
                 _ => unimplemented!("wrong size"),
             }
 
@@ -1423,10 +1426,10 @@ pub fn emulate_instruction(
 
                 let sz = emu.get_operand_sz(ins, 0);
                 match sz {
-                    64 => emu.imul64p1(value0),
-                    32 => emu.imul32p1(value0),
-                    16 => emu.imul16p1(value0),
-                    8 => emu.imul8p1(value0),
+                    64 => logic::imul64p1(emu, value0),
+                    32 => logic::imul32p1(emu, value0),
+                    16 => logic::imul16p1(emu, value0),
+                    8 => logic::imul8p1(emu, value0),
                     _ => unimplemented!("wrong size"),
                 }
 
@@ -2945,7 +2948,7 @@ pub fn emulate_instruction(
             assert!(ins.op_count() == 2);
 
             if emu.break_on_next_cmp {
-                emu.spawn_console();
+                Console::spawn_console(emu);
                 emu.break_on_next_cmp = false;
             }
 
@@ -3075,7 +3078,7 @@ pub fn emulate_instruction(
             }
 
             if emu.break_on_next_cmp {
-                emu.spawn_console();
+                Console::spawn_console(emu);
                 emu.break_on_next_cmp = false;
 
                 let value0 = match emu.get_operand_value(ins, 0, true) {
@@ -4309,7 +4312,7 @@ pub fn emulate_instruction(
                     Some(v) => v,
                     None => {
                         log::info!("lodsb: memory read error");
-                        emu.spawn_console();
+                        Console::spawn_console(emu);
                         0
                     }
                 };
@@ -4325,7 +4328,7 @@ pub fn emulate_instruction(
                     Some(v) => v,
                     None => {
                         log::info!("lodsb: memory read error");
-                        emu.spawn_console();
+                        Console::spawn_console(emu);
                         0
                     }
                 };
@@ -8569,7 +8572,7 @@ pub fn emulate_instruction(
             if !emu.cfg.skip_unimplemented {
                 log::info!("unimplemented or invalid instruction. use --banzai (cfg.skip_unimplemented) mode to skip");
                 if emu.cfg.console_enabled {
-                    emu.spawn_console();
+                    Console::spawn_console(emu);
                 }
                 return false;
                 //unimplemented!("unimplemented instruction");

@@ -1,10 +1,12 @@
 use env_logger::Env;
-use libmwemu::emu32;
-use libmwemu::emu64;
 use std::io::Write as _;
 
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+
+use libmwemu::emu::console::Console;
+use libmwemu::emu32;
+use libmwemu::emu64;
 
 #[pyclass]
 pub struct Emu {
@@ -351,7 +353,7 @@ impl Emu {
     /// spawn an interactive console.
     fn spawn_console(&mut self) {
         self.emu.cfg.console_enabled = true;
-        self.emu.spawn_console();
+        Console::spawn_console(&mut self.emu);
     }
 
     /// disassemble an address.
