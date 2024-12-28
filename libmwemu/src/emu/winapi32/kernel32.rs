@@ -2338,13 +2338,13 @@ fn TlsSetValue(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if emu.tls.len() > idx as usize {
-        emu.tls[idx as usize] = val;
+    if emu.tls32.len() > idx as usize {
+        emu.tls32[idx as usize] = val;
     } else {
         for _ in 0..=idx {
-            emu.tls.push(0);
+            emu.tls32.push(0);
         }
-        emu.tls[idx as usize] = val;
+        emu.tls32[idx as usize] = val;
     }
 
     emu.stack_pop32(false);
@@ -2361,10 +2361,10 @@ fn TlsGetValue(emu: &mut emu::Emu) {
 
     emu.stack_pop32(false);
 
-    if idx as usize > emu.tls.len() {
+    if idx as usize > emu.tls32.len() {
         emu.regs.rax = 0;
     } else {
-        emu.regs.rax = emu.tls[idx as usize] as u64;
+        emu.regs.rax = emu.tls32[idx as usize] as u64;
     }
 
     log::info!(
