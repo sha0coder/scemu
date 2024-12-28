@@ -57,7 +57,7 @@ fn SysAllocStringLen(emu: &mut emu::Emu) {
 
 fn SysFreeString(emu: &mut emu::Emu) {
     let str_ptr = emu.regs.rcx;
-    
+
     log::info!(
         "{}** {} oleaut32!SysFreeString  0x{:x} {}",
         emu.colors.light_red,
@@ -67,6 +67,4 @@ fn SysFreeString(emu: &mut emu::Emu) {
     );
 
     //emu.maps.free(&format!("alloc_{:x}", str_ptr));
-
-    emu.stack_pop32(false);
 }
