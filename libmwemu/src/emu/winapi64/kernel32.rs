@@ -137,6 +137,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "lstrcpy" => lstrcpy(emu),
         "GetModuleHandleA" => GetModuleHandleA(emu),
         "GetModuleHandleW" => GetModuleHandleW(emu),
+        "TlsAlloc" => TlsAlloc(emu),
+        "TlsSetValue" => TlsSetValue(emu),
+        "TlsGetValue" => TlsGetValue(emu),
+        "TlsFree" => TlsFree(emu),
 
         _ => {
             log::info!(
@@ -2829,6 +2833,93 @@ fn GetModuleHandleW(emu: &mut emu::Emu) {
         emu.colors.light_red,
         emu.pos,
         module_name,
+        emu.colors.nc
+    );
+}
+
+fn TlsAlloc(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!TlsAlloc {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+
+    emu.regs.rax = 1;
+}
+
+fn TlsFree(emu: &mut emu::Emu) {
+    let idx = emu
+        .maps
+        .read_dword(emu.regs.get_esp())
+        .expect("kernel32!TlsFree cannot read idx");
+
+    log::info!(
+        "{}** {} kernel32!TlsFree idx: {} {}",
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        emu.colors.nc
+    );
+
+    emu.stack_pop32(false);
+    emu.regs.rax = 1;
+}
+
+fn TlsSetValue(emu: &mut emu::Emu) {
+    let idx = emu
+        .maps
+        .read_dword(emu.regs.get_esp())
+        .expect("kernel32!TlsSetValue cannot read idx");
+    let val = emu
+        .maps
+        .read_dword(emu.regs.get_esp() + 4)
+        .expect("kernel32!TlsSetValue cannot read val_ptr");
+
+    log::info!(
+        "{}** {} kernel32!TlsSetValue idx: {} val: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        val,
+        emu.colors.nc
+    );
+
+    if emu.tls.len() > idx as usize {
+        emu.tls[idx as usize] = val;
+    } else {
+        for _ in 0..=idx {
+            emu.tls.push(0);
+        }
+        emu.tls[idx as usize] = val;
+    }
+
+    emu.stack_pop32(false);
+    emu.stack_pop32(false);
+
+    emu.regs.rax = 1;
+}
+
+fn TlsGetValue(emu: &mut emu::Emu) {
+    let idx = emu
+        .maps
+        .read_dword(emu.regs.get_esp())
+        .expect("kernel32!TlsGetValue cannot read idx");
+
+    emu.stack_pop32(false);
+
+    if idx as usize > emu.tls.len() {
+        emu.regs.rax = 0;
+    } else {
+        emu.regs.rax = emu.tls[idx as usize] as u64;
+    }
+
+    log::info!(
+        "{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        idx,
+        emu.regs.get_eax() as u32,
         emu.colors.nc
     );
 }
