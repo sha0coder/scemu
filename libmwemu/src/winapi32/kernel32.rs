@@ -3448,7 +3448,7 @@ fn GetCommandLineW(emu: &mut emu::Emu) {
         emu.colors.nc
     );
     let cmdline = emu.alloc("cmdline", 1024);
-    emu.maps.write_string(cmdline, "test.exe");
+    emu.maps.write_wide_string(cmdline, "test.exe");
     emu.regs.rax = cmdline;
 }
 
