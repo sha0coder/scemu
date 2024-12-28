@@ -1,6 +1,6 @@
 [package]
 name = "pymwemu"
-version = "0.9.4"
+version = "0.9.5"
 edition = "2021"
 description = "x86 32/64bits and system internals emulator, for securely emulating malware and other stuff."
 
@@ -12,5 +12,5 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.18.1"
 env_logger = "0.11.6"
-libmwemu = { path = "../libmwemu" }
-#libmwemu = "0.19.4"
+#libmwemu = { path = "../libmwemu" }
+libmwemu = "0.19.5"
