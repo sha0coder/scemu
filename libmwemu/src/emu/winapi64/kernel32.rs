@@ -2869,11 +2869,11 @@ fn TlsFree(emu: &mut emu::Emu) {
 fn TlsSetValue(emu: &mut emu::Emu) {
     let idx = emu
         .maps
-        .read_qword(emu.regs.get_esp())
+        .read_dword(emu.regs.get_esp()) // dword, not qword despite x64?
         .expect("kernel32!TlsSetValue cannot read idx");
     let val = emu
         .maps
-        .read_qword(emu.regs.get_esp() + 8)
+        .read_qword(emu.regs.get_esp() + 4)
         .expect("kernel32!TlsSetValue cannot read val_ptr");
 
     log::info!(
@@ -2894,7 +2894,7 @@ fn TlsSetValue(emu: &mut emu::Emu) {
         emu.tls64[idx as usize] = val;
     }
 
-    emu.stack_pop64(false);
+    emu.stack_pop32(false);
     emu.stack_pop64(false);
 
     emu.regs.rax = 1;
@@ -2903,10 +2903,10 @@ fn TlsSetValue(emu: &mut emu::Emu) {
 fn TlsGetValue(emu: &mut emu::Emu) {
     let idx = emu
         .maps
-        .read_qword(emu.regs.get_esp())
+        .read_dword(emu.regs.get_esp()) // dword, not qword despite x64?
         .expect("kernel32!TlsGetValue cannot read idx");
 
-    emu.stack_pop64(false);
+    emu.stack_pop32(false); // dword, not qword despite x64?
 
     if idx as usize > emu.tls64.len() {
         emu.regs.rax = 0;
@@ -2919,7 +2919,7 @@ fn TlsGetValue(emu: &mut emu::Emu) {
         emu.colors.light_red,
         emu.pos,
         idx,
-        emu.regs.get_eax() as u32,
+        emu.regs.rax,
         emu.colors.nc
     );
 }
