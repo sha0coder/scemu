@@ -155,6 +155,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetACP" => GetACP(emu),
         "GetStdHandle" => GetStdHandle(emu),
         "GetConsoleCP" => GetConsoleCP(emu),
+        "GetConsoleOutputCP" => GetConsoleOutputCP(emu),
 
         _ => {
             unimplemented!(
@@ -2975,6 +2976,16 @@ fn GetStdHandle(emu: &mut emu::Emu) {
 fn GetConsoleCP(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!GetConsoleCP {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    emu.regs.rax = 0x00000409;
+}
+
+fn GetConsoleOutputCP(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetConsoleOutputCP {}",
         emu.colors.light_red,
         emu.pos,
         emu.colors.nc
