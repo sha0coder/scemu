@@ -3,7 +3,7 @@
 # python3 -m venv .venv
 # source .venv/bin/activate
 # pip install maturin
-# maturin develop -m pymwemu/Cargo.toml
+# maturin develop --release -m pymwemu/Cargo.toml
 
 import pymwemu
 import os
