@@ -171,11 +171,11 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetModuleFileNameW" => GetModuleFileNameW(emu),
 
         _ => {
-            unimplemented!(
-                "unimplemented kernel32 64bits API 0x{:x} {}",
-                addr,
-                api
-            );
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+            return api;
         }
     }
 
