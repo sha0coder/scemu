@@ -9,6 +9,17 @@ use crate::emu::winapi32::helper;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+macro_rules! log_red {
+    ($emu:expr, $($arg:tt)*) => {
+        log::info!(
+            "{}{}{}",
+            $emu.colors.light_red,
+            format!($($arg)*),
+            $emu.colors.nc
+        );
+    };
+}
+
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     match api.as_str() {
@@ -2366,13 +2377,10 @@ fn TlsGetValue(emu: &mut emu::Emu) {
         emu.regs.set_eax(emu.tls32[idx as usize] as u64);
     }
 
-    log::info!(
-        "{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}",
-        emu.colors.light_red,
+    log_red!(emu, "** {} kernel32!TlsGetValue idx: {} =0x{:x}", 
         emu.pos,
         idx,
-        emu.regs.get_eax() as u32,
-        emu.colors.nc
+        emu.regs.get_eax() as u32
     );
 }
 

@@ -10,6 +10,17 @@ use crate::emu::context64;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+macro_rules! log_red {
+    ($emu:expr, $($arg:tt)*) => {
+        log::info!(
+            "{}{}{}",
+            $emu.colors.light_red,
+            format!($($arg)*),
+            $emu.colors.nc
+        );
+    };
+}
+
 // a in RCX, b in RDX, c in R8, d in R9, then e pushed on stack
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -141,6 +152,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "TlsSetValue" => TlsSetValue(emu),
         "TlsGetValue" => TlsGetValue(emu),
         "TlsFree" => TlsFree(emu),
+        "GetACP" => GetACP(emu),
 
         _ => {
             unimplemented!(
@@ -2923,12 +2935,23 @@ fn TlsGetValue(emu: &mut emu::Emu) {
 
     emu.regs.rax = val;
 
-    log::info!(
-        "{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}",
-        emu.colors.light_red,
+    log_red!(emu, "** {} kernel32!TlsGetValue idx: {} =0x{:x}", 
         emu.pos,
         idx,
-        val,
+        val
+    );
+}
+
+/*
+UINT GetACP();
+*/
+// TODO: there is GetAcp and GetACP?
+fn GetACP(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetACP {}",
+        emu.colors.light_red,
+        emu.pos,
         emu.colors.nc
     );
+    emu.regs.rax = 0x00000409;
 }
