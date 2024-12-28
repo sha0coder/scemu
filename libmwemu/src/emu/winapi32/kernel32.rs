@@ -9,6 +9,17 @@ use crate::emu::winapi32::helper;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
+macro_rules! log_red {
+    ($emu:expr, $($arg:tt)*) => {
+        log::info!(
+            "{}{}{}",
+            $emu.colors.light_red,
+            format!($($arg)*),
+            $emu.colors.nc
+        );
+    };
+}
+
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     match api.as_str() {
@@ -179,8 +190,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "RegOpenKeyA" => RegOpenKeyA(emu),
         "RegOpenKeyW" => RegOpenKeyW(emu),
         _ => {
-            log::info!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
-            return api;
+            unimplemented!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
         }
     }
 
@@ -2298,7 +2308,8 @@ fn TlsAlloc(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.regs.rax = 1;
+    emu.tls32.push(0);
+    emu.regs.set_eax(emu.tls32.len() as u64);
 }
 
 fn TlsFree(emu: &mut emu::Emu) {
@@ -2316,7 +2327,7 @@ fn TlsFree(emu: &mut emu::Emu) {
     );
 
     emu.stack_pop32(false);
-    emu.regs.rax = 1;
+    emu.regs.set_eax(1);
 }
 
 fn TlsSetValue(emu: &mut emu::Emu) {
@@ -2338,19 +2349,18 @@ fn TlsSetValue(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if emu.tls.len() > idx as usize {
-        emu.tls[idx as usize] = val;
+    if emu.tls32.len() > idx as usize {
+        emu.tls32[idx as usize] = val;
     } else {
         for _ in 0..=idx {
-            emu.tls.push(0);
+            emu.tls32.push(0);
         }
-        emu.tls[idx as usize] = val;
+        emu.tls32[idx as usize] = val;
     }
 
     emu.stack_pop32(false);
     emu.stack_pop32(false);
-
-    emu.regs.rax = 1;
+    emu.regs.set_eax(1);
 }
 
 fn TlsGetValue(emu: &mut emu::Emu) {
@@ -2361,19 +2371,16 @@ fn TlsGetValue(emu: &mut emu::Emu) {
 
     emu.stack_pop32(false);
 
-    if idx as usize > emu.tls.len() {
-        emu.regs.rax = 0;
+    if idx as usize > emu.tls32.len() {
+        emu.regs.set_eax(0);
     } else {
-        emu.regs.rax = emu.tls[idx as usize] as u64;
+        emu.regs.set_eax(emu.tls32[idx as usize] as u64);
     }
 
-    log::info!(
-        "{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}",
-        emu.colors.light_red,
+    log_red!(emu, "** {} kernel32!TlsGetValue idx: {} =0x{:x}", 
         emu.pos,
         idx,
-        emu.regs.get_eax() as u32,
-        emu.colors.nc
+        emu.regs.get_eax() as u32
     );
 }
 
