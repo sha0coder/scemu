@@ -169,6 +169,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "ResetEvent" => ResetEvent(emu),
         "VirtualFree" => VirtualFree(emu),
         "GetModuleFileNameW" => GetModuleFileNameW(emu),
+        "EnterCriticalSection" => EnterCriticalSection(emu),
+        "LeaveCriticalSection" => LeaveCriticalSection(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -3288,4 +3290,32 @@ fn GetModuleFileNameW(emu: &mut emu::Emu) {
     let output = "haspmeul.dll";
     emu.maps.write_wide_string(lp_filename as u64, output);
     emu.regs.rax = output.len() as u64;
+}
+
+fn EnterCriticalSection(emu: &mut emu::Emu) {
+    let crit_sect = emu.regs.rcx;
+
+    log::info!(
+        "{}** {} kernel32!EnterCriticalSection 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        crit_sect,
+        emu.colors.nc
+    );
+
+    emu.regs.rax = crit_sect;
+}
+
+fn LeaveCriticalSection(emu: &mut emu::Emu) {
+    let crit_sect = emu.regs.rcx;
+
+    log::info!(
+        "{}** {} kernel32!LeaveCriticalSection 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        crit_sect,
+        emu.colors.nc
+    );
+
+    emu.regs.rax = crit_sect;
 }
