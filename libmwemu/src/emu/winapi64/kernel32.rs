@@ -2836,6 +2836,9 @@ fn GetModuleHandleW(emu: &mut emu::Emu) {
     );
 }
 
+/*
+DWORD TlsAlloc();
+*/
 fn TlsAlloc(emu: &mut emu::Emu) {
     log::info!(
         "{}** {} kernel32!TlsAlloc {}",
@@ -2845,16 +2848,16 @@ fn TlsAlloc(emu: &mut emu::Emu) {
     );
 
     emu.tls64.push(0);
-    let tls_index = emu.tls64.len() as u64;
-    log::info!("kernel32!TlsAlloc tls_index: {}", tls_index);
-    emu.regs.rax = tls_index;
+    emu.regs.rax = (emu.tls64.len() - 1) as u64;  // Return index of newly allocated slot
 }
 
+/* 
+BOOL TlsFree(
+  [in] DWORD dwTlsIndex
+);
+*/
 fn TlsFree(emu: &mut emu::Emu) {
-    let idx = emu
-        .maps
-        .read_dword(emu.regs.get_esp())
-        .expect("kernel32!TlsFree cannot read idx");
+    let idx = emu.regs.rcx as usize;  // First parameter passed in RCX in x64
 
     log::info!(
         "{}** {} kernel32!TlsFree idx: {} {}",
@@ -2864,19 +2867,23 @@ fn TlsFree(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    emu.stack_pop64(false);
-    emu.regs.rax = 1;
+    if idx < emu.tls64.len() {
+        emu.tls64[idx] = 0;  // Clear the slot
+        emu.regs.rax = 1;    // Return TRUE
+    } else {
+        emu.regs.rax = 0;    // Return FALSE if invalid index
+    }
 }
 
+/*
+BOOL TlsSetValue(
+  [in]           DWORD  dwTlsIndex,
+  [in, optional] LPVOID lpTlsValue
+);
+*/
 fn TlsSetValue(emu: &mut emu::Emu) {
-    let idx = emu
-        .maps
-        .read_dword(emu.regs.get_esp()) // dword, not qword despite x64?
-        .expect("kernel32!TlsSetValue cannot read idx");
-    let val = emu
-        .maps
-        .read_qword(emu.regs.get_esp() + 4)
-        .expect("kernel32!TlsSetValue cannot read val_ptr");
+    let idx = emu.regs.rcx as usize;     // First parameter in RCX
+    let val = emu.regs.rdx;              // Second parameter in RDX
 
     log::info!(
         "{}** {} kernel32!TlsSetValue idx: {} val: 0x{:x} {}",
@@ -2887,41 +2894,41 @@ fn TlsSetValue(emu: &mut emu::Emu) {
         emu.colors.nc
     );
 
-    if emu.tls64.len() > idx as usize {
-        emu.tls64[idx as usize] = val;
+    if idx < emu.tls64.len() {
+        emu.tls64[idx] = val;
     } else {
-        for _ in 0..=idx {
+        // Expand TLS array if needed
+        while emu.tls64.len() <= idx {
             emu.tls64.push(0);
         }
-        emu.tls64[idx as usize] = val;
+        emu.tls64[idx] = val;
     }
 
-    emu.stack_pop32(false);
-    emu.stack_pop64(false);
-
-    emu.regs.rax = 1;
+    emu.regs.rax = 1;  // Return TRUE
 }
 
+/*
+DWORD TlsGetValue(
+  [in] DWORD dwTlsIndex
+);
+*/
 fn TlsGetValue(emu: &mut emu::Emu) {
-    let idx = emu
-        .maps
-        .read_dword(emu.regs.get_esp()) // dword, not qword despite x64?
-        .expect("kernel32!TlsGetValue cannot read idx");
+    let idx = emu.regs.rcx as usize;  // Parameter passed in RCX in x64
 
-    emu.stack_pop32(false); // dword, not qword despite x64?
-
-    if idx as usize > emu.tls64.len() {
-        emu.regs.rax = 0;
+    let val = if idx < emu.tls64.len() {
+        emu.tls64[idx]
     } else {
-        emu.regs.rax = emu.tls64[idx as usize];
-    }
+        0
+    };
+
+    emu.regs.rax = val;
 
     log::info!(
         "{}** {} kernel32!TlsGetValue idx: {} =0x{:x} {}",
         emu.colors.light_red,
         emu.pos,
         idx,
-        emu.regs.rax,
+        val,
         emu.colors.nc
     );
 }
