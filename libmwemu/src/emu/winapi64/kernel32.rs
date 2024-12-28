@@ -2845,7 +2845,9 @@ fn TlsAlloc(emu: &mut emu::Emu) {
     );
 
     emu.tls64.push(0);
-    emu.regs.rax = emu.tls64.len() as u64;
+    let tls_index = emu.tls64.len() as u64;
+    log::info!("kernel32!TlsAlloc tls_index: {}", tls_index);
+    emu.regs.rax = tls_index;
 }
 
 fn TlsFree(emu: &mut emu::Emu) {
