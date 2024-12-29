@@ -124,8 +124,8 @@ impl<'de> Deserialize<'de> for Emu {
 
         let is_running = serde_json::from_value(value.get("is_running").unwrap().clone()).unwrap();
 
-        let now = serde_json::from_value(value.get("now").unwrap().clone()).unwrap();
-        let now = SerializableInstant::from(now).to_instant();
+        let now: SerializableInstant = serde_json::from_value(value.get("now").unwrap().clone()).unwrap();
+        let now = now.to_instant();
 
         Ok(Emu {
             regs: serde_json::from_value(value.get("regs").unwrap().clone()).unwrap(),
