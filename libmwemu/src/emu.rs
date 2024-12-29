@@ -3145,8 +3145,8 @@ impl Emu {
         if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
             log::info!("exit position reached");
 
-            if self.cfg.dump_on_exit {
-                serialization::Serialization::dump_to_file(self, "/tmp/emu.bin");
+            if self.cfg.dump_on_exit && self.cfg.dump_filename.is_some() {
+                serialization::Serialization::dump_to_file(self, self.cfg.dump_filename.as_ref().unwrap());
             }
 
             return false;
@@ -3290,8 +3290,8 @@ impl Emu {
                     if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
                         log::info!("exit position reached");
 
-                        if self.cfg.dump_on_exit {
-                            serialization::Serialization::dump_to_file(self, "/tmp/emu.bin");
+                        if self.cfg.dump_on_exit && self.cfg.dump_filename.is_some() {
+                            serialization::Serialization::dump_to_file(self, self.cfg.dump_filename.as_ref().unwrap());
                         }
 
                         return Ok(self.regs.rip);

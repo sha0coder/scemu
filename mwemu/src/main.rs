@@ -356,6 +356,7 @@ fn main() {
     // override all from dump?
     if matches.is_present("dump") {
         let dump_filename = matches.value_of("dump").expect("specify the dump filename");
+        log::info!("loading dump from {}", dump_filename);
         emu = serialization::Serialization::load_from_file(dump_filename);
     }
 
