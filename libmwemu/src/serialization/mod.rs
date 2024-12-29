@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::convert::TryInto as _;
 use std::fs::File;
+use std::io::Write as _;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::Instant;
@@ -393,5 +394,17 @@ impl Serialization {
     pub fn deserialize(data: &[u8]) -> Emu {
         let deserialized: SerializableEmu = bitcode::deserialize(data).unwrap();
         deserialized.into()
+    }
+
+    pub fn dump_to_file(emu: &Emu, filename: &str) {
+        let serialized = SerializableEmu::from(emu);
+        let data = bitcode::serialize(&serialized).unwrap();
+        let mut file = File::create(filename).unwrap();
+        file.write_all(&data).unwrap();
+    }
+
+    pub fn load_from_file(filename: &str) -> Emu {
+        let data = std::fs::read(filename).unwrap();
+        Self::deserialize(&data)
     }
 }

@@ -12,11 +12,13 @@ else
     TARGET=x86_64-apple-darwin
 fi
 
-cargo run -p mwemu --release \
+cargo run \
+    -p mwemu \
+    --release \
     --target $TARGET \
     -- \
     --filename ~/Desktop/enigma/surprise.dll \
     --maps ./maps64/ \
     --64bits \
     --rdx 1 \
-    --banzai
+    --exit 0xD95F766

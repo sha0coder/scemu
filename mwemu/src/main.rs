@@ -6,7 +6,6 @@ use libmwemu::emu32;
 use libmwemu::emu64;
 use libmwemu::serialization;
 use std::io::Write as _;
-use std::io::Read as _;
 
 macro_rules! match_register_arg {
     ($matches:expr, $emu:expr, $reg:expr) => {
@@ -357,10 +356,7 @@ fn main() {
     // override all from dump?
     if matches.is_present("dump") {
         let dump_filename = matches.value_of("dump").expect("specify the dump filename");
-        let mut dump_file = std::fs::File::open(dump_filename).expect("failed to open dump file");
-        let mut serialized = Vec::new();
-        dump_file.read_to_end(&mut serialized).expect("failed to read dump file");
-        emu = serialization::Serialization::deserialize(&serialized);
+        emu = serialization::Serialization::load_from_file(dump_filename);
     }
 
     // script

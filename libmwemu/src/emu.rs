@@ -3146,8 +3146,7 @@ impl Emu {
             log::info!("exit position reached");
 
             if self.cfg.dump_on_exit {
-                let serialized = serialization::Serialization::serialize(self);
-                std::fs::write("/tmp/emu.bin", &serialized).unwrap();
+                serialization::Serialization::dump_to_file(self, "/tmp/emu.bin");
             }
 
             return false;
@@ -3292,8 +3291,7 @@ impl Emu {
                         log::info!("exit position reached");
 
                         if self.cfg.dump_on_exit {
-                            let serialized = serialization::Serialization::serialize(self);
-                            std::fs::write("/tmp/emu.bin", &serialized).unwrap();
+                            serialization::Serialization::dump_to_file(self, "/tmp/emu.bin");
                         }
 
                         return Ok(self.regs.rip);
