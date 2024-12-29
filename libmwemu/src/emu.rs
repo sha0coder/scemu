@@ -3143,7 +3143,7 @@ impl Emu {
         // exit
         if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
             log::info!("exit position reached");
-            std::process::exit(0);
+            return false;
         }
 
         // code
@@ -3283,7 +3283,7 @@ impl Emu {
 
                     if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
                         log::info!("exit position reached");
-                        std::process::exit(0);
+                        return Ok(self.regs.rip);
                     }
 
                     if self.exp == self.pos
