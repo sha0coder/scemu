@@ -3178,6 +3178,7 @@ fn WideCharToMultiByte(emu: &mut emu::Emu) {
         .maps
         .read_qword(emu.regs.rsp + 24)
         .expect("kernel32!WideCharToMultiByte error reading param");
+
     log_red!(emu, "** {} kernel32!WideCharToMultiByte code_page: {} dw_flags: {} lp_wide_char_str: 0x{:x} cch_wide_char: {} lp_multi_byte_str: 0x{:x} cb_multi_byte: {} lp_default_char: 0x{:x} lp_used_default_char: 0x{:x}", 
         emu.pos,
         code_page,
@@ -3189,12 +3190,10 @@ fn WideCharToMultiByte(emu: &mut emu::Emu) {
         lp_default_char,
         lp_used_default_char
     );
+
     let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
-    if lp_multi_byte_str > 0 {
+    if lp_multi_byte_str > 0 && s.len() > 0 {
         emu.maps.write_string(lp_multi_byte_str, &s);
-    }
-    for _ in 0..4 {
-        emu.stack_pop64(false);
     }
     emu.regs.rax = s.len() as u64 + 2;
 }
