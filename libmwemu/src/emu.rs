@@ -4,7 +4,9 @@ use iced_x86::{
     Decoder, DecoderOptions, Formatter, Instruction, InstructionInfoFactory, IntelFormatter,
     MemorySize, Mnemonic, OpKind, Register,
 };
+use std::io::Write as _;
 use std::collections::BTreeMap;
+use std::fs::File;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::Instant;
@@ -91,6 +93,7 @@ pub struct Emu {
     pub pe32: Option<PE32>,
     pub rep: Option<u64>,
     pub tick: usize,
+    pub trace_file: Option<File>,
 }
 
 impl Default for Emu {
@@ -154,6 +157,13 @@ impl Emu {
             memory_operations: vec![],
             rep: None,
             tick: 0,
+            trace_file: None
+        }
+    }
+
+    pub fn open_trace_file(&mut self) {
+        if let Some(filename) = self.cfg.trace_filename.clone() {
+            self.trace_file = Some(File::create(filename).unwrap());
         }
     }
 
@@ -3038,7 +3048,7 @@ impl Emu {
             );
         }
 
-        let mut trace_file = self.cfg.trace_file.as_ref().unwrap();
+        let mut trace_file = self.trace_file.as_ref().unwrap();
         writeln!(
             trace_file,
             r#""{index:02X}","{address:016X}","{bytes:02x?}","{disassembly}","{registers}","{memory}","{comments}""#, 

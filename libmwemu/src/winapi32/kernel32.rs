@@ -346,7 +346,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
 
                 let ordinal = flink.get_function_ordinal(emu, i);
 
-                if ordinal.func_va == addr.into() {
+                if ordinal.func_va == addr as u64 {
                     return ordinal.func_name.clone();
                 }
             }

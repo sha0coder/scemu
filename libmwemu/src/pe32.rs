@@ -2,12 +2,13 @@
  * PE32 Structures and loader
  */
 
- use serde::{Deserialize, Serialize, Serializer};
-
-use crate::{emu, winapi32};
+use serde::{Serialize, Serializer};
 use std::fs::File;
 use std::io::Read;
 use std::str;
+
+use crate::emu;
+use crate::winapi32;
 
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {

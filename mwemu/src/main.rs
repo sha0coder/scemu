@@ -168,7 +168,8 @@ fn main() {
             r#""Index","Address","Bytes","Disassembly","Registers","Memory","Comments""#
         )
         .expect("Failed to write trace file header");
-        emu.cfg.trace_file = Some(trace_file);
+        emu.trace_file = Some(trace_file);
+        emu.open_trace_file();
     }
     if matches.is_present("trace_start") {
         emu.cfg.trace_start = u64::from_str_radix(
