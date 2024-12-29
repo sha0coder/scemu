@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use bitcode::{Decode, Encode};
+use serde::{Serialize, Deserialize};
 
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct Banzai {
     api_params: HashMap<String, i32>,
 }

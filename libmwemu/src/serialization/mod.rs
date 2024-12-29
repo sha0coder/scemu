@@ -7,7 +7,7 @@ use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use bitcode::{Decode, Encode};
+use serde::{Serialize, Deserialize};
 use iced_x86::Instruction;
 
 use crate::banzai::Banzai;
@@ -25,7 +25,7 @@ use crate::pe64::PE64;
 use crate::regs64::Regs64;
 use crate::structures::MemoryOperation;
 
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct SerializableInstant {
     // Store as duration since UNIX_EPOCH
     timestamp: u64,
@@ -59,7 +59,7 @@ impl SerializableInstant {
     }
 }
 
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct SerializableFPU {
     pub st: Vec<f64>,
     pub st_depth: u8,
@@ -116,7 +116,7 @@ impl From<FPU> for SerializableFPU {
     }
 }
 
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct SerializablePE32 {
     pub raw: Vec<u8>,
 }
@@ -129,7 +129,7 @@ impl From<PE32> for SerializablePE32 {
     }
 }
 
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct SerializablePE64 {
     pub raw: Vec<u8>,
 }
@@ -142,24 +142,7 @@ impl From<PE64> for SerializablePE64 {
     }
 }
 
-#[derive(Encode, Decode)]
-pub struct SerializableInstruction {
-
-}
-
-impl From<SerializableInstruction> for Instruction {
-    fn from(serialized: SerializableInstruction) -> Self {
-        todo!()
-    }
-}
-
-impl From<Instruction> for SerializableInstruction {
-    fn from(instruction: Instruction) -> Self {
-        todo!()
-    }
-}
-
-#[derive(Encode, Decode)]
+#[derive(Serialize, Deserialize)]
 pub struct SerializableEmu {
     pub regs: Regs64,
     pub pre_op_regs: Regs64,
@@ -188,7 +171,7 @@ pub struct SerializableEmu {
     pub tls64: Vec<u64>,
     pub fls: Vec<u32>,
     pub out: String,
-    pub instruction: Option<SerializableInstruction>,
+    pub instruction: Option<Instruction>,
     pub decoder_position: usize,
     pub memory_operations: Vec<MemoryOperation>,
     pub main_thread_cont: u64,
@@ -286,7 +269,7 @@ impl From<Emu> for SerializableEmu {
                 tls64: emu.tls64,
                 fls: emu.fls,
                 out: emu.out,
-                instruction: emu.instruction.map(|x| x.into()),
+                instruction: emu.instruction,
                 decoder_position: emu.decoder_position,
                 memory_operations: emu.memory_operations,
                 main_thread_cont: emu.main_thread_cont,
@@ -352,7 +335,7 @@ impl From<SerializableEmu> for Emu {
             tls64: serialized.tls64,
             fls: serialized.fls,
             out: serialized.out,
-            instruction: serialized.instruction.map(|x| x.into()),
+            instruction: serialized.instruction,
             decoder_position: serialized.decoder_position,
             memory_operations: serialized.memory_operations,
             main_thread_cont: serialized.main_thread_cont,
@@ -387,11 +370,11 @@ pub struct Serialization {}
 impl Serialization {
     pub fn serialize(emu: Emu) -> Vec<u8> {
         let serialized = SerializableEmu::from(emu);
-        bitcode::encode(&serialized)
+        bitcode::serialize(&serialized).unwrap()
     }
 
     pub fn deserialize(data: &[u8]) -> Emu {
-        let deserialized: SerializableEmu = bitcode::decode(data).unwrap();
+        let deserialized: SerializableEmu = bitcode::deserialize(data).unwrap();
         deserialized.into()
     }
 }

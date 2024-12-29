@@ -1,6 +1,6 @@
-use bitcode::{Decode, Encode};
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Encode, Decode)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Eflags {
     pub rf: bool,
     pub vm: bool,

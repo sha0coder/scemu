@@ -1,7 +1,7 @@
 use crate::maps::Maps;
 use iced_x86::Register;
 use rand;
-use bitcode::{Decode, Encode};
+use serde::{Serialize, Deserialize};
 use uint::construct_uint;
 
 macro_rules! set_reg32 {
@@ -64,11 +64,11 @@ macro_rules! get_reg8h {
 //  https://wiki.osdev.org/CPU_Registers_x86-64
 
 construct_uint! {
-    #[derive(Encode, Decode)]
+    #[derive(Serialize, Deserialize)]
     pub struct U256(4);
 }
 
-#[derive(Clone, Copy, Encode, Decode)]
+#[derive(Clone, Copy, Serialize, Deserialize)]
 pub struct Regs64 {
     pub dr0: u64, // bp
     pub dr1: u64, // bp
