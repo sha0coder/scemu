@@ -65,7 +65,7 @@ impl Config {
             console_addr: 0,
             entry_point: 0x3c0000,
             exit_position: 0,
-            dump_on_exit: false,
+            dump_on_exit: true, // TODO: a way to make it false/set it through cli + lib
             code_base_addr: 0x3c0000,
             is_64bits: false,
             stack_trace: false,
