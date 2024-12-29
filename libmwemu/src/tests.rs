@@ -39,7 +39,7 @@ mod tests {
         emu.regs.rdx = 0x1;
 
         // serialize
-        let serialized = Serialization::serialize(emu);
+        let serialized = Serialization::serialize(&emu);
 
         // deserialize
         let emu: Emu = Serialization::deserialize(&serialized);

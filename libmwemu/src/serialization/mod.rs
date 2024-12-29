@@ -129,6 +129,15 @@ impl From<PE32> for SerializablePE32 {
     }
 }
 
+impl From<&PE32> for SerializablePE32 {
+    fn from(pe32: &PE32) -> Self {
+        SerializablePE32 {
+            raw: pe32.raw.clone(),
+        }
+    }
+}
+
+
 #[derive(Serialize, Deserialize)]
 pub struct SerializablePE64 {
     pub raw: Vec<u8>,
@@ -138,6 +147,14 @@ impl From<PE64> for SerializablePE64 {
     fn from(pe64: PE64) -> Self {
         SerializablePE64 {
             raw: pe64.raw,
+        }
+    }
+}
+
+impl From<&PE64> for SerializablePE64 {
+    fn from(pe64: &PE64) -> Self {
+        SerializablePE64 {
+            raw: pe64.raw.clone(),
         }
     }
 }
@@ -240,8 +257,8 @@ impl From<SerializablePE64> for PE64 {
     }
 }
 
-impl From<Emu> for SerializableEmu {
-    fn from(emu: Emu) -> Self {
+impl<'a> From<&'a Emu> for SerializableEmu {
+    fn from(emu: &'a Emu) -> Self {
         SerializableEmu {
             regs: emu.regs,
                 pre_op_regs: emu.pre_op_regs,
@@ -249,49 +266,49 @@ impl From<Emu> for SerializableEmu {
                 flags: emu.flags,
                 pre_op_flags: emu.pre_op_flags,
                 post_op_flags: emu.post_op_flags,
-                eflags: emu.eflags,
-                fpu: emu.fpu.into(),
-                maps: emu.maps,
+                eflags: emu.eflags.clone(),
+                fpu: emu.fpu.clone().into(),
+                maps: emu.maps.clone(),
                 exp: emu.exp,
                 break_on_alert: emu.break_on_alert,
-                bp: emu.bp,
+                bp: emu.bp.clone(),
                 seh: emu.seh,
                 veh: emu.veh,
                 feh: emu.feh,
                 eh_ctx: emu.eh_ctx,
-                cfg: emu.cfg,
-                colors: emu.colors,
+                cfg: emu.cfg.clone(),
+                colors: emu.colors.clone(),
                 pos: emu.pos,
                 force_break: emu.force_break,
                 force_reload: emu.force_reload,
-                tls_callbacks: emu.tls_callbacks,
-                tls32: emu.tls32,
-                tls64: emu.tls64,
-                fls: emu.fls,
-                out: emu.out,
+                tls_callbacks: emu.tls_callbacks.clone(),
+                tls32: emu.tls32.clone(),
+                tls64: emu.tls64.clone(),
+                fls: emu.fls.clone(),
+                out: emu.out.clone(),
                 instruction: emu.instruction,
                 decoder_position: emu.decoder_position,
-                memory_operations: emu.memory_operations,
+                memory_operations: emu.memory_operations.clone(),
                 main_thread_cont: emu.main_thread_cont,
                 gateway_return: emu.gateway_return,
                 is_running: emu.is_running.load(std::sync::atomic::Ordering::Relaxed),
                 break_on_next_cmp: emu.break_on_next_cmp,
                 break_on_next_return: emu.break_on_next_return,
-                filename: emu.filename,
+                filename: emu.filename.clone(),
                 enabled_ctrlc: emu.enabled_ctrlc,
                 run_until_ret: emu.run_until_ret,
                 running_script: emu.running_script,
-                banzai: emu.banzai,
-                mnemonic: emu.mnemonic,
+                banzai: emu.banzai.clone(),
+                mnemonic: emu.mnemonic.clone(),
                 dbg: emu.dbg,
                 linux: emu.linux,
-                fs: emu.fs,
+                fs: emu.fs.clone(),
                 now: SerializableInstant::from(emu.now),
                 skip_apicall: emu.skip_apicall,
                 its_apicall: emu.its_apicall,
                 last_instruction_size: emu.last_instruction_size,
-                pe64: emu.pe64.map(|x| x.into()),
-                pe32: emu.pe32.map(|x| x.into()),
+                pe64: emu.pe64.as_ref().map(|x| x.into()),
+                pe32: emu.pe32.as_ref().map(|x| x.into()),
                 rep: emu.rep,
                 tick: emu.tick,
         }
@@ -368,7 +385,7 @@ impl From<SerializableEmu> for Emu {
 pub struct Serialization {}
 
 impl Serialization {
-    pub fn serialize(emu: Emu) -> Vec<u8> {
+    pub fn serialize(emu: &Emu) -> Vec<u8> {
         let serialized = SerializableEmu::from(emu);
         bitcode::serialize(&serialized).unwrap()
     }

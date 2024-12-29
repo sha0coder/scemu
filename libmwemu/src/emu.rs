@@ -30,6 +30,7 @@ use crate::peb32;
 use crate::peb64;
 use crate::engine;
 use crate::constants;
+use crate::serialization;
 use crate::winapi32;
 use crate::winapi64;
 use crate::regs64::Regs64;
@@ -3143,6 +3144,8 @@ impl Emu {
         // exit
         if self.cfg.exit_position != 0 && self.pos == self.cfg.exit_position {
             log::info!("exit position reached");
+            let serialized = serialization::Serialization::serialize(self);
+            std::fs::write("/tmp/emu.bin", &serialized).unwrap();
             return false;
         }
 
