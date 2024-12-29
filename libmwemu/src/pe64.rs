@@ -2,7 +2,10 @@
  * PE64 Structures and loader
  */
 
- use crate::emu;
+use serde::Serialize;
+use serde::Serializer;
+
+use crate::emu;
 use crate::pe32;
 use crate::pe32::PE32;
 use crate::winapi64;
@@ -219,7 +222,18 @@ impl DelayLoadIAT {
     }
 }
 
-#[derive(Debug)]
+impl Serialize for PE64 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+    }
+}
+
+
 pub struct PE64 {
     raw: Vec<u8>,
     pub dos: pe32::ImageDosHeader,

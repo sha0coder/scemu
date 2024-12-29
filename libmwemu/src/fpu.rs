@@ -1,4 +1,5 @@
 use iced_x86::Register;
+use serde::{Serialize, Serializer};
 use crate::emu;
 
 pub struct FPUState {
@@ -43,6 +44,39 @@ impl FPUState {
         emu.maps.write_qword(addr + 16, self.rdp);                 // RDP (offset 16)
         emu.maps.write_dword(addr + 24, self.mxcsr);               // MXCSR (offset 24)
         emu.maps.write_dword(addr + 28, self.mxcsr_mask);          // MXCSR_MASK (offset 28)
+    }
+}
+
+impl Serialize for FPU {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("st".to_string(), serde_json::to_value(&self.st).unwrap());
+        value.insert("st_depth".to_string(), serde_json::to_value(&self.st_depth).unwrap());
+        value.insert("tag".to_string(), serde_json::to_value(&self.tag).unwrap());
+        value.insert("stat".to_string(), serde_json::to_value(&self.stat).unwrap());
+        value.insert("ctrl".to_string(), serde_json::to_value(&self.ctrl).unwrap());
+        value.insert("ip".to_string(), serde_json::to_value(&self.ip).unwrap());
+        value.insert("err_off".to_string(), serde_json::to_value(&self.err_off).unwrap());
+        value.insert("err_sel".to_string(), serde_json::to_value(&self.err_sel).unwrap());
+        value.insert("code_segment".to_string(), serde_json::to_value(&self.code_segment).unwrap());
+        value.insert("data_segment".to_string(), serde_json::to_value(&self.data_segment).unwrap());
+        value.insert("operand_ptr".to_string(), serde_json::to_value(&self.operand_ptr).unwrap());
+        value.insert("reserved".to_string(), serde_json::to_value(&self.reserved.to_vec()).unwrap());
+        value.insert("reserved2".to_string(), serde_json::to_value(&self.reserved2.to_vec()).unwrap());
+        value.insert("xmm".to_string(), serde_json::to_value(&self.xmm).unwrap());
+        value.insert("top".to_string(), serde_json::to_value(&self.top).unwrap());
+        value.insert("f_c0".to_string(), serde_json::to_value(&self.f_c0).unwrap());
+        value.insert("f_c1".to_string(), serde_json::to_value(&self.f_c1).unwrap());
+        value.insert("f_c2".to_string(), serde_json::to_value(&self.f_c2).unwrap());
+        value.insert("f_c3".to_string(), serde_json::to_value(&self.f_c3).unwrap());
+        value.insert("f_c4".to_string(), serde_json::to_value(&self.f_c4).unwrap());
+        value.insert("mxcsr".to_string(), serde_json::to_value(&self.mxcsr).unwrap());
+        value.insert("fpu_control_word".to_string(), serde_json::to_value(&self.fpu_control_word).unwrap());
+        value.insert("opcode".to_string(), serde_json::to_value(&self.opcode).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
     }
 }
 

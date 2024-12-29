@@ -5,7 +5,6 @@ use iced_x86::{
     MemorySize, Mnemonic, OpKind, Register,
 };
 use std::collections::BTreeMap;
-use std::io::Write as _;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::Instant;
@@ -21,7 +20,7 @@ use crate::elf64::Elf64;
 use crate::err::MwemuError;
 use crate::flags::Flags;
 use crate::fpu::FPU;
-use crate::hook::Hook;
+use crate::hooks::Hooks;
 use crate::maps::Maps;
 use crate::pe32::PE32;
 use crate::pe64::PE64;
@@ -49,7 +48,7 @@ pub struct Emu {
     pub eflags: Eflags,
     pub fpu: FPU,
     pub maps: Maps,
-    pub hook: Hook,
+    pub hooks: Hooks,
     pub exp: u64,
     pub break_on_alert: bool,
     pub bp: Breakpoint,
@@ -112,7 +111,7 @@ impl Emu {
             eflags: Eflags::new(),
             fpu: FPU::new(),
             maps: Maps::new(),
-            hook: Hook::new(),
+            hooks: Hooks::new(),
             exp: 0,
             break_on_alert: false,
             bp: Breakpoint::new(),
@@ -1752,7 +1751,7 @@ impl Emu {
     pub fn set_rip(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
-        if addr == constants::RETURN_THREAD.into() {
+        if addr == constants::RETURN_THREAD as u64 {
             log::info!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
             Console::spawn_console(self);
@@ -1800,7 +1799,7 @@ impl Emu {
             self.gateway_return = self.stack_pop64(false).unwrap_or(0);
             self.regs.rip = self.gateway_return;
 
-            let handle_winapi: bool = match self.hook.hook_on_winapi_call {
+            let handle_winapi: bool = match self.hooks.hook_on_winapi_call {
                 Some(hook_fn) => hook_fn(self, self.regs.rip, addr),
                 None => true,
             };
@@ -1837,7 +1836,7 @@ impl Emu {
     pub fn set_eip(&mut self, addr: u64, is_branch: bool) -> bool {
         self.force_reload = true;
 
-        if addr == constants::RETURN_THREAD.into() {
+        if addr == constants::RETURN_THREAD as u64 {
             log::info!("/!\\ Thread returned, continuing the main thread");
             self.regs.rip = self.main_thread_cont;
             Console::spawn_console(self);
@@ -1883,7 +1882,7 @@ impl Emu {
             self.gateway_return = self.stack_pop32(false).unwrap_or(0).into();
             self.regs.set_eip(self.gateway_return);
 
-            let handle_winapi: bool = match self.hook.hook_on_winapi_call {
+            let handle_winapi: bool = match self.hooks.hook_on_winapi_call {
                 Some(hook_fn) => hook_fn(self, self.regs.rip, addr),
                 None => true,
             };
@@ -1933,7 +1932,7 @@ impl Emu {
         let addr: u64;
         let next: u64;
 
-        let handle_exception: bool = match self.hook.hook_on_exception {
+        let handle_exception: bool = match self.hooks.hook_on_exception {
             Some(hook_fn) => hook_fn(self, self.regs.rip),
             None => true,
         };
@@ -2252,7 +2251,7 @@ impl Emu {
                 if derref {
                     let sz = self.get_operand_sz(ins, noperand);
 
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                    if let Some(hook_fn) = self.hooks.hook_on_memory_read {
                         hook_fn(self, self.regs.rip, mem_addr, sz)
                     }
 
@@ -2385,7 +2384,7 @@ impl Emu {
                 if write {
                     let sz = self.get_operand_sz(ins, noperand);
 
-                    let value2 = match self.hook.hook_on_memory_write {
+                    let value2 = match self.hooks.hook_on_memory_write {
                         Some(hook_fn) => {
                             hook_fn(self, self.regs.rip, mem_addr, sz, value as u128) as u64
                         }
@@ -2569,7 +2568,7 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                    if let Some(hook_fn) = self.hooks.hook_on_memory_read {
                         hook_fn(self, self.regs.rip, mem_addr, 128)
                     }
 
@@ -2608,7 +2607,7 @@ impl Emu {
                     }
                 };
 
-                let value2 = match self.hook.hook_on_memory_write {
+                let value2 = match self.hooks.hook_on_memory_write {
                     Some(hook_fn) => hook_fn(self, self.regs.rip, mem_addr, 128, value),
                     None => value,
                 };
@@ -2654,7 +2653,7 @@ impl Emu {
                 };
 
                 if do_derref {
-                    if let Some(hook_fn) = self.hook.hook_on_memory_read {
+                    if let Some(hook_fn) = self.hooks.hook_on_memory_read {
                         hook_fn(self, self.regs.rip, mem_addr, 256)
                     }
 
@@ -2695,7 +2694,7 @@ impl Emu {
 
                 // ymm dont support value modification from hook, for now
                 let value_u128: u128 = ((value.0[1] as u128) << 64) | value.0[0] as u128;
-                let value2 = match self.hook.hook_on_memory_write {
+                let value2 = match self.hooks.hook_on_memory_write {
                     Some(hook_fn) => hook_fn(self, self.regs.rip, mem_addr, 256, value_u128),
                     None => value_u128,
                 };
@@ -3332,7 +3331,7 @@ impl Emu {
                         }
                     }
 
-                    if self.cfg.trace_file.is_some() && self.pos >= self.cfg.trace_start {
+                    if self.cfg.trace_filename.is_some() && self.pos >= self.cfg.trace_start {
                         self.capture_pre_op();
                     }
 
@@ -3349,7 +3348,7 @@ impl Emu {
                     //let mut info_factory = InstructionInfoFactory::new();
                     //let info = info_factory.info(&ins);
 
-                    if let Some(hook_fn) = self.hook.hook_on_pre_instruction {
+                    if let Some(hook_fn) = self.hooks.hook_on_pre_instruction {
                         hook_fn(self, self.regs.rip, &ins, sz)
                     }
 
@@ -3425,7 +3424,7 @@ impl Emu {
                         }
                     }
 
-                    if let Some(hook_fn) = self.hook.hook_on_post_instruction {
+                    if let Some(hook_fn) = self.hooks.hook_on_post_instruction {
                         hook_fn(self, self.regs.rip, &ins, sz, emulation_ok)
                     }
 
@@ -3433,7 +3432,7 @@ impl Emu {
                         self.trace_memory_inspection();
                     }
 
-                    if self.cfg.trace_file.is_some() && self.pos >= self.cfg.trace_start {
+                    if self.cfg.trace_filename.is_some() && self.pos >= self.cfg.trace_start {
                         self.capture_post_op();
                         self.write_to_trace_file();
                     }

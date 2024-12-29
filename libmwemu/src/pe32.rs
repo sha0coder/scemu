@@ -2,7 +2,9 @@
  * PE32 Structures and loader
  */
 
- use crate::{emu, winapi32};
+ use serde::{Deserialize, Serialize, Serializer};
+
+use crate::{emu, winapi32};
 use std::fs::File;
 use std::io::Read;
 use std::str;
@@ -746,6 +748,17 @@ impl Section {
             off,
             sz,
         }
+    }
+}
+
+impl Serialize for PE32 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
     }
 }
 

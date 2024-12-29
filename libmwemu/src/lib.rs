@@ -22,7 +22,7 @@ pub mod err;
 pub mod exception;
 pub mod flags;
 pub mod fpu;
-pub mod hook;
+pub mod hooks;
 pub mod inline;
 #[macro_use]
 pub mod macros;
@@ -39,6 +39,7 @@ pub mod syscall32;
 pub mod syscall64;
 pub mod winapi32;
 pub mod winapi64;
+pub mod serialization;
 
 use config::Config;
 use emu::Emu;
