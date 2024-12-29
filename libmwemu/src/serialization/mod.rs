@@ -1,3 +1,4 @@
+use std::convert::TryInto as _;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::Instant;
@@ -10,7 +11,10 @@ use serde::Serialize;
 use serde::Serializer;
 
 use crate::emu::Emu;
+use crate::fpu::FPU;
 use crate::hooks::Hooks;
+use crate::pe32::PE32;
+use crate::pe64::PE64;
 
 #[derive(Serialize, Deserialize)]
 struct SerializableInstant {
@@ -45,6 +49,147 @@ impl SerializableInstant {
             .saturating_sub(std::time::Duration::from_secs(self.timestamp))
     }
 }
+
+impl Serialize for FPU {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("st".to_string(), serde_json::to_value(&self.st).unwrap());
+        value.insert("st_depth".to_string(), serde_json::to_value(&self.st_depth).unwrap());
+        value.insert("tag".to_string(), serde_json::to_value(&self.tag).unwrap());
+        value.insert("stat".to_string(), serde_json::to_value(&self.stat).unwrap());
+        value.insert("ctrl".to_string(), serde_json::to_value(&self.ctrl).unwrap());
+        value.insert("ip".to_string(), serde_json::to_value(&self.ip).unwrap());
+        value.insert("err_off".to_string(), serde_json::to_value(&self.err_off).unwrap());
+        value.insert("err_sel".to_string(), serde_json::to_value(&self.err_sel).unwrap());
+        value.insert("code_segment".to_string(), serde_json::to_value(&self.code_segment).unwrap());
+        value.insert("data_segment".to_string(), serde_json::to_value(&self.data_segment).unwrap());
+        value.insert("operand_ptr".to_string(), serde_json::to_value(&self.operand_ptr).unwrap());
+        value.insert("reserved".to_string(), serde_json::to_value(&self.reserved.to_vec()).unwrap());
+        value.insert("reserved2".to_string(), serde_json::to_value(&self.reserved2.to_vec()).unwrap());
+        value.insert("xmm".to_string(), serde_json::to_value(&self.xmm).unwrap());
+        value.insert("top".to_string(), serde_json::to_value(&self.top).unwrap());
+        value.insert("f_c0".to_string(), serde_json::to_value(&self.f_c0).unwrap());
+        value.insert("f_c1".to_string(), serde_json::to_value(&self.f_c1).unwrap());
+        value.insert("f_c2".to_string(), serde_json::to_value(&self.f_c2).unwrap());
+        value.insert("f_c3".to_string(), serde_json::to_value(&self.f_c3).unwrap());
+        value.insert("f_c4".to_string(), serde_json::to_value(&self.f_c4).unwrap());
+        value.insert("mxcsr".to_string(), serde_json::to_value(&self.mxcsr).unwrap());
+        value.insert("fpu_control_word".to_string(), serde_json::to_value(&self.fpu_control_word).unwrap());
+        value.insert("opcode".to_string(), serde_json::to_value(&self.opcode).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for FPU {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        // First deserialize the string containing the JSON
+        let json_str = String::deserialize(deserializer)?;
+        
+        // Parse the JSON string into a Map
+        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(D::Error::custom)?;
+
+        let reserved: Vec<u8> = serde_json::from_value(value.get("reserved").unwrap().clone()).unwrap();
+        let reserved2: Vec<u8> = serde_json::from_value(value.get("reserved2").unwrap().clone()).unwrap();
+
+        Ok(FPU {
+            st: serde_json::from_value(value.get("st").unwrap().clone()).unwrap(),
+            st_depth: serde_json::from_value(value.get("st_depth").unwrap().clone()).unwrap(),
+            tag: serde_json::from_value(value.get("tag").unwrap().clone()).unwrap(),
+            stat: serde_json::from_value(value.get("stat").unwrap().clone()).unwrap(),
+            ctrl: serde_json::from_value(value.get("ctrl").unwrap().clone()).unwrap(),
+            ip: serde_json::from_value(value.get("ip").unwrap().clone()).unwrap(),
+            err_off: serde_json::from_value(value.get("err_off").unwrap().clone()).unwrap(),
+            err_sel: serde_json::from_value(value.get("err_sel").unwrap().clone()).unwrap(),
+            code_segment: serde_json::from_value(value.get("code_segment").unwrap().clone()).unwrap(),
+            data_segment: serde_json::from_value(value.get("data_segment").unwrap().clone()).unwrap(),
+            operand_ptr: serde_json::from_value(value.get("operand_ptr").unwrap().clone()).unwrap(),
+            reserved: reserved.as_slice().try_into().unwrap(),
+            reserved2: reserved2.as_slice().try_into().unwrap(),
+            xmm: serde_json::from_value(value.get("xmm").unwrap().clone()).unwrap(),
+            top: serde_json::from_value(value.get("top").unwrap().clone()).unwrap(),
+            f_c0: serde_json::from_value(value.get("f_c0").unwrap().clone()).unwrap(),
+            f_c1: serde_json::from_value(value.get("f_c1").unwrap().clone()).unwrap(),
+            f_c2: serde_json::from_value(value.get("f_c2").unwrap().clone()).unwrap(),
+            f_c3: serde_json::from_value(value.get("f_c3").unwrap().clone()).unwrap(),
+            f_c4: serde_json::from_value(value.get("f_c4").unwrap().clone()).unwrap(),
+            mxcsr: serde_json::from_value(value.get("mxcsr").unwrap().clone()).unwrap(),
+            fpu_control_word: serde_json::from_value(value.get("fpu_control_word").unwrap().clone()).unwrap(),
+            opcode: serde_json::from_value(value.get("opcode").unwrap().clone()).unwrap(),
+        })
+    }
+}
+
+impl Serialize for PE32 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for PE32 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        // First deserialize the string containing the JSON
+        let json_str = String::deserialize(deserializer)?;
+        
+        // Parse the JSON string into a Map
+        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(D::Error::custom)?;
+
+        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
+        let pe64 = PE32::load_from_raw(&raw);
+        Ok(pe64)
+    }
+}
+
+impl Serialize for PE64 {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut value = serde_json::Map::new();
+        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
+        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for PE64 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        // First deserialize the string containing the JSON
+        let json_str = String::deserialize(deserializer)?;
+        
+        // Parse the JSON string into a Map
+        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(D::Error::custom)?;
+
+        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
+        let pe64 = PE64::load_from_raw(&raw);
+        Ok(pe64)
+    }
+}
+
 
 impl Serialize for Emu {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

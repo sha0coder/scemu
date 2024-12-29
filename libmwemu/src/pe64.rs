@@ -2,11 +2,6 @@
  * PE64 Structures and loader
  */
 
-use serde::Deserialize;
-use serde::Deserializer;
-use serde::Serialize;
-use serde::Serializer;
-
 use crate::emu;
 use crate::pe32;
 use crate::pe32::PE32;
@@ -224,39 +219,8 @@ impl DelayLoadIAT {
     }
 }
 
-impl Serialize for PE64 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut value = serde_json::Map::new();
-        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
-        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
-    }
-}
-
-impl<'de> Deserialize<'de> for PE64 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
-
-        // First deserialize the string containing the JSON
-        let json_str = String::deserialize(deserializer)?;
-        
-        // Parse the JSON string into a Map
-        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
-            .map_err(D::Error::custom)?;
-
-        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
-        let pe64 = PE64::load_from_raw(&raw);
-        Ok(pe64)
-    }
-}
-
 pub struct PE64 {
-    raw: Vec<u8>,
+    pub raw: Vec<u8>,
     pub dos: pe32::ImageDosHeader,
     pub nt: pe32::ImageNtHeaders,
     pub fh: pe32::ImageFileHeader,
