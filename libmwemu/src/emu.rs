@@ -2408,9 +2408,10 @@ impl Emu {
                         64 => {
                             if !self.maps.write_qword(mem_addr, value2) {
                                 if self.cfg.skip_unimplemented {
+                                    let map_name = format!("banzai_{:x}", mem_addr);
                                     let map = self
                                         .maps
-                                        .create_map("banzai", mem_addr, 8)
+                                        .create_map(&map_name, mem_addr, 8)
                                         .expect("cannot create banzai map");
                                     map.write_qword(mem_addr, value2);
                                     return true;
@@ -2427,9 +2428,10 @@ impl Emu {
                         32 => {
                             if !self.maps.write_dword(mem_addr, to32!(value2)) {
                                 if self.cfg.skip_unimplemented {
+                                    let map_name = format!("banzai_{:x}", mem_addr);
                                     let map = self
                                         .maps
-                                        .create_map("banzai", mem_addr, 4)
+                                        .create_map(&map_name, mem_addr, 4)
                                         .expect("cannot create banzai map");
                                     map.write_dword(mem_addr, to32!(value2));
                                     return true;
@@ -2446,9 +2448,10 @@ impl Emu {
                         16 => {
                             if !self.maps.write_word(mem_addr, value2 as u16) {
                                 if self.cfg.skip_unimplemented {
+                                    let map_name = format!("banzai_{:x}", mem_addr);
                                     let map = self
                                         .maps
-                                        .create_map("banzai", mem_addr, 2)
+                                        .create_map(&map_name, mem_addr, 2)
                                         .expect("cannot create banzai map");
                                     map.write_word(mem_addr, value2 as u16);
                                     return true;
@@ -2465,9 +2468,10 @@ impl Emu {
                         8 => {
                             if !self.maps.write_byte(mem_addr, value2 as u8) {
                                 if self.cfg.skip_unimplemented {
+                                    let map_name = format!("banzai_{:x}", mem_addr);
                                     let map = self
                                         .maps
-                                        .create_map("banzai", mem_addr, 1)
+                                        .create_map(&map_name, mem_addr, 1)
                                         .expect("cannot create banzai map");
                                     map.write_byte(mem_addr, value2 as u8);
                                     return true;
