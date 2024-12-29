@@ -34,7 +34,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         0x7748cc3f => WsaConnect(emu),
         */
         _ => {
-            log::info!("calling unimplemented ws2_32 API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }

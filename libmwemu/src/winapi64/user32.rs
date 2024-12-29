@@ -1,17 +1,18 @@
 use crate::emu;
 use crate::winapi64;
+
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let apiname = winapi64::kernel32::guess_api_name(emu, addr);
-    match apiname.as_str() {
+    let api = winapi64::kernel32::guess_api_name(emu, addr);
+    match api.as_str() {
         "MessageBoxA" => MessageBoxA(emu),
         "GetDesktopWindow" => GetDesktopWindow(emu),
         "GetSystemMetrics" => GetSystemMetrics(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
-                unimplemented!("unimplemented user32 API 0x{:x} {}", addr, apiname);
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented user32 API 0x{:x} {}", addr, apiname);
-            return apiname;
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            return api;
         }
     }
     String::new()
