@@ -2,6 +2,8 @@
  * PE64 Structures and loader
  */
 
+use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
@@ -233,6 +235,25 @@ impl Serialize for PE64 {
     }
 }
 
+impl<'de> Deserialize<'de> for PE64 {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        // First deserialize the string containing the JSON
+        let json_str = String::deserialize(deserializer)?;
+        
+        // Parse the JSON string into a Map
+        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(D::Error::custom)?;
+
+        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
+        let pe64 = PE64::load_from_raw(&raw);
+        Ok(pe64)
+    }
+}
 
 pub struct PE64 {
     raw: Vec<u8>,
@@ -264,17 +285,15 @@ impl PE64 {
         true
     }
 
-    pub fn load(filename: &str) -> PE64 {
-        //log::info!("loading pe64: {}", filename);
-        let mut fd = File::open(filename).expect("pe64 binary not found");
-        let mut raw: Vec<u8> = Vec::new();
-        fd.read_to_end(&mut raw)
-            .expect("couldnt read the pe64 binary");
-
+    pub fn load_from_raw(raw: &[u8]) -> PE64 {
         let dos = pe32::ImageDosHeader::load(&raw, 0);
         let nt = pe32::ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
         let fh = pe32::ImageFileHeader::load(&raw, dos.e_lfanew as usize + 4);
-        let opt = ImageOptionalHeader64::load(&raw, dos.e_lfanew as usize + 24);
+        let opt = ImageOptionalHeader64::load(&raw.to_vec(), dos.e_lfanew as usize + 24);
+        let dos = pe32::ImageDosHeader::load(&raw, 0);
+        let nt = pe32::ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
+        let fh = pe32::ImageFileHeader::load(&raw, dos.e_lfanew as usize + 4);
+        let opt = ImageOptionalHeader64::load(&raw.to_vec(), dos.e_lfanew as usize + 24);
         let mut sect: Vec<pe32::ImageSectionHeader> = Vec::new();
 
         let mut off = dos.e_lfanew as usize + 24 + fh.size_of_optional_header as usize;
@@ -347,7 +366,7 @@ impl PE64 {
         }
 
         PE64 {
-            raw,
+            raw: raw.to_vec(),
             dos,
             fh,
             nt,
@@ -357,6 +376,15 @@ impl PE64 {
             image_import_descriptor, //import_dir: importd,
                                      //export_dir: exportd,
         }
+    }
+
+    pub fn load(filename: &str) -> PE64 {
+        //log::info!("loading pe64: {}", filename);
+        let mut fd = File::open(filename).expect("pe64 binary not found");
+        let mut raw: Vec<u8> = Vec::new();
+        fd.read_to_end(&mut raw)
+            .expect("couldnt read the pe64 binary");
+        PE64::load_from_raw(&raw)
     }
 
     pub fn size(&self) -> u64 {

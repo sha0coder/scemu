@@ -1,12 +1,16 @@
+use std::sync::atomic;
+use std::sync::Arc;
 use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use serde::Serializer;
 
 use crate::emu::Emu;
+use crate::hooks::Hooks;
 
 #[derive(Serialize, Deserialize)]
 struct SerializableInstant {
@@ -101,5 +105,82 @@ impl Serialize for Emu {
         value.insert("rep".to_string(), serde_json::to_value(&self.rep).unwrap());
         value.insert("tick".to_string(), serde_json::to_value(&self.tick).unwrap());
         serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+    }
+}
+
+impl<'de> Deserialize<'de> for Emu {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        
+        // First deserialize the string containing the JSON
+        let json_str = String::deserialize(deserializer)?;
+        
+        // Parse the JSON string into a Map
+        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
+            .map_err(D::Error::custom)?;
+
+        let is_running = serde_json::from_value(value.get("is_running").unwrap().clone()).unwrap();
+
+        let now = serde_json::from_value(value.get("now").unwrap().clone()).unwrap();
+        let now = SerializableInstant::from(now).to_instant();
+
+        Ok(Emu {
+            regs: serde_json::from_value(value.get("regs").unwrap().clone()).unwrap(),
+            pre_op_regs: serde_json::from_value(value.get("pre_op_regs").unwrap().clone()).unwrap(),
+            post_op_regs: serde_json::from_value(value.get("post_op_regs").unwrap().clone()).unwrap(),
+            flags: serde_json::from_value(value.get("flags").unwrap().clone()).unwrap(),
+            pre_op_flags: serde_json::from_value(value.get("pre_op_flags").unwrap().clone()).unwrap(),
+            post_op_flags: serde_json::from_value(value.get("post_op_flags").unwrap().clone()).unwrap(),
+            eflags: serde_json::from_value(value.get("eflags").unwrap().clone()).unwrap(),
+            fpu: serde_json::from_value(value.get("fpu").unwrap().clone()).unwrap(),
+            maps: serde_json::from_value(value.get("maps").unwrap().clone()).unwrap(),
+            hooks: Hooks::new(),
+            exp: serde_json::from_value(value.get("exp").unwrap().clone()).unwrap(),
+            break_on_alert: serde_json::from_value(value.get("break_on_alert").unwrap().clone()).unwrap(),
+            bp: serde_json::from_value(value.get("bp").unwrap().clone()).unwrap(),
+            seh: serde_json::from_value(value.get("seh").unwrap().clone()).unwrap(),
+            veh: serde_json::from_value(value.get("veh").unwrap().clone()).unwrap(),
+            feh: serde_json::from_value(value.get("feh").unwrap().clone()).unwrap(),
+            eh_ctx: serde_json::from_value(value.get("eh_ctx").unwrap().clone()).unwrap(),
+            cfg: serde_json::from_value(value.get("cfg").unwrap().clone()).unwrap(),
+            colors: serde_json::from_value(value.get("colors").unwrap().clone()).unwrap(),
+            pos: serde_json::from_value(value.get("pos").unwrap().clone()).unwrap(),
+            force_break: serde_json::from_value(value.get("force_break").unwrap().clone()).unwrap(),
+            force_reload: serde_json::from_value(value.get("force_reload").unwrap().clone()).unwrap(),
+            tls_callbacks: serde_json::from_value(value.get("tls_callbacks").unwrap().clone()).unwrap(),
+            tls32: serde_json::from_value(value.get("tls32").unwrap().clone()).unwrap(),
+            tls64: serde_json::from_value(value.get("tls64").unwrap().clone()).unwrap(),
+            fls: serde_json::from_value(value.get("fls").unwrap().clone()).unwrap(),
+            out: serde_json::from_value(value.get("out").unwrap().clone()).unwrap(),
+            instruction: serde_json::from_value(value.get("instruction").unwrap().clone()).unwrap(),
+            decoder_position: serde_json::from_value(value.get("decoder_position").unwrap().clone()).unwrap(),
+            memory_operations: serde_json::from_value(value.get("memory_operations").unwrap().clone()).unwrap(),
+            main_thread_cont: serde_json::from_value(value.get("main_thread_cont").unwrap().clone()).unwrap(),
+            gateway_return: serde_json::from_value(value.get("gateway_return").unwrap().clone()).unwrap(),
+            is_running: Arc::new(atomic::AtomicU32::new(is_running)),
+            break_on_next_cmp: serde_json::from_value(value.get("break_on_next_cmp").unwrap().clone()).unwrap(),
+            break_on_next_return: serde_json::from_value(value.get("break_on_next_return").unwrap().clone()).unwrap(),
+            filename: serde_json::from_value(value.get("filename").unwrap().clone()).unwrap(),
+            enabled_ctrlc: serde_json::from_value(value.get("enabled_ctrlc").unwrap().clone()).unwrap(),
+            run_until_ret: serde_json::from_value(value.get("run_until_ret").unwrap().clone()).unwrap(),
+            running_script: serde_json::from_value(value.get("running_script").unwrap().clone()).unwrap(),
+            banzai: serde_json::from_value(value.get("banzai").unwrap().clone()).unwrap(),
+            mnemonic: serde_json::from_value(value.get("mnemonic").unwrap().clone()).unwrap(),
+            dbg: serde_json::from_value(value.get("dbg").unwrap().clone()).unwrap(),
+            linux: serde_json::from_value(value.get("linux").unwrap().clone()).unwrap(),
+            fs: serde_json::from_value(value.get("fs").unwrap().clone()).unwrap(),
+            now: now,
+            skip_apicall: serde_json::from_value(value.get("skip_apicall").unwrap().clone()).unwrap(),
+            its_apicall: serde_json::from_value(value.get("its_apicall").unwrap().clone()).unwrap(),
+            last_instruction_size: serde_json::from_value(value.get("last_instruction_size").unwrap().clone()).unwrap(),
+            pe64: serde_json::from_value(value.get("pe64").unwrap().clone()).unwrap(),
+            pe32: serde_json::from_value(value.get("pe32").unwrap().clone()).unwrap(),
+            rep: serde_json::from_value(value.get("rep").unwrap().clone()).unwrap(),
+            tick: serde_json::from_value(value.get("tick").unwrap().clone()).unwrap(),
+            trace_file: None,
+        })
     }
 }
