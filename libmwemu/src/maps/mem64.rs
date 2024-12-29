@@ -3,7 +3,7 @@
 */
 
 use md5;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;

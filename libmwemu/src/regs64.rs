@@ -1,7 +1,7 @@
 use crate::maps::Maps;
 use iced_x86::Register;
 use rand;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 use uint::construct_uint;
 
 macro_rules! set_reg32 {

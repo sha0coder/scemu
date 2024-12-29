@@ -4,6 +4,7 @@ use clap::{App, Arg};
 use env_logger::Env;
 use libmwemu::emu32;
 use libmwemu::emu64;
+use libmwemu::serialization;
 use std::io::Write as _;
 
 macro_rules! match_register_arg {
@@ -62,6 +63,7 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
         .arg(clap_arg!("filename", "f", "filename", "set the shellcode binary file.", "FILE"))
+        .arg(clap_arg!("dump", "d", "dump", "load from dump.", "FILE"))
         .arg(clap_arg!("verbose", "v", "verbose", "-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster", multiple: true))
         .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation"))
         .arg(clap_arg!("memory", "m", "memory", "trace all the memory accesses read and write."))
@@ -328,14 +330,20 @@ fn main() {
 
     // exit position
     if matches.is_present("exit_position") {
-        emu.cfg.exit_position = u64::from_str_radix(
-            matches
-                .value_of("exit_position")
-                .expect("select the exit position address -e")
-                .trim_start_matches("0x"),
-            16,
-        )
-        .expect("invalid position");
+        let exit_pos_str = matches
+            .value_of("exit_position")
+            .expect("select the exit position address -e");
+        
+        emu.cfg.exit_position = if exit_pos_str.starts_with("0x") {
+            // Handle hexadecimal format
+            u64::from_str_radix(
+                exit_pos_str.trim_start_matches("0x"),
+                16
+            )
+        } else {
+            // Handle decimal format
+            exit_pos_str.parse::<u64>()
+        }.expect("invalid position");
     }
 
     // stack trace
@@ -350,6 +358,13 @@ fn main() {
 
     // load code
     emu.load_code(&filename);
+
+    // override all from dump?
+    if matches.is_present("dump") {
+        let dump_filename = matches.value_of("dump").expect("specify the dump filename");
+        log::info!("loading dump from {}", dump_filename);
+        emu = serialization::Serialization::load_from_file(dump_filename);
+    }
 
     // script
     if matches.is_present("script") {

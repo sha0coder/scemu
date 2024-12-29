@@ -2,7 +2,7 @@ pub mod mem64;
 
 use crate::constants;
 use mem64::Mem64;
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 use std::str;
 
 #[derive(Clone, Serialize, Deserialize)]

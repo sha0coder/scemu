@@ -7,7 +7,7 @@ mod tests {
 
     use crate::emu::Emu;
     use crate::emu64;
-    use crate::serialization::SerializableEmu;
+    use crate::serialization::Serialization;
 
     static INIT: Once = Once::new();
 
@@ -39,12 +39,10 @@ mod tests {
         emu.regs.rdx = 0x1;
 
         // serialize
-        let serializedable_emu: SerializableEmu = emu.into();
-        let serialized = serde_json::to_string(&serializedable_emu).unwrap();
+        let serialized = Serialization::serialize(&emu);
 
         // deserialize
-        let parsed: SerializableEmu = serde_json::from_str(&serialized).unwrap();
-        let emu: Emu = parsed.into();
+        let emu: Emu = Serialization::deserialize(&serialized);
 
         // assert
         assert_eq!(emu.regs.rdx, 0x1);

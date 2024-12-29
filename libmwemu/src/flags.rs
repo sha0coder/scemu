@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
 pub const MIN_I8: i8 = -128;
 pub const MAX_I8: i8 = 0x7f;
