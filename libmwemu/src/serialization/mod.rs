@@ -89,7 +89,31 @@ pub struct SerializableFPU {
 
 impl From<FPU> for SerializableFPU {
     fn from(fpu: FPU) -> Self {
-        todo!()
+        SerializableFPU {
+            st: fpu.st,
+            st_depth: fpu.st_depth,
+            tag: fpu.tag,
+            stat: fpu.stat,
+            ctrl: fpu.ctrl,
+            ip: fpu.ip,
+            err_off: fpu.err_off,
+            err_sel: fpu.err_sel,
+            code_segment: fpu.code_segment,
+            data_segment: fpu.data_segment,
+            operand_ptr: fpu.operand_ptr,
+            reserved: fpu.reserved.to_vec(),
+            reserved2: fpu.reserved2.to_vec(),
+            xmm: fpu.xmm.to_vec(),
+            top: fpu.top,
+            f_c0: fpu.f_c0,
+            f_c1: fpu.f_c1,
+            f_c2: fpu.f_c2,
+            f_c3: fpu.f_c3,
+            f_c4: fpu.f_c4,
+            mxcsr: fpu.mxcsr,
+            fpu_control_word: fpu.fpu_control_word,
+            opcode: fpu.opcode,
+        }
     }
 }
 
