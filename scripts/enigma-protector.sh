@@ -31,7 +31,7 @@ if [ "$MODE" == "dump" ]; then
         --maps ./maps64/ \
         --64bits \
         --rdx 1 \
-        --exit 0xD95F766
+        --exit 232239501
 elif [ "$MODE" == "load" ]; then
     cargo run \
         -p mwemu \
