@@ -2,6 +2,7 @@
 mod tests {
     //use super::*;
 
+    use crate::emu::Emu;
     use crate::emu64;
     use crate::serialization::SerializableEmu;
     #[test]
@@ -19,9 +20,15 @@ mod tests {
         // set registers
         emu.regs.rdx = 0x1;
 
-        // run
+        // serialize
         let serializedable_emu: SerializableEmu = emu.into();
-        let serialized = serde_json::to_string_pretty(&serializedable_emu).unwrap();
-        std::fs::write("/tmp/emu.json", serialized).unwrap();
+        let serialized = serde_json::to_string(&serializedable_emu).unwrap();
+
+        // deserialize
+        let parsed: SerializableEmu = serde_json::from_str(&serialized).unwrap();
+        let emu: Emu = parsed.into();
+
+        // assert
+        assert_eq!(emu.regs.rdx, 0x1);
     }
 }
