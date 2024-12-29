@@ -5,6 +5,7 @@ use crate::emu::Emu;
 use crate::regs64;
 use crate::exception;
 use crate::inline;
+use crate::serialization;
 use crate::syscall32;
 use crate::syscall64;
 use crate::ntapi32;
@@ -8581,12 +8582,19 @@ pub fn emulate_instruction(
                     );
                 }
             }
+            
 
             if !emu.cfg.skip_unimplemented {
                 log::info!("unimplemented or invalid instruction. use --banzai (cfg.skip_unimplemented) mode to skip");
+
+                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+                    serialization::Serialization::dump_to_file(&emu, emu.cfg.dump_filename.as_ref().unwrap());
+                }
+
                 if emu.cfg.console_enabled {
                     Console::spawn_console(emu);
                 }
+
                 return false;
                 //unimplemented!("unimplemented instruction");
             }
