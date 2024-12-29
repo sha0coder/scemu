@@ -1,4 +1,50 @@
 use iced_x86::Register;
+use crate::emu;
+
+pub struct FPUState {
+    pub fpu_control_word: u16,               // Control Word
+    pub fpu_status_word: u16,               // Status Word
+    pub fpu_tag_word: u16,                // Tag Word
+    pub reserved1: u8,
+    pub fpu_opcode: u16,               // Opcode
+    pub rip: u64,               // Instruction Pointer
+    pub rdp: u64,               // Data Pointer
+    pub mxcsr: u32,             // SSE Control and Status
+    pub mxcsr_mask: u32,
+    pub st: [u128; 8],          // FPU registers (packed in 128 bits each)
+    pub xmm: [u128; 16],        // XMM registers
+    pub reserved2: [u8; 224],   // Reserved
+}
+
+impl FPUState {
+    pub fn new() -> Self {
+        Self {
+            fpu_control_word: 0,
+            fpu_status_word: 0,
+            fpu_tag_word: 0,
+            reserved1: 0,
+            fpu_opcode: 0,
+            rip: 0,
+            rdp: 0,
+            mxcsr: 0,
+            mxcsr_mask: 0,
+            st: [0; 8],
+            xmm: [0; 16],
+            reserved2: [0; 224],
+        }
+    }
+
+    pub fn save(&self, addr: u64, emu: &mut emu::Emu) {
+        emu.maps.write_word(addr, self.fpu_control_word);          // FCW (offset 0)
+        emu.maps.write_word(addr + 2, self.fpu_status_word);       // FSW (offset 2)
+        emu.maps.write_word(addr + 4, self.fpu_tag_word);          // FTW (offset 4)
+        emu.maps.write_word(addr + 6, self.fpu_opcode);            // FOP (offset 6)
+        emu.maps.write_qword(addr + 8, self.rip);                  // RIP (offset 8)
+        emu.maps.write_qword(addr + 16, self.rdp);                 // RDP (offset 16)
+        emu.maps.write_dword(addr + 24, self.mxcsr);               // MXCSR (offset 24)
+        emu.maps.write_dword(addr + 28, self.mxcsr_mask);          // MXCSR_MASK (offset 28)
+    }
+}
 
 #[derive(Clone)]
 pub struct FPU {
@@ -15,7 +61,7 @@ pub struct FPU {
     operand_ptr: u64,
     reserved: [u8; 14],
     reserved2: [u8; 96],
-    xmm: [u64; 16],
+    xmm: [u128; 16],
     top: i8,
     pub f_c0: bool, // overflow
     pub f_c1: bool, // underflow
@@ -24,6 +70,7 @@ pub struct FPU {
     pub f_c4: bool, // stack fault
     pub mxcsr: u32,
     pub fpu_control_word: u16,
+    pub opcode: u16,
 }
 
 impl Default for FPU {
@@ -57,6 +104,7 @@ impl FPU {
             f_c4: false, // stack fault
             mxcsr: 0,
             fpu_control_word: 0,
+            opcode: 0,
         }
     }
 
@@ -241,5 +289,43 @@ impl FPU {
 
             (mantissa, exponent)
         }
+    }
+
+    pub fn convert_st(&self, src: Vec<f64>) -> [u128; 8] {
+        let mut result = [0u128; 8];
+        
+        for i in 0..8 {
+            let low = if let Some(val) = src.get(i * 2) {
+                *val
+            } else {
+                0.0
+            };
+            let high = if let Some(val) = src.get(i * 2 + 1) {
+                *val
+            } else {
+                0.0
+            };
+    
+            let low_bits = low.to_bits() as u128;
+            let high_bits = high.to_bits() as u128;
+            result[i] = low_bits | (high_bits << 64);
+        }
+    
+        result
+    }
+
+    pub fn fxsave(&self) -> FPUState {
+        let mut state = FPUState::new();
+        state.fpu_control_word = self.fpu_control_word;
+        state.fpu_status_word = self.stat;
+        state.fpu_tag_word = self.tag;
+        state.fpu_opcode = self.opcode;
+        state.rip = self.ip;
+        state.rdp = self.operand_ptr;
+        state.mxcsr = self.mxcsr;
+        state.mxcsr_mask = self.mxcsr;
+        state.st = self.convert_st(self.st.clone());
+        state.xmm = self.xmm.clone();
+        return state;
     }
 }

@@ -4572,6 +4572,18 @@ pub fn emulate_instruction(
             emu.fpu.push(exponent as f64);
         }
 
+        Mnemonic::Fxsave => {
+            emu.show_instruction(&emu.colors.green, ins);
+
+            let addr = match emu.get_operand_value(ins, 0, false) {
+                Some(v) => v,
+                None => return false,
+            };
+
+            let state = emu.fpu.fxsave();
+            state.save(addr, emu);
+        }
+
         Mnemonic::Fistp => {
             emu.show_instruction(&emu.colors.green, ins);
 
