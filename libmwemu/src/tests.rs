@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
-    //use super::*;
-
     use crate::emu::Emu;
     use crate::emu64;
     use crate::serialization::SerializableEmu;
+
     #[test]
     fn should_serialize() {
         let mut emu = emu64();
