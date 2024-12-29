@@ -1,23 +1,33 @@
+use std::collections::BTreeMap;
 use std::convert::TryInto as _;
+use std::fs::File;
 use std::sync::atomic;
 use std::sync::Arc;
 use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
+use iced_x86::Instruction;
 use serde::Deserialize;
-use serde::Deserializer;
 use serde::Serialize;
-use serde::Serializer;
 
+use crate::banzai::Banzai;
+use crate::breakpoint::Breakpoint;
+use crate::colors::Colors;
+use crate::config::Config;
+use crate::eflags::Eflags;
 use crate::emu::Emu;
+use crate::flags::Flags;
 use crate::fpu::FPU;
 use crate::hooks::Hooks;
+use crate::maps::Maps;
 use crate::pe32::PE32;
 use crate::pe64::PE64;
+use crate::regs64::Regs64;
+use crate::structures::MemoryOperation;
 
 #[derive(Serialize, Deserialize)]
-struct SerializableInstant {
+pub struct SerializableInstant {
     // Store as duration since UNIX_EPOCH
     timestamp: u64,
 }
@@ -50,282 +60,284 @@ impl SerializableInstant {
     }
 }
 
-impl Serialize for FPU {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut value = serde_json::Map::new();
-        value.insert("st".to_string(), serde_json::to_value(&self.st).unwrap());
-        value.insert("st_depth".to_string(), serde_json::to_value(&self.st_depth).unwrap());
-        value.insert("tag".to_string(), serde_json::to_value(&self.tag).unwrap());
-        value.insert("stat".to_string(), serde_json::to_value(&self.stat).unwrap());
-        value.insert("ctrl".to_string(), serde_json::to_value(&self.ctrl).unwrap());
-        value.insert("ip".to_string(), serde_json::to_value(&self.ip).unwrap());
-        value.insert("err_off".to_string(), serde_json::to_value(&self.err_off).unwrap());
-        value.insert("err_sel".to_string(), serde_json::to_value(&self.err_sel).unwrap());
-        value.insert("code_segment".to_string(), serde_json::to_value(&self.code_segment).unwrap());
-        value.insert("data_segment".to_string(), serde_json::to_value(&self.data_segment).unwrap());
-        value.insert("operand_ptr".to_string(), serde_json::to_value(&self.operand_ptr).unwrap());
-        value.insert("reserved".to_string(), serde_json::to_value(&self.reserved.to_vec()).unwrap());
-        value.insert("reserved2".to_string(), serde_json::to_value(&self.reserved2.to_vec()).unwrap());
-        value.insert("xmm".to_string(), serde_json::to_value(&self.xmm).unwrap());
-        value.insert("top".to_string(), serde_json::to_value(&self.top).unwrap());
-        value.insert("f_c0".to_string(), serde_json::to_value(&self.f_c0).unwrap());
-        value.insert("f_c1".to_string(), serde_json::to_value(&self.f_c1).unwrap());
-        value.insert("f_c2".to_string(), serde_json::to_value(&self.f_c2).unwrap());
-        value.insert("f_c3".to_string(), serde_json::to_value(&self.f_c3).unwrap());
-        value.insert("f_c4".to_string(), serde_json::to_value(&self.f_c4).unwrap());
-        value.insert("mxcsr".to_string(), serde_json::to_value(&self.mxcsr).unwrap());
-        value.insert("fpu_control_word".to_string(), serde_json::to_value(&self.fpu_control_word).unwrap());
-        value.insert("opcode".to_string(), serde_json::to_value(&self.opcode).unwrap());
-        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+#[derive(Serialize, Deserialize)]
+pub struct SerializableFPU {
+    pub st: Vec<f64>,
+    pub st_depth: u8,
+    pub tag: u16,
+    pub stat: u16,
+    pub ctrl: u16,
+    pub ip: u64,
+    pub err_off: u32,
+    pub err_sel: u32,
+    pub code_segment: u16,
+    pub data_segment: u16,
+    pub operand_ptr: u64,
+    pub reserved: Vec<u8>, // not a slice
+    pub reserved2: Vec<u8>, // not a slice
+    pub xmm: Vec<u128>, // not a slice
+    pub top: i8,
+    pub f_c0: bool, // overflow
+    pub f_c1: bool, // underflow
+    pub f_c2: bool, // div by zero
+    pub f_c3: bool, // precission
+    pub f_c4: bool, // stack fault
+    pub mxcsr: u32,
+    pub fpu_control_word: u16,
+    pub opcode: u16,
+}
+
+impl From<FPU> for SerializableFPU {
+    fn from(fpu: FPU) -> Self {
+        todo!()
     }
 }
 
-impl<'de> Deserialize<'de> for FPU {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
+#[derive(Serialize, Deserialize)]
+pub struct SerializablePE32 {
+    pub raw: Vec<u8>,
+}
 
-        // First deserialize the string containing the JSON
-        let json_str = String::deserialize(deserializer)?;
-        
-        // Parse the JSON string into a Map
-        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
-            .map_err(D::Error::custom)?;
-
-        let reserved: Vec<u8> = serde_json::from_value(value.get("reserved").unwrap().clone()).unwrap();
-        let reserved2: Vec<u8> = serde_json::from_value(value.get("reserved2").unwrap().clone()).unwrap();
-
-        Ok(FPU {
-            st: serde_json::from_value(value.get("st").unwrap().clone()).unwrap(),
-            st_depth: serde_json::from_value(value.get("st_depth").unwrap().clone()).unwrap(),
-            tag: serde_json::from_value(value.get("tag").unwrap().clone()).unwrap(),
-            stat: serde_json::from_value(value.get("stat").unwrap().clone()).unwrap(),
-            ctrl: serde_json::from_value(value.get("ctrl").unwrap().clone()).unwrap(),
-            ip: serde_json::from_value(value.get("ip").unwrap().clone()).unwrap(),
-            err_off: serde_json::from_value(value.get("err_off").unwrap().clone()).unwrap(),
-            err_sel: serde_json::from_value(value.get("err_sel").unwrap().clone()).unwrap(),
-            code_segment: serde_json::from_value(value.get("code_segment").unwrap().clone()).unwrap(),
-            data_segment: serde_json::from_value(value.get("data_segment").unwrap().clone()).unwrap(),
-            operand_ptr: serde_json::from_value(value.get("operand_ptr").unwrap().clone()).unwrap(),
-            reserved: reserved.as_slice().try_into().unwrap(),
-            reserved2: reserved2.as_slice().try_into().unwrap(),
-            xmm: serde_json::from_value(value.get("xmm").unwrap().clone()).unwrap(),
-            top: serde_json::from_value(value.get("top").unwrap().clone()).unwrap(),
-            f_c0: serde_json::from_value(value.get("f_c0").unwrap().clone()).unwrap(),
-            f_c1: serde_json::from_value(value.get("f_c1").unwrap().clone()).unwrap(),
-            f_c2: serde_json::from_value(value.get("f_c2").unwrap().clone()).unwrap(),
-            f_c3: serde_json::from_value(value.get("f_c3").unwrap().clone()).unwrap(),
-            f_c4: serde_json::from_value(value.get("f_c4").unwrap().clone()).unwrap(),
-            mxcsr: serde_json::from_value(value.get("mxcsr").unwrap().clone()).unwrap(),
-            fpu_control_word: serde_json::from_value(value.get("fpu_control_word").unwrap().clone()).unwrap(),
-            opcode: serde_json::from_value(value.get("opcode").unwrap().clone()).unwrap(),
-        })
+impl From<PE32> for SerializablePE32 {
+    fn from(pe32: PE32) -> Self {
+        SerializablePE32 {
+            raw: pe32.raw,
+        }
     }
 }
 
-impl Serialize for PE32 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut value = serde_json::Map::new();
-        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
-        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+#[derive(Serialize, Deserialize)]
+pub struct SerializablePE64 {
+    pub raw: Vec<u8>,
+}
+
+impl From<PE64> for SerializablePE64 {
+    fn from(pe64: PE64) -> Self {
+        SerializablePE64 {
+            raw: pe64.raw,
+        }
     }
 }
 
-impl<'de> Deserialize<'de> for PE32 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
+#[derive(Serialize, Deserialize)]
+pub struct SerializableEmu {
+    pub regs: Regs64,
+    pub pre_op_regs: Regs64,
+    pub post_op_regs: Regs64,
+    pub flags: Flags,
+    pub pre_op_flags: Flags,
+    pub post_op_flags: Flags,
+    pub eflags: Eflags,
+    pub fpu: SerializableFPU,
+    pub maps: Maps,
+    //pub hooks: Hooks, // not possible
+    pub exp: u64,
+    pub break_on_alert: bool,
+    pub bp: Breakpoint,
+    pub seh: u64,
+    pub veh: u64,
+    pub feh: u64,
+    pub eh_ctx: u32,
+    pub cfg: Config,
+    pub colors: Colors,
+    pub pos: u64,
+    pub force_break: bool,
+    pub force_reload: bool,
+    pub tls_callbacks: Vec<u64>,
+    pub tls32: Vec<u32>,
+    pub tls64: Vec<u64>,
+    pub fls: Vec<u32>,
+    pub out: String,
+    pub instruction: Option<Instruction>,
+    pub decoder_position: usize,
+    pub memory_operations: Vec<MemoryOperation>,
+    pub main_thread_cont: u64,
+    pub gateway_return: u64,
+    pub is_running: u32,
+    pub break_on_next_cmp: bool,
+    pub break_on_next_return: bool,
+    pub filename: String,
+    pub enabled_ctrlc: bool,
+    pub run_until_ret: bool,
+    pub running_script: bool,
+    pub banzai: Banzai,
+    pub mnemonic: String,
+    pub dbg: bool,
+    pub linux: bool,
+    pub fs: BTreeMap<u64, u64>,
+    pub now: SerializableInstant,
+    pub skip_apicall: bool,
+    pub its_apicall: Option<u64>,
+    pub last_instruction_size: usize,
+    pub pe64: Option<SerializablePE64>,
+    pub pe32: Option<SerializablePE32>,
+    pub rep: Option<u64>,
+    pub tick: usize,
+}
 
-        // First deserialize the string containing the JSON
-        let json_str = String::deserialize(deserializer)?;
-        
-        // Parse the JSON string into a Map
-        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
-            .map_err(D::Error::custom)?;
-
-        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
-        let pe64 = PE32::load_from_raw(&raw);
-        Ok(pe64)
+impl From<SerializableFPU> for FPU {
+    fn from(serialized: SerializableFPU) -> Self {
+        FPU {
+            st: serialized.st,
+            st_depth: serialized.st_depth,
+            tag: serialized.tag,
+            stat: serialized.stat,
+            ctrl: serialized.ctrl,
+            ip: serialized.ip,
+            err_off: serialized.err_off,
+            err_sel: serialized.err_sel,
+            code_segment: serialized.code_segment,
+            data_segment: serialized.data_segment,
+            operand_ptr: serialized.operand_ptr,
+            reserved: serialized.reserved.try_into().unwrap(),
+            reserved2: serialized.reserved2.try_into().unwrap(),
+            xmm: serialized.xmm.try_into().unwrap(),
+            top: serialized.top,
+            f_c0: serialized.f_c0,
+            f_c1: serialized.f_c1,
+            f_c2: serialized.f_c2,
+            f_c3: serialized.f_c3,
+            f_c4: serialized.f_c4,
+            mxcsr: serialized.mxcsr,
+            fpu_control_word: serialized.fpu_control_word,
+            opcode: serialized.opcode,
+        }
     }
 }
 
-impl Serialize for PE64 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut value = serde_json::Map::new();
-        value.insert("raw".to_string(), serde_json::to_value(&self.raw).unwrap());
-        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+impl From<SerializablePE32> for PE32 {
+    fn from(serialized: SerializablePE32) -> Self {
+        PE32::load_from_raw(&serialized.raw)
     }
 }
 
-impl<'de> Deserialize<'de> for PE64 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
-
-        // First deserialize the string containing the JSON
-        let json_str = String::deserialize(deserializer)?;
-        
-        // Parse the JSON string into a Map
-        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
-            .map_err(D::Error::custom)?;
-
-        let raw: Vec<u8> = serde_json::from_value(value.get("raw").unwrap().clone()).unwrap();
-        let pe64 = PE64::load_from_raw(&raw);
-        Ok(pe64)
+impl From<SerializablePE64> for PE64 {
+    fn from(serialized: SerializablePE64) -> Self {
+        PE64::load_from_raw(&serialized.raw)
     }
 }
 
-
-impl Serialize for Emu {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut value = serde_json::Map::new();
-        value.insert("regs".to_string(), serde_json::to_value(&self.regs).unwrap());
-        value.insert("pre_op_regs".to_string(), serde_json::to_value(&self.pre_op_regs).unwrap());
-        value.insert("post_op_regs".to_string(), serde_json::to_value(&self.post_op_regs).unwrap());
-        value.insert("flags".to_string(), serde_json::to_value(&self.flags).unwrap());
-        value.insert("pre_op_flags".to_string(), serde_json::to_value(&self.pre_op_flags).unwrap());
-        value.insert("post_op_flags".to_string(), serde_json::to_value(&self.post_op_flags).unwrap());
-        value.insert("eflags".to_string(), serde_json::to_value(&self.eflags).unwrap());
-        value.insert("fpu".to_string(), serde_json::to_value(&self.fpu).unwrap());
-        value.insert("maps".to_string(), serde_json::to_value(&self.maps).unwrap());
-        //value.insert("hooks".to_string(), serde_json::to_value(&self.hooks).unwrap()); // not possible
-        value.insert("exp".to_string(), serde_json::to_value(&self.exp).unwrap());
-        value.insert("break_on_alert".to_string(), serde_json::to_value(&self.break_on_alert).unwrap());
-        value.insert("bp".to_string(), serde_json::to_value(&self.bp).unwrap());
-        value.insert("seh".to_string(), serde_json::to_value(&self.seh).unwrap());
-        value.insert("veh".to_string(), serde_json::to_value(&self.veh).unwrap());
-        value.insert("feh".to_string(), serde_json::to_value(&self.feh).unwrap());
-        value.insert("eh_ctx".to_string(), serde_json::to_value(&self.eh_ctx).unwrap());
-        value.insert("cfg".to_string(), serde_json::to_value(&self.cfg).unwrap());
-        value.insert("colors".to_string(), serde_json::to_value(&self.colors).unwrap());
-        value.insert("pos".to_string(), serde_json::to_value(&self.pos).unwrap());
-        value.insert("force_break".to_string(), serde_json::to_value(&self.force_break).unwrap());
-        value.insert("force_reload".to_string(), serde_json::to_value(&self.force_reload).unwrap());
-        value.insert("tls_callbacks".to_string(), serde_json::to_value(&self.tls_callbacks).unwrap());
-        value.insert("tls32".to_string(), serde_json::to_value(&self.tls32).unwrap());
-        value.insert("tls64".to_string(), serde_json::to_value(&self.tls64).unwrap());
-        value.insert("fls".to_string(), serde_json::to_value(&self.fls).unwrap());
-        value.insert("out".to_string(), serde_json::to_value(&self.out).unwrap());
-        value.insert("instruction".to_string(), serde_json::to_value(&self.instruction).unwrap());
-        value.insert("decoder_position".to_string(), serde_json::to_value(&self.decoder_position).unwrap());
-        value.insert("memory_operations".to_string(), serde_json::to_value(&self.memory_operations).unwrap());
-        value.insert("main_thread_cont".to_string(), serde_json::to_value(&self.main_thread_cont).unwrap());
-        value.insert("gateway_return".to_string(), serde_json::to_value(&self.gateway_return).unwrap());
-        value.insert("is_running".to_string(), serde_json::to_value(&*self.is_running).unwrap());
-        value.insert("break_on_next_cmp".to_string(), serde_json::to_value(&self.break_on_next_cmp).unwrap());
-        value.insert("break_on_next_return".to_string(), serde_json::to_value(&self.break_on_next_return).unwrap());
-        value.insert("filename".to_string(), serde_json::to_value(&self.filename).unwrap());
-        value.insert("enabled_ctrlc".to_string(), serde_json::to_value(&self.enabled_ctrlc).unwrap());
-        value.insert("run_until_ret".to_string(), serde_json::to_value(&self.run_until_ret).unwrap());
-        value.insert("running_script".to_string(), serde_json::to_value(&self.running_script).unwrap());
-        value.insert("banzai".to_string(), serde_json::to_value(&self.banzai).unwrap());
-        value.insert("mnemonic".to_string(), serde_json::to_value(&self.mnemonic).unwrap());
-        value.insert("dbg".to_string(), serde_json::to_value(&self.dbg).unwrap());
-        value.insert("linux".to_string(), serde_json::to_value(&self.linux).unwrap());
-        value.insert("fs".to_string(), serde_json::to_value(&self.fs).unwrap());
-        value.insert("now".to_string(), serde_json::to_value(&SerializableInstant::from(self.now)).unwrap());
-        value.insert("skip_apicall".to_string(), serde_json::to_value(&self.skip_apicall).unwrap());
-        value.insert("its_apicall".to_string(), serde_json::to_value(&self.its_apicall).unwrap());
-        value.insert("last_instruction_size".to_string(), serde_json::to_value(&self.last_instruction_size).unwrap());
-        value.insert("pe64".to_string(), serde_json::to_value(&self.pe64).unwrap());
-        value.insert("pe32".to_string(), serde_json::to_value(&self.pe32).unwrap());
-        value.insert("rep".to_string(), serde_json::to_value(&self.rep).unwrap());
-        value.insert("tick".to_string(), serde_json::to_value(&self.tick).unwrap());
-        serializer.serialize_str(&serde_json::to_string(&value).unwrap())
+impl From<Emu> for SerializableEmu {
+    fn from(emu: Emu) -> Self {
+        SerializableEmu {
+            regs: emu.regs,
+                pre_op_regs: emu.pre_op_regs,
+                post_op_regs: emu.post_op_regs,
+                flags: emu.flags,
+                pre_op_flags: emu.pre_op_flags,
+                post_op_flags: emu.post_op_flags,
+                eflags: emu.eflags,
+                fpu: emu.fpu.into(),
+                maps: emu.maps,
+                exp: emu.exp,
+                break_on_alert: emu.break_on_alert,
+                bp: emu.bp,
+                seh: emu.seh,
+                veh: emu.veh,
+                feh: emu.feh,
+                eh_ctx: emu.eh_ctx,
+                cfg: emu.cfg,
+                colors: emu.colors,
+                pos: emu.pos,
+                force_break: emu.force_break,
+                force_reload: emu.force_reload,
+                tls_callbacks: emu.tls_callbacks,
+                tls32: emu.tls32,
+                tls64: emu.tls64,
+                fls: emu.fls,
+                out: emu.out,
+                instruction: emu.instruction,
+                decoder_position: emu.decoder_position,
+                memory_operations: emu.memory_operations,
+                main_thread_cont: emu.main_thread_cont,
+                gateway_return: emu.gateway_return,
+                is_running: emu.is_running.load(std::sync::atomic::Ordering::Relaxed),
+                break_on_next_cmp: emu.break_on_next_cmp,
+                break_on_next_return: emu.break_on_next_return,
+                filename: emu.filename,
+                enabled_ctrlc: emu.enabled_ctrlc,
+                run_until_ret: emu.run_until_ret,
+                running_script: emu.running_script,
+                banzai: emu.banzai,
+                mnemonic: emu.mnemonic,
+                dbg: emu.dbg,
+                linux: emu.linux,
+                fs: emu.fs,
+                now: SerializableInstant::from(emu.now),
+                skip_apicall: emu.skip_apicall,
+                its_apicall: emu.its_apicall,
+                last_instruction_size: emu.last_instruction_size,
+                pe64: emu.pe64.map(|x| x.into()),
+                pe32: emu.pe32.map(|x| x.into()),
+                rep: emu.rep,
+                tick: emu.tick,
+        }
     }
-}
+}   
 
-impl<'de> Deserialize<'de> for Emu {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        use serde::de::Error;
-        
-        // First deserialize the string containing the JSON
-        let json_str = String::deserialize(deserializer)?;
-        
-        // Parse the JSON string into a Map
-        let value: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&json_str)
-            .map_err(D::Error::custom)?;
+impl From<SerializableEmu> for Emu {
+    fn from(serialized: SerializableEmu) -> Self {
+        let trace_file = if let Some(trace_filename) = &serialized.cfg.trace_filename {
+            let file = File::open(trace_filename.clone()).unwrap();
+            Some(file)
+        } else {
+            None
+        };
 
-        let is_running = serde_json::from_value(value.get("is_running").unwrap().clone()).unwrap();
-
-        let now: SerializableInstant = serde_json::from_value(value.get("now").unwrap().clone()).unwrap();
-        let now = now.to_instant();
-
-        Ok(Emu {
-            regs: serde_json::from_value(value.get("regs").unwrap().clone()).unwrap(),
-            pre_op_regs: serde_json::from_value(value.get("pre_op_regs").unwrap().clone()).unwrap(),
-            post_op_regs: serde_json::from_value(value.get("post_op_regs").unwrap().clone()).unwrap(),
-            flags: serde_json::from_value(value.get("flags").unwrap().clone()).unwrap(),
-            pre_op_flags: serde_json::from_value(value.get("pre_op_flags").unwrap().clone()).unwrap(),
-            post_op_flags: serde_json::from_value(value.get("post_op_flags").unwrap().clone()).unwrap(),
-            eflags: serde_json::from_value(value.get("eflags").unwrap().clone()).unwrap(),
-            fpu: serde_json::from_value(value.get("fpu").unwrap().clone()).unwrap(),
-            maps: serde_json::from_value(value.get("maps").unwrap().clone()).unwrap(),
-            hooks: Hooks::new(),
-            exp: serde_json::from_value(value.get("exp").unwrap().clone()).unwrap(),
-            break_on_alert: serde_json::from_value(value.get("break_on_alert").unwrap().clone()).unwrap(),
-            bp: serde_json::from_value(value.get("bp").unwrap().clone()).unwrap(),
-            seh: serde_json::from_value(value.get("seh").unwrap().clone()).unwrap(),
-            veh: serde_json::from_value(value.get("veh").unwrap().clone()).unwrap(),
-            feh: serde_json::from_value(value.get("feh").unwrap().clone()).unwrap(),
-            eh_ctx: serde_json::from_value(value.get("eh_ctx").unwrap().clone()).unwrap(),
-            cfg: serde_json::from_value(value.get("cfg").unwrap().clone()).unwrap(),
-            colors: serde_json::from_value(value.get("colors").unwrap().clone()).unwrap(),
-            pos: serde_json::from_value(value.get("pos").unwrap().clone()).unwrap(),
-            force_break: serde_json::from_value(value.get("force_break").unwrap().clone()).unwrap(),
-            force_reload: serde_json::from_value(value.get("force_reload").unwrap().clone()).unwrap(),
-            tls_callbacks: serde_json::from_value(value.get("tls_callbacks").unwrap().clone()).unwrap(),
-            tls32: serde_json::from_value(value.get("tls32").unwrap().clone()).unwrap(),
-            tls64: serde_json::from_value(value.get("tls64").unwrap().clone()).unwrap(),
-            fls: serde_json::from_value(value.get("fls").unwrap().clone()).unwrap(),
-            out: serde_json::from_value(value.get("out").unwrap().clone()).unwrap(),
-            instruction: serde_json::from_value(value.get("instruction").unwrap().clone()).unwrap(),
-            decoder_position: serde_json::from_value(value.get("decoder_position").unwrap().clone()).unwrap(),
-            memory_operations: serde_json::from_value(value.get("memory_operations").unwrap().clone()).unwrap(),
-            main_thread_cont: serde_json::from_value(value.get("main_thread_cont").unwrap().clone()).unwrap(),
-            gateway_return: serde_json::from_value(value.get("gateway_return").unwrap().clone()).unwrap(),
-            is_running: Arc::new(atomic::AtomicU32::new(is_running)),
-            break_on_next_cmp: serde_json::from_value(value.get("break_on_next_cmp").unwrap().clone()).unwrap(),
-            break_on_next_return: serde_json::from_value(value.get("break_on_next_return").unwrap().clone()).unwrap(),
-            filename: serde_json::from_value(value.get("filename").unwrap().clone()).unwrap(),
-            enabled_ctrlc: serde_json::from_value(value.get("enabled_ctrlc").unwrap().clone()).unwrap(),
-            run_until_ret: serde_json::from_value(value.get("run_until_ret").unwrap().clone()).unwrap(),
-            running_script: serde_json::from_value(value.get("running_script").unwrap().clone()).unwrap(),
-            banzai: serde_json::from_value(value.get("banzai").unwrap().clone()).unwrap(),
-            mnemonic: serde_json::from_value(value.get("mnemonic").unwrap().clone()).unwrap(),
-            dbg: serde_json::from_value(value.get("dbg").unwrap().clone()).unwrap(),
-            linux: serde_json::from_value(value.get("linux").unwrap().clone()).unwrap(),
-            fs: serde_json::from_value(value.get("fs").unwrap().clone()).unwrap(),
-            now: now,
-            skip_apicall: serde_json::from_value(value.get("skip_apicall").unwrap().clone()).unwrap(),
-            its_apicall: serde_json::from_value(value.get("its_apicall").unwrap().clone()).unwrap(),
-            last_instruction_size: serde_json::from_value(value.get("last_instruction_size").unwrap().clone()).unwrap(),
-            pe64: serde_json::from_value(value.get("pe64").unwrap().clone()).unwrap(),
-            pe32: serde_json::from_value(value.get("pe32").unwrap().clone()).unwrap(),
-            rep: serde_json::from_value(value.get("rep").unwrap().clone()).unwrap(),
-            tick: serde_json::from_value(value.get("tick").unwrap().clone()).unwrap(),
-            trace_file: None,
-        })
+        Emu {
+            regs: serialized.regs,
+            pre_op_regs: serialized.pre_op_regs,
+            post_op_regs: serialized.post_op_regs,
+            flags: serialized.flags,
+            pre_op_flags: serialized.pre_op_flags,
+            post_op_flags: serialized.post_op_flags,
+            eflags: serialized.eflags,
+            fpu: serialized.fpu.into(),
+            maps: serialized.maps,
+            hooks: Hooks::default(), // not possible
+            exp: serialized.exp,
+            break_on_alert: serialized.break_on_alert,
+            bp: serialized.bp,
+            seh: serialized.seh,
+            veh: serialized.veh,
+            feh: serialized.feh,
+            eh_ctx: serialized.eh_ctx,
+            cfg: serialized.cfg.clone(),
+            colors: serialized.colors,
+            pos: serialized.pos,
+            force_break: serialized.force_break,
+            force_reload: serialized.force_reload,
+            tls_callbacks: serialized.tls_callbacks,
+            tls32: serialized.tls32,
+            tls64: serialized.tls64,
+            fls: serialized.fls,
+            out: serialized.out,
+            instruction: serialized.instruction,
+            decoder_position: serialized.decoder_position,
+            memory_operations: serialized.memory_operations,
+            main_thread_cont: serialized.main_thread_cont,
+            gateway_return: serialized.gateway_return,
+            is_running: Arc::new(atomic::AtomicU32::new(serialized.is_running)),
+            break_on_next_cmp: serialized.break_on_next_cmp,
+            break_on_next_return: serialized.break_on_next_return,
+            filename: serialized.filename,
+            enabled_ctrlc: serialized.enabled_ctrlc,
+            run_until_ret: serialized.run_until_ret,
+            running_script: serialized.running_script,
+            banzai: serialized.banzai,
+            mnemonic: serialized.mnemonic,
+            dbg: serialized.dbg,
+            linux: serialized.linux,
+            fs: serialized.fs,
+            now: serialized.now.to_instant(),
+            skip_apicall: serialized.skip_apicall,
+            its_apicall: serialized.its_apicall,
+            last_instruction_size: serialized.last_instruction_size,
+            pe64: serialized.pe64.map(|x| x.into()),
+            pe32: serialized.pe32.map(|x| x.into()),
+            rep: serialized.rep,
+            tick: serialized.tick,
+            trace_file: trace_file,
+        }
     }
 }

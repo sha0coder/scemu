@@ -3,7 +3,7 @@ mod tests {
     //use super::*;
 
     use crate::emu64;
-
+    use crate::serialization::SerializableEmu;
     #[test]
     fn should_serialize() {
         let mut emu = emu64();
@@ -20,7 +20,8 @@ mod tests {
         emu.regs.rdx = 0x1;
 
         // run
-        let serialized = serde_json::to_string_pretty(&emu).unwrap();
+        let serializedable_emu: SerializableEmu = emu.into();
+        let serialized = serde_json::to_string_pretty(&serializedable_emu).unwrap();
         std::fs::write("/tmp/emu.json", serialized).unwrap();
     }
 }
