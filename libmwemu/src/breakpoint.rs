@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Encode, Decode)]
 pub struct Breakpoint {
     addr: u64,
     instruction: u64,

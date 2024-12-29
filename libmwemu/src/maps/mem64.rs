@@ -3,7 +3,7 @@
 */
 
 use md5;
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -11,7 +11,7 @@ use std::io::Read;
 use std::io::SeekFrom;
 use std::io::Write;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Encode, Decode)]
 pub struct Mem64 {
     mem_name: String,
     base_addr: u64,

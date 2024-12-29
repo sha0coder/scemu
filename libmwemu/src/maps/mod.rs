@@ -2,10 +2,10 @@ pub mod mem64;
 
 use crate::constants;
 use mem64::Mem64;
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 use std::str;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Encode, Decode)]
 pub struct Maps {
     pub maps: Vec<Mem64>,
     pub is_64bits: bool,

@@ -1,8 +1,8 @@
 // TODO: move these to const?
 
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Encode, Decode)]
 pub struct Colors {
     pub black: String,
     pub red: String,

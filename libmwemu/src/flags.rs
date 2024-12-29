@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 
 pub const MIN_I8: i8 = -128;
 pub const MAX_I8: i8 = 0x7f;
@@ -42,7 +42,7 @@ macro_rules! xor2 {
     };
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Encode, Decode)]
 pub struct Flags {
     pub f_cf: bool,
     pub f_pf: bool,

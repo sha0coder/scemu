@@ -2,7 +2,7 @@ use crate::maps::mem64::Mem64;
 use crate::maps::Maps;
 
 use chrono::prelude::*;
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 
 ////// PEB / TEB //////
 
@@ -2133,7 +2133,7 @@ impl Hostent {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Encode, Decode)]
 pub struct MemoryOperation {
     /// Position/step counter in the emulation
     pub pos: u64,

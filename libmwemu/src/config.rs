@@ -1,6 +1,6 @@
-use serde::{Deserialize, Serialize};
+use bitcode::{Decode, Encode};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Encode, Decode)]
 pub struct Config {
     pub filename: String, // filename with full path included
     pub trace_mem: bool,  // show memory operations in every step.
