@@ -401,6 +401,8 @@ impl Serialization {
         let data = bitcode::serialize(&serialized).unwrap();
         let mut file = File::create(filename).unwrap();
         file.write_all(&data).unwrap();
+        file.flush().unwrap();
+        drop(file);
     }
 
     pub fn load_from_file(filename: &str) -> Emu {
