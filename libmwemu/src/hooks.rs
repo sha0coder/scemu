@@ -1,5 +1,6 @@
-use crate::emu;
 use iced_x86::Instruction;
+
+use crate::emu;
 
 // return: false will ignore interrupt handling like 0x80 -> linux
 type TypeHookOnInterrupt = fn(emu: &mut emu::Emu, ip_addr: u64, interrupt: u64) -> bool;
@@ -15,7 +16,7 @@ type TypeHookOnPostInstruction =
     fn(emu: &mut emu::Emu, ip_addr: u64, ins: &Instruction, sz: usize, emu_ok: bool);
 type TypeHookOnWinApiCall = fn(emu: &mut emu::Emu, ip_addr: u64, called_addr: u64) -> bool;
 
-pub struct Hook {
+pub struct Hooks {
     pub hook_on_interrupt: Option<TypeHookOnInterrupt>,
     pub hook_on_exception: Option<TypeHookOnException>,
     pub hook_on_memory_read: Option<TypeHookOnMemoryRead>,
@@ -25,15 +26,15 @@ pub struct Hook {
     pub hook_on_winapi_call: Option<TypeHookOnWinApiCall>,
 }
 
-impl Default for Hook {
+impl Default for Hooks {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Hook {
-    pub fn new() -> Hook {
-        Hook {
+impl Hooks {
+    pub fn new() -> Hooks {
+        Hooks {
             hook_on_interrupt: None,
             hook_on_exception: None,
             hook_on_memory_read: None,

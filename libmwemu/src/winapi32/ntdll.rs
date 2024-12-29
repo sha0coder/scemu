@@ -44,7 +44,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "LdrLoadDll_gul" => LdrLoadDll_gul(emu),
 
         _ => {
-            log::info!("calling unimplemented ntdll API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }

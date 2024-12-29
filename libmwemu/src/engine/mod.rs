@@ -4159,7 +4159,7 @@ pub fn emulate_instruction(
                 None => return false,
             };
 
-            let handle_interrupts = match emu.hook.hook_on_interrupt {
+            let handle_interrupts = match emu.hooks.hook_on_interrupt {
                 Some(hook_fn) => hook_fn(emu, emu.regs.rip, interrupt),
                 None => true,
             };

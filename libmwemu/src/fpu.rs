@@ -48,21 +48,21 @@ impl FPUState {
 
 #[derive(Clone)]
 pub struct FPU {
-    st: Vec<f64>,
-    st_depth: u8,
-    tag: u16,
+    pub st: Vec<f64>,
+    pub st_depth: u8,
+    pub tag: u16,
     pub stat: u16,
-    ctrl: u16,
-    ip: u64,
-    err_off: u32,
-    err_sel: u32,
-    code_segment: u16,
-    data_segment: u16,
-    operand_ptr: u64,
-    reserved: [u8; 14],
-    reserved2: [u8; 96],
-    xmm: [u128; 16],
-    top: i8,
+    pub ctrl: u16,
+    pub ip: u64,
+    pub err_off: u32,
+    pub err_sel: u32,
+    pub code_segment: u16,
+    pub data_segment: u16,
+    pub operand_ptr: u64,
+    pub reserved: [u8; 14],
+    pub reserved2: [u8; 96],
+    pub xmm: [u128; 16],
+    pub top: i8,
     pub f_c0: bool, // overflow
     pub f_c1: bool, // underflow
     pub f_c2: bool, // div by zero

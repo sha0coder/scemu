@@ -120,13 +120,13 @@ fn main() {
     emu.init();
 
     emu.load_code("/home/sha0/src/mwemu/shellcodes32/mars.exe");
-    emu.hook.on_memory_read(trace_memory_read);
-    emu.hook.on_memory_write(trace_memory_write);
-    emu.hook.on_interrupt(trace_interrupt);
-    emu.hook.on_exception(trace_exceptions);
-    emu.hook.on_pre_instruction(trace_pre_instruction);
-    emu.hook.on_post_instruction(trace_post_instruction);
-    emu.hook.on_winapi_call(trace_winapi_call);
+    emu.hooks.on_memory_read(trace_memory_read);
+    emu.hooks.on_memory_write(trace_memory_write);
+    emu.hooks.on_interrupt(trace_interrupt);
+    emu.hooks.on_exception(trace_exceptions);
+    emu.hooks.on_pre_instruction(trace_pre_instruction);
+    emu.hooks.on_post_instruction(trace_post_instruction);
+    emu.hooks.on_winapi_call(trace_winapi_call);
     emu.run(None).unwrap();
     log::info!("end!");
 }

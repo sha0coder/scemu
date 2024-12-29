@@ -18,4 +18,5 @@ cargo run -p mwemu --release \
     --filename ~/Desktop/enigma/surprise.dll \
     --maps ./maps64/ \
     --64bits \
-    --rdx 1
+    --rdx 1 \
+    --banzai

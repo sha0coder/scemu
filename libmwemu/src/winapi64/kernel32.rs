@@ -174,9 +174,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
-                unimplemented!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }
@@ -1009,9 +1009,10 @@ fn HeapAlloc(emu: &mut emu::Emu) {
         .expect("kernel32!HeapAlloc out of memory");
 
     log::info!(
-        "{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}",
+        "{}** {} kernel32!HeapAlloc rip: 0x{:x} flags: 0x{:x} size: {} =0x{:x} {}",
         emu.colors.light_red,
         emu.pos,
+        emu.regs.rip,
         flags,
         size,
         emu.regs.rax,

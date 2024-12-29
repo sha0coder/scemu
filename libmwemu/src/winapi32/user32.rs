@@ -13,7 +13,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "CharLowerW" => CharLowerW(emu),
         "wsprintfA" => wsprintfA(emu),
         _ => {
-            log::info!("calling unimplemented user32 API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }

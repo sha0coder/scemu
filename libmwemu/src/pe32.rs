@@ -2,10 +2,12 @@
  * PE32 Structures and loader
  */
 
- use crate::{emu, winapi32};
 use std::fs::File;
 use std::io::Read;
 use std::str;
+
+use crate::emu;
+use crate::winapi32;
 
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {
@@ -750,7 +752,7 @@ impl Section {
 }
 
 pub struct PE32 {
-    raw: Vec<u8>,
+    pub raw: Vec<u8>,
     pub dos: ImageDosHeader,
     pub nt: ImageNtHeaders,
     pub fh: ImageFileHeader,
@@ -804,17 +806,11 @@ impl PE32 {
         s.to_string()
     }
 
-    pub fn load(filename: &str) -> PE32 {
-        //log::info!("loading pe32: {}", filename);
-        let mut fd = File::open(filename).expect("pe32 binary not found");
-        let mut raw: Vec<u8> = Vec::new();
-        fd.read_to_end(&mut raw)
-            .expect("couldnt read the pe32 binary");
-
+    pub fn load_from_raw(raw: &[u8]) -> PE32 {
         let dos = ImageDosHeader::load(&raw, 0);
         let nt = ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
         let fh = ImageFileHeader::load(&raw, dos.e_lfanew as usize + 4);
-        let opt = ImageOptionalHeader::load(&raw, dos.e_lfanew as usize + 24);
+        let opt = ImageOptionalHeader::load(&raw.to_vec(), dos.e_lfanew as usize + 24);
         let mut sect: Vec<ImageSectionHeader> = Vec::new();
 
         //let mut off = dos.e_lfanew as usize + 248;
@@ -885,7 +881,7 @@ impl PE32 {
         }
 
         PE32 {
-            raw,
+            raw: raw.to_vec(),
             dos,
             fh,
             nt,
@@ -895,6 +891,16 @@ impl PE32 {
             image_import_descriptor, //import_dir: importd,
                                      //export_dir: exportd,
         }
+    }
+
+    pub fn load(filename: &str) -> PE32 {
+        //log::info!("loading pe32: {}", filename);
+        let mut fd = File::open(filename).expect("pe32 binary not found");
+        let mut raw: Vec<u8> = Vec::new();
+        fd.read_to_end(&mut raw)
+            .expect("couldnt read the pe32 binary");
+
+        PE32::load_from_raw(&raw)
     }
 
     pub fn size(&self) -> usize {

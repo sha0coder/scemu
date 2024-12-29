@@ -2,12 +2,15 @@ use crate::emu;
 use crate::winapi64;
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
-    let apiname = winapi64::kernel32::guess_api_name(emu, addr);
-    match apiname.as_str() {
+    let api = winapi64::kernel32::guess_api_name(emu, addr);
+    match api.as_str() {
         "RealShellExecuteA" => RealShellExecuteA(emu),
         _ => {
-            log::warn!("calling unimplemented shell32 API 0x{:x} {}", addr, apiname);
-            return apiname;
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            return api;
         }
     }
     String::new()

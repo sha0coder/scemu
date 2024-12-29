@@ -191,9 +191,9 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "RegOpenKeyW" => RegOpenKeyW(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
-                unimplemented!("unimplemented kernel32 API 0x{:x} {}", addr, api);
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented kernel32 API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }
@@ -346,7 +346,7 @@ pub fn guess_api_name(emu: &mut emu::Emu, addr: u32) -> String {
 
                 let ordinal = flink.get_function_ordinal(emu, i);
 
-                if ordinal.func_va == addr.into() {
+                if ordinal.func_va == addr as u64 {
                     return ordinal.func_name.clone();
                 }
             }
@@ -2484,9 +2484,10 @@ fn HeapAlloc(emu: &mut emu::Emu) {
         .expect("kernel32!HeapAlloc out of memory");
 
     log::info!(
-        "{}** {} kernel32!HeapAlloc flags: 0x{:x} size: {} =0x{:x} {}",
+        "{}** {} kernel32!HeapAlloc eip: 0x{:x} flags: 0x{:x} size: {} =0x{:x} {}",
         emu.colors.light_red,
         emu.pos,
+        emu.regs.get_eip(),
         flags,
         size,
         emu.regs.get_eax() as u32,

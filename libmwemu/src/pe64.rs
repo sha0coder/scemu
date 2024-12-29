@@ -2,7 +2,7 @@
  * PE64 Structures and loader
  */
 
- use crate::emu;
+use crate::emu;
 use crate::pe32;
 use crate::pe32::PE32;
 use crate::winapi64;
@@ -219,9 +219,8 @@ impl DelayLoadIAT {
     }
 }
 
-#[derive(Debug)]
 pub struct PE64 {
-    raw: Vec<u8>,
+    pub raw: Vec<u8>,
     pub dos: pe32::ImageDosHeader,
     pub nt: pe32::ImageNtHeaders,
     pub fh: pe32::ImageFileHeader,
@@ -250,17 +249,15 @@ impl PE64 {
         true
     }
 
-    pub fn load(filename: &str) -> PE64 {
-        //log::info!("loading pe64: {}", filename);
-        let mut fd = File::open(filename).expect("pe64 binary not found");
-        let mut raw: Vec<u8> = Vec::new();
-        fd.read_to_end(&mut raw)
-            .expect("couldnt read the pe64 binary");
-
+    pub fn load_from_raw(raw: &[u8]) -> PE64 {
         let dos = pe32::ImageDosHeader::load(&raw, 0);
         let nt = pe32::ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
         let fh = pe32::ImageFileHeader::load(&raw, dos.e_lfanew as usize + 4);
-        let opt = ImageOptionalHeader64::load(&raw, dos.e_lfanew as usize + 24);
+        let opt = ImageOptionalHeader64::load(&raw.to_vec(), dos.e_lfanew as usize + 24);
+        let dos = pe32::ImageDosHeader::load(&raw, 0);
+        let nt = pe32::ImageNtHeaders::load(&raw, dos.e_lfanew as usize);
+        let fh = pe32::ImageFileHeader::load(&raw, dos.e_lfanew as usize + 4);
+        let opt = ImageOptionalHeader64::load(&raw.to_vec(), dos.e_lfanew as usize + 24);
         let mut sect: Vec<pe32::ImageSectionHeader> = Vec::new();
 
         let mut off = dos.e_lfanew as usize + 24 + fh.size_of_optional_header as usize;
@@ -333,7 +330,7 @@ impl PE64 {
         }
 
         PE64 {
-            raw,
+            raw: raw.to_vec(),
             dos,
             fh,
             nt,
@@ -343,6 +340,15 @@ impl PE64 {
             image_import_descriptor, //import_dir: importd,
                                      //export_dir: exportd,
         }
+    }
+
+    pub fn load(filename: &str) -> PE64 {
+        //log::info!("loading pe64: {}", filename);
+        let mut fd = File::open(filename).expect("pe64 binary not found");
+        let mut raw: Vec<u8> = Vec::new();
+        fd.read_to_end(&mut raw)
+            .expect("couldnt read the pe64 binary");
+        PE64::load_from_raw(&raw)
     }
 
     pub fn size(&self) -> u64 {

@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub const MIN_I8: i8 = -128;
 pub const MAX_I8: i8 = 0x7f;
 pub const MIN_U8: u8 = 0;
@@ -40,7 +42,7 @@ macro_rules! xor2 {
     };
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Flags {
     pub f_cf: bool,
     pub f_pf: bool,

@@ -12,7 +12,10 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
         "DnsQueryW" => DnsQuery_W(emu),
 
         _ => {
-            log::info!("calling unimplemented dnsapi API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }

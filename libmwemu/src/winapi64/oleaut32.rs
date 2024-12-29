@@ -9,7 +9,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SysFreeString" => SysFreeString(emu),
 
         _ => {
-            log::info!("calling unimplemented oleaut32 API 0x{:x} {}", addr, api);
+            if emu.cfg.skip_unimplemented == false {
+                unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
+            }
+            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
             return api;
         }
     }

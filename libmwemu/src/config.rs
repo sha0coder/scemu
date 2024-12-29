@@ -1,9 +1,12 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Config {
     pub filename: String, // filename with full path included
     pub trace_mem: bool,  // show memory operations in every step.
     pub trace_regs: bool, // show all the regs in every step.
     pub trace_reg: bool,  // show value and content of a reg in every step.
-    pub trace_file: Option<std::fs::File>,
+    pub trace_filename: Option<String>,
     pub trace_start: u64,
     pub reg_names: Vec<String>, // which reg to trace.
     pub verbose: u32,           // 0 only view the api, 1 api + messages, 2 asm code.
@@ -43,7 +46,7 @@ impl Config {
             trace_mem: false,
             trace_regs: false,
             trace_reg: false,
-            trace_file: None,
+            trace_filename: None,
             trace_start: 0,
             reg_names: Vec::new(),
             verbose: 0,
