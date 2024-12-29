@@ -1,5 +1,6 @@
 use crate::emu;
 use crate::constants;
+use crate::serialization;
 use crate::winapi64;
 use crate::winapi32::helper;
 
@@ -14,6 +15,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
+                if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
+                    serialization::Serialization::dump_to_file(&emu, emu.cfg.dump_filename.as_ref().unwrap());
+                }
+                
                 unimplemented!("calling unimplemented API 0x{:x} {}", addr, api);
             }
             log::warn!("calling unimplemented API 0x{:x} {}", addr, api);

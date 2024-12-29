@@ -20,7 +20,7 @@ use crate::emu;
 
 pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
     emu.regs.sanitize32();
-    let unimplemented_api = match name.as_str() {
+    match name.as_str() {
         "kernel32.text" => kernel32::gateway(addr, emu),
         "kernel32.rdata" => kernel32::gateway(addr, emu),
         "ntdll.text" => ntdll::gateway(addr, emu),
@@ -38,23 +38,10 @@ pub fn gateway(addr: u32, name: String, emu: &mut emu::Emu) {
         "iphlpapi.text" => iphlpapi::gateway(addr, emu),
         "libgcc_s_dw2-1.text" => libgcc::gateway(addr, emu),
         "api-ms-win-crt-runtime-l1-1-0.text" => wincrt::gateway(addr, emu),
-        "not_loaded" => emu.pe32.as_ref().unwrap().import_addr_to_name(addr),
-        _ => {
-            log::info!("/!\\ trying to execute on {} at 0x{:x}", name, addr);
-            name.clone()
-        }
+        "not_loaded" => {
+            // TODO: banzai check?
+            emu.pe32.as_ref().unwrap().import_addr_to_name(addr)
+        },
+        _ => panic!("/!\\ trying to execute on {} at 0x{:x}", name, addr),
     };
-
-    if !unimplemented_api.is_empty() {
-        let params = emu.banzai.get_params(&unimplemented_api);
-        log::info!("{} {} parameters", unimplemented_api, params);
-
-        if name != "msvcrt.text" {
-            for _ in 0..params {
-                emu.stack_pop32(false);
-            }
-        }
-
-        emu.regs.rax = 1;
-    }
 }
