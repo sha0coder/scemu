@@ -4,7 +4,9 @@ use clap::{App, Arg};
 use env_logger::Env;
 use libmwemu::emu32;
 use libmwemu::emu64;
+use libmwemu::serialization;
 use std::io::Write as _;
+use std::io::Read as _;
 
 macro_rules! match_register_arg {
     ($matches:expr, $emu:expr, $reg:expr) => {
@@ -62,6 +64,7 @@ fn main() {
         .version(env!("CARGO_PKG_VERSION"))
         .author("@sha0coder")
         .arg(clap_arg!("filename", "f", "filename", "set the shellcode binary file.", "FILE"))
+        .arg(clap_arg!("dump", "d", "dump", "load from dump.", "FILE"))
         .arg(clap_arg!("verbose", "v", "verbose", "-vv for view the assembly, -v only messages, without verbose only see the api calls and goes faster", multiple: true))
         .arg(clap_arg!("64bits", "6", "64bits", "enable 64bits architecture emulation"))
         .arg(clap_arg!("memory", "m", "memory", "trace all the memory accesses read and write."))
@@ -350,6 +353,15 @@ fn main() {
 
     // load code
     emu.load_code(&filename);
+
+    // override all from dump?
+    if matches.is_present("dump") {
+        let dump_filename = matches.value_of("dump").expect("specify the dump filename");
+        let mut dump_file = std::fs::File::open(dump_filename).expect("failed to open dump file");
+        let mut serialized = Vec::new();
+        dump_file.read_to_end(&mut serialized).expect("failed to read dump file");
+        emu = serialization::Serialization::deserialize(&serialized);
+    }
 
     // script
     if matches.is_present("script") {
