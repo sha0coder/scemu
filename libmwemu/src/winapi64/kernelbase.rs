@@ -12,6 +12,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetTokenInformation" => GetTokenInformation(emu),
         "GetFileVersionInfoSizeA" => GetFileVersionInfoSizeA(emu),
         "GetFileVersionInfoA" => GetFileVersionInfoA(emu),
+        "VerQueryValueA" => VerQueryValueA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -123,3 +124,31 @@ fn GetFileVersionInfoA(emu: &mut emu::Emu) {
     // TODO: write to lp_data
     emu.regs.rax = 1;
 }
+
+/*
+BOOL VerQueryValueA(
+  [in]  LPCVOID pBlock,
+  [in]  LPCSTR  lpSubBlock,
+  [out] LPVOID  *lplpBuffer,
+  [out] PUINT   puLen
+);
+*/
+fn VerQueryValueA(emu: &mut emu::Emu) {
+    let p_block = emu.regs.rcx as usize;
+    let lp_sub_block = emu.regs.rdx as usize;
+    let lplp_buffer = emu.regs.rcx as usize;
+    let pu_len = emu.regs.r8 as usize;
+    log_red!(emu, "** {} kernelbase!VerQueryValueA p_block: 0x{:x} lp_sub_block: {} lplp_buffer: 0x{:x} pu_len: 0x{:x}", 
+        emu.pos,
+        p_block,
+        lp_sub_block,
+        lplp_buffer,
+        pu_len
+    );
+    // TODO: write more structured data
+    let base = emu.maps.alloc(0x100).expect("out of memory");
+    emu.maps.write_qword(lplp_buffer as u64, base);
+    emu.maps.write_qword(pu_len as u64, 0x100);
+    emu.regs.rax = 1;
+}
+
