@@ -13,6 +13,7 @@ mod ws2_32;
 mod oleaut32;
 mod uxtheme;
 mod gdi32;
+mod ole32;
 
 use crate::emu;
 
@@ -34,6 +35,7 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         "oleaut32.text" => oleaut32::gateway(addr, emu),
         "uxtheme.text" => uxtheme::gateway(addr, emu),
         "gdi32.text" => gdi32::gateway(addr, emu),
+        "ole32.text" => ole32::gateway(addr, emu),
         "not_loaded" => {
             // TODO: banzai check?
             emu.pe64.as_ref().unwrap().import_addr_to_name(addr)
