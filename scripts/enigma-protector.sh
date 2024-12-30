@@ -41,7 +41,8 @@ elif [ "$MODE" == "load" ]; then
         --filename ~/Desktop/enigma/surprise.dll \
         --maps ./maps64/ \
         --64bits \
-        --dump emu.bin.bak
+        --dump emu.bin.bak \
+        --banzai
 else
     echo "Error: Invalid mode. Use 'dump' or 'load'"
     exit 1
