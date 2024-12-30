@@ -6,6 +6,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     match api.as_str() {
         "IsAppThemed" => IsAppThemed(emu),
+        "IsThemeActive" => IsThemeActive(emu),
+        "GetThemeAppProperties" => GetThemeAppProperties(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -22,6 +24,18 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 }
 
 fn IsAppThemed(emu: &mut emu::Emu) {
+    log_red!(emu, "** {} uxtheme!IsAppThemed", emu.pos);
     emu.regs.rax = 1;
 }
+
+fn IsThemeActive(emu: &mut emu::Emu) {
+    log_red!(emu, "** {} uxtheme!IsThemeActive", emu.pos);
+    emu.regs.rax = 1;
+}
+
+fn GetThemeAppProperties(emu: &mut emu::Emu) {
+    log_red!(emu, "** {} uxtheme!GetThemeAppProperties", emu.pos);
+    emu.regs.rax = 1;
+}
+
 
