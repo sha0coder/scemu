@@ -10,6 +10,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "PathCombineA" => PathCombineA(emu),
         "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
         "GetTokenInformation" => GetTokenInformation(emu),
+        "GetFileVersionInfoSizeA" => GetFileVersionInfoSizeA(emu),
+        "GetFileVersionInfoA" => GetFileVersionInfoA(emu),
+        "VerQueryValueA" => VerQueryValueA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -19,7 +22,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {} at 0x{:x}", addr, api, emu.regs.rip);
             return api;
         }
     }
@@ -79,3 +82,73 @@ pub fn GetTokenInformation(emu: &mut emu::Emu) {
 
     emu.regs.rax = 1;
 }
+
+/*
+DWORD GetFileVersionInfoSizeA(
+  [in]            LPCSTR  lptstrFilename,
+  [out, optional] LPDWORD lpdwHandle
+);
+*/
+fn GetFileVersionInfoSizeA(emu: &mut emu::Emu) {
+    let lptstr_filename = emu.regs.rcx as usize;
+    let lpdw_handle = emu.regs.rdx as usize;
+    log_red!(emu, "** {} kernelbase!GetFileVersionInfoSizeA lptstr_filename: 0x{:x} lpdw_handle: 0x{:x}", 
+        emu.pos,
+        lptstr_filename,
+        lpdw_handle
+    );
+    // TODO: just putting a rough number for now
+    emu.regs.rax = 0x100;
+}
+
+/*
+BOOL GetFileVersionInfoA(
+  [in]  LPCSTR lptstrFilename,
+        DWORD  dwHandle,
+  [in]  DWORD  dwLen,
+  [out] LPVOID lpData
+);
+*/
+fn GetFileVersionInfoA(emu: &mut emu::Emu) {
+    let lptstr_filename = emu.regs.rcx as usize;
+    let dw_handle = emu.regs.rdx as usize;
+    let dw_len = emu.regs.rcx as usize;
+    let lp_data = emu.regs.r8 as usize;
+    log_red!(emu, "** {} kernelbase!GetFileVersionInfoA lptstr_filename: 0x{:x} dw_handle: 0x{:x} dw_len: 0x{:x} lp_data: 0x{:x}", 
+        emu.pos,
+        lptstr_filename,
+        dw_handle,
+        dw_len,
+        lp_data
+    );
+    // TODO: write to lp_data
+    emu.regs.rax = 1;
+}
+
+/*
+BOOL VerQueryValueA(
+  [in]  LPCVOID pBlock,
+  [in]  LPCSTR  lpSubBlock,
+  [out] LPVOID  *lplpBuffer,
+  [out] PUINT   puLen
+);
+*/
+fn VerQueryValueA(emu: &mut emu::Emu) {
+    let p_block = emu.regs.rcx as usize;
+    let lp_sub_block = emu.regs.rdx as usize;
+    let lplp_buffer = emu.regs.rcx as usize;
+    let pu_len = emu.regs.r8 as usize;
+    log_red!(emu, "** {} kernelbase!VerQueryValueA p_block: 0x{:x} lp_sub_block: {} lplp_buffer: 0x{:x} pu_len: 0x{:x}", 
+        emu.pos,
+        p_block,
+        lp_sub_block,
+        lplp_buffer,
+        pu_len
+    );
+    // TODO: write more structured data
+    let base = emu.maps.alloc(0x100).expect("out of memory");
+    emu.maps.write_qword(lplp_buffer as u64, base);
+    emu.maps.write_qword(pu_len as u64, 0x100);
+    emu.regs.rax = 1;
+}
+

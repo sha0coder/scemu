@@ -2,6 +2,7 @@ pub mod logic;
 
 use iced_x86::{Instruction, Mnemonic, Register};
 use crate::emu::Emu;
+use crate::fpu::FPUState;
 use crate::regs64;
 use crate::exception;
 use crate::inline;
@@ -4583,6 +4584,19 @@ pub fn emulate_instruction(
 
             let state = emu.fpu.fxsave();
             state.save(addr, emu);
+        }
+
+        Mnemonic::Fxrstor => {
+            emu.show_instruction(&emu.colors.green, ins);
+            
+            let addr = match emu.get_operand_value(ins, 0, false) {
+                Some(v) => v,
+                None => return false,
+            };
+            
+            let state = FPUState::load(addr, emu);
+
+            emu.fpu.fxrstor(state);
         }
 
         Mnemonic::Fistp => {

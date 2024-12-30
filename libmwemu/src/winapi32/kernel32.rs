@@ -10,17 +10,6 @@ use crate::winapi32::helper;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-macro_rules! log_red {
-    ($emu:expr, $($arg:tt)*) => {
-        log::info!(
-            "{}{}{}",
-            $emu.colors.light_red,
-            format!($($arg)*),
-            $emu.colors.nc
-        );
-    };
-}
-
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     match api.as_str() {
@@ -198,7 +187,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {} at 0x{:x}", addr, api, emu.regs.rip);
             return api;
         }
     }
@@ -421,9 +410,7 @@ fn GetProcAddress(emu: &mut emu::Emu) {
         }
     }
     emu.regs.rax = 0;
-    if emu.cfg.verbose >= 1 {
-        log::info!("kernel32!GetProcAddress error searching {}", func);
-    }
+    log::warn!("kernel32!GetProcAddress error searching {}", func);
 }
 
 pub fn load_library(emu: &mut emu::Emu, libname: &str) -> u64 {
@@ -476,14 +463,7 @@ fn LoadLibraryA(emu: &mut emu::Emu) {
 
     emu.regs.rax = load_library(emu, &dll);
 
-    log::info!(
-        "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red,
-        emu.pos,
-        &dll,
-        emu.regs.get_eax() as u32,
-        emu.colors.nc
-    );
+    log_red!(emu, "** {} kernel32!LoadLibraryA  '{}' =0x{:x} rip: 0x{:x}", emu.pos, &dll, emu.regs.get_eax() as u32, emu.regs.rip);
 
     emu.stack_pop32(false);
 

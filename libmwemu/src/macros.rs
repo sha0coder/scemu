@@ -113,3 +113,15 @@ macro_rules! to32 {
     };
 }
 
+#[macro_export]
+macro_rules! log_red {
+    ($emu:expr, $($arg:tt)*) => {
+        log::info!(
+            "{}{}{}",
+            $emu.colors.light_red,
+            format!($($arg)*),
+            $emu.colors.nc
+        );
+    };
+}
+

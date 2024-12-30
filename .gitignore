@@ -9,3 +9,4 @@ x
 test/
 .venv/
 emu.bin
+emu.bin*

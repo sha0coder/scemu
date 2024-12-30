@@ -11,17 +11,6 @@ use crate::context64;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-macro_rules! log_red {
-    ($emu:expr, $($arg:tt)*) => {
-        log::info!(
-            "{}{}{}",
-            $emu.colors.light_red,
-            format!($($arg)*),
-            $emu.colors.nc
-        );
-    };
-}
-
 // a in RCX, b in RDX, c in R8, d in R9, then e pushed on stack
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -172,6 +161,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetModuleFileNameW" => GetModuleFileNameW(emu),
         "EnterCriticalSection" => EnterCriticalSection(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
+        "GlobalAddAtomA" => GlobalAddAtomA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -181,7 +171,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {} at 0x{:x}", addr, api, emu.regs.rip);
             return api;
         }
     }
@@ -426,14 +416,7 @@ fn LoadLibraryA(emu: &mut emu::Emu) {
 
     emu.regs.rax = load_library(emu, &dll);
 
-    log::info!(
-        "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red,
-        emu.pos,
-        dll,
-        emu.regs.rax,
-        emu.colors.nc
-    );
+    log_red!(emu, "** {} kernel32!LoadLibraryA  '{}' =0x{:x} rip: 0x{:x}", emu.pos, &dll, emu.regs.get_eax() as u32, emu.regs.rip);
 }
 
 fn LoadLibraryW(emu: &mut emu::Emu) {
@@ -442,14 +425,7 @@ fn LoadLibraryW(emu: &mut emu::Emu) {
 
     emu.regs.rax = load_library(emu, &dll);
 
-    log::info!(
-        "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red,
-        emu.pos,
-        dll,
-        emu.regs.rax,
-        emu.colors.nc
-    );
+    log_red!(emu, "** {} kernel32!LoadLibraryW  '{}' =0x{:x} rip: 0x{:x}", emu.pos, &dll, emu.regs.get_eax() as u32, emu.regs.rip);
 }
 
 fn LoadLibraryExA(emu: &mut emu::Emu) {
@@ -2948,8 +2924,14 @@ fn TlsGetValue(emu: &mut emu::Emu) {
     let idx = emu.regs.rcx as usize;  // Parameter passed in RCX in x64
 
     let val = if idx < emu.tls64.len() {
+        // Set last error to SUCCESS when the function succeeds
+        let mut err = LAST_ERROR.lock().unwrap();
+        *err = constants::ERROR_SUCCESS;
         emu.tls64[idx]
     } else {
+        // Set last error to ERROR_INVALID_PARAMETER for invalid index
+        let mut err = LAST_ERROR.lock().unwrap();
+        *err = constants::ERROR_INVALID_PARAMETER;
         0
     };
 
@@ -3094,7 +3076,7 @@ fn GetUserDefaultLCID(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.regs.rax = 0x00000400;
+    emu.regs.rax = constants::LOCALE_USER_DEFAULT;
 }
 
 /*
@@ -3123,7 +3105,7 @@ fn GetThreadLocale(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.regs.rax = 0x409;
+    emu.regs.rax = constants::LOCALE_USER_DEFAULT; // TODO: 0x400 LOCALE_USER_DEFAULT or 0x409?
 }
 
 /*
@@ -3135,8 +3117,8 @@ int GetLocaleInfoW(
 );
 */
 fn GetLocaleInfoW(emu: &mut emu::Emu) {
-    let locale = emu.regs.rcx as usize;         
-    let lctype = emu.regs.rdx as usize;
+    let locale = emu.regs.rcx as u64;         
+    let lctype = emu.regs.rdx as u64;
     let lp_lc_data = emu.regs.r8 as usize;
     let cch_data = emu.regs.r9 as usize;
     log_red!(emu, "** {} kernel32!GetLocaleInfoW locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
@@ -3146,8 +3128,13 @@ fn GetLocaleInfoW(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    // TODO: set lp_lc_data
-    emu.regs.rax = 1;
+
+    if lp_lc_data == 0 {
+        emu.regs.rax = 0x05 * 2;
+    } else {
+        emu.maps.write_wide_string(lp_lc_data as u64, "TODO\0\0");
+        emu.regs.rax = 0x05 * 2;
+    }
 }
 
 /*
@@ -3164,10 +3151,10 @@ int WideCharToMultiByte(
 );
 */
 fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    let code_page = emu.regs.rcx as usize;
+    let code_page = emu.regs.rcx as u64;
     let dw_flags = emu.regs.rdx as usize;
     let lp_wide_char_str = emu.regs.r8 as usize;
-    let cch_wide_char = emu.regs.r9 as usize;
+    let cch_wide_char = emu.regs.r9 as isize;
     let lp_multi_byte_str = emu
         .maps
         .read_qword(emu.regs.rsp)
@@ -3197,11 +3184,62 @@ fn WideCharToMultiByte(emu: &mut emu::Emu) {
         lp_used_default_char
     );
 
-    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
-    if lp_multi_byte_str > 0 && s.len() > 0 {
-        emu.maps.write_string(lp_multi_byte_str, &s);
+    // 1. Input validation
+    if lp_wide_char_str == 0 {
+        emu.regs.rax = 0;
+        return;
     }
-    emu.regs.rax = s.len() as u64 + 2;
+
+    // 2. Handle special code pages
+    if code_page == constants::CP_UTF7 || code_page == constants::CP_UTF8 {
+        if lp_default_char != 0 || lp_used_default_char != 0 {
+            // Set last error to ERROR_INVALID_PARAMETER
+            let mut err = LAST_ERROR.lock().unwrap();
+            *err = constants::ERROR_INVALID_PARAMETER;
+            emu.regs.rax = 0;
+            return;
+        }
+    }
+
+    // 3. Read input string and get its length
+    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
+    let input_len = if cch_wide_char == -1 {
+        s.len()
+    } else {
+        cch_wide_char as usize
+    };
+
+    // 4. If this is just a size query
+    if cb_multi_byte == 0 {
+        emu.regs.rax = input_len as u64;
+        return;
+    }
+
+    // 5. Check output buffer size
+    if cb_multi_byte < input_len as u64 {
+        // Set last error to ERROR_INSUFFICIENT_BUFFER
+        let mut err = LAST_ERROR.lock().unwrap();
+        *err = constants::ERROR_INSUFFICIENT_BUFFER;
+        emu.regs.rax = 0;
+        return;
+    }
+
+    // 6. Perform the actual conversion
+    if lp_multi_byte_str > 0 && !s.is_empty() {
+        emu.maps.write_string(lp_multi_byte_str, &s);
+        
+        // Set used default char flag if requested
+        if lp_used_default_char != 0 {
+            emu.maps.write_byte(lp_used_default_char, 0); // For this simple implementation, assume no defaults needed
+        }
+    }
+
+    // 7. Return number of bytes written
+    emu.regs.rax = if cch_wide_char == -1 {
+        (s.len() + 1) as u64 // Include null terminator
+    } else {
+        s.len() as u64
+    };
 }
 
 /*
@@ -3224,8 +3262,12 @@ fn GetLocaleInfoA(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    // TODO: set lp_lc_data
-    emu.regs.rax = 1;
+    if lp_lc_data == 0 {
+        emu.regs.rax = 0x05;
+    } else {
+        emu.maps.write_string(lp_lc_data as u64, "TODO\0");
+        emu.regs.rax = 0x05;
+    }
 }
 
 /*
@@ -3329,4 +3371,19 @@ fn LeaveCriticalSection(emu: &mut emu::Emu) {
     );
 
     emu.regs.rax = crit_sect;
+}
+
+/*
+ATOM GlobalAddAtomA(
+  [in] LPCSTR lpString
+);
+*/
+fn GlobalAddAtomA(emu: &mut emu::Emu) {
+    let lp_string = emu.regs.rcx as usize;
+    log_red!(emu, "** {} kernel32!GlobalAddAtomA lp_string: 0x{:x}", 
+        emu.pos,
+        lp_string
+    );
+    // TODO: not sure what to do
+    emu.regs.rax = 1;
 }

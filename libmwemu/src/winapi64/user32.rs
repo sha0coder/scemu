@@ -8,6 +8,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "MessageBoxA" => MessageBoxA(emu),
         "GetDesktopWindow" => GetDesktopWindow(emu),
         "GetSystemMetrics" => GetSystemMetrics(emu),
+        "SystemParametersInfoA" => SystemParametersInfoA(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -16,7 +17,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {} at 0x{:x}", addr, api, emu.regs.rip);
             return api;
         }
     }
@@ -70,4 +71,17 @@ fn GetSystemMetrics(emu: &mut emu::Emu) {
     emu.regs.rax = 0;
 }
 
+/*
+BOOL SystemParametersInfoA(
+  [in]      UINT  uiAction,
+  [in]      UINT  uiParam,
+  [in, out] PVOID pvParam,
+  [in]      UINT  fWinIni
+);
+*/
+fn SystemParametersInfoA(emu: &mut emu::Emu) {
+    log_red!(emu, "** {} user32!SystemParametersInfoA", emu.pos);
+    // TODO: write pvParam
+    emu.regs.rax = 1;
+}
 
