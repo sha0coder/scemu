@@ -9,6 +9,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SysAllocStringLen" => SysAllocStringLen(emu),
         "SysReAllocStringLen" => SysReAllocStringLen(emu),
         "SysFreeString" => SysFreeString(emu),
+        "VariantClear" => VariantClear(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -137,4 +138,25 @@ fn SysReAllocStringLen(emu: &mut emu::Emu) {
     );
 
     emu.regs.rax = 1; // Return TRUE for success
+}
+
+/*
+HRESULT VariantClear(
+  [in, out] VARIANTARG *pvarg
+);
+*/
+fn VariantClear(emu: &mut emu::Emu) {
+    let pvarg = emu.regs.rcx;
+
+    log::info!(
+        "{}** {} oleaut32!VariantClear pvarg: 0x{:x} {}",
+        emu.colors.light_red,
+        emu.pos,
+        pvarg,
+        emu.colors.nc
+    );
+
+    // TODO: do something
+
+    emu.regs.rax = 0; // S_OK
 }
