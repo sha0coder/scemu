@@ -8,6 +8,7 @@ use std::str;
 
 use crate::emu;
 use crate::winapi32;
+use crate::structures;
 
 macro_rules! read_u8 {
     ($raw:expr, $off:expr) => {
@@ -377,29 +378,6 @@ impl ImageResourceDirectory {
             minor_version: read_u16_le!(raw, off + 10),
             number_of_named_entries: read_u16_le!(raw, off + 12),
             number_of_id_entries: read_u16_le!(raw, off + 14),
-        }
-    }
-
-    pub fn print(&self) {
-        log::info!("{:#x?}", self);
-    }
-}
-
-#[derive(Debug)]
-pub struct ImageResourceDataEntry {
-    pub offset_to_data: u32,
-    pub size: u32,
-    pub code_page: u32,
-    pub reserved: u32,
-}
-
-impl ImageResourceDataEntry {
-    pub fn load(raw: &[u8], off: usize) -> ImageResourceDataEntry {
-        ImageResourceDataEntry {
-            offset_to_data: read_u32_le!(raw, off),
-            size: read_u32_le!(raw, off + 4),
-            code_page: read_u32_le!(raw, off + 8),
-            reserved: read_u32_le!(raw, off + 12),
         }
     }
 
@@ -1203,5 +1181,58 @@ impl PE32 {
             }
         }
         String::new()
+    }
+
+    pub fn get_resource_by_name(&self, name: &str) -> Option<&[u8]> {
+        let rsrc = self.get_section_ptr_by_name(".rsrc");
+
+        let mut dir = structures::ImageResourceDirectory::new();
+        dir.characteristics = read_u32_le!(rsrc, 0);
+        dir.time_date_stamp = read_u32_le!(rsrc, 4);
+        dir.major_version = read_u16_le!(rsrc, 8);
+        dir.minor_version = read_u16_le!(rsrc, 10);
+        dir.number_of_named_entries = read_u16_le!(rsrc, 12);
+        dir.number_of_id_entries = read_u16_le!(rsrc, 14);
+
+        let entries = dir.number_of_named_entries + dir.number_of_id_entries;
+
+        for i in 0..entries {
+            let mut entry = structures::ImageResourceDirectoryEntry::new();
+            entry.name_or_id = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size());
+            entry.data_or_directory = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size() + 4);
+
+            let off = PE32::vaddr_to_off(&self.sect_hdr, entry.get_name_or_id() as u32) as usize;
+            let off2 = PE32::vaddr_to_off(&self.sect_hdr, entry.get_offset() as u32) as usize;
+            let length = u16::from_le_bytes([self.raw[off], self.raw[off + 1]]) as usize;
+            let string_start = off + 2;
+            let utf16_data: Vec<u16> = (0..length)
+                .map(|i| {
+                let idx = string_start + i * 2;
+                u16::from_le_bytes([self.raw[idx], self.raw[idx + 1]])
+            })
+            .collect(); 
+            let decoded_string = String::from_utf16_lossy(&utf16_data);
+
+            if entry.is_name() {
+                log::info!("name: {} data: {:x}", decoded_string, entry.data_or_directory);
+            } else if entry.is_id() {
+                log::info!("id: {} data: {:x}", entry.get_name_or_id(), entry.data_or_directory);
+            } else {
+                unreachable!("imposible case");
+            }
+
+            if entry.is_name() && name == decoded_string {
+                let mut data_entry = structures::ImageResourceDataEntry32::new();
+                data_entry.offset_to_data = read_u32_le!(self.raw, off2);
+                data_entry.size = read_u32_le!(self.raw, off2 + 4);
+                data_entry.code_page = read_u32_le!(self.raw, off2 + 8);
+                data_entry.reserved = read_u32_le!(self.raw, off2 + 12);
+
+                let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32) as usize;
+                return Some(&self.raw[data_off..data_off + data_entry.size as usize]);
+            }
+        }
+
+        None
     }
 }

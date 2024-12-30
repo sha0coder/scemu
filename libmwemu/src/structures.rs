@@ -2228,7 +2228,6 @@ pub struct ImageResourceDirectory {
     pub minor_version: u16,
     pub number_of_named_entries: u16,
     pub number_of_id_entries: u16,
-    pub entries: [u32; 1],
 }
 
 impl ImageResourceDirectory {
@@ -2240,8 +2239,11 @@ impl ImageResourceDirectory {
             minor_version: 0,
             number_of_named_entries: 0,
             number_of_id_entries: 0,
-            entries: [0; 1],
         }
+    }
+
+    pub fn size() -> usize {
+        16
     }
 }
 
@@ -2264,6 +2266,10 @@ impl ImageResourceDirectoryEntry {
 
     pub fn is_name(&self) -> bool {
         self.name_or_id & 0x8000_0000 != 0
+    }
+
+    pub fn is_id(&self) -> bool {
+        self.name_or_id & 0x8000_0000 == 0
     }
 
     pub fn get_name_or_id(&self) -> u32 {
