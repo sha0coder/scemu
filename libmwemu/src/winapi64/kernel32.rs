@@ -3094,7 +3094,7 @@ fn GetUserDefaultLCID(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.regs.rax = 0x00000400;
+    emu.regs.rax = constants::LOCALE_USER_DEFAULT;
 }
 
 /*
@@ -3123,7 +3123,7 @@ fn GetThreadLocale(emu: &mut emu::Emu) {
         emu.pos,
         emu.colors.nc
     );
-    emu.regs.rax = 0x409;
+    emu.regs.rax = constants::LOCALE_USER_DEFAULT; // TODO: 0x400 LOCALE_USER_DEFAULT or 0x409?
 }
 
 /*
@@ -3135,8 +3135,8 @@ int GetLocaleInfoW(
 );
 */
 fn GetLocaleInfoW(emu: &mut emu::Emu) {
-    let locale = emu.regs.rcx as usize;         
-    let lctype = emu.regs.rdx as usize;
+    let locale = emu.regs.rcx as u64;         
+    let lctype = emu.regs.rdx as u64;
     let lp_lc_data = emu.regs.r8 as usize;
     let cch_data = emu.regs.r9 as usize;
     log_red!(emu, "** {} kernel32!GetLocaleInfoW locale: {} lctype: {} lp_lc_data: 0x{:x} cch_data: {}", 
@@ -3146,8 +3146,13 @@ fn GetLocaleInfoW(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    // TODO: set lp_lc_data
-    emu.regs.rax = 1;
+
+    if lp_lc_data == 0 {
+        emu.regs.rax = 0x05 * 2;
+    } else {
+        emu.maps.write_wide_string(lp_lc_data as u64, "TODO\0\0");
+        emu.regs.rax = 0x05 * 2;
+    }
 }
 
 /*
@@ -3275,8 +3280,12 @@ fn GetLocaleInfoA(emu: &mut emu::Emu) {
         lp_lc_data,
         cch_data
     );
-    // TODO: set lp_lc_data
-    emu.regs.rax = 1;
+    if lp_lc_data == 0 {
+        emu.regs.rax = 0x05;
+    } else {
+        emu.maps.write_string(lp_lc_data as u64, "TODO\0");
+        emu.regs.rax = 0x05;
+    }
 }
 
 /*
