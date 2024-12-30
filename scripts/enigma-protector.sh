@@ -38,7 +38,6 @@ elif [ "$MODE" == "load" ]; then
         --release \
         --target $TARGET \
         -- \
-        -vv \
         --filename ~/Desktop/enigma/surprise.dll \
         --maps ./maps64/ \
         --64bits \
