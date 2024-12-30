@@ -161,6 +161,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetModuleFileNameW" => GetModuleFileNameW(emu),
         "EnterCriticalSection" => EnterCriticalSection(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
+        "GlobalAddAtomA" => GlobalAddAtomA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -3386,3 +3387,17 @@ fn LeaveCriticalSection(emu: &mut emu::Emu) {
     emu.regs.rax = crit_sect;
 }
 
+/*
+ATOM GlobalAddAtomA(
+  [in] LPCSTR lpString
+);
+*/
+fn GlobalAddAtomA(emu: &mut emu::Emu) {
+    let lp_string = emu.regs.rcx as usize;
+    log_red!(emu, "** {} kernel32!GlobalAddAtomA lp_string: 0x{:x}", 
+        emu.pos,
+        lp_string
+    );
+    // TODO: not sure what to do
+    emu.regs.rax = 1;
+}
