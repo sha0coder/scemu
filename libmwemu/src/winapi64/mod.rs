@@ -15,7 +15,7 @@ mod oleaut32;
 use crate::emu;
 
 pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
-    let unimplemented_api = match name.as_str() {
+    match name.as_str() {
         "kernel32.text" => kernel32::gateway(addr, emu),
         "kernel32.rdata" => kernel32::gateway(addr, emu),
         "ntdll.text" => ntdll::gateway(addr, emu),
@@ -30,20 +30,10 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         "shlwapi.text" => shlwapi::gateway(addr, emu),
         "kernelbase.text" => kernelbase::gateway(addr, emu),
         "oleaut32.text" => oleaut32::gateway(addr, emu),
-        "not_loaded" => emu.pe64.as_ref().unwrap().import_addr_to_name(addr),
+        "not_loaded" => {
+            // TODO: banzai check?
+            emu.pe64.as_ref().unwrap().import_addr_to_name(addr)
+        },
         _ => panic!("/!\\ trying to execute on {} at 0x{:x}", name, addr),
     };
-
-    if !unimplemented_api.is_empty() {
-        log::info!(
-            "{}({}, {}, {}, {}) (unimplemented)",
-            unimplemented_api,
-            emu.regs.rcx,
-            emu.regs.rdx,
-            emu.regs.r8,
-            emu.regs.r9
-        );
-
-        emu.regs.rax = 1;
-    }
 }
