@@ -11,6 +11,8 @@ mod winhttp;
 mod wininet;
 mod ws2_32;
 mod oleaut32;
+mod uxtheme;
+
 
 use crate::emu;
 
@@ -30,6 +32,7 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         "shlwapi.text" => shlwapi::gateway(addr, emu),
         "kernelbase.text" => kernelbase::gateway(addr, emu),
         "oleaut32.text" => oleaut32::gateway(addr, emu),
+        "uxtheme.text" => uxtheme::gateway(addr, emu),
         "not_loaded" => {
             // TODO: banzai check?
             emu.pe64.as_ref().unwrap().import_addr_to_name(addr)
