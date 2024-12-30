@@ -4,6 +4,7 @@ use crate::maps::Maps;
 use chrono::prelude::*;
 use serde::{Serialize, Deserialize};
 
+
 ////// PEB / TEB //////
 
 #[derive(Debug)]
@@ -2214,5 +2215,104 @@ impl CpInfo {
 
     pub fn print(&self) {
         log::info!("{:#x?}", self);
+    }
+}
+
+
+/******* resources *******/
+
+pub struct ImageResourceDirectory {
+    pub characteristics: u32,
+    pub time_date_stamp: u32,
+    pub major_version: u16,
+    pub minor_version: u16,
+    pub number_of_named_entries: u16,
+    pub number_of_id_entries: u16,
+    pub entries: [u32; 1],
+}
+
+impl ImageResourceDirectory {
+    pub fn new() -> ImageResourceDirectory {
+        ImageResourceDirectory {
+            characteristics: 0,
+            time_date_stamp: 0,
+            major_version: 0,
+            minor_version: 0,
+            number_of_named_entries: 0,
+            number_of_id_entries: 0,
+            entries: [0; 1],
+        }
+    }
+}
+
+pub struct ImageResourceDirectoryEntry {
+    pub name_or_id: u32,
+    pub data_or_directory: u32,
+}
+
+impl ImageResourceDirectoryEntry {
+    pub fn new() -> ImageResourceDirectoryEntry {
+        ImageResourceDirectoryEntry {
+            name_or_id: 0,
+            data_or_directory: 0,
+        }
+    }
+
+    pub fn size() -> usize {
+        8
+    }
+
+    pub fn is_name(&self) -> bool {
+        self.name_or_id & 0x8000_0000 != 0
+    }
+
+    pub fn get_name_or_id(&self) -> u32 {
+        self.name_or_id & 0x7FFF_FFFF
+    }
+
+    pub fn is_directory(&self) -> bool {
+        self.data_or_directory & 0x8000_0000 != 0
+    }
+
+    pub fn get_offset(&self) -> u32 {
+        self.data_or_directory & 0x7FFF_FFFF
+    }
+
+
+}
+
+pub struct ImageResourceDataEntry32 {
+    pub offset_to_data: u32,
+    pub size: u32,
+    pub code_page: u32,
+    pub reserved: u32,
+}
+
+impl ImageResourceDataEntry32 {
+    pub fn new() -> ImageResourceDataEntry32 {
+        ImageResourceDataEntry32 {
+            offset_to_data: 0,
+            size: 0,
+            code_page: 0,
+            reserved: 0,
+        }
+    }
+}
+
+pub struct ImageResourceDataEntry64 {
+    pub offset_to_data: u64,
+    pub size: u64,
+    pub code_page: u64,
+    pub reserved: u64,
+}
+
+impl ImageResourceDataEntry64 {
+    pub fn new() -> ImageResourceDataEntry64 {
+        ImageResourceDataEntry64 {
+            offset_to_data: 0,
+            size: 0,
+            code_page: 0,
+            reserved: 0,
+        }
     }
 }
