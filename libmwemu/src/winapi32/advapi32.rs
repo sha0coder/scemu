@@ -34,7 +34,7 @@ pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
                 
                 unimplemented!("atemmpt to call unimplemented API 0x{:x} {}", addr, api);
             }
-            log::warn!("calling unimplemented API 0x{:x} {}", addr, api);
+            log::warn!("calling unimplemented API 0x{:x} {} at 0x{:x}", addr, api, emu.regs.rip);
             return api;
         }
     }
