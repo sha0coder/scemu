@@ -463,14 +463,7 @@ fn LoadLibraryA(emu: &mut emu::Emu) {
 
     emu.regs.rax = load_library(emu, &dll);
 
-    log::info!(
-        "{}** {} kernel32!LoadLibraryA  '{}' =0x{:x} {}",
-        emu.colors.light_red,
-        emu.pos,
-        &dll,
-        emu.regs.get_eax() as u32,
-        emu.colors.nc
-    );
+    log_red!(emu, "** {} kernel32!LoadLibraryA  '{}' =0x{:x} rip: 0x{:x}", emu.pos, &dll, emu.regs.get_eax() as u32, emu.regs.rip);
 
     emu.stack_pop32(false);
 

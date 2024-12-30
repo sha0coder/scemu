@@ -1,5 +1,6 @@
 mod advapi32;
 mod comctl32;
+mod comctl64;
 mod dnsapi;
 pub mod kernel32;
 mod kernelbase;
@@ -29,6 +30,7 @@ pub fn gateway(addr: u64, name: String, emu: &mut emu::Emu) {
         "winhttp.text" => winhttp::gateway(addr, emu),
         "dnsapi.text" => dnsapi::gateway(addr, emu),
         "comctl32.text" => comctl32::gateway(addr, emu),
+        "comctl64.text" => comctl64::gateway(addr, emu),
         "shell32.text" => shell32::gateway(addr, emu),
         "shlwapi.text" => shlwapi::gateway(addr, emu),
         "kernelbase.text" => kernelbase::gateway(addr, emu),
