@@ -43,6 +43,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "NtFlushInstructionCache" => NtFlushInstructionCache(emu),
         "LdrGetDllHandleEx" => LdrGetDllHandleEx(emu),
         "NtTerminateThread" => NtTerminateThread(emu),
+        "RtlAddFunctionTable" => RtlAddFunctionTable(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -952,4 +953,28 @@ fn NtTerminateThread(emu: &mut emu::Emu) {
     );
 
     emu.regs.rax = 0;
+}
+
+/*
+NTSYSAPI BOOLEAN RtlAddFunctionTable(
+  [in] PRUNTIME_FUNCTION FunctionTable,
+  [in] DWORD             EntryCount,
+  [in] DWORD64           BaseAddress
+);
+*/
+fn RtlAddFunctionTable(emu: &mut emu::Emu) {
+    let function_table = emu.regs.rcx;
+    let entry_count = emu.regs.rdx;
+    let base_address = emu.regs.r8;
+
+    log::info!(
+        "{}** {} ntdll!RtlAddFunctionTable {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+
+    // TODO: do something with it
+
+    emu.regs.rax = 1;
 }

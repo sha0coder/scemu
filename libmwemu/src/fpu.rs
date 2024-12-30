@@ -34,6 +34,19 @@ impl FPUState {
         }
     }
 
+    pub fn load(addr: u64, emu: &mut emu::Emu) -> FPUState {
+        let mut state = FPUState::new();
+        state.fpu_control_word = emu.maps.read_word(addr).unwrap();
+        state.fpu_status_word = emu.maps.read_word(addr + 2).unwrap();
+        state.fpu_tag_word = emu.maps.read_word(addr + 4).unwrap();
+        state.fpu_opcode = emu.maps.read_word(addr + 6).unwrap();
+        state.rip = emu.maps.read_qword(addr + 8).unwrap();
+        state.rdp = emu.maps.read_qword(addr + 16).unwrap();
+        state.mxcsr = emu.maps.read_dword(addr + 24).unwrap();
+        state.mxcsr_mask = emu.maps.read_dword(addr + 28).unwrap();
+        state
+    }
+
     pub fn save(&self, addr: u64, emu: &mut emu::Emu) {
         emu.maps.write_word(addr, self.fpu_control_word);          // FCW (offset 0)
         emu.maps.write_word(addr + 2, self.fpu_status_word);       // FSW (offset 2)
@@ -327,5 +340,23 @@ impl FPU {
         state.st = self.convert_st(self.st.clone());
         state.xmm = self.xmm.clone();
         return state;
+    }
+
+    pub fn fxrstor(&mut self, state: FPUState) {
+        self.fpu_control_word = state.fpu_control_word;
+        self.stat = state.fpu_status_word;
+        self.tag = state.fpu_tag_word;
+        self.opcode = state.fpu_opcode;
+        self.ip = state.rip;
+        self.operand_ptr = state.rdp;
+        self.mxcsr = state.mxcsr;
+        
+        // Convert the packed 128-bit ST registers back to f64 values
+        for i in 0..8 {
+            let low_bits = (state.st[i] & 0xFFFFFFFFFFFFFFFF) as u64;
+            self.st[i] = f64::from_bits(low_bits);
+        }
+        
+        self.xmm = state.xmm;
     }
 }
