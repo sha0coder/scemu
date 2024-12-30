@@ -3164,10 +3164,10 @@ int WideCharToMultiByte(
 );
 */
 fn WideCharToMultiByte(emu: &mut emu::Emu) {
-    let code_page = emu.regs.rcx as usize;
+    let code_page = emu.regs.rcx as u64;
     let dw_flags = emu.regs.rdx as usize;
     let lp_wide_char_str = emu.regs.r8 as usize;
-    let cch_wide_char = emu.regs.r9 as usize;
+    let cch_wide_char = emu.regs.r9 as isize;
     let lp_multi_byte_str = emu
         .maps
         .read_qword(emu.regs.rsp)
@@ -3197,11 +3197,62 @@ fn WideCharToMultiByte(emu: &mut emu::Emu) {
         lp_used_default_char
     );
 
-    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
-    if lp_multi_byte_str > 0 && s.len() > 0 {
-        emu.maps.write_string(lp_multi_byte_str, &s);
+    // 1. Input validation
+    if lp_wide_char_str == 0 {
+        emu.regs.rax = 0;
+        return;
     }
-    emu.regs.rax = s.len() as u64 + 2;
+
+    // 2. Handle special code pages
+    if code_page == constants::CP_UTF7 || code_page == constants::CP_UTF8 {
+        if lp_default_char != 0 || lp_used_default_char != 0 {
+            // Set last error to ERROR_INVALID_PARAMETER
+            let mut err = LAST_ERROR.lock().unwrap();
+            *err = constants::ERROR_INVALID_PARAMETER;
+            emu.regs.rax = 0;
+            return;
+        }
+    }
+
+    // 3. Read input string and get its length
+    let s = emu.maps.read_wide_string(lp_wide_char_str as u64);
+    let input_len = if cch_wide_char == -1 {
+        s.len()
+    } else {
+        cch_wide_char as usize
+    };
+
+    // 4. If this is just a size query
+    if cb_multi_byte == 0 {
+        emu.regs.rax = input_len as u64;
+        return;
+    }
+
+    // 5. Check output buffer size
+    if cb_multi_byte < input_len as u64 {
+        // Set last error to ERROR_INSUFFICIENT_BUFFER
+        let mut err = LAST_ERROR.lock().unwrap();
+        *err = constants::ERROR_INSUFFICIENT_BUFFER;
+        emu.regs.rax = 0;
+        return;
+    }
+
+    // 6. Perform the actual conversion
+    if lp_multi_byte_str > 0 && !s.is_empty() {
+        emu.maps.write_string(lp_multi_byte_str, &s);
+        
+        // Set used default char flag if requested
+        if lp_used_default_char != 0 {
+            emu.maps.write_byte(lp_used_default_char, 0); // For this simple implementation, assume no defaults needed
+        }
+    }
+
+    // 7. Return number of bytes written
+    emu.regs.rax = if cch_wide_char == -1 {
+        (s.len() + 1) as u64 // Include null terminator
+    } else {
+        s.len() as u64
+    };
 }
 
 /*

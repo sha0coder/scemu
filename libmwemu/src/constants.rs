@@ -19,6 +19,11 @@ pub const STATUS_ACCESS_VIOLATION: u64 = 0xC0000005;
 pub const STATUS_INVALID_PARAMETER: u64 = 0xC000000D;
 
 pub const ERROR_SUCCESS: u64 = 0;
+pub const ERROR_INVALID_PARAMETER: u64 = 0x57;
+pub const ERROR_INSUFFICIENT_BUFFER: u64 = 122;
+
+pub const CP_UTF7: u64 = 65000;
+pub const CP_UTF8: u64 = 65001;
 
 pub const NUM_BYTES_TRACE: usize = 16;
 pub const VERSION: u64 = 0x1db10106;
