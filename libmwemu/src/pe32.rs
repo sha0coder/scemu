@@ -916,17 +916,16 @@ impl PE32 {
         self.sect_hdr.len()
     }
 
-    pub fn get_section_ptr_by_name(&self, name: &str) -> &[u8] {
+    pub fn get_section_ptr_by_name(&self, name: &str) -> Option<&[u8]> {
         for i in 0..self.sect_hdr.len() {
             if self.sect_hdr[i].get_name() == name {
                 let off = self.sect_hdr[i].pointer_to_raw_data as usize;
                 let sz = self.sect_hdr[i].virtual_size as usize;
                 let section_ptr = &self.raw[off..off + sz];
-                return section_ptr;
+                return Some(section_ptr);
             }
         }
-        panic!("section name {} not found", name);
-        //return &[];
+        None
     }
 
     pub fn get_section(&self, id: usize) -> &ImageSectionHeader {
@@ -1166,6 +1165,11 @@ impl PE32 {
 
     pub fn get_resource_by_id(&self, id: u32) -> Option<&[u8]> {
         let rsrc = self.get_section_ptr_by_name(".rsrc");
+        if rsrc.is_none() {
+            return None;
+        }
+
+        let rsrc = rsrc.unwrap();
 
         let mut dir = structures::ImageResourceDirectory::new();
         dir.characteristics = read_u32_le!(rsrc, 0);
@@ -1209,6 +1213,11 @@ impl PE32 {
 
     pub fn get_resource_by_name(&self, name: &str) -> Option<&[u8]> {
         let rsrc = self.get_section_ptr_by_name(".rsrc");
+        if rsrc.is_none() {
+            return None;
+        }
+
+        let rsrc = rsrc.unwrap();
 
         let mut dir = structures::ImageResourceDirectory::new();
         dir.characteristics = read_u32_le!(rsrc, 0);

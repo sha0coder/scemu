@@ -630,6 +630,8 @@ impl Emu {
         let mut pe32 = PE32::load(filename);
         let base: u32;
 
+        pe32.get_resource_by_name("test");
+
         // 1. base logic
 
         // base is forced by libmwemu
