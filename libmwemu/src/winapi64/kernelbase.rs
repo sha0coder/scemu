@@ -11,6 +11,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
         "GetTokenInformation" => GetTokenInformation(emu),
         "GetFileVersionInfoSizeA" => GetFileVersionInfoSizeA(emu),
+        "GetFileVersionInfoA" => GetFileVersionInfoA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -90,11 +91,35 @@ DWORD GetFileVersionInfoSizeA(
 fn GetFileVersionInfoSizeA(emu: &mut emu::Emu) {
     let lptstr_filename = emu.regs.rcx as usize;
     let lpdw_handle = emu.regs.rdx as usize;
-    log_red!(emu, "** {} kernel32!GetFileVersionInfoSizeA lptstr_filename: 0x{:x} lpdw_handle: 0x{:x}", 
+    log_red!(emu, "** {} kernelbase!GetFileVersionInfoSizeA lptstr_filename: 0x{:x} lpdw_handle: 0x{:x}", 
         emu.pos,
         lptstr_filename,
         lpdw_handle
     );
     // TODO: just putting a rough number for now
     emu.regs.rax = 0x100;
+}
+
+/*
+BOOL GetFileVersionInfoA(
+  [in]  LPCSTR lptstrFilename,
+        DWORD  dwHandle,
+  [in]  DWORD  dwLen,
+  [out] LPVOID lpData
+);
+*/
+fn GetFileVersionInfoA(emu: &mut emu::Emu) {
+    let lptstr_filename = emu.regs.rcx as usize;
+    let dw_handle = emu.regs.rdx as usize;
+    let dw_len = emu.regs.rcx as usize;
+    let lp_data = emu.regs.r8 as usize;
+    log_red!(emu, "** {} kernelbase!GetFileVersionInfoA lptstr_filename: 0x{:x} dw_handle: 0x{:x} dw_len: 0x{:x} lp_data: 0x{:x}", 
+        emu.pos,
+        lptstr_filename,
+        dw_handle,
+        dw_len,
+        lp_data
+    );
+    // TODO: write to lp_data
+    emu.regs.rax = 1;
 }
