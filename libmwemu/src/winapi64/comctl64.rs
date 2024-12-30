@@ -19,5 +19,5 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         }
     }
 
-    String::new()
+    //String::new()
 }
