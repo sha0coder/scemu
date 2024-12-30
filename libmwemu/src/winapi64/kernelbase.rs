@@ -10,6 +10,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "PathCombineA" => PathCombineA(emu),
         "IsCharAlphaNumericA" => IsCharAlphaNumericA(emu),
         "GetTokenInformation" => GetTokenInformation(emu),
+        "GetFileVersionInfoSizeA" => GetFileVersionInfoSizeA(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -78,4 +79,22 @@ pub fn GetTokenInformation(emu: &mut emu::Emu) {
     );
 
     emu.regs.rax = 1;
+}
+
+/*
+DWORD GetFileVersionInfoSizeA(
+  [in]            LPCSTR  lptstrFilename,
+  [out, optional] LPDWORD lpdwHandle
+);
+*/
+fn GetFileVersionInfoSizeA(emu: &mut emu::Emu) {
+    let lptstr_filename = emu.regs.rcx as usize;
+    let lpdw_handle = emu.regs.rdx as usize;
+    log_red!(emu, "** {} kernel32!GetFileVersionInfoSizeA lptstr_filename: 0x{:x} lpdw_handle: 0x{:x}", 
+        emu.pos,
+        lptstr_filename,
+        lpdw_handle
+    );
+    // TODO: just putting a rough number for now
+    emu.regs.rax = 0x100;
 }

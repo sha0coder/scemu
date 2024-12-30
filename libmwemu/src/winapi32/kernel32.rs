@@ -10,17 +10,6 @@ use crate::winapi32::helper;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-macro_rules! log_red {
-    ($emu:expr, $($arg:tt)*) => {
-        log::info!(
-            "{}{}{}",
-            $emu.colors.light_red,
-            format!($($arg)*),
-            $emu.colors.nc
-        );
-    };
-}
-
 pub fn gateway(addr: u32, emu: &mut emu::Emu) -> String {
     let api = guess_api_name(emu, addr);
     match api.as_str() {

@@ -11,17 +11,6 @@ use crate::context64;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
 
-macro_rules! log_red {
-    ($emu:expr, $($arg:tt)*) => {
-        log::info!(
-            "{}{}{}",
-            $emu.colors.light_red,
-            format!($($arg)*),
-            $emu.colors.nc
-        );
-    };
-}
-
 // a in RCX, b in RDX, c in R8, d in R9, then e pushed on stack
 
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
@@ -3390,3 +3379,4 @@ fn LeaveCriticalSection(emu: &mut emu::Emu) {
 
     emu.regs.rax = crit_sect;
 }
+
