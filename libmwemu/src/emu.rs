@@ -513,7 +513,7 @@ impl Emu {
         winapi32::kernel32::load_library(self, "iphlpapi.dll");
         winapi32::kernel32::load_library(self, "ws2_32.dll");
         winapi32::kernel32::load_library(self, "advapi32.dll");
-        //winapi32::kernel32::load_library(self, "comctl64.dll");
+        //winapi32::kernel32::load_library(self, "comctl32.dll");
         winapi32::kernel32::load_library(self, "winhttp.dll");
         winapi32::kernel32::load_library(self, "wininet.dll");
         //winapi32::kernel32::load_library(self, "dnsapi.dll");
@@ -610,7 +610,7 @@ impl Emu {
         winapi64::kernel32::load_library(self, "iphlpapi.dll");
         winapi64::kernel32::load_library(self, "ws2_32.dll");
         winapi64::kernel32::load_library(self, "advapi32.dll");
-        winapi64::kernel32::load_library(self, "comctl64.dll");
+        winapi64::kernel32::load_library(self, "comctl32.dll");
         winapi64::kernel32::load_library(self, "winhttp.dll");
         winapi64::kernel32::load_library(self, "wininet.dll");
         winapi64::kernel32::load_library(self, "dnsapi.dll");
