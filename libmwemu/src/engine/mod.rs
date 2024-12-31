@@ -196,43 +196,36 @@ pub fn emulate_instruction(
 
             emu.show_instruction_ret(&emu.colors.yellow, ins, ret_addr);
 
-            if emu.run_until_ret {
-                return true; //TODO: fix this
-            }
-
             if emu.break_on_next_return {
                 emu.break_on_next_return = false;
                 Console::spawn_console(emu);
             }
 
             if ins.op_count() > 0 {
-                let mut arg = emu
+                let arg = emu
                     .get_operand_value(ins, 0, true)
                     .expect("weird crash on ret");
                 // apply stack compensation of ret operand
 
                 if emu.cfg.is_64bits {
                     if arg % 8 != 0 {
-                        panic!("weird ret argument!");
+                        log::info!("weird ret argument!");
+                        return false;
                     }
 
-                    arg /= 8;
-
-                    for _ in 0..arg {
-                        emu.stack_pop64(false);
-                    }
+                    emu.regs.rsp += arg;
                 } else {
                     if arg % 4 != 0 {
                         log::info!("weird ret argument!");
                         return false;
                     }
 
-                    arg /= 4;
-
-                    for _ in 0..arg {
-                        emu.stack_pop32(false);
-                    }
+                    emu.regs.set_esp(emu.regs.get_esp() + arg);
                 }
+            }
+
+            if emu.run_until_ret {
+                return true; 
             }
 
             if emu.eh_ctx != 0 {
@@ -2769,9 +2762,11 @@ pub fn emulate_instruction(
             if emu.rep.is_some() {
                 if emu.rep.unwrap() == 0 || emu.cfg.verbose >= 3 {
                     emu.show_instruction(&emu.colors.light_cyan, ins);
+                    log::info!("    rdi: 0x{:x}", emu.regs.rdi);
                 }
             } else {
                 emu.show_instruction(&emu.colors.light_cyan, ins);
+                log::info!("    rdi: 0x{:x}", emu.regs.rdi);
             }
 
             if emu.cfg.is_64bits {

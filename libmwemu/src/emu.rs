@@ -630,7 +630,9 @@ impl Emu {
         let mut pe32 = PE32::load(filename);
         let base: u32;
 
-        pe32.get_resource_by_name("test");
+        if set_entry {
+            pe32.get_resource_by_name("test");
+        }
 
         // 1. base logic
 
@@ -3397,6 +3399,9 @@ impl Emu {
                     /*************************************/
 
                     if let Some(rep_count) = self.rep {
+                        if self.cfg.verbose >= 3 {
+                            log::info!("    rcx: {}", self.regs.rcx);
+                        }
                         if self.regs.rcx > 0 {
                             self.regs.rcx -= 1;
                             if self.regs.rcx == 0 {

@@ -1181,6 +1181,7 @@ impl PE32 {
 
         let entries = dir.number_of_named_entries + dir.number_of_id_entries;
 
+
         for i in 0..entries {
             let mut entry = structures::ImageResourceDirectoryEntry::new();
             entry.name_or_id = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size());
@@ -1229,6 +1230,7 @@ impl PE32 {
 
         let entries = dir.number_of_named_entries + dir.number_of_id_entries;
 
+        log::info!("entries: {}", entries);
         for i in 0..entries {
             let mut entry = structures::ImageResourceDirectoryEntry::new();
             entry.name_or_id = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size());
