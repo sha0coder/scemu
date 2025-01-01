@@ -630,9 +630,12 @@ impl Emu {
         let mut pe32 = PE32::load(filename);
         let base: u32;
 
+        /* .rsrc extraction tests
         if set_entry {
-            pe32.get_resource_by_name("test");
-        }
+            println!("get_resource_by_id");
+            pe32.get_resource_by_id(0x10);
+            pe32.get_resource_by_id(0x18);
+        }*/
 
         // 1. base logic
 

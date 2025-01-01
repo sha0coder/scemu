@@ -1181,6 +1181,7 @@ impl PE32 {
 
         let entries = dir.number_of_named_entries + dir.number_of_id_entries;
 
+        log::info!("entries: {}", entries);
 
         for i in 0..entries {
             let mut entry = structures::ImageResourceDirectoryEntry::new();
@@ -1188,24 +1189,51 @@ impl PE32 {
             entry.data_or_directory = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size() + 4);
 
             if entry.is_name() {
+                log::info!("is_name: name: {} data: {:x} {}", entry.get_name_or_id(), entry.get_offset(), entry.is_directory());
                 continue;
             }
 
-            let off2 = PE32::vaddr_to_off(&self.sect_hdr, entry.get_offset() as u32) as usize;
+            log::info!("id: {}", entry.get_name_or_id());
             if id == entry.get_name_or_id() {
+                log::info!("id == entry.get_name_or_id()");
+
+                let mut entry2:structures::ImageResourceDirectoryEntry;
 
                 if entry.is_directory() {
-                    unimplemented!("resource directory");
-                } else {
-                    let mut data_entry = structures::ImageResourceDataEntry32::new();
-                    data_entry.offset_to_data = read_u32_le!(self.raw, off2);
-                    data_entry.size = read_u32_le!(self.raw, off2 + 4);
-                    data_entry.code_page = read_u32_le!(self.raw, off2 + 8);
-                    data_entry.reserved = read_u32_le!(self.raw, off2 + 12);
-
-                    let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32) as usize;
-                    return Some(&self.raw[data_off..data_off + data_entry.size as usize]);
+                    let mut max_levels = 10;
+                    loop { 
+                        entry2 = structures::ImageResourceDirectoryEntry::new();
+                        entry2.name_or_id = read_u32_le!(rsrc, entry.get_offset() as usize);
+                        entry2.data_or_directory = read_u32_le!(rsrc, entry.get_offset() as usize + 4);
+                        if entry2.get_name_or_id() == 0 && entry2.get_offset() == 0 {
+                            println!("return1");
+                            return None; // the found id end up pointing to a zero entry.
+                        }
+                        if entry2.is_directory() {
+                            entry = entry2;
+                            max_levels -= 1;
+                            if max_levels == 0 {
+                                return None;
+                            }
+                            continue;
+                        }
+                        break;
+                    }
+                    entry = entry2;
                 }
+                let off2 = PE32::vaddr_to_off(&self.sect_hdr, entry.get_offset() as u32) as usize;
+
+                log::info!("data_entry");
+                let mut data_entry = structures::ImageResourceDataEntry32::new();
+                data_entry.offset_to_data = read_u32_le!(self.raw, off2);
+                data_entry.size = read_u32_le!(self.raw, off2 + 4);
+                data_entry.code_page = read_u32_le!(self.raw, off2 + 8);
+                data_entry.reserved = read_u32_le!(self.raw, off2 + 12);
+
+                log::info!("data_entry: {:x} {:x}", data_entry.offset_to_data, data_entry.size);
+
+                let data_off = PE32::vaddr_to_off(&self.sect_hdr, data_entry.offset_to_data as u32) as usize;
+                return Some(&self.raw[data_off..data_off + data_entry.size as usize]);
             }
         }
 
@@ -1237,7 +1265,7 @@ impl PE32 {
             entry.data_or_directory = read_u32_le!(rsrc, i as usize * 8 + structures::ImageResourceDirectory::size() + 4);
 
             if entry.is_id() {
-                log::info!("id: {} data: {:x}", entry.get_name_or_id(), entry.get_offset());
+                log::info!("id: {} data: {:x} {}", entry.get_name_or_id(), entry.get_offset(), entry.is_directory());
                 continue;
             }
 

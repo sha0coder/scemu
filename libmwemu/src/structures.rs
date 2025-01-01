@@ -2247,6 +2247,7 @@ impl ImageResourceDirectory {
     }
 }
 
+#[derive(Debug)]
 pub struct ImageResourceDirectoryEntry {
     pub name_or_id: u32,
     pub data_or_directory: u32,
@@ -2262,6 +2263,10 @@ impl ImageResourceDirectoryEntry {
 
     pub fn size() -> usize {
         8
+    }
+
+    pub fn print(&self) {
+        log::info!("name_or_id: {:x} data_or_directory: {:x}", self.name_or_id, self.data_or_directory);
     }
 
     pub fn is_name(&self) -> bool {
