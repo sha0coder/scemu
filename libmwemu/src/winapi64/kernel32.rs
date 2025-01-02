@@ -164,8 +164,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GlobalAddAtomA" => GlobalAddAtomA(emu),
         "FindResourceA" => FindResourceA(emu),
         "FindResourceW" => FindResourceW(emu),
-        //"LoadResource" => LoadResource(emu),
-
+        "LoadResource" => LoadResource(emu),
+        "SizeofResource" => SizeofResource(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -3402,28 +3402,25 @@ fn FindResourceA(emu: &mut emu::Emu) {
     if lpName > 0xff && lpType > 0xff {
         let name = emu.maps.read_string(lpName as u64);
         let ntype = emu.maps.read_string(lpType as u64);
-        log_red!(emu, "** {} kernel32!FindResourceA `{}` `{}`", emu.pos, name, ntype);
+        log_red!(emu, "** {} kernel32!FindResourceA {:x} `{}` `{}`", emu.pos, handle, name, ntype);
 
         x = emu.pe64.as_ref().unwrap().get_resource(None, None, Some(&name), Some(&ntype));
     } else if lpName > 0xff && lpType <= 0xff {
         let name = emu.maps.read_string(lpName as u64);
-        log_red!(emu, "** {} kernel32!FindResourceA `{}` {}", emu.pos, name, lpType);
+        log_red!(emu, "** {} kernel32!FindResourceA {:x} `{}` {}", emu.pos, handle, name, lpType);
 
         x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), None, Some(&name), None);
     } else if lpName <= 0xff && lpType > 0xff {
         let ntype = emu.maps.read_string(lpType as u64);
+        log_red!(emu, "** {} kernel32!FindResourceA {:x} `{}` {}", emu.pos, handle, lpName, ntype);
 
         x = emu.pe64.as_ref().unwrap().get_resource(None, Some(lpName as u32), None, Some(&ntype));
     } else if lpName <= 0xff && lpType <= 0xff {
-        log_red!(emu, "** {} kernel32!FindResourceA `{}` {}", emu.pos, lpName, lpType);
+        log_red!(emu, "** {} kernel32!FindResourceA {:x} `{}` {}", emu.pos, handle, lpName, lpType);
 
         x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), Some(lpName as u32), None, None);
     } else {
         unreachable!();
-    }
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
     }
 
     if x.is_none() {
@@ -3452,28 +3449,25 @@ fn FindResourceW(emu: &mut emu::Emu) {
     if lpName > 0xff && lpType > 0xff {
         let name = emu.maps.read_wide_string(lpName as u64);
         let ntype = emu.maps.read_wide_string(lpType as u64);
-        log_red!(emu, "** {} kernel32!FindResourceW `{}` `{}`", emu.pos, name, ntype);
+        log_red!(emu, "** {} kernel32!FindResourceW {:x} `{}` `{}`", emu.pos, handle, name, ntype);
 
         x = emu.pe64.as_ref().unwrap().get_resource(None, None, Some(&name), Some(&ntype));
     } else if lpName > 0xff && lpType <= 0xff {
         let name = emu.maps.read_wide_string(lpName as u64);
-        log_red!(emu, "** {} kernel32!FindResourceW `{}` {}", emu.pos, name, lpType);
+        log_red!(emu, "** {} kernel32!FindResourceW {:x} `{}` {}", emu.pos, handle, name, lpType);
 
         x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), None, Some(&name), None);
     } else if lpName <= 0xff && lpType > 0xff {
         let ntype = emu.maps.read_wide_string(lpType as u64);
+        log_red!(emu, "** {} kernel32!FindResourceW {:x} `{}` {}", emu.pos, handle, lpName, ntype);
 
         x = emu.pe64.as_ref().unwrap().get_resource(None, Some(lpName as u32), None, Some(&ntype));
     } else if lpName <= 0xff && lpType <= 0xff {
-        log_red!(emu, "** {} kernel32!FindResourceW `{}` {}", emu.pos, lpName, lpType);
+        log_red!(emu, "** {} kernel32!FindResourceW {:x} `{}` {}", emu.pos, handle, lpName, lpType);
 
         x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), Some(lpName as u32), None, None);
     } else {
         unreachable!();
-    }
-
-    for _ in 0..3 {
-        emu.stack_pop32(false);
     }
 
     if x.is_none() {
@@ -3489,4 +3483,30 @@ fn FindResourceW(emu: &mut emu::Emu) {
 
     emu.regs.rax = hndl;
 
+}
+
+fn LoadResource(emu: &mut emu::Emu) {
+    let hModule = emu.regs.rcx;
+    let hResInfo = emu.regs.rdx as u64;
+
+    log_red!(emu, "** {} kernel32!LoadResource {:x} {:x}", emu.pos, hModule, hResInfo);
+
+    emu.regs.rax = hResInfo;
+}
+
+fn SizeofResource(emu: &mut emu::Emu) {
+    let hModule = emu.regs.rcx;
+    let hResInfo = emu.regs.rdx as u64;
+
+    if helper::handler_exist(hResInfo) {
+        let uri = helper::handler_get_uri(hResInfo);
+        let size = uri.split("_").last().unwrap().parse::<usize>().unwrap();
+        log::info!("** {} kernel32!SizeofResource {:x} {:x} size: {}", emu.pos, hModule, hResInfo, size);
+        emu.regs.rax = size as u64;
+        return;
+    }
+
+    log_red!(emu, "** {} kernel32!SizeofResource {:x} {:x} not found", emu.pos, hModule, hResInfo);
+
+    emu.regs.rax = 0;
 }
