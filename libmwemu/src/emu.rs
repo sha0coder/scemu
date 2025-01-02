@@ -95,6 +95,7 @@ pub struct Emu {
     pub rep: Option<u64>,
     pub tick: usize,
     pub trace_file: Option<File>,
+    pub base: u64,
 }
 
 impl Default for Emu {
@@ -158,7 +159,8 @@ impl Emu {
             memory_operations: vec![],
             rep: None,
             tick: 0,
-            trace_file: None
+            trace_file: None,
+            base: 0,
         }
     }
 
@@ -633,8 +635,7 @@ impl Emu {
         /* .rsrc extraction tests
         if set_entry {
             println!("get_resource_by_id");
-            pe32.get_resource_by_id(0x10);
-            pe32.get_resource_by_id(0x18);
+            pe32.get_resource(Some(3), Some(0), None, None);
         }*/
 
         // 1. base logic
@@ -689,6 +690,7 @@ impl Emu {
             if !is_maps {
                 pe32.iat_binding(self);
                 pe32.delay_load_binding(self);
+                self.base = base as u64;
             }
 
             // 3. entry point logic
@@ -831,6 +833,7 @@ impl Emu {
             if !is_maps {
                 pe64.iat_binding(self);
                 pe64.delay_load_binding(self);
+                self.base = base;
             }
 
             // 3. entry point logic

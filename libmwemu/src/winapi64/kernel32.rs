@@ -162,6 +162,9 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "EnterCriticalSection" => EnterCriticalSection(emu),
         "LeaveCriticalSection" => LeaveCriticalSection(emu),
         "GlobalAddAtomA" => GlobalAddAtomA(emu),
+        "FindResourceA" => FindResourceA(emu),
+        "FindResourceW" => FindResourceW(emu),
+        //"LoadResource" => LoadResource(emu),
 
         _ => {
             if emu.cfg.skip_unimplemented == false {
@@ -3386,4 +3389,104 @@ fn GlobalAddAtomA(emu: &mut emu::Emu) {
     );
     // TODO: not sure what to do
     emu.regs.rax = 1;
+}
+
+
+fn FindResourceA(emu: &mut emu::Emu) {
+    let handle = emu.regs.rcx as usize;
+    let lpName = emu.regs.rdx as usize;
+    let lpType = emu.regs.r8 as usize;
+
+    let x:Option<(u64, usize)>;
+
+    if lpName > 0xff && lpType > 0xff {
+        let name = emu.maps.read_string(lpName as u64);
+        let ntype = emu.maps.read_string(lpType as u64);
+        log_red!(emu, "** {} kernel32!FindResourceA `{}` `{}`", emu.pos, name, ntype);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(None, None, Some(&name), Some(&ntype));
+    } else if lpName > 0xff && lpType <= 0xff {
+        let name = emu.maps.read_string(lpName as u64);
+        log_red!(emu, "** {} kernel32!FindResourceA `{}` {}", emu.pos, name, lpType);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), None, Some(&name), None);
+    } else if lpName <= 0xff && lpType > 0xff {
+        let ntype = emu.maps.read_string(lpType as u64);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(None, Some(lpName as u32), None, Some(&ntype));
+    } else if lpName <= 0xff && lpType <= 0xff {
+        log_red!(emu, "** {} kernel32!FindResourceA `{}` {}", emu.pos, lpName, lpType);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), Some(lpName as u32), None, None);
+    } else {
+        unreachable!();
+    }
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
+
+    if x.is_none() {
+        log::info!("{} resource not found!", emu.pos);
+        emu.regs.rax = 0;
+        return;
+    }
+
+    let (addr, size) = x.unwrap();
+
+
+    log::info!("resource addr: 0x{:x} sz: {}", addr, size);
+    let hndl = helper::handler_create(&format!("rsrc://{:x}", addr));
+
+    emu.regs.rax = hndl;
+
+}
+
+fn FindResourceW(emu: &mut emu::Emu) {
+    let handle = emu.regs.rcx as usize;
+    let lpName = emu.regs.rdx as usize;
+    let lpType = emu.regs.r8 as usize;
+
+    let x:Option<(u64, usize)>;
+
+    if lpName > 0xff && lpType > 0xff {
+        let name = emu.maps.read_wide_string(lpName as u64);
+        let ntype = emu.maps.read_wide_string(lpType as u64);
+        log_red!(emu, "** {} kernel32!FindResourceW `{}` `{}`", emu.pos, name, ntype);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(None, None, Some(&name), Some(&ntype));
+    } else if lpName > 0xff && lpType <= 0xff {
+        let name = emu.maps.read_wide_string(lpName as u64);
+        log_red!(emu, "** {} kernel32!FindResourceW `{}` {}", emu.pos, name, lpType);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), None, Some(&name), None);
+    } else if lpName <= 0xff && lpType > 0xff {
+        let ntype = emu.maps.read_wide_string(lpType as u64);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(None, Some(lpName as u32), None, Some(&ntype));
+    } else if lpName <= 0xff && lpType <= 0xff {
+        log_red!(emu, "** {} kernel32!FindResourceW `{}` {}", emu.pos, lpName, lpType);
+
+        x = emu.pe64.as_ref().unwrap().get_resource(Some(lpType as u32), Some(lpName as u32), None, None);
+    } else {
+        unreachable!();
+    }
+
+    for _ in 0..3 {
+        emu.stack_pop32(false);
+    }
+
+    if x.is_none() {
+        log::info!("{} resource not found!", emu.pos);
+        emu.regs.rax = 0;
+        return;
+    }
+
+    let (addr, size) = x.unwrap();
+
+    log::info!("resource addr: 0x{:x} sz: {}", addr, size);
+    let hndl = helper::handler_create(&format!("rsrc://{:x}", addr));
+
+    emu.regs.rax = hndl;
+
 }

@@ -214,6 +214,7 @@ pub struct SerializableEmu {
     pub pe32: Option<SerializablePE32>,
     pub rep: Option<u64>,
     pub tick: usize,
+    pub base: u64,
 }
 
 impl From<SerializableFPU> for FPU {
@@ -312,6 +313,7 @@ impl<'a> From<&'a Emu> for SerializableEmu {
                 pe32: emu.pe32.as_ref().map(|x| x.into()),
                 rep: emu.rep,
                 tick: emu.tick,
+                base: emu.base,
         }
     }
 }   
@@ -379,6 +381,7 @@ impl From<SerializableEmu> for Emu {
             rep: serialized.rep,
             tick: serialized.tick,
             trace_file: trace_file,
+            base: serialized.base,
         }
     }
 }
