@@ -5130,7 +5130,7 @@ fn FindResourceA(emu: &mut emu::Emu) {
 
 
     log::info!("resource addr: 0x{:x} sz: {}", addr, size);
-    let hndl = helper::handler_create(&format!("rsrc://{:x}", addr));
+    let hndl = helper::handler_create(&format!("rsrc://{:x}_{}", addr, size));
 
     emu.regs.rax = hndl;
 
@@ -5179,7 +5179,7 @@ fn FindResourceW(emu: &mut emu::Emu) {
     let (addr, size) = x.unwrap();
 
     log::info!("resource addr: 0x{:x} sz: {}", addr, size);
-    let hndl = helper::handler_create(&format!("rsrc://{:x}", addr));
+    let hndl = helper::handler_create(&format!("rsrc://{:x}_{}", addr, size));
 
     emu.regs.rax = hndl;
 
