@@ -166,6 +166,8 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "FindResourceW" => FindResourceW(emu),
         "LoadResource" => LoadResource(emu),
         "SizeofResource" => SizeofResource(emu),
+        "LockResource" => LockResource(emu),
+        "FreeResource" => FreeResource(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -3509,4 +3511,30 @@ fn SizeofResource(emu: &mut emu::Emu) {
     log_red!(emu, "** {} kernel32!SizeofResource {:x} {:x} not found", emu.pos, hModule, hResInfo);
 
     emu.regs.rax = 0;
+}
+
+fn LockResource(emu: &mut emu::Emu) {
+    let hResData = emu.regs.rcx;
+
+    if helper::handler_exist(hResData) {
+        let uri = helper::handler_get_uri(hResData);
+        let ptr = uri.split("_").next().unwrap().parse::<u64>().unwrap() + emu.base as u64;
+
+        log_red!(emu, "** {} kernel32!LockResource {:x} {:x}", emu.pos, hResData, ptr);
+        emu.regs.rax = ptr;
+        return;
+    }
+
+    log_red!(emu, "** {} kernel32!LockResource {:x} not found", emu.pos, hResData);
+
+    emu.regs.rax = 0;
+}
+
+fn FreeResource(emu: &mut emu::Emu) {
+    let hResData = emu.regs.rcx;
+
+    log_red!(emu, "** {} kernel32!FreeResource {:x}", emu.pos, hResData);
+    helper::handler_close(hResData);
+
+    emu.regs.rax = 1;
 }
