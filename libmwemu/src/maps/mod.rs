@@ -163,10 +163,10 @@ impl Maps {
 
         if self.banzai {
             log::info!("writing byte on non mapped zone 0x{:x}", addr);
-            false
-        } else {
-            panic!("writing byte on non mapped zone 0x{:x}", addr);
+            return false;
         }
+
+        panic!("writing byte on non mapped zone 0x{:x}", addr);
     }
 
     pub fn write_bytes(&mut self, addr: u64, data: Vec<u8>) {
@@ -344,7 +344,13 @@ impl Maps {
                 return Some(mem.read_byte(addr));
             }
         }
-        None
+
+        if self.banzai {
+            log::warn!("reading byte on non mapped zone 0x{:x}", addr);
+            return None;
+        }
+
+        panic!("reading byte on non mapped zone 0x{:x}", addr);
     }
 
     pub fn get_mem_ref(&self, name: &str) -> &Mem64 {
