@@ -32,6 +32,7 @@ if [ "$MODE" == "dump" ]; then
         --64bits \
         --rdx 1 \
         --exit 227958435
+    python scripts/combine-dumps.py maps-dump/surprise-combined-output.bin maps-dump/*-surprise*
 elif [ "$MODE" == "load" ]; then
     cargo run \
         -p mwemu \
