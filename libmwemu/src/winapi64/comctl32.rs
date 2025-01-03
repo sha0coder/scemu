@@ -5,6 +5,8 @@ use crate::winapi64;
 pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
     let api = winapi64::kernel32::guess_api_name(emu, addr);
     match api.as_str() {
+        "InitCommonControls" => InitCommonControls(emu),
+        "InitCommonControlsEx" => InitCommonControlsEx(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -17,4 +19,34 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
             return api;
         }
     }
+    String::new()
+}
+
+/*
+void InitCommonControls();
+*/
+fn InitCommonControls(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} comctl32!InitCommonControls {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do something
+}   
+
+/*
+BOOL InitCommonControlsEx(
+  [in] const INITCOMMONCONTROLSEX *piccs
+);
+*/
+fn InitCommonControlsEx(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} comctl32!InitCommonControlsEx {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do something
+    emu.regs.rax = 1; // TRUE
 }
