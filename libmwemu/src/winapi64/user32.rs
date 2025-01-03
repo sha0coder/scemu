@@ -9,6 +9,10 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "GetDesktopWindow" => GetDesktopWindow(emu),
         "GetSystemMetrics" => GetSystemMetrics(emu),
         "SystemParametersInfoA" => SystemParametersInfoA(emu),
+        "LoadIconA" => LoadIconA(emu),
+        "LoadCursorA" => LoadCursorA(emu),
+        "RegisterClassA" => RegisterClassA(emu),
+        "RegisterClassW" => RegisterClassW(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -85,3 +89,68 @@ fn SystemParametersInfoA(emu: &mut emu::Emu) {
     emu.regs.rax = 1;
 }
 
+/*
+HICON LoadIconA(
+[in, optional] HINSTANCE hInstance,
+[in]           LPCSTR    lpIconName
+);
+*/
+fn LoadIconA(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} user32!LoadIconA {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do not return null
+    emu.regs.rax = 0;
+}
+
+/*
+HCURSOR LoadCursorA(
+  [in, optional] HINSTANCE hInstance,
+  [in]           LPCSTR    lpCursorName
+);
+*/
+fn LoadCursorA(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} user32!LoadCursorA {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do not return null
+    emu.regs.rax = 0;
+}
+
+/*
+ATOM RegisterClassA(
+  [in] const WNDCLASSA *lpWndClass
+);
+*/
+fn RegisterClassA(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} user32!RegisterClassA {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do not return null
+    emu.regs.rax = 0;
+}
+
+/*
+ATOM RegisterClassW(
+  [in] const WNDCLASSW *lpWndClass
+);
+*/
+fn RegisterClassW(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} user32!RegisterClassW {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    // TODO: do not return null
+    emu.regs.rax = 0;
+}
