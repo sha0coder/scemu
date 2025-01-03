@@ -1195,7 +1195,11 @@ impl PE32 {
                     println!("name_id matched");
                     matched = true;
                 } else {
-                    matched = false;
+                    if level > 1 {
+                        matched = true;
+                    } else {
+                        matched = false;
+                    }
                 }
             } else {
                 if level == 0 && type_name.is_some() && type_name.unwrap() == self.get_resource_name(&entry) {
@@ -1205,7 +1209,11 @@ impl PE32 {
                     println!("name matched");
                     matched = true;
                 } else {
-                    matched = false;
+                    if level > 1 {
+                        matched = true;
+                    } else {
+                        matched = false;
+                    }
                 }
             }
 
