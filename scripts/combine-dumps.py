@@ -1,3 +1,5 @@
+# example: python scripts/combine-dumps.py dumps/surprise-combined-output.bin dumps/*-surprise*
+
 import os
 import sys
 from pathlib import Path
