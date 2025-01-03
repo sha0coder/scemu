@@ -160,10 +160,13 @@ impl Maps {
                 return true;
             }
         }
-        
-        // TODO: panic if not in banzai mode?
-        log::info!("writing byte on non mapped zone 0x{:x}", addr);
-        false
+
+        if self.banzai {
+            log::info!("writing byte on non mapped zone 0x{:x}", addr);
+            false
+        } else {
+            panic!("writing byte on non mapped zone 0x{:x}", addr);
+        }
     }
 
     pub fn write_bytes(&mut self, addr: u64, data: Vec<u8>) {
