@@ -30,8 +30,7 @@ if [ "$MODE" == "dump" ]; then
         --filename ~/Desktop/enigma/surprise.dll \
         --maps ./maps64/ \
         --64bits \
-        --rdx 1 \
-        --exit 227958435
+        --rdx 1
     python scripts/combine-dumps.py dumps/surprise-combined-output.bin dumps/*-surprise*
 elif [ "$MODE" == "load" ]; then
     cargo run \
