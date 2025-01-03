@@ -1131,6 +1131,16 @@ impl Maps {
         }
     }
 
+    pub fn save_all(&mut self, path: String) {
+        for mem in self.maps.iter() {
+            let mut ppath = path.clone();
+            ppath.push('/');
+            ppath.push_str(&mem.get_name());
+            ppath.push_str(".bin");
+            mem.save(mem.get_base(), mem.size(), ppath);
+        }
+    }
+
     pub fn save(&mut self, addr: u64, size: u64, filename: String) {
         //TODO: return a boolean or option.
         match self.get_mem_by_addr(addr) {
