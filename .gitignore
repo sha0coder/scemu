@@ -8,5 +8,4 @@ x
 *.idb
 test/
 .venv/
-emu.bin
-emu.bin*
+dumps/

@@ -292,7 +292,7 @@ impl Mem64 {
             return;
         }
 
-        let mut f = match File::create(filename) {
+        let mut f = match File::create(&filename) {
             Ok(f) => f,
             Err(e) => {
                 log::info!("cannot create the file {}", e);
@@ -303,7 +303,7 @@ impl Mem64 {
         let blob = self.mem.get(idx..sz2).unwrap();
 
         match f.write_all(blob) {
-            Ok(_) => log::info!("saved."),
+            Ok(_) => log::info!("saved. addr: 0x{:x} size: {} filename: {}", addr, size, filename),
             Err(_) => log::info!("couldn't save the file"),
         }
 

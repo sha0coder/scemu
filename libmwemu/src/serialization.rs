@@ -400,12 +400,17 @@ impl Serialization {
     }
 
     pub fn dump_to_file(emu: &Emu, filename: &str) {
+        std::fs::create_dir_all("./dumps/").unwrap();
+
         let serialized = SerializableEmu::from(emu);
         let data = bitcode::serialize(&serialized).unwrap();
         let mut file = File::create(filename).unwrap();
         file.write_all(&data).unwrap();
         file.flush().unwrap();
         drop(file);
+
+        // for binary analysis
+        emu.maps.save_all("./dumps".to_string());
     }
 
     pub fn load_from_file(filename: &str) -> Emu {

@@ -237,10 +237,12 @@ impl Emu {
 
     pub fn enable_banzai(&mut self) {
         self.cfg.skip_unimplemented = true;
+        self.maps.set_banzai(true);
     }
 
     pub fn disable_banzai(&mut self) {
         self.cfg.skip_unimplemented = false;
+        self.maps.set_banzai(false);
     }
 
     pub fn banzai_add(&mut self, name: &str, nparams: i32) {

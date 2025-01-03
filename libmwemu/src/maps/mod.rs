@@ -7,6 +7,7 @@ use std::str;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Maps {
+    pub banzai: bool,
     pub maps: Vec<Mem64>,
     pub is_64bits: bool,
 }
@@ -22,7 +23,12 @@ impl Maps {
         Maps {
             maps: Vec::new(),
             is_64bits: false,
+            banzai: false,
         }
+    }
+
+    pub fn set_banzai(&mut self, banzai: bool) {
+        self.banzai = banzai;
     }
 
     pub fn clear(&mut self) {
@@ -154,8 +160,13 @@ impl Maps {
                 return true;
             }
         }
-        log::info!("writing byte on non mapped zone 0x{:x}", addr);
-        false
+
+        if self.banzai {
+            log::info!("writing byte on non mapped zone 0x{:x}", addr);
+            false
+        } else {
+            panic!("writing byte on non mapped zone 0x{:x}", addr);
+        }
     }
 
     pub fn write_bytes(&mut self, addr: u64, data: Vec<u8>) {
@@ -1131,11 +1142,11 @@ impl Maps {
         }
     }
 
-    pub fn save_all(&mut self, path: String) {
+    pub fn save_all(&self, path: String) {
         for mem in self.maps.iter() {
             let mut ppath = path.clone();
             ppath.push('/');
-            ppath.push_str(&mem.get_name());
+            ppath.push_str(&format!("{:08x}-{}", mem.get_base(), mem.get_name()));
             ppath.push_str(".bin");
             mem.save(mem.get_base(), mem.size(), ppath);
         }
