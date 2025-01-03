@@ -30,8 +30,7 @@ if [ "$MODE" == "dump" ]; then
         --filename ~/Desktop/enigma/surprise.dll \
         --maps ./maps64/ \
         --64bits \
-        --rdx 1 \
-        --exit 232239501
+        --rdx 1 
 elif [ "$MODE" == "load" ]; then
     cargo run \
         -p mwemu \
@@ -41,8 +40,7 @@ elif [ "$MODE" == "load" ]; then
         --filename ~/Desktop/enigma/surprise.dll \
         --maps ./maps64/ \
         --64bits \
-        --dump emu.bin.bak \
-        --banzai
+        --dump emu.bin 
 else
     echo "Error: Invalid mode. Use 'dump' or 'load'"
     exit 1
