@@ -7,6 +7,7 @@ use std::str;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Maps {
+    pub banzai: bool,
     pub maps: Vec<Mem64>,
     pub is_64bits: bool,
 }
@@ -22,7 +23,12 @@ impl Maps {
         Maps {
             maps: Vec::new(),
             is_64bits: false,
+            banzai: false,
         }
+    }
+
+    pub fn set_banzai(&mut self, banzai: bool) {
+        self.banzai = banzai;
     }
 
     pub fn clear(&mut self) {
@@ -154,6 +160,8 @@ impl Maps {
                 return true;
             }
         }
+        
+        // TODO: panic if not in banzai mode?
         log::info!("writing byte on non mapped zone 0x{:x}", addr);
         false
     }

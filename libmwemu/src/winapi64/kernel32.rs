@@ -168,6 +168,7 @@ pub fn gateway(addr: u64, emu: &mut emu::Emu) -> String {
         "SizeofResource" => SizeofResource(emu),
         "LockResource" => LockResource(emu),
         "FreeResource" => FreeResource(emu),
+        "GetEnvironmentStringsW" => GetEnvironmentStringsW(emu),
         _ => {
             if emu.cfg.skip_unimplemented == false {
                 if emu.cfg.dump_on_exit && emu.cfg.dump_filename.is_some() {
@@ -3537,4 +3538,17 @@ fn FreeResource(emu: &mut emu::Emu) {
     helper::handler_close(hResData);
 
     emu.regs.rax = 1;
+}
+
+fn GetEnvironmentStringsW(emu: &mut emu::Emu) {
+    log::info!(
+        "{}** {} kernel32!GetEnvironmentStringsW {}",
+        emu.colors.light_red,
+        emu.pos,
+        emu.colors.nc
+    );
+    let addr = emu.alloc("environment", 1024);
+    emu.maps
+        .write_wide_string(addr, "PATH=c:\\Windows\\System32");
+    emu.regs.rax = addr;
 }

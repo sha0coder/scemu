@@ -209,6 +209,7 @@ fn main() {
     // banzai
     if matches.is_present("banzai") {
         emu.cfg.skip_unimplemented = true;
+        emu.maps.set_banzai(true);
     }
 
     // maps

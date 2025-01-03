@@ -237,6 +237,7 @@ impl Emu {
     /// Enable banzai mode. This mode keep emulating after finding unimplemented instructions or apis.
     fn enable_banzai_mode(&mut self) {
         self.emu.cfg.skip_unimplemented = true;
+        self.emu.maps.set_banzai(true);
     }
 
     /// disable banzai mode.
