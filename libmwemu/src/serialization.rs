@@ -406,6 +406,10 @@ impl Serialization {
         file.write_all(&data).unwrap();
         file.flush().unwrap();
         drop(file);
+
+        // for binary analysis
+        std::fs::create_dir_all("./maps-dump/").unwrap();
+        emu.maps.save_all("./maps-dump/".to_string());
     }
 
     pub fn load_from_file(filename: &str) -> Emu {

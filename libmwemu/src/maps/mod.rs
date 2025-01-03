@@ -1131,11 +1131,11 @@ impl Maps {
         }
     }
 
-    pub fn save_all(&mut self, path: String) {
+    pub fn save_all(&self, path: String) {
         for mem in self.maps.iter() {
             let mut ppath = path.clone();
             ppath.push('/');
-            ppath.push_str(&mem.get_name());
+            ppath.push_str(&format!("{:x}-{}", mem.get_base(), mem.get_name()));
             ppath.push_str(".bin");
             mem.save(mem.get_base(), mem.size(), ppath);
         }
