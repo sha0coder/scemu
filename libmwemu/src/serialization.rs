@@ -400,6 +400,8 @@ impl Serialization {
     }
 
     pub fn dump_to_file(emu: &Emu, filename: &str) {
+        std::fs::create_dir_all("./dumps/").unwrap();
+
         let serialized = SerializableEmu::from(emu);
         let data = bitcode::serialize(&serialized).unwrap();
         let mut file = File::create(filename).unwrap();
@@ -408,9 +410,7 @@ impl Serialization {
         drop(file);
 
         // for binary analysis
-        std::fs::remove_dir_all("./maps-dump/").unwrap();
-        std::fs::create_dir_all("./maps-dump/").unwrap();
-        emu.maps.save_all("./maps-dump".to_string());
+        emu.maps.save_all("./dumps".to_string());
     }
 
     pub fn load_from_file(filename: &str) -> Emu {
