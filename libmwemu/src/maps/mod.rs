@@ -1135,7 +1135,7 @@ impl Maps {
         for mem in self.maps.iter() {
             let mut ppath = path.clone();
             ppath.push('/');
-            ppath.push_str(&format!("{:x}-{}", mem.get_base(), mem.get_name()));
+            ppath.push_str(&format!("{:08x}-{}", mem.get_base(), mem.get_name()));
             ppath.push_str(".bin");
             mem.save(mem.get_base(), mem.size(), ppath);
         }

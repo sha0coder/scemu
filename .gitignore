@@ -11,3 +11,4 @@ test/
 emu.bin
 emu.bin*
 emu*.bin
+maps-dump/
